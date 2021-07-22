@@ -1,6 +1,8 @@
 use sqlx::sqlite::SqlitePool;
 use std::{fmt, sync::Arc};
 
+pub trait HasPool {}
+
 pub struct Backend<T> {
     pub pool: Arc<T>,
 }
@@ -14,3 +16,5 @@ impl<T> Backend<T> {
 }
 
 pub type SqliteBackend = Backend<SqlitePool>;
+
+impl HasPool for SqliteBackend {}

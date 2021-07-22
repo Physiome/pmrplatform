@@ -7,7 +7,8 @@ use git2::{Repository, Blob, Commit, Object, ObjectType, Tree};
 use sqlx::sqlite::SqlitePool;
 use std::path::{Path, PathBuf};
 
-use crate::model::backend::SqliteBackend;
+// TODO HasPool trait name is iffy?
+use crate::model::backend::HasPool;
 use crate::model::workspace::{
     WorkspaceBackend,
     WorkspaceRecord,
@@ -18,11 +19,8 @@ use crate::model::workspace_sync::{
 };
 use crate::model::workspace_tag::WorkspaceTagBackend;
 
-// TODO encapsulate the standard set of argument as a struct?
-pub struct GitPmrAccessor {
-    // TODO instead of SqliteBackend, it should be impl WorkspaceBackend/etc
-    // TODO figure out if there's a way to group together the Workspace*Backend impls?
-    backend: SqliteBackend,
+pub struct GitPmrAccessor<P: HasPool> {
+    backend: P,
     git_root: PathBuf,
     workspace: WorkspaceRecord,
 }
@@ -148,12 +146,8 @@ pub fn stream_git_result_set_blob(writer: impl Write, git_result_set: &GitResult
     }
 }
 
-impl GitPmrAccessor {
-    // TODO have constructor that takes a workspace_id?
-    // not sure how to deal with async
-    pub fn new(backend: SqliteBackend, git_root: PathBuf, workspace: WorkspaceRecord) -> Self {
-        // TODO the SqliteBackend here is moved?
-        // figure out if we can make this a reference?
+impl<P: HasPool + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBackend> GitPmrAccessor<P> {
+    pub fn new(backend: P, git_root: PathBuf, workspace: WorkspaceRecord) -> Self {
         Self {
             backend: backend,
             git_root: git_root,
