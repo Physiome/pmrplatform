@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use sqlx::sqlite::SqlitePool;
 use std::fmt;
 
 use crate::model::backend::SqliteBackend;

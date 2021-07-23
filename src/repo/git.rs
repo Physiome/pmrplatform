@@ -1,10 +1,8 @@
-use async_trait::async_trait;
 use anyhow::bail;
 use futures::stream::StreamExt;
 use futures::stream::futures_unordered::FuturesUnordered;
 use std::io::Write;
 use git2::{Repository, Blob, Commit, Object, ObjectType, Tree};
-use sqlx::sqlite::SqlitePool;
 use std::path::{Path, PathBuf};
 
 // TODO HasPool trait name is iffy?
@@ -273,4 +271,69 @@ impl<'a, P: HasPool + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBack
         Ok(processor(&git_result_set))
     }
 
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use async_trait::async_trait;
+    use mockall::mock;
+    use mockall::predicate::*;
+    use tempfile::TempDir;
+
+    // use crate::model::backend::MockHasPool;
+    use crate::model::backend::HasPool;
+    use crate::model::workspace_tag::WorkspaceTagRecord;
+    use crate::model::workspace_sync::WorkspaceSyncRecord;
+
+    mock! {
+        Backend {}
+        impl HasPool for Backend {}
+
+        #[async_trait]
+        impl WorkspaceTagBackend for Backend {
+            async fn index_workspace_tag(&self, workspace_id: i64, name: &str, commit_id: &str) -> anyhow::Result<i64>;
+            async fn get_workspace_tags(&self, workspace_id: i64) -> anyhow::Result<Vec<WorkspaceTagRecord>>;
+        }
+
+        #[async_trait]
+        impl WorkspaceBackend for Backend {
+            async fn add_workspace(
+                &self, url: &str, description: &str, long_description: &str
+            ) -> anyhow::Result<i64>;
+            async fn update_workspace(
+                &self, id: i64, description: &str, long_description: &str
+            ) -> anyhow::Result<bool>;
+            async fn list_workspaces(&self) -> anyhow::Result<Vec<WorkspaceRecord>>;
+            async fn get_workspace_by_id(&self, id: i64) -> anyhow::Result<WorkspaceRecord>;
+        }
+
+        #[async_trait]
+        impl WorkspaceSyncBackend for Backend {
+            async fn begin_sync(&self, workspace_id: i64) -> anyhow::Result<i64>;
+            async fn complete_sync(&self, id: i64, status: WorkspaceSyncStatus) -> anyhow::Result<bool>;
+            async fn fail_sync(&self, id: i64, msg: String) -> anyhow::Result<()>;
+            async fn get_workspaces_sync_records(&self, workspace_id: i64) -> anyhow::Result<Vec<WorkspaceSyncRecord>>;
+        }
+    }
+
+    #[async_std::test]
+    async fn test_git_sync_workspace_empty() {
+        let (_td, _repo) = crate::test::repo_init(None);
+        let mut mock_backend = MockBackend::new();
+        mock_backend.expect_begin_sync()
+            .with(eq(0))
+            .returning(|_| Ok(1));
+        mock_backend.expect_complete_sync()
+            .with(eq(1), eq(WorkspaceSyncStatus::Completed))
+            .returning(|_, _| Ok(true));
+
+        let git_root_dir = TempDir::new().unwrap();
+        let git_root = git_root_dir.into_path();
+        let workspace = WorkspaceRecord {
+            id: 0, url: _td.path().to_str().unwrap().to_string(), description: None };
+        let git_pmr_accessor = GitPmrAccessor::new(&mock_backend, git_root, workspace);
+        git_pmr_accessor.git_sync_workspace().await.unwrap();
+    }
 }

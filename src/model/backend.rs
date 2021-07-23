@@ -1,5 +1,5 @@
 use sqlx::sqlite::SqlitePool;
-use std::{fmt, sync::Arc};
+use std::sync::Arc;
 
 pub trait HasPool {}
 

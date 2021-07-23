@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use anyhow::bail;
 use chrono::{TimeZone, Utc};
-use sqlx::sqlite::SqlitePool;
 
 use enum_primitive::FromPrimitive;
 

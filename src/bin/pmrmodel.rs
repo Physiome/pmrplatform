@@ -1,4 +1,3 @@
-use git2::Object;
 use sqlx::sqlite::SqlitePool;
 use std::env;
 use std::io::{self, Write};
