@@ -120,7 +120,7 @@ async fn main(args: Args) -> anyhow::Result<()> {
             else {
                 println!("Syncing commits for workspace with id {}...", workspace_id);
                 let workspace = WorkspaceBackend::get_workspace_by_id(&backend, workspace_id).await?;
-                let git_pmr_accessor = GitPmrAccessor::new(backend, git_root, workspace);
+                let git_pmr_accessor = GitPmrAccessor::new(&backend, git_root, workspace);
                 git_pmr_accessor.git_sync_workspace().await?;
             }
         }
@@ -128,7 +128,7 @@ async fn main(args: Args) -> anyhow::Result<()> {
             if index {
                 println!("Indexing tags for workspace with id {}...", workspace_id);
                 let workspace = WorkspaceBackend::get_workspace_by_id(&backend, workspace_id).await?;
-                let git_pmr_accessor = GitPmrAccessor::new(backend, git_root, workspace);
+                let git_pmr_accessor = GitPmrAccessor::new(&backend, git_root, workspace);
                 git_pmr_accessor.index_tags().await?;
             }
             else {
@@ -142,12 +142,12 @@ async fn main(args: Args) -> anyhow::Result<()> {
         }
         Some(Command::Blob { workspace_id, obj_id }) => {
             let workspace = WorkspaceBackend::get_workspace_by_id(&backend, workspace_id).await?;
-            let git_pmr_accessor = GitPmrAccessor::new(backend, git_root, workspace);
+            let git_pmr_accessor = GitPmrAccessor::new(&backend, git_root, workspace);
             git_pmr_accessor.get_obj_by_spec(&obj_id).await?;
         }
         Some(Command::Info { workspace_id, commit_id, path, raw }) => {
             let workspace = WorkspaceBackend::get_workspace_by_id(&backend, workspace_id).await?;
-            let git_pmr_accessor = GitPmrAccessor::new(backend, git_root, workspace);
+            let git_pmr_accessor = GitPmrAccessor::new(&backend, git_root, workspace);
             if (raw) {
                 git_pmr_accessor.process_pathinfo(
                     commit_id.as_deref(), path.as_deref(),

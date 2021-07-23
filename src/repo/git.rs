@@ -19,8 +19,8 @@ use crate::model::workspace_sync::{
 };
 use crate::model::workspace_tag::WorkspaceTagBackend;
 
-pub struct GitPmrAccessor<P: HasPool> {
-    backend: P,
+pub struct GitPmrAccessor<'a, P: HasPool> {
+    backend: &'a P,
     git_root: PathBuf,
     workspace: WorkspaceRecord,
 }
@@ -85,7 +85,7 @@ fn commit_to_info(commit: &Commit) -> ObjectInfo {
     }
 }
 
-pub fn object_to_info(repo: &Repository, git_object: &Object) -> Option<ObjectInfo> {
+fn object_to_info(repo: &Repository, git_object: &Object) -> Option<ObjectInfo> {
     // TODO split off to a formatter version?
     // alternatively, produce some structured data?
     match git_object.kind() {
@@ -146,10 +146,10 @@ pub fn stream_git_result_set_blob(writer: impl Write, git_result_set: &GitResult
     }
 }
 
-impl<P: HasPool + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBackend> GitPmrAccessor<P> {
-    pub fn new(backend: P, git_root: PathBuf, workspace: WorkspaceRecord) -> Self {
+impl<'a, P: HasPool + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBackend> GitPmrAccessor<'a, P> {
+    pub fn new(backend: &'a P, git_root: PathBuf, workspace: WorkspaceRecord) -> Self {
         Self {
-            backend: backend,
+            backend: &backend,
             git_root: git_root,
             workspace: workspace,
         }
@@ -160,18 +160,18 @@ impl<P: HasPool + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBackend>
         let repo_check = Repository::open_bare(&repo_dir);
 
         info!("Syncing local {:?} with remote <{}>...", repo_dir, &self.workspace.url);
-        let sync_id = WorkspaceSyncBackend::begin_sync(&self.backend, self.workspace.id).await?;
+        let sync_id = WorkspaceSyncBackend::begin_sync(self.backend, self.workspace.id).await?;
         match repo_check {
             Ok(repo) => {
                 info!("Found existing repo at {:?}, synchronizing...", repo_dir);
                 let mut remote = repo.find_remote("origin")?;
                 match remote.fetch(&[] as &[&str], None, None) {
                     Ok(_) => info!("Repository synchronized"),
-                    Err(e) => WorkspaceSyncBackend::fail_sync(&self.backend, sync_id, format!("Failed to synchronize: {}", e)).await?,
+                    Err(e) => WorkspaceSyncBackend::fail_sync(self.backend, sync_id, format!("Failed to synchronize: {}", e)).await?,
                 };
             },
             Err(ref e) if e.class() == git2::ErrorClass::Repository => WorkspaceSyncBackend::fail_sync(
-                &self.backend, sync_id, format!(
+                self.backend, sync_id, format!(
                     "Invalid data at local {:?} - expected bare repo", repo_dir)).await?,
             Err(_) => {
                 info!("Cloning new repository at {:?}...", repo_dir);
@@ -179,19 +179,19 @@ impl<P: HasPool + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBackend>
                 builder.bare(true);
                 match builder.clone(&self.workspace.url, &repo_dir) {
                     Ok(_) => info!("Repository cloned"),
-                    Err(e) => WorkspaceSyncBackend::fail_sync(&self.backend, sync_id, format!("Failed to clone: {}", e)).await?,
+                    Err(e) => WorkspaceSyncBackend::fail_sync(self.backend, sync_id, format!("Failed to clone: {}", e)).await?,
                 };
             }
         }
 
-        WorkspaceSyncBackend::complete_sync(&self.backend, sync_id, WorkspaceSyncStatus::Completed).await?;
+        WorkspaceSyncBackend::complete_sync(self.backend, sync_id, WorkspaceSyncStatus::Completed).await?;
         self.index_tags().await?;
 
         Ok(())
     }
 
     pub async fn index_tags(&self) -> anyhow::Result<()> {
-        let backend = &self.backend;
+        let backend = self.backend;
         let git_root = &self.git_root;
         let workspace = &self.workspace;
         let repo_dir = git_root.join(workspace.id.to_string());
