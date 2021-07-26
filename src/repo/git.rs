@@ -320,7 +320,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_git_sync_workspace_empty() {
-        let (_td, _repo) = crate::test::repo_init(None);
+        let (td, _repo) = crate::test::repo_init(None);
         let mut mock_backend = MockBackend::new();
         mock_backend.expect_begin_sync()
             .times(1)
@@ -334,14 +334,14 @@ mod tests {
         let git_root_dir = TempDir::new().unwrap();
         let git_root = git_root_dir.into_path();
         let workspace = WorkspaceRecord {
-            id: 0, url: _td.path().to_str().unwrap().to_string(), description: None };
+            id: 0, url: td.path().to_str().unwrap().to_string(), description: None };
         let git_pmr_accessor = GitPmrAccessor::new(&mock_backend, git_root, workspace);
         git_pmr_accessor.git_sync_workspace().await.unwrap();
     }
 
     #[async_std::test]
     async fn test_git_sync_workspace_with_tag() {
-        let (_td, repo) = crate::test::repo_init(None);
+        let (td, repo) = crate::test::repo_init(None);
         let id = repo.head().unwrap().target().unwrap();
         let obj = repo.find_object(id, None).unwrap();
         repo.tag_lightweight("new_tag", &obj, false).unwrap();
@@ -365,9 +365,35 @@ mod tests {
         let git_root_dir = TempDir::new().unwrap();
         let git_root = git_root_dir.into_path();
         let workspace = WorkspaceRecord {
-            id: 123, url: _td.path().to_str().unwrap().to_string(), description: None };
+            id: 123, url: td.path().to_str().unwrap().to_string(), description: None };
         let git_pmr_accessor = GitPmrAccessor::new(&mock_backend, git_root, workspace);
         git_pmr_accessor.git_sync_workspace().await.unwrap();
+    }
+
+    #[async_std::test]
+    async fn test_git_sync_failure_bad_source() {
+        let td = TempDir::new().unwrap();
+        let err_msg = format!(
+            "Failed to clone: could not find repository from '{}'; \
+            class=Repository (6); code=NotFound (-3)", td.path().to_str().unwrap());
+        let mut mock_backend = MockBackend::new();
+        mock_backend.expect_begin_sync()
+            .times(1)
+            .with(eq(2))
+            .returning(|_| Ok(1));
+        mock_backend.expect_fail_sync()
+            .times(1)
+            .withf(move |id: &i64, msg: &String| {
+                *id == 1 && *msg == err_msg
+            })
+            // emulate the expected error return value
+            .returning(|_, msg| Err(anyhow::Error::msg(msg)));
+
+        let git_root = TempDir::new().unwrap().into_path();
+        let workspace = WorkspaceRecord {
+            id: 2, url: td.path().to_str().unwrap().to_string(), description: None };
+        let git_pmr_accessor = GitPmrAccessor::new(&mock_backend, git_root, workspace);
+        git_pmr_accessor.git_sync_workspace().await.unwrap_err();
     }
 
 }
