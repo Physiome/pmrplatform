@@ -323,9 +323,11 @@ mod tests {
         let (_td, _repo) = crate::test::repo_init(None);
         let mut mock_backend = MockBackend::new();
         mock_backend.expect_begin_sync()
+            .times(1)
             .with(eq(0))
             .returning(|_| Ok(1));
         mock_backend.expect_complete_sync()
+            .times(1)
             .with(eq(1), eq(WorkspaceSyncStatus::Completed))
             .returning(|_, _| Ok(true));
 
@@ -336,4 +338,36 @@ mod tests {
         let git_pmr_accessor = GitPmrAccessor::new(&mock_backend, git_root, workspace);
         git_pmr_accessor.git_sync_workspace().await.unwrap();
     }
+
+    #[async_std::test]
+    async fn test_git_sync_workspace_with_tag() {
+        let (_td, repo) = crate::test::repo_init(None);
+        let id = repo.head().unwrap().target().unwrap();
+        let obj = repo.find_object(id, None).unwrap();
+        repo.tag_lightweight("new_tag", &obj, false).unwrap();
+
+        let mut mock_backend = MockBackend::new();
+        mock_backend.expect_begin_sync()
+            .times(1)
+            .with(eq(123))
+            .returning(|_| Ok(1));
+        mock_backend.expect_complete_sync()
+            .times(1)
+            .with(eq(1), eq(WorkspaceSyncStatus::Completed))
+            .returning(|_, _| Ok(true));
+        mock_backend.expect_index_workspace_tag()
+            .times(1)
+            .withf(move |workspace_id: &i64, name: &str, commit_id: &str| {
+                *workspace_id == 123 && name == "refs/tags/new_tag" && commit_id == format!("{}", id)
+            })
+            .returning(|_, _, _| Ok(1));
+
+        let git_root_dir = TempDir::new().unwrap();
+        let git_root = git_root_dir.into_path();
+        let workspace = WorkspaceRecord {
+            id: 123, url: _td.path().to_str().unwrap().to_string(), description: None };
+        let git_pmr_accessor = GitPmrAccessor::new(&mock_backend, git_root, workspace);
+        git_pmr_accessor.git_sync_workspace().await.unwrap();
+    }
+
 }
