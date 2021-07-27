@@ -10,7 +10,6 @@ use crate::model::backend::SqliteBackend;
 pub trait WorkspaceSyncBackend {
     async fn begin_sync(&self, workspace_id: i64) -> anyhow::Result<i64>;
     async fn complete_sync(&self, id: i64, status: WorkspaceSyncStatus) -> anyhow::Result<bool>;
-    async fn fail_sync(&self, id: i64, msg: String) -> anyhow::Result<()>;
     async fn get_workspaces_sync_records(&self, workspace_id: i64) -> anyhow::Result<Vec<WorkspaceSyncRecord>>;
 }
 
@@ -89,11 +88,6 @@ impl WorkspaceSyncBackend for SqliteBackend {
         Ok(rows_affected > 0)
     }
 
-    async fn fail_sync(&self, id: i64, msg: String) -> anyhow::Result<()> {
-        self.complete_sync(id, WorkspaceSyncStatus::Error).await?;
-        bail!(msg);
-    }
-
     async fn get_workspaces_sync_records(&self, workspace_id: i64) -> anyhow::Result<Vec<WorkspaceSyncRecord>> {
         let recs = sqlx::query_as!(WorkspaceSyncRecord,
             r#"
@@ -107,4 +101,9 @@ impl WorkspaceSyncBackend for SqliteBackend {
         .await?;
         Ok(recs)
     }
+}
+
+pub async fn fail_sync(backend: &impl WorkspaceSyncBackend, id: i64, msg: String) -> anyhow::Result<()> {
+    backend.complete_sync(id, WorkspaceSyncStatus::Error).await?;
+    bail!(msg);
 }

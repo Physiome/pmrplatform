@@ -14,6 +14,7 @@ use crate::model::workspace::{
 use crate::model::workspace_sync::{
     WorkspaceSyncBackend,
     WorkspaceSyncStatus,
+    fail_sync,
 };
 use crate::model::workspace_tag::WorkspaceTagBackend;
 
@@ -165,10 +166,10 @@ impl<'a, P: HasPool + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBack
                 let mut remote = repo.find_remote("origin")?;
                 match remote.fetch(&[] as &[&str], None, None) {
                     Ok(_) => info!("Repository synchronized"),
-                    Err(e) => WorkspaceSyncBackend::fail_sync(self.backend, sync_id, format!("Failed to synchronize: {}", e)).await?,
+                    Err(e) => fail_sync(self.backend, sync_id, format!("Failed to synchronize: {}", e)).await?,
                 };
             },
-            Err(ref e) if e.class() == git2::ErrorClass::Repository => WorkspaceSyncBackend::fail_sync(
+            Err(ref e) if e.class() == git2::ErrorClass::Repository => fail_sync(
                 self.backend, sync_id, format!(
                     "Invalid data at local {:?} - expected bare repo", repo_dir)).await?,
             Err(_) => {
@@ -177,7 +178,7 @@ impl<'a, P: HasPool + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBack
                 builder.bare(true);
                 match builder.clone(&self.workspace.url, &repo_dir) {
                     Ok(_) => info!("Repository cloned"),
-                    Err(e) => WorkspaceSyncBackend::fail_sync(self.backend, sync_id, format!("Failed to clone: {}", e)).await?,
+                    Err(e) => fail_sync(self.backend, sync_id, format!("Failed to clone: {}", e)).await?,
                 };
             }
         }
@@ -313,7 +314,6 @@ mod tests {
         impl WorkspaceSyncBackend for Backend {
             async fn begin_sync(&self, workspace_id: i64) -> anyhow::Result<i64>;
             async fn complete_sync(&self, id: i64, status: WorkspaceSyncStatus) -> anyhow::Result<bool>;
-            async fn fail_sync(&self, id: i64, msg: String) -> anyhow::Result<()>;
             async fn get_workspaces_sync_records(&self, workspace_id: i64) -> anyhow::Result<Vec<WorkspaceSyncRecord>>;
         }
     }
@@ -380,20 +380,17 @@ mod tests {
         mock_backend.expect_begin_sync()
             .times(1)
             .with(eq(2))
-            .returning(|_| Ok(1));
-        mock_backend.expect_fail_sync()
+            .returning(|_| Ok(3));
+        mock_backend.expect_complete_sync()
             .times(1)
-            .withf(move |id: &i64, msg: &String| {
-                *id == 1 && *msg == err_msg
-            })
-            // emulate the expected error return value
-            .returning(|_, msg| Err(anyhow::Error::msg(msg)));
+            .with(eq(3), eq(WorkspaceSyncStatus::Error))
+            .returning(|_, _| Ok(true));
 
         let git_root = TempDir::new().unwrap().into_path();
         let workspace = WorkspaceRecord {
             id: 2, url: td.path().to_str().unwrap().to_string(), description: None };
         let git_pmr_accessor = GitPmrAccessor::new(&mock_backend, git_root, workspace);
-        git_pmr_accessor.git_sync_workspace().await.unwrap_err();
+        assert_eq!(git_pmr_accessor.git_sync_workspace().await.unwrap_err().to_string(), err_msg);
     }
 
 }
