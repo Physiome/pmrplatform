@@ -320,7 +320,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_git_sync_workspace_empty() {
-        let (td, _repo) = crate::test::repo_init(None);
+        let (td, _) = crate::test::repo_init(None);
         let mut mock_backend = MockBackend::new();
         mock_backend.expect_begin_sync()
             .times(1)
@@ -391,6 +391,53 @@ mod tests {
             id: 2, url: td.path().to_str().unwrap().to_string(), description: None };
         let git_pmr_accessor = GitPmrAccessor::new(&mock_backend, git_root, workspace);
         assert_eq!(git_pmr_accessor.git_sync_workspace().await.unwrap_err().to_string(), err_msg);
+    }
+
+    #[async_std::test]
+    async fn test_git_sync_failure_dropped_source() {
+        let (td, _) = crate::test::repo_init(None);
+        let mut mock_backend = MockBackend::new();
+        mock_backend.expect_begin_sync()
+            .times(1)
+            .with(eq(42))
+            .returning(|_| Ok(1));
+        mock_backend.expect_complete_sync()
+            .times(1)
+            .with(eq(1), eq(WorkspaceSyncStatus::Completed))
+            .returning(|_, _| Ok(true));
+
+        // helper to deal with moves of the workspace record.
+        async fn scoped_sync(
+            mock_backend: &MockBackend, url: &str, git_root: &PathBuf
+        ) -> anyhow::Result<()> {
+            let workspace = WorkspaceRecord {
+                id: 42, url: url.to_string(), description: None };
+            let git_pmr_accessor = GitPmrAccessor::new(mock_backend, git_root.to_path_buf(), workspace);
+            git_pmr_accessor.git_sync_workspace().await
+        }
+
+        let git_root_dir = TempDir::new().unwrap();
+        let git_root = git_root_dir.into_path().to_owned();
+
+        let td_path = td.path().to_owned();
+        let url = td_path.to_str().unwrap();
+        assert!(scoped_sync(&mock_backend, url, &git_root).await.is_ok());
+
+        td.close().unwrap();
+        mock_backend.checkpoint();
+        mock_backend.expect_begin_sync()
+            .times(1)
+            .with(eq(42))
+            .returning(|_| Ok(2));
+        mock_backend.expect_complete_sync()
+            .times(1)
+            .with(eq(2), eq(WorkspaceSyncStatus::Error))
+            .returning(|_, _| Ok(true));
+
+        let failed_sync = scoped_sync(&mock_backend, url, &git_root).await;
+        assert!(failed_sync.is_err());
+        let err_msg = "Failed to synchronize: unsupported URL protocol; class=Net (12)";
+        assert_eq!(failed_sync.unwrap_err().to_string(), err_msg);
     }
 
 }
