@@ -320,16 +320,17 @@ mod tests {
 
     // helper to deal with moves of the workspace record.
     async fn git_sync_helper(
-        mock_backend: &MockBackend, id: i64, url: &str, git_root: &PathBuf
+        mock_backend: &MockBackend, id: i64, url: &str, git_root: &TempDir
     ) -> anyhow::Result<()> {
         let workspace = WorkspaceRecord { id: id, url: url.to_string(), description: None };
-        let git_pmr_accessor = GitPmrAccessor::new(mock_backend, git_root.to_path_buf(), workspace);
+        let git_pmr_accessor = GitPmrAccessor::new(mock_backend, git_root.path().to_owned().to_path_buf(), workspace);
         git_pmr_accessor.git_sync_workspace().await
     }
 
     #[async_std::test]
     async fn test_git_sync_workspace_empty() {
-        let (td, _) = crate::test::repo_init(None);
+        let (td_, _) = crate::test::repo_init(None, None);
+        let td = td_.unwrap();
         let mut mock_backend = MockBackend::new();
         mock_backend.expect_begin_sync()
             .times(1)
@@ -339,13 +340,14 @@ mod tests {
             .times(1)
             .with(eq(1), eq(WorkspaceSyncStatus::Completed))
             .returning(|_, _| Ok(true));
-        let git_root = TempDir::new().unwrap().into_path();
+        let git_root = TempDir::new().unwrap();
         git_sync_helper(&mock_backend, 0, td.path().to_str().unwrap(), &git_root).await.unwrap();
     }
 
     #[async_std::test]
     async fn test_git_sync_workspace_with_tag() {
-        let (td, repo) = crate::test::repo_init(None);
+        let (td_, repo) = crate::test::repo_init(None, None);
+        let td = td_.unwrap();
         let id = repo.head().unwrap().target().unwrap();
         let obj = repo.find_object(id, None).unwrap();
         repo.tag_lightweight("new_tag", &obj, false).unwrap();
@@ -366,12 +368,13 @@ mod tests {
             })
             .returning(|_, _, _| Ok(1));
 
-        let git_root = TempDir::new().unwrap().into_path();
+        let git_root = TempDir::new().unwrap();
         git_sync_helper(&mock_backend, 123, td.path().to_str().unwrap(), &git_root).await.unwrap();
     }
 
     #[async_std::test]
-    async fn test_git_sync_failure_bad_source() {
+    async fn test_git_sync_failure_invalid_remote() {
+        // where remote couldn't be found or invalid.
         let td = TempDir::new().unwrap();
         let err_msg = format!(
             "Failed to clone: could not find repository from '{}'; \
@@ -386,7 +389,7 @@ mod tests {
             .with(eq(3), eq(WorkspaceSyncStatus::Error))
             .returning(|_, _| Ok(true));
 
-        let git_root = TempDir::new().unwrap().into_path();
+        let git_root = TempDir::new().unwrap();
         let err = git_sync_helper(
             &mock_backend, 2, td.path().to_str().unwrap(), &git_root).await.unwrap_err();
         assert_eq!(err.to_string(), err_msg);
@@ -394,7 +397,8 @@ mod tests {
 
     #[async_std::test]
     async fn test_git_sync_failure_dropped_source() {
-        let (td, _) = crate::test::repo_init(None);
+        let (td_, _) = crate::test::repo_init(None, None);
+        let td = td_.unwrap();
         let mut mock_backend = MockBackend::new();
         mock_backend.expect_begin_sync()
             .times(1)
@@ -405,8 +409,7 @@ mod tests {
             .with(eq(1), eq(WorkspaceSyncStatus::Completed))
             .returning(|_, _| Ok(true));
 
-        let git_root_dir = TempDir::new().unwrap();
-        let git_root = git_root_dir.into_path().to_owned();
+        let git_root = TempDir::new().unwrap();
 
         let td_path = td.path().to_owned();
         let url = td_path.to_str().unwrap();
@@ -416,6 +419,7 @@ mod tests {
         mock_backend.checkpoint();
 
         // now verify that the failure to sync will generate the right error
+        // when an originally working remote disappeared or errored.
         mock_backend.expect_begin_sync()
             .times(1)
             .with(eq(42))
