@@ -318,6 +318,15 @@ mod tests {
         }
     }
 
+    // helper to deal with moves of the workspace record.
+    async fn git_sync_helper(
+        mock_backend: &MockBackend, id: i64, url: &str, git_root: &PathBuf
+    ) -> anyhow::Result<()> {
+        let workspace = WorkspaceRecord { id: id, url: url.to_string(), description: None };
+        let git_pmr_accessor = GitPmrAccessor::new(mock_backend, git_root.to_path_buf(), workspace);
+        git_pmr_accessor.git_sync_workspace().await
+    }
+
     #[async_std::test]
     async fn test_git_sync_workspace_empty() {
         let (td, _) = crate::test::repo_init(None);
@@ -330,13 +339,8 @@ mod tests {
             .times(1)
             .with(eq(1), eq(WorkspaceSyncStatus::Completed))
             .returning(|_, _| Ok(true));
-
-        let git_root_dir = TempDir::new().unwrap();
-        let git_root = git_root_dir.into_path();
-        let workspace = WorkspaceRecord {
-            id: 0, url: td.path().to_str().unwrap().to_string(), description: None };
-        let git_pmr_accessor = GitPmrAccessor::new(&mock_backend, git_root, workspace);
-        git_pmr_accessor.git_sync_workspace().await.unwrap();
+        let git_root = TempDir::new().unwrap().into_path();
+        git_sync_helper(&mock_backend, 0, td.path().to_str().unwrap(), &git_root).await.unwrap();
     }
 
     #[async_std::test]
@@ -362,12 +366,8 @@ mod tests {
             })
             .returning(|_, _, _| Ok(1));
 
-        let git_root_dir = TempDir::new().unwrap();
-        let git_root = git_root_dir.into_path();
-        let workspace = WorkspaceRecord {
-            id: 123, url: td.path().to_str().unwrap().to_string(), description: None };
-        let git_pmr_accessor = GitPmrAccessor::new(&mock_backend, git_root, workspace);
-        git_pmr_accessor.git_sync_workspace().await.unwrap();
+        let git_root = TempDir::new().unwrap().into_path();
+        git_sync_helper(&mock_backend, 123, td.path().to_str().unwrap(), &git_root).await.unwrap();
     }
 
     #[async_std::test]
@@ -387,10 +387,9 @@ mod tests {
             .returning(|_, _| Ok(true));
 
         let git_root = TempDir::new().unwrap().into_path();
-        let workspace = WorkspaceRecord {
-            id: 2, url: td.path().to_str().unwrap().to_string(), description: None };
-        let git_pmr_accessor = GitPmrAccessor::new(&mock_backend, git_root, workspace);
-        assert_eq!(git_pmr_accessor.git_sync_workspace().await.unwrap_err().to_string(), err_msg);
+        let err = git_sync_helper(
+            &mock_backend, 2, td.path().to_str().unwrap(), &git_root).await.unwrap_err();
+        assert_eq!(err.to_string(), err_msg);
     }
 
     #[async_std::test]
@@ -406,25 +405,17 @@ mod tests {
             .with(eq(1), eq(WorkspaceSyncStatus::Completed))
             .returning(|_, _| Ok(true));
 
-        // helper to deal with moves of the workspace record.
-        async fn scoped_sync(
-            mock_backend: &MockBackend, url: &str, git_root: &PathBuf
-        ) -> anyhow::Result<()> {
-            let workspace = WorkspaceRecord {
-                id: 42, url: url.to_string(), description: None };
-            let git_pmr_accessor = GitPmrAccessor::new(mock_backend, git_root.to_path_buf(), workspace);
-            git_pmr_accessor.git_sync_workspace().await
-        }
-
         let git_root_dir = TempDir::new().unwrap();
         let git_root = git_root_dir.into_path().to_owned();
 
         let td_path = td.path().to_owned();
         let url = td_path.to_str().unwrap();
-        assert!(scoped_sync(&mock_backend, url, &git_root).await.is_ok());
+        assert!(git_sync_helper(&mock_backend, 42, url, &git_root).await.is_ok());
 
         td.close().unwrap();
         mock_backend.checkpoint();
+
+        // now verify that the failure to sync will generate the right error
         mock_backend.expect_begin_sync()
             .times(1)
             .with(eq(42))
@@ -434,8 +425,7 @@ mod tests {
             .with(eq(2), eq(WorkspaceSyncStatus::Error))
             .returning(|_, _| Ok(true));
 
-        let failed_sync = scoped_sync(&mock_backend, url, &git_root).await;
-        assert!(failed_sync.is_err());
+        let failed_sync = git_sync_helper(&mock_backend, 42, url, &git_root).await;
         let err_msg = "Failed to synchronize: unsupported URL protocol; class=Net (12)";
         assert_eq!(failed_sync.unwrap_err().to_string(), err_msg);
     }
