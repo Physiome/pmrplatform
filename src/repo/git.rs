@@ -434,4 +434,30 @@ mod tests {
         assert_eq!(failed_sync.unwrap_err().to_string(), err_msg);
     }
 
+    #[async_std::test]
+    async fn test_git_sync_workspace_not_bare() {
+        let (origin_, _) = crate::test::repo_init(None, None);
+        let origin = origin_.unwrap();
+
+        let git_root_dir = TempDir::new().unwrap();
+        let repo_dir = git_root_dir.path().join("10");
+        let err_msg = format!("Invalid data at local {:?} - expected bare repo", repo_dir);
+        let (_, repo) = crate::test::repo_init(None, Some(repo_dir));
+        let (_, _) = crate::test::commit(&repo, "some_file");
+
+        let mut mock_backend = MockBackend::new();
+        mock_backend.expect_begin_sync()
+            .times(1)
+            .with(eq(10))
+            .returning(|_| Ok(1));
+        mock_backend.expect_complete_sync()
+            .times(1)
+            .with(eq(1), eq(WorkspaceSyncStatus::Error))
+            .returning(|_, _| Ok(true));
+        let failed_sync = git_sync_helper(
+            &mock_backend, 10, origin.path().to_str().unwrap(), &git_root_dir
+        ).await.unwrap_err();
+        assert_eq!(failed_sync.to_string(), err_msg);
+    }
+
 }

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use tempfile::TempDir;
-use git2::{Repository, RepositoryInitOptions};
+use git2::{Oid, Repository, RepositoryInitOptions};
 
 pub fn repo_init(main_branch: Option<&str>, target: Option<PathBuf>) -> (Option<TempDir>, Repository) {
     let (tempdir, init_path) = match target {
@@ -28,4 +28,19 @@ pub fn repo_init(main_branch: Option<&str>, target: Option<PathBuf>) -> (Option<
         repo.commit(Some("HEAD"), &sig, &sig, "initial commit", &tree, &[]).unwrap();
     }
     (tempdir, repo)
+}
+
+pub fn commit(repo: &Repository, filename: &str) -> (Oid, Oid) {
+    let mut index = repo.index().unwrap();
+    let root = repo.path().parent().unwrap();
+    std::fs::File::create(&root.join(filename)).unwrap();
+    index.add_path(std::path::Path::new(filename)).unwrap();
+
+    let tree_id = index.write_tree().unwrap();
+    let tree = repo.find_tree(tree_id).unwrap();
+    let sig = repo.signature().unwrap();
+    let head_id = repo.refname_to_id("HEAD").unwrap();
+    let parent = repo.find_commit(head_id).unwrap();
+    let commit = repo.commit(Some("HEAD"), &sig, &sig, "commit", &tree, &[&parent]).unwrap();
+    (commit, tree_id)
 }
