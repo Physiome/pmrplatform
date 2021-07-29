@@ -14,8 +14,9 @@ use pmrmodel::model::workspace_tag::WorkspaceTagBackend;
 use pmrmodel::repo::git::{
     GitPmrAccessor,
 
-    stream_git_result_set,
-    stream_git_result_set_blob,
+    stream_git_result_set_as_blob,
+    stream_git_result_set_as_json,
+    stream_git_result_set_default,
 };
 
 #[derive(StructOpt)]
@@ -25,6 +26,9 @@ struct Args {
 
     #[structopt(short = "v", long = "verbose", parse(from_occurrences))]
     verbose: usize,
+
+    #[structopt(short = "j", long = "json")]
+    json: bool,
 }
 
 #[derive(StructOpt)]
@@ -150,14 +154,22 @@ async fn main(args: Args) -> anyhow::Result<()> {
             if (raw) {
                 git_pmr_accessor.process_pathinfo(
                     commit_id.as_deref(), path.as_deref(),
-                    |git_result_set| stream_git_result_set_blob(io::stdout(), git_result_set)
+                    |git_result_set| stream_git_result_set_as_blob(io::stdout(), git_result_set)
                 ).await?.unwrap();
             }
             else {
-                git_pmr_accessor.process_pathinfo(
-                    commit_id.as_deref(), path.as_deref(),
-                    |git_result_set| stream_git_result_set(io::stdout(), git_result_set)
-                ).await?;
+                if args.json {
+                    git_pmr_accessor.process_pathinfo(
+                        commit_id.as_deref(), path.as_deref(),
+                        |git_result_set| stream_git_result_set_as_json(io::stdout(), git_result_set)
+                    ).await?;
+                }
+                else {
+                    git_pmr_accessor.process_pathinfo(
+                        commit_id.as_deref(), path.as_deref(),
+                        |git_result_set| stream_git_result_set_default(io::stdout(), git_result_set)
+                    ).await?;
+                }
             }
         }
         None => {

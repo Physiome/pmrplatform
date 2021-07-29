@@ -3,6 +3,7 @@ use futures::stream::StreamExt;
 use futures::stream::futures_unordered::FuturesUnordered;
 use std::io::Write;
 use git2::{Repository, Blob, Commit, Object, ObjectType, Tree};
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 // TODO HasPool trait name is iffy?
@@ -31,7 +32,7 @@ pub struct GitResultSet<'git_result_set> {
     pub object: Object<'git_result_set>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TreeEntryInfo {
     filemode: String,
     kind: String,
@@ -39,8 +40,16 @@ pub struct TreeEntryInfo {
     name: String,
 }
 
-// For blob?
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LogEntryInfo {
+    filemode: String,
+    kind: String,
+    id: String,
+    name: String,
+    commit_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub enum ObjectInfo {
     FileInfo {
         size: u64,
@@ -106,7 +115,7 @@ fn object_to_info(repo: &Repository, git_object: &Object) -> Option<ObjectInfo> 
     }
 }
 
-pub fn stream_git_result_set(mut writer: impl Write, git_result_set: &GitResultSet) -> () {
+pub fn stream_git_result_set_default(mut writer: impl Write, git_result_set: &GitResultSet) -> () {
     // TODO split off to a formatter version?
     // alternatively, produce some structured data?
     writer.write(format!("
@@ -124,11 +133,19 @@ pub fn stream_git_result_set(mut writer: impl Write, git_result_set: &GitResultS
     ).as_bytes()).unwrap();
 }
 
+pub fn stream_git_result_set_as_json(mut writer: impl Write, git_result_set: &GitResultSet) -> () {
+    writer.write(
+        serde_json::to_string(
+            &object_to_info(&git_result_set.repo, &git_result_set.object).unwrap()
+        ).unwrap().as_bytes()
+    ).unwrap();
+}
+
 pub fn stream_blob(mut writer: impl Write, blob: &Blob) -> std::result::Result<usize, std::io::Error> {
     writer.write(blob.content())
 }
 
-pub fn stream_git_result_set_blob(writer: impl Write, git_result_set: &GitResultSet) -> anyhow::Result<()> {
+pub fn stream_git_result_set_as_blob(writer: impl Write, git_result_set: &GitResultSet) -> anyhow::Result<()> {
     match git_result_set.object.kind() {
         Some(ObjectType::Blob) => {
             match git_result_set.object.as_blob() {
