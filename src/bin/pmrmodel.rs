@@ -151,24 +151,24 @@ async fn main(args: Args) -> anyhow::Result<()> {
         Some(Command::Info { workspace_id, commit_id, path, raw }) => {
             let workspace = WorkspaceBackend::get_workspace_by_id(&backend, workspace_id).await?;
             let git_pmr_accessor = GitPmrAccessor::new(&backend, git_root, workspace);
-            if (raw) {
+            if raw {
                 git_pmr_accessor.process_pathinfo(
                     commit_id.as_deref(), path.as_deref(),
                     |git_result_set| stream_git_result_set_as_blob(io::stdout(), git_result_set)
-                ).await?.unwrap();
+                ).await??;
             }
             else {
                 if args.json {
                     git_pmr_accessor.process_pathinfo(
                         commit_id.as_deref(), path.as_deref(),
                         |git_result_set| stream_git_result_set_as_json(io::stdout(), git_result_set)
-                    ).await?;
+                    ).await??;
                 }
                 else {
                     git_pmr_accessor.process_pathinfo(
                         commit_id.as_deref(), path.as_deref(),
                         |git_result_set| stream_git_result_set_default(io::stdout(), git_result_set)
-                    ).await?;
+                    ).await??;
                 }
             }
         }

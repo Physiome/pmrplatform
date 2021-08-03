@@ -115,7 +115,7 @@ fn object_to_info(repo: &Repository, git_object: &Object) -> Option<ObjectInfo> 
     }
 }
 
-pub fn stream_git_result_set_default(mut writer: impl Write, git_result_set: &GitResultSet) -> () {
+pub fn stream_git_result_set_default(mut writer: impl Write, git_result_set: &GitResultSet) -> std::result::Result<usize, std::io::Error> {
     // TODO split off to a formatter version?
     // alternatively, produce some structured data?
     writer.write(format!("
@@ -130,15 +130,14 @@ pub fn stream_git_result_set_default(mut writer: impl Write, git_result_set: &Gi
         commit_to_info(&git_result_set.commit),
         git_result_set.path,
         object_to_info(&git_result_set.repo, &git_result_set.object),
-    ).as_bytes()).unwrap();
+    ).as_bytes())
 }
 
-pub fn stream_git_result_set_as_json(mut writer: impl Write, git_result_set: &GitResultSet) -> () {
-    writer.write(
-        serde_json::to_string(
-            &object_to_info(&git_result_set.repo, &git_result_set.object).unwrap()
-        ).unwrap().as_bytes()
-    ).unwrap();
+pub fn stream_git_result_set_as_json(
+    writer: impl Write,
+    git_result_set: &GitResultSet,
+) -> Result<(), serde_json::Error> {
+    serde_json::to_writer(writer, &object_to_info(&git_result_set.repo, &git_result_set.object))
 }
 
 pub fn stream_blob(mut writer: impl Write, blob: &Blob) -> std::result::Result<usize, std::io::Error> {
