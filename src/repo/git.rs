@@ -215,8 +215,12 @@ impl<'a, P: HasPool + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBack
         // collect all the tags for processing later
         let mut tags = Vec::new();
         repo.tag_foreach(|oid, name| {
-            // swapped position for next part.
-            tags.push((String::from_utf8(name.into()).unwrap(), format!("{}", oid)));
+            match String::from_utf8(name.into()) {
+                // swapped position for next part.
+                Ok(tag_name) => tags.push((tag_name, format!("{}", oid))),
+                // simply omit tags not encoded for utf8
+                Err(_) => warn!("a tag for commit_id {} omitted due to invalid utf8 encoding", oid),
+            }
             true
         })?;
 
@@ -361,7 +365,7 @@ mod tests {
     }
 
     #[async_std::test]
-    async fn test_git_sync_workspace_with_tag() {
+    async fn test_git_sync_workspace_with_index_tag() {
         let (td_, repo) = crate::test::repo_init(None, None);
         let td = td_.unwrap();
         let id = repo.head().unwrap().target().unwrap();
