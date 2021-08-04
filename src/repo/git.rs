@@ -42,11 +42,9 @@ pub struct TreeEntryInfo {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LogEntryInfo {
-    filemode: String,
-    kind: String,
-    id: String,
-    name: String,
     commit_id: String,
+    author: String,
+    committer: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -290,6 +288,54 @@ impl<'a, P: HasPool + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBack
             object: git_object,
         };
         Ok(processor(&git_result_set))
+    }
+
+    // pub async fn process_loginfo<T>(
+    pub async fn process_loginfo(
+        &self,
+        commit_id: Option<&str>,
+    //     processor: fn(&GitResultSet) -> T
+    // ) -> anyhow::Result<T> {
+    ) -> anyhow::Result<()> {
+        let git_root = &self.git_root;
+        let workspace = &self.workspace;
+        let repo_dir = git_root.join(workspace.id.to_string());
+        let repo = Repository::open_bare(repo_dir)?;
+        // TODO the default value should be the default (main?) branch.
+        // TODO the sync procedure should fast forward of sort
+        // TODO the model should have a field for main branch
+        let obj = repo.revparse_single(commit_id.unwrap_or("origin/HEAD"))?;
+        // TODO streamline this a bit.
+        match obj.kind() {
+            Some(ObjectType::Commit) => {
+                info!("Found {} {}", obj.kind().unwrap().str(), obj.id());
+            },
+            Some(_) | None => bail!("'{}' does not refer to a valid commit", commit_id.unwrap_or("")),
+        }
+        let mut revwalk = repo.revwalk()?;
+        revwalk.set_sorting(git2::Sort::TIME)?;
+        revwalk.push(obj.id())?;
+
+        // let revwalk = revwalk.filter_map(|id| {
+        //     warn!("{:?}", id);
+        //     Some(id)
+        //     // let id = match id {
+        //     //     Ok(v) => v,
+        //     //     Err(e) => Some(Err(e)),
+        //     // };
+        //     // repo.find_commit(id)
+        // });
+
+        for id in revwalk {
+            let commit = repo.find_commit(id?)?;
+            let log_entry_info = LogEntryInfo {
+                commit_id: format!("{}", commit.id()),
+                author: format!("{}", commit.author()),
+                committer: format!("{}", commit.committer()),
+            };
+            info!("{:?}", log_entry_info);
+        }
+        Ok(())
     }
 
 }

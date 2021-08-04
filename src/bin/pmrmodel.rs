@@ -69,6 +69,11 @@ enum Command {
         #[structopt(short, long)]
         raw: bool,
     },
+    Log {
+        workspace_id: i64,
+        #[structopt(short, long)]
+        commit_id: Option<String>,
+    },
 }
 
 fn fetch_envvar(key: &str) -> anyhow::Result<String> {
@@ -171,6 +176,11 @@ async fn main(args: Args) -> anyhow::Result<()> {
                     ).await??;
                 }
             }
+        }
+        Some(Command::Log { workspace_id, commit_id }) => {
+            let workspace = WorkspaceBackend::get_workspace_by_id(&backend, workspace_id).await?;
+            let git_pmr_accessor = GitPmrAccessor::new(&backend, git_root, workspace);
+            git_pmr_accessor.process_loginfo(commit_id.as_deref()).await?;
         }
         None => {
             println!("Printing list of all workspaces");
