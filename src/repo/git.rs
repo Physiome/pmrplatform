@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 // TODO HasPool trait name is iffy?
-use crate::model::backend::HasPool;
+use crate::backend::db::HasPool;
 use crate::model::workspace::{
     WorkspaceBackend,
     WorkspaceRecord,
@@ -349,8 +349,8 @@ mod tests {
     use mockall::predicate::*;
     use tempfile::TempDir;
 
-    // use crate::model::backend::MockHasPool;
-    use crate::model::backend::HasPool;
+    // use crate::backend::db::MockHasPool;
+    use crate::backend::db::HasPool;
     use crate::model::workspace_tag::WorkspaceTagRecord;
     use crate::model::workspace_sync::WorkspaceSyncRecord;
 

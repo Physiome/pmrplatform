@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use std::fmt;
 
-use crate::model::backend::SqliteBackend;
+use crate::backend::db::SqliteBackend;
 
 #[async_trait]
 pub trait WorkspaceTagBackend {

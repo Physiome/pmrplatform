@@ -4,7 +4,7 @@ use chrono::{TimeZone, Utc};
 
 use enum_primitive::FromPrimitive;
 
-use crate::model::backend::SqliteBackend;
+use crate::backend::db::SqliteBackend;
 
 #[async_trait]
 pub trait WorkspaceSyncBackend {

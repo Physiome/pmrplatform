@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::process;
 use structopt::StructOpt;
 
-use pmrmodel::model::backend::{
+use pmrmodel::backend::db::{
     SqliteBackend
 };
 use pmrmodel::model::workspace::WorkspaceBackend;
