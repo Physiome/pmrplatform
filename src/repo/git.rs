@@ -45,6 +45,7 @@ pub struct LogEntryInfo {
     commit_id: String,
     author: String,
     committer: String,
+    commit_timestamp: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -61,6 +62,10 @@ pub enum ObjectInfo {
         commit_id: String,
         author: String,
         committer: String,
+    },
+    LogInfo {
+        // TODO fields about start, next, pagination?
+        entries: Vec<LogEntryInfo>,
     },
 }
 
@@ -135,6 +140,12 @@ pub fn stream_git_result_set_as_json(
     writer: impl Write,
     git_result_set: &GitResultSet,
 ) -> Result<(), serde_json::Error> {
+    // TODO how to generalize this to deal with a common "theme" of JSON outputs?
+    // currently, this is directly coupled to GitResultSet, but perhaps there needs
+    // to be some trait that provide the output desired?
+    // Also, need to consider how to provide a more generic JSON-LD builder framework
+    // of sort?  Need to build context and what not...
+    // generalize a UI based on that schema/grammar?
     serde_json::to_writer(writer, &object_to_info(&git_result_set.repo, &git_result_set.object))
 }
 
@@ -258,6 +269,7 @@ impl<'a, P: HasPool + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBack
         // TODO the sync procedure should fast forward of sort
         // TODO the model should have a field for main branch
         let obj = repo.revparse_single(commit_id.unwrap_or("origin/HEAD"))?;
+
         // TODO streamline this a bit.
         match obj.kind() {
             Some(ObjectType::Commit) => {
@@ -305,6 +317,7 @@ impl<'a, P: HasPool + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBack
         // TODO the sync procedure should fast forward of sort
         // TODO the model should have a field for main branch
         let obj = repo.revparse_single(commit_id.unwrap_or("origin/HEAD"))?;
+
         // TODO streamline this a bit.
         match obj.kind() {
             Some(ObjectType::Commit) => {
@@ -316,25 +329,35 @@ impl<'a, P: HasPool + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBack
         revwalk.set_sorting(git2::Sort::TIME)?;
         revwalk.push(obj.id())?;
 
-        // let revwalk = revwalk.filter_map(|id| {
-        //     warn!("{:?}", id);
-        //     Some(id)
-        //     // let id = match id {
-        //     //     Ok(v) => v,
-        //     //     Err(e) => Some(Err(e)),
-        //     // };
-        //     // repo.find_commit(id)
-        // });
+        let log_entries = revwalk
+            .filter_map(|id| {
+                let id = match id {
+                    Ok(t) => t,
+                    // Err(e) => return Some(Err(e)),
+                    Err(_) => return None,
+                };
+                let commit = match repo.find_commit(id) {
+                    Ok(t) => t,
+                    // Err(e) => return Some(Err(e)),
+                    Err(_) => return None,
+                };
+                // Some(Ok(LogEntryInfo {
+                Some(LogEntryInfo {
+                    commit_id: format!("{}", commit.id()),
+                    author: format!("{}", commit.author()),
+                    committer: format!("{}", commit.committer()),
+                    commit_timestamp: commit.time().seconds(),
+                })
+                // }))
+            })
+            .collect::<Vec<_>>();
 
-        for id in revwalk {
-            let commit = repo.find_commit(id?)?;
-            let log_entry_info = LogEntryInfo {
-                commit_id: format!("{}", commit.id()),
-                author: format!("{}", commit.author()),
-                committer: format!("{}", commit.committer()),
-            };
-            info!("{:?}", log_entry_info);
-        }
+        info!("{:?}", log_entries);
+
+        let result = ObjectInfo::LogInfo { entries: log_entries };
+
+        info!("{}", serde_json::to_string(&result).unwrap());
+
         Ok(())
     }
 
