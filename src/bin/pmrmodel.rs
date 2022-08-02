@@ -8,7 +8,11 @@ use structopt::StructOpt;
 use pmrmodel::backend::db::{
     SqliteBackend
 };
-use pmrmodel::model::workspace::WorkspaceBackend;
+use pmrmodel::model::workspace::{
+    WorkspaceBackend,
+    stream_workspace_records_default,
+    stream_workspace_records_as_json,
+};
 use pmrmodel::model::workspace_sync::WorkspaceSyncBackend;
 use pmrmodel::model::workspace_tag::WorkspaceTagBackend;
 use pmrmodel::repo::git::{
@@ -183,11 +187,13 @@ async fn main(args: Args) -> anyhow::Result<()> {
             git_pmr_accessor.process_loginfo(commit_id.as_deref()).await?;
         }
         None => {
-            println!("Printing list of all workspaces");
             let recs = WorkspaceBackend::list_workspaces(&backend).await?;
-            println!("id - url - description");
-            for rec in recs {
-                println!("{}", rec);
+            if args.json {
+                stream_workspace_records_as_json(io::stdout(), &recs)?;
+            }
+            else {
+                println!("Printing list of all workspaces");
+                stream_workspace_records_default(io::stdout(), &recs)?;
             }
         }
     }
