@@ -4,7 +4,7 @@ use sqlx::{
 };
 use std::sync::Arc;
 
-pub trait HasPool {}
+pub trait PmrBackend {}
 
 pub struct Backend<T> {
     pub pool: Arc<T>,
@@ -25,4 +25,4 @@ impl<DB: sqlx::Database> Backend<Pool<DB>> {
 
 pub type SqliteBackend = Backend<SqlitePool>;
 
-impl HasPool for SqliteBackend {}
+impl PmrBackend for SqliteBackend {}

@@ -6,8 +6,7 @@ use git2::{Repository, Blob, Commit, Object, ObjectType, Tree};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-// TODO HasPool trait name is iffy?
-use crate::backend::db::HasPool;
+use crate::backend::db::PmrBackend;
 use crate::model::workspace::{
     WorkspaceBackend,
     WorkspaceRecord,
@@ -19,7 +18,7 @@ use crate::model::workspace_sync::{
 };
 use crate::model::workspace_tag::WorkspaceTagBackend;
 
-pub struct GitPmrAccessor<'a, P: HasPool> {
+pub struct GitPmrAccessor<'a, P: PmrBackend> {
     backend: &'a P,
     git_root: PathBuf,
     workspace: WorkspaceRecord,
@@ -170,7 +169,7 @@ pub fn stream_git_result_set_as_blob(writer: impl Write, git_result_set: &GitRes
     }
 }
 
-impl<'a, P: HasPool + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBackend> GitPmrAccessor<'a, P> {
+impl<'a, P: PmrBackend + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBackend> GitPmrAccessor<'a, P> {
     pub fn new(backend: &'a P, git_root: PathBuf, workspace: WorkspaceRecord) -> Self {
         Self {
             backend: &backend,
@@ -373,13 +372,13 @@ mod tests {
     use tempfile::TempDir;
 
     // use crate::backend::db::MockHasPool;
-    use crate::backend::db::HasPool;
+    use crate::backend::db::PmrBackend;
     use crate::model::workspace_tag::WorkspaceTagRecord;
     use crate::model::workspace_sync::WorkspaceSyncRecord;
 
     mock! {
         Backend {}
-        impl HasPool for Backend {}
+        impl PmrBackend for Backend {}
 
         #[async_trait]
         impl WorkspaceTagBackend for Backend {
