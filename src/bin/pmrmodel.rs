@@ -95,8 +95,7 @@ fn fetch_envvar(key: &str) -> anyhow::Result<String> {
 async fn main(args: Args) -> anyhow::Result<()> {
     // TODO make this be sourced from a configuration file of sort...
     let git_root = PathBuf::from(fetch_envvar("PMR_GIT_ROOT")?);
-    let pool = SqlitePool::connect(&fetch_envvar("DATABASE_URL")?).await?;
-    let backend = SqliteBackend::new(pool);
+    let backend = SqliteBackend::from_url(&fetch_envvar("DATABASE_URL")?).await?;
 
     stderrlog::new()
         .module(module_path!())
