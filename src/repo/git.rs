@@ -95,7 +95,7 @@ fn commit_to_info(commit: &Commit) -> ObjectInfo {
     }
 }
 
-fn object_to_info(repo: &Repository, git_object: &Object) -> Option<ObjectInfo> {
+pub fn object_to_info(repo: &Repository, git_object: &Object) -> Option<ObjectInfo> {
     // TODO split off to a formatter version?
     // alternatively, produce some structured data?
     match git_object.kind() {

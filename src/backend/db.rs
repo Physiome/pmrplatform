@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 pub trait PmrBackend {}
 
+#[derive(Clone)]
 pub struct Backend<T> {
     pub pool: Arc<T>,
 }

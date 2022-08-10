@@ -50,8 +50,8 @@ pub fn stream_workspace_records_default(mut writer: impl Write, records: &Vec<Wo
 }
 
 #[derive(Serialize)]
-struct JsonWorkspaceRecords<'a> {
-    workspaces: &'a Vec<WorkspaceRecord>
+pub struct JsonWorkspaceRecords<'a> {
+    pub workspaces: &'a Vec<WorkspaceRecord>
 }
 
 pub fn stream_workspace_records_as_json(writer: impl Write, records: &Vec<WorkspaceRecord>) -> Result<(), serde_json::Error> {
