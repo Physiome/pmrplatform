@@ -188,11 +188,11 @@ async fn main(args: Args) -> anyhow::Result<()> {
         None => {
             let recs = WorkspaceBackend::list_workspaces(&backend).await?;
             if args.json {
-                stream_workspace_records_as_json(io::stdout(), &recs)?;
+                stream_workspace_records_as_json(io::stdout(), recs)?;
             }
             else {
                 println!("Printing list of all workspaces");
-                stream_workspace_records_default(io::stdout(), &recs)?;
+                stream_workspace_records_default(io::stdout(), recs)?;
             }
         }
     }

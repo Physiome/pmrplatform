@@ -40,7 +40,7 @@ impl std::fmt::Display for WorkspaceRecord {
     }
 }
 
-pub fn stream_workspace_records_default(mut writer: impl Write, records: &Vec<WorkspaceRecord>) -> std::result::Result<usize, std::io::Error> {
+pub fn stream_workspace_records_default(mut writer: impl Write, records: Vec<WorkspaceRecord>) -> std::result::Result<usize, std::io::Error> {
     let mut result: usize = 0;
     result += writer.write(b"id - url - description\n")?;
     for record in records {
@@ -50,12 +50,12 @@ pub fn stream_workspace_records_default(mut writer: impl Write, records: &Vec<Wo
 }
 
 #[derive(Serialize)]
-pub struct JsonWorkspaceRecords<'a> {
-    pub workspaces: &'a Vec<WorkspaceRecord>
+pub struct JsonWorkspaceRecords {
+    pub workspaces: Vec<WorkspaceRecord>
 }
 
-pub fn stream_workspace_records_as_json(writer: impl Write, records: &Vec<WorkspaceRecord>) -> Result<(), serde_json::Error> {
-    serde_json::to_writer(writer, &JsonWorkspaceRecords { workspaces: &records })
+pub fn stream_workspace_records_as_json(writer: impl Write, records: Vec<WorkspaceRecord>) -> Result<(), serde_json::Error> {
+    serde_json::to_writer(writer, &JsonWorkspaceRecords { workspaces: records })
 }
 
 #[async_trait]
