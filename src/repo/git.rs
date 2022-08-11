@@ -280,22 +280,27 @@ impl<'a, P: PmrBackend + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagB
         let tree = commit.tree()?;
         info!("Found tree {}", tree.id());
         // TODO only further navigate into tree_entry if path
-        let git_object = match path {
-            Some(s) => {
-                let tree_entry = tree.get_path(Path::new(s))?;
-                info!("Found tree_entry {} {}", tree_entry.kind().unwrap().str(), tree_entry.id());
-                tree_entry.to_object(&repo)?
-            },
-            None => {
+        let (repopath, git_object) = match path {
+            Some("") | Some("/") | None => {
                 info!("No path provided; using root tree entry");
-                tree.into_object()
-            }
+                ("".as_ref(), tree.into_object())
+            },
+            Some(s) => {
+                let path = if s.chars().nth(0) == Some('/') {
+                    &s[1..]
+                } else {
+                    &s
+                };
+                let tree_entry = tree.get_path(Path::new(path))?;
+                info!("Found tree_entry {} {}", tree_entry.kind().unwrap().str(), tree_entry.id());
+                (path, tree_entry.to_object(&repo)?)
+            },
         };
         info!("using git_object {} {}", git_object.kind().unwrap().str(), git_object.id());
         let git_result_set = GitResultSet {
             repo: &repo,
             commit: commit,
-            path: path.unwrap_or(""),
+            path: repopath,
             object: git_object,
         };
         Ok(processor(&git_result_set))
