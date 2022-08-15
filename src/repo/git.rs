@@ -95,7 +95,7 @@ fn commit_to_info(commit: &Commit) -> ObjectInfo {
     }
 }
 
-pub fn object_to_info(repo: &Repository, git_object: &Object) -> Option<ObjectInfo> {
+fn object_to_info(repo: &Repository, git_object: &Object) -> Option<ObjectInfo> {
     // TODO split off to a formatter version?
     // alternatively, produce some structured data?
     match git_object.kind() {
@@ -117,6 +117,12 @@ pub fn object_to_info(repo: &Repository, git_object: &Object) -> Option<ObjectIn
     }
 }
 
+impl From<&GitResultSet<'_>> for Option<ObjectInfo> {
+    fn from(git_result_set: &GitResultSet) -> Self {
+        object_to_info(&git_result_set.repo, &git_result_set.object)
+    }
+}
+
 pub fn stream_git_result_set_default(mut writer: impl Write, git_result_set: &GitResultSet) -> std::result::Result<usize, std::io::Error> {
     // TODO split off to a formatter version?
     // alternatively, produce some structured data?
@@ -131,7 +137,7 @@ pub fn stream_git_result_set_default(mut writer: impl Write, git_result_set: &Gi
         &git_result_set.commit.id(),
         commit_to_info(&git_result_set.commit),
         git_result_set.path,
-        object_to_info(&git_result_set.repo, &git_result_set.object),
+        <Option<ObjectInfo>>::from(git_result_set),
     ).as_bytes())
 }
 
@@ -145,7 +151,7 @@ pub fn stream_git_result_set_as_json(
     // Also, need to consider how to provide a more generic JSON-LD builder framework
     // of sort?  Need to build context and what not...
     // generalize a UI based on that schema/grammar?
-    serde_json::to_writer(writer, &object_to_info(&git_result_set.repo, &git_result_set.object))
+    serde_json::to_writer(writer, &<Option<ObjectInfo>>::from(git_result_set))
 }
 
 pub fn stream_blob(mut writer: impl Write, blob: &Blob) -> std::result::Result<usize, std::io::Error> {
