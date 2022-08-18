@@ -1,4 +1,3 @@
-use sqlx::sqlite::SqlitePool;
 use std::env;
 use std::io::{self, Write};
 use std::path::PathBuf;

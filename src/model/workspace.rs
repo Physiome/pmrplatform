@@ -1,7 +1,9 @@
 use async_trait::async_trait;
 use chrono::Utc;
-use serde::Serialize;
-use std::fmt;
+use pmrmodel_base::workspace::{
+    WorkspaceRecord,
+    JsonWorkspaceRecords,
+};
 use std::io::Write;
 
 use crate::backend::db::SqliteBackend;
@@ -18,28 +20,6 @@ pub trait WorkspaceBackend {
     async fn get_workspace_by_id(&self, id: i64) -> anyhow::Result<WorkspaceRecord>;
 }
 
-#[derive(Serialize)]
-pub struct WorkspaceRecord {
-    pub id: i64,
-    pub url: String,
-    pub description: Option<String>,
-}
-
-impl std::fmt::Display for WorkspaceRecord {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} - {} - {}",
-            self.id,
-            &self.url,
-            match &self.description {
-                Some(v) => v,
-                None => "<empty>",
-            },
-        )
-    }
-}
-
 pub fn stream_workspace_records_default(mut writer: impl Write, records: Vec<WorkspaceRecord>) -> std::result::Result<usize, std::io::Error> {
     let mut result: usize = 0;
     result += writer.write(b"id - url - description\n")?;
@@ -47,11 +27,6 @@ pub fn stream_workspace_records_default(mut writer: impl Write, records: Vec<Wor
         result += writer.write(format!("{}\n", record).as_bytes())?;
     }
     Ok(result)
-}
-
-#[derive(Serialize)]
-pub struct JsonWorkspaceRecords {
-    pub workspaces: Vec<WorkspaceRecord>
 }
 
 pub fn stream_workspace_records_as_json(writer: impl Write, records: Vec<WorkspaceRecord>) -> Result<(), serde_json::Error> {

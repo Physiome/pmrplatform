@@ -3,13 +3,21 @@ use futures::stream::StreamExt;
 use futures::stream::futures_unordered::FuturesUnordered;
 use std::io::Write;
 use git2::{Repository, Blob, Commit, Object, ObjectType, Tree};
-use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use pmrmodel_base::{
+    git::{
+        TreeEntryInfo,
+        LogEntryInfo,
+        ObjectInfo,
+    },
+    workspace::{
+        WorkspaceRecord,
+    },
+};
 
 use crate::backend::db::PmrBackend;
 use crate::model::workspace::{
     WorkspaceBackend,
-    WorkspaceRecord,
 };
 use crate::model::workspace_sync::{
     WorkspaceSyncBackend,
@@ -29,43 +37,6 @@ pub struct GitResultSet<'git_result_set> {
     pub commit: &'git_result_set Commit<'git_result_set>,
     pub path: &'git_result_set str,
     pub object: Object<'git_result_set>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TreeEntryInfo {
-    filemode: String,
-    kind: String,
-    id: String,
-    name: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct LogEntryInfo {
-    commit_id: String,
-    author: String,
-    committer: String,
-    commit_timestamp: i64,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum ObjectInfo {
-    FileInfo {
-        size: u64,
-        binary: bool,
-    },
-    TreeInfo {
-        filecount: u64,
-        entries: Vec<TreeEntryInfo>,
-    },
-    CommitInfo {
-        commit_id: String,
-        author: String,
-        committer: String,
-    },
-    LogInfo {
-        // TODO fields about start, next, pagination?
-        entries: Vec<LogEntryInfo>,
-    },
 }
 
 fn blob_to_info(blob: &Blob) -> ObjectInfo {
