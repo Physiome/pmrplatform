@@ -29,7 +29,7 @@ use crate::model::workspace_tag::WorkspaceTagBackend;
 pub struct GitPmrAccessor<'a, P: PmrBackend> {
     backend: &'a P,
     git_root: PathBuf,
-    workspace: WorkspaceRecord,
+    pub workspace: WorkspaceRecord,
 }
 
 pub struct GitResultSet<'git_result_set> {
