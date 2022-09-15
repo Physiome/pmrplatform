@@ -9,6 +9,13 @@ use pmrmodel_base::{
         TreeEntryInfo,
         LogEntryInfo,
         ObjectInfo,
+        FileInfo,
+        TreeInfo,
+        CommitInfo,
+        LogInfo,
+
+        PathObject,
+        PathInfo,
     },
     workspace::{
         WorkspaceRecord,
@@ -40,29 +47,49 @@ pub struct GitResultSet<'git_result_set> {
 }
 
 fn blob_to_info(blob: &Blob) -> ObjectInfo {
-    ObjectInfo::FileInfo {
+    ObjectInfo::FileInfo(FileInfo {
         size: blob.size() as u64,
         binary: blob.is_binary(),
-    }
+    })
 }
 
 fn tree_to_info(repo: &Repository, tree: &Tree) -> ObjectInfo {
-    ObjectInfo::TreeInfo {
-        filecount: tree.len() as u64,
-        entries: tree.iter().map(|entry| TreeEntryInfo {
-            filemode: format!("{:06o}", entry.filemode()),
-            kind: entry.kind().unwrap().str().to_string(),
-            id: format!("{}", entry.id()),
-            name: entry.name().unwrap().to_string(),
-        }).collect(),
-    }
+    ObjectInfo::TreeInfo(
+        TreeInfo {
+            filecount: tree.len() as u64,
+            entries: tree.iter().map(|entry| TreeEntryInfo {
+                filemode: format!("{:06o}", entry.filemode()),
+                kind: entry.kind().unwrap().str().to_string(),
+                id: format!("{}", entry.id()),
+                name: entry.name().unwrap().to_string(),
+            }).collect(),
+        }
+    )
 }
 
 fn commit_to_info(commit: &Commit) -> ObjectInfo {
-    ObjectInfo::CommitInfo {
+    ObjectInfo::CommitInfo(CommitInfo {
         commit_id: format!("{}", commit.id()),
         author: format!("{}", commit.author()),
         committer: format!("{}", commit.committer()),
+    })
+}
+
+impl From<&GitResultSet<'_>> for PathInfo {
+    fn from(git_result_set: &GitResultSet) -> Self {
+        PathInfo {
+            commit: CommitInfo {
+                commit_id: format!("{}", &git_result_set.commit.id()),
+                author: format!("{}", &git_result_set.commit.author()),
+                committer: format!("{}", &git_result_set.commit.committer()),
+            },
+            path: format!("{}", &git_result_set.path),
+            object: match object_to_info(&git_result_set.repo, &git_result_set.object) {
+                Some(ObjectInfo::FileInfo(file_info)) => Some(PathObject::FileInfo(file_info)),
+                Some(ObjectInfo::TreeInfo(tree_info)) => Some(PathObject::TreeInfo(tree_info)),
+                _ => None
+            },
+        }
     }
 }
 
@@ -103,12 +130,14 @@ pub fn stream_git_result_set_default(mut writer: impl Write, git_result_set: &Gi
         have commit_object {:?}
         using repopath {:?}
         have git_object {:?}
+        have path_info {:?}
         \n",
         git_result_set.repo.path(),
         &git_result_set.commit.id(),
         commit_to_info(&git_result_set.commit),
         git_result_set.path,
         <Option<ObjectInfo>>::from(git_result_set),
+        <PathInfo>::from(git_result_set),
     ).as_bytes())
 }
 
@@ -122,7 +151,7 @@ pub fn stream_git_result_set_as_json(
     // Also, need to consider how to provide a more generic JSON-LD builder framework
     // of sort?  Need to build context and what not...
     // generalize a UI based on that schema/grammar?
-    serde_json::to_writer(writer, &<Option<ObjectInfo>>::from(git_result_set))
+    serde_json::to_writer(writer, &<PathInfo>::from(git_result_set))
 }
 
 pub fn stream_blob(mut writer: impl Write, blob: &Blob) -> std::result::Result<usize, std::io::Error> {
@@ -257,6 +286,7 @@ impl<'a, P: PmrBackend + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagB
         let tree = commit.tree()?;
         info!("Found tree {}", tree.id());
         // TODO only further navigate into tree_entry if path
+        // repopath is the sanitized path to the repo
         let (repopath, git_object) = match path {
             Some("") | Some("/") | None => {
                 info!("No path provided; using root tree entry");
@@ -335,7 +365,7 @@ impl<'a, P: PmrBackend + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagB
 
         info!("{:?}", log_entries);
 
-        let result = ObjectInfo::LogInfo { entries: log_entries };
+        let result = ObjectInfo::LogInfo(LogInfo { entries: log_entries });
 
         info!("{}", serde_json::to_string(&result).unwrap());
 

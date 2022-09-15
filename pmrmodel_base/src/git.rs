@@ -17,22 +17,48 @@ pub struct LogEntryInfo {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FileInfo {
+    pub size: u64,
+    pub binary: bool,
+}
+
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TreeInfo {
+    pub filecount: u64,
+    pub entries: Vec<TreeEntryInfo>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CommitInfo {
+    pub commit_id: String,
+    pub author: String,
+    pub committer: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct LogInfo {
+    // TODO fields about start, next, pagination?
+    pub entries: Vec<LogEntryInfo>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ObjectInfo {
-    FileInfo {
-        size: u64,
-        binary: bool,
-    },
-    TreeInfo {
-        filecount: u64,
-        entries: Vec<TreeEntryInfo>,
-    },
-    CommitInfo {
-        commit_id: String,
-        author: String,
-        committer: String,
-    },
-    LogInfo {
-        // TODO fields about start, next, pagination?
-        entries: Vec<LogEntryInfo>,
-    },
+    FileInfo(FileInfo),
+    TreeInfo(TreeInfo),
+    CommitInfo(CommitInfo),
+    LogInfo(LogInfo),
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum PathObject {
+    FileInfo(FileInfo),
+    TreeInfo(TreeInfo),
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct PathInfo {
+    pub commit: CommitInfo,
+    pub path: String,
+    pub object: Option<PathObject>,
 }
