@@ -20,6 +20,9 @@ use pmrmodel_base::{
     workspace::{
         WorkspaceRecord,
     },
+    merged::{
+        WorkspacePathInfo,
+    },
 };
 
 use crate::backend::db::PmrBackend;
@@ -45,6 +48,8 @@ pub struct GitResultSet<'git_result_set> {
     pub path: &'git_result_set str,
     pub object: Object<'git_result_set>,
 }
+
+struct WorkspaceGitResultSet<'a>(&'a WorkspaceRecord, &'a GitResultSet<'a>);
 
 fn blob_to_info(blob: &Blob) -> ObjectInfo {
     ObjectInfo::FileInfo(FileInfo {
@@ -78,6 +83,30 @@ fn commit_to_info(commit: &Commit) -> ObjectInfo {
 impl From<&GitResultSet<'_>> for PathInfo {
     fn from(git_result_set: &GitResultSet) -> Self {
         PathInfo {
+            commit: CommitInfo {
+                commit_id: format!("{}", &git_result_set.commit.id()),
+                author: format!("{}", &git_result_set.commit.author()),
+                committer: format!("{}", &git_result_set.commit.committer()),
+            },
+            path: format!("{}", &git_result_set.path),
+            object: match object_to_info(&git_result_set.repo, &git_result_set.object) {
+                Some(ObjectInfo::FileInfo(file_info)) => Some(PathObject::FileInfo(file_info)),
+                Some(ObjectInfo::TreeInfo(tree_info)) => Some(PathObject::TreeInfo(tree_info)),
+                _ => None
+            },
+        }
+    }
+}
+
+impl From<&WorkspaceGitResultSet<'_>> for WorkspacePathInfo {
+    fn from(
+        WorkspaceGitResultSet(
+            workspace,
+            git_result_set,
+        ): &WorkspaceGitResultSet<'_>
+    ) -> Self {
+        WorkspacePathInfo {
+            description: workspace.description.clone(),
             commit: CommitInfo {
                 commit_id: format!("{}", &git_result_set.commit.id()),
                 author: format!("{}", &git_result_set.commit.author()),
@@ -264,7 +293,7 @@ impl<'a, P: PmrBackend + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagB
         &self,
         commit_id: Option<&str>,
         path: Option<&str>,
-        processor: fn(&GitResultSet) -> T
+        processor: fn(&Self, &GitResultSet) -> T
     ) -> anyhow::Result<T> {
         let git_root = &self.git_root;
         let workspace = &self.workspace;
@@ -310,7 +339,7 @@ impl<'a, P: PmrBackend + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagB
             path: repopath,
             object: git_object,
         };
-        Ok(processor(&git_result_set))
+        Ok(processor(&self, &git_result_set))
     }
 
     // pub async fn process_loginfo<T>(
@@ -542,7 +571,7 @@ mod tests {
         let git_root_dir = TempDir::new().unwrap();
         let repo_dir = git_root_dir.path().join("10");
         let err_msg = format!("Invalid data at local {:?} - expected bare repo", repo_dir);
-        let (_, repo) = crate::test::repo_init(None, Some(repo_dir));
+        let (_, repo) = crate::test::repo_init(None, Some(&repo_dir));
         let (_, _) = crate::test::commit(&repo, "some_file");
 
         let mut mock_backend = MockBackend::new();
@@ -560,4 +589,53 @@ mod tests {
         assert_eq!(failed_sync.to_string(), err_msg);
     }
 
+    #[async_std::test]
+    async fn test_workspace_path_info_from_workspace_git_result_set() {
+        let (td_, repo) = crate::test::repo_init(None, None);
+        let (_, _) = crate::test::commit(&repo, "some_file");
+
+        let td = td_.unwrap();
+        let td_path = td.path().to_owned();
+        let url = td_path.to_str().unwrap();
+
+        let git_root = TempDir::new().unwrap();
+        let mut mock_backend = MockBackend::new();
+        mock_backend.expect_begin_sync()
+            .times(1)
+            .with(eq(10))
+            .returning(|_| Ok(10));
+        mock_backend.expect_complete_sync()
+            .times(1)
+            .with(eq(10), eq(WorkspaceSyncStatus::Completed))
+            .returning(|_, _| Ok(true));
+        assert!(git_sync_helper(&mock_backend, 10, url, &git_root).await.is_ok());
+
+        let workspace = WorkspaceRecord {
+            id: 10,
+            url: "http://example.com/10".to_string(),
+            description: Some("demo workspace 10".to_string())
+        };
+
+        let git_pmr_accessor = GitPmrAccessor::new(
+            &mock_backend,
+            git_root.path().to_path_buf(),
+            workspace,
+        );
+
+        match git_pmr_accessor.process_pathinfo(
+            None,
+            None,
+            |git_pmr_accessor, result| {
+                <WorkspacePathInfo>::from(&WorkspaceGitResultSet(&git_pmr_accessor.workspace, result))
+            }
+        ).await {
+            Ok(workspace_path_info) => {
+                assert_eq!(workspace_path_info.path, "".to_string());
+                assert_eq!(workspace_path_info.description, Some("demo workspace 10".to_string()));
+            }
+            Err(_) => {
+                unreachable!();
+            }
+        }
+    }
 }

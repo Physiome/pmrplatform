@@ -1,22 +1,25 @@
-use std::path::PathBuf;
+use std::path::Path;
 use tempfile::TempDir;
 use git2::{Oid, Repository, RepositoryInitOptions};
 
-pub fn repo_init(main_branch: Option<&str>, target: Option<PathBuf>) -> (Option<TempDir>, Repository) {
-    let (tempdir, init_path) = match target {
-        Some(s) => (None, s),
-        None => {
-            let tempdir = TempDir::new().unwrap();
-            let init_path = tempdir.path().to_owned();
-            (Some(tempdir), init_path)
-        },
-    };
+pub fn repo_init(
+    main_branch: Option<&str>,
+    target: Option<&Path>,
+) -> (Option<TempDir>, Repository) {
+
     let mut opts = RepositoryInitOptions::new();
     opts.initial_head(match main_branch {
         Some(s) => { s },
         None => { "main" },
     });
-    let repo = Repository::init_opts(init_path, &opts).unwrap();
+    let (tempdir, repo) = match target {
+        Some(init_path) => (None, Repository::init_opts(init_path, &opts).unwrap()),
+        None => {
+            let tempdir = TempDir::new().unwrap();
+            let init_path = tempdir.path().to_path_buf();
+            (Some(tempdir), Repository::init_opts(init_path, &opts).unwrap())
+        },
+    };
     {
         let mut config = repo.config().unwrap();
         config.set_str("user.name", "user").unwrap();
