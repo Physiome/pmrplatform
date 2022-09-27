@@ -49,7 +49,16 @@ pub struct GitResultSet<'git_result_set> {
     pub object: Object<'git_result_set>,
 }
 
-struct WorkspaceGitResultSet<'a>(&'a WorkspaceRecord, &'a GitResultSet<'a>);
+pub struct WorkspaceGitResultSet<'a>(&'a WorkspaceRecord, &'a GitResultSet<'a>);
+
+impl WorkspaceGitResultSet<'_> {
+    pub fn new<'a>(
+        workspace_record: &'a WorkspaceRecord,
+        git_result_set: &'a GitResultSet,
+    ) -> WorkspaceGitResultSet<'a> {
+        WorkspaceGitResultSet(&workspace_record, git_result_set)
+    }
+}
 
 fn blob_to_info(blob: &Blob) -> ObjectInfo {
     ObjectInfo::FileInfo(FileInfo {
@@ -106,6 +115,7 @@ impl From<&WorkspaceGitResultSet<'_>> for WorkspacePathInfo {
         ): &WorkspaceGitResultSet<'_>
     ) -> Self {
         WorkspacePathInfo {
+            workspace_id: workspace.id,
             description: workspace.description.clone(),
             commit: CommitInfo {
                 commit_id: format!("{}", &git_result_set.commit.id()),
@@ -626,7 +636,7 @@ mod tests {
             None,
             None,
             |git_pmr_accessor, result| {
-                <WorkspacePathInfo>::from(&WorkspaceGitResultSet(&git_pmr_accessor.workspace, result))
+                <WorkspacePathInfo>::from(&WorkspaceGitResultSet::new(&git_pmr_accessor.workspace, result))
             }
         ).await {
             Ok(workspace_path_info) => {

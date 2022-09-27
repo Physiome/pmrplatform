@@ -7,6 +7,7 @@ use crate::git::{
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct WorkspacePathInfo {
+    pub workspace_id: i64,
     pub description: Option<String>,
     pub commit: CommitInfo,
     pub path: String,
