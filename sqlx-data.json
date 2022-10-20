@@ -1,7 +1,6 @@
 {
   "db": "SQLite",
   "0ba3b972f857c643b4dd4d11919f279e524f81ba519a7561b3a1aeb21deed1bf": {
-    "query": "\n    SELECT id, workspace_id, name, commit_id\n    FROM workspace_tag\n    WHERE workspace_id = ?1\n            ",
     "describe": {
       "columns": [
         {
@@ -25,29 +24,65 @@
           "type_info": "Text"
         }
       ],
-      "parameters": {
-        "Right": 1
-      },
       "nullable": [
         false,
         false,
         false,
         false
-      ]
-    }
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "\n    SELECT id, workspace_id, name, commit_id\n    FROM workspace_tag\n    WHERE workspace_id = ?1\n            "
   },
   "1fe547bd31e603ba2fd38cbcbfa084e0e3849a442c5d9444669eefd24413e899": {
-    "query": "\n    UPDATE workspace_sync\n    SET end = ?1, status = ?2\n    WHERE id = ?3\n            ",
     "describe": {
       "columns": [],
+      "nullable": [],
       "parameters": {
         "Right": 3
-      },
-      "nullable": []
-    }
+      }
+    },
+    "query": "\n    UPDATE workspace_sync\n    SET end = ?1, status = ?2\n    WHERE id = ?3\n            "
+  },
+  "274f497f76404f1f1c38d0bcf4284408acb9b13574e814b7b45bdfedd8b01e0a": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "workspace_id",
+          "ordinal": 1,
+          "type_info": "Int64"
+        },
+        {
+          "name": "alias",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "created",
+          "ordinal": 3,
+          "type_info": "Int64"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "\n    SELECT id, workspace_id, alias, created\n    FROM workspace_alias\n    WHERE workspace_id = ?1\n            "
   },
   "2777d7ce8e5b8249710fb02de780a82be2149d5f08cd17cdafa523d681775ed4": {
-    "query": "\nSELECT id, url, description\nFROM workspace\nWHERE id = ?1\n            ",
     "describe": {
       "columns": [
         {
@@ -66,38 +101,38 @@
           "type_info": "Text"
         }
       ],
-      "parameters": {
-        "Right": 1
-      },
       "nullable": [
         false,
         false,
         true
-      ]
-    }
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "\nSELECT id, url, description\nFROM workspace\nWHERE id = ?1\n            "
   },
   "3718960faae75106733d002d14e8f63eed12c6dc339fdd2cdfbbce5ae312da65": {
-    "query": "\n    INSERT INTO workspace_sync ( workspace_id, start, status )\n    VALUES ( ?1, ?2, ?3 )\n            ",
     "describe": {
       "columns": [],
+      "nullable": [],
       "parameters": {
         "Right": 3
-      },
-      "nullable": []
-    }
+      }
+    },
+    "query": "\n    INSERT INTO workspace_sync ( workspace_id, start, status )\n    VALUES ( ?1, ?2, ?3 )\n            "
   },
   "62a8cd79866cbc5e20def80d9c1174458ef1fab94bd6378c87b6c84b82c8034e": {
-    "query": "\n    INSERT INTO workspace_tag ( workspace_id, name, commit_id )\n    VALUES ( ?1, ?2, ?3 )\n    ON CONFLICT (workspace_id, name, commit_id) DO NOTHING\n            ",
     "describe": {
       "columns": [],
+      "nullable": [],
       "parameters": {
         "Right": 3
-      },
-      "nullable": []
-    }
+      }
+    },
+    "query": "\n    INSERT INTO workspace_tag ( workspace_id, name, commit_id )\n    VALUES ( ?1, ?2, ?3 )\n    ON CONFLICT (workspace_id, name, commit_id) DO NOTHING\n            "
   },
   "7604f14fa8bb2475d2eaa3169ac64f027ed277385543bd17ed7769ab60f2d8a7": {
-    "query": "\n    SELECT id, workspace_id, start, end, status\n    FROM workspace_sync\n    WHERE workspace_id = ?1\n            ",
     "describe": {
       "columns": [
         {
@@ -126,40 +161,50 @@
           "type_info": "Int64"
         }
       ],
-      "parameters": {
-        "Right": 1
-      },
       "nullable": [
         false,
         false,
         false,
         true,
         false
-      ]
-    }
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "\n    SELECT id, workspace_id, start, end, status\n    FROM workspace_sync\n    WHERE workspace_id = ?1\n            "
   },
   "96176ab4d312f2dff1925d25f2976bf1252996bcd2af8bb57aca04796213edc8": {
-    "query": "\nUPDATE workspace\nSET description = ?1, long_description = ?2\nWHERE id = ?3\n            ",
     "describe": {
       "columns": [],
+      "nullable": [],
       "parameters": {
         "Right": 3
-      },
-      "nullable": []
-    }
+      }
+    },
+    "query": "\nUPDATE workspace\nSET description = ?1, long_description = ?2\nWHERE id = ?3\n            "
   },
-  "c431b9ede5e011888c6d0f9fdf86910313562fdd12de280a14d71ead68c64ffc": {
-    "query": "\nINSERT INTO workspace ( url, description, long_description, created )\nVALUES ( ?1, ?2, ?3, ?4 )\n            ",
+  "bfaeaf8d073d8e14c1ecc8279da15d21b8990fa4bf4ec331dec619ad669b1f2d": {
     "describe": {
       "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 3
+      }
+    },
+    "query": "\n    INSERT INTO workspace_alias ( workspace_id, alias, created )\n    VALUES ( ?1, ?2, ?3 )\n    ON CONFLICT (workspace_id, alias) DO NOTHING\n            "
+  },
+  "c431b9ede5e011888c6d0f9fdf86910313562fdd12de280a14d71ead68c64ffc": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
       "parameters": {
         "Right": 4
-      },
-      "nullable": []
-    }
+      }
+    },
+    "query": "\nINSERT INTO workspace ( url, description, long_description, created )\nVALUES ( ?1, ?2, ?3, ?4 )\n            "
   },
   "cab8c6f34d22a7421428183cf9f615cb5e1833c9311f179bfa47e471fb69b058": {
-    "query": "\nSELECT id, url, description\nFROM workspace\nORDER BY id\n            ",
     "describe": {
       "columns": [
         {
@@ -178,14 +223,15 @@
           "type_info": "Text"
         }
       ],
-      "parameters": {
-        "Right": 0
-      },
       "nullable": [
         false,
         false,
         true
-      ]
-    }
+      ],
+      "parameters": {
+        "Right": 0
+      }
+    },
+    "query": "\nSELECT id, url, description\nFROM workspace\nORDER BY id\n            "
   }
 }
