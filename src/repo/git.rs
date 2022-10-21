@@ -214,7 +214,12 @@ pub fn stream_git_result_set_as_blob(writer: impl Write, git_result_set: &GitRes
     }
 }
 
-impl<'a, P: PmrBackend + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBackend> GitPmrAccessor<'a, P> {
+// If trait aliases <https://github.com/rust-lang/rust/issues/41517> are stabilized:
+// pub trait PmrWorkspaceBackend = PmrBackend + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBackend;
+pub trait PmrWorkspaceBackend: PmrBackend + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBackend {}
+impl<P: PmrBackend + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBackend> PmrWorkspaceBackend for P {}
+
+impl<'a, P: PmrWorkspaceBackend> GitPmrAccessor<'a, P> {
     pub fn new(backend: &'a P, git_root: PathBuf, workspace: WorkspaceRecord) -> Self {
         Self {
             backend: &backend,
