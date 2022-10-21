@@ -12,6 +12,7 @@ use pmrmodel::model::workspace::{
     stream_workspace_records_default,
     stream_workspace_records_as_json,
 };
+use pmrmodel::model::workspace_alias::WorkspaceAliasBackend;
 use pmrmodel::model::workspace_sync::WorkspaceSyncBackend;
 use pmrmodel::model::workspace_tag::WorkspaceTagBackend;
 use pmrmodel::repo::git::{
@@ -76,6 +77,12 @@ enum Command {
         workspace_id: i64,
         #[structopt(short, long)]
         commit_id: Option<String>,
+    },
+    Alias {
+        workspace_id: i64,
+        #[structopt(short = "a", long = "alias")]
+        alias: Option<String>,
+        // TODO include reverse lookup here?
     },
 }
 
@@ -183,6 +190,20 @@ async fn main(args: Args) -> anyhow::Result<()> {
             let workspace = WorkspaceBackend::get_workspace_by_id(&backend, workspace_id).await?;
             let git_pmr_accessor = GitPmrAccessor::new(&backend, git_root, workspace);
             git_pmr_accessor.process_loginfo(commit_id.as_deref()).await?;
+        }
+        Some(Command::Alias { workspace_id, alias }) => {
+            if alias.is_none() {
+                let aliases = WorkspaceAliasBackend::get_aliases(&backend, workspace_id).await?;
+                println!("Printing list of all aliases");
+                for rec in aliases {
+                    println!("{}", rec);
+                }
+            }
+            else {
+                let alias = alias.unwrap();
+                WorkspaceAliasBackend::add_alias(&backend, workspace_id, &alias).await?;
+                println!("setting alias to {}", alias);
+            }
         }
         None => {
             let recs = WorkspaceBackend::list_workspaces(&backend).await?;
