@@ -13,6 +13,7 @@ use pmrmodel_base::{
         TreeInfo,
         CommitInfo,
         LogInfo,
+        RemoteInfo,
 
         PathObject,
         PathInfo,
@@ -42,11 +43,20 @@ pub struct GitPmrAccessor<'a, P: PmrBackend> {
     pub workspace: WorkspaceRecord,
 }
 
-pub struct GitResultSet<'git_result_set> {
-    pub repo: &'git_result_set Repository,
-    pub commit: &'git_result_set Commit<'git_result_set>,
-    pub path: &'git_result_set str,
-    pub object: Object<'git_result_set>,
+pub enum GitResultTarget<'a> {
+    Object(Object<'a>),
+    SubRepoPath {
+        location: &'a str,
+        commit: &'a str,
+        path: &'a str,
+    },
+}
+
+pub struct GitResultSet<'a> {
+    pub repo: &'a Repository,
+    pub commit: &'a Commit<'a>,
+    pub path: &'a str,
+    pub target: GitResultTarget<'a>,
 }
 
 pub struct WorkspaceGitResultSet<'a>(&'a WorkspaceRecord, &'a GitResultSet<'a>);
@@ -89,6 +99,29 @@ fn commit_to_info(commit: &Commit) -> ObjectInfo {
     })
 }
 
+fn gitresultset_target_to_pathobject(
+    git_result_set: &GitResultSet,
+) -> Option<PathObject> {
+    // TODO None may represent error here?
+    match &git_result_set.target {
+        GitResultTarget::Object(object) => match object_to_info(
+            &git_result_set.repo,
+            object,
+        ) {
+            Some(ObjectInfo::FileInfo(file_info)) => Some(PathObject::FileInfo(file_info)),
+            Some(ObjectInfo::TreeInfo(tree_info)) => Some(PathObject::TreeInfo(tree_info)),
+            _ => None,
+        },
+        GitResultTarget::SubRepoPath { location, commit, path } => {
+            Some(PathObject::RemoteInfo(RemoteInfo {
+                location: location.to_string(),
+                commit: commit.to_string(),
+                path: path.to_string(),
+            }))
+        },
+    }
+}
+
 impl From<&GitResultSet<'_>> for PathInfo {
     fn from(git_result_set: &GitResultSet) -> Self {
         PathInfo {
@@ -98,11 +131,7 @@ impl From<&GitResultSet<'_>> for PathInfo {
                 committer: format!("{}", &git_result_set.commit.committer()),
             },
             path: format!("{}", &git_result_set.path),
-            object: match object_to_info(&git_result_set.repo, &git_result_set.object) {
-                Some(ObjectInfo::FileInfo(file_info)) => Some(PathObject::FileInfo(file_info)),
-                Some(ObjectInfo::TreeInfo(tree_info)) => Some(PathObject::TreeInfo(tree_info)),
-                _ => None
-            },
+            object: gitresultset_target_to_pathobject(git_result_set),
         }
     }
 }
@@ -123,11 +152,7 @@ impl From<&WorkspaceGitResultSet<'_>> for WorkspacePathInfo {
                 committer: format!("{}", &git_result_set.commit.committer()),
             },
             path: format!("{}", &git_result_set.path),
-            object: match object_to_info(&git_result_set.repo, &git_result_set.object) {
-                Some(ObjectInfo::FileInfo(file_info)) => Some(PathObject::FileInfo(file_info)),
-                Some(ObjectInfo::TreeInfo(tree_info)) => Some(PathObject::TreeInfo(tree_info)),
-                _ => None
-            },
+            object: gitresultset_target_to_pathobject(git_result_set),
         }
     }
 }
@@ -156,7 +181,12 @@ fn object_to_info(repo: &Repository, git_object: &Object) -> Option<ObjectInfo> 
 
 impl From<&GitResultSet<'_>> for Option<ObjectInfo> {
     fn from(git_result_set: &GitResultSet) -> Self {
-        object_to_info(&git_result_set.repo, &git_result_set.object)
+        match &git_result_set.target {
+            GitResultTarget::Object(object) => {
+                object_to_info(&git_result_set.repo, &object)
+            }
+            _ => None
+        }
     }
 }
 
@@ -198,20 +228,44 @@ pub fn stream_blob(mut writer: impl Write, blob: &Blob) -> std::result::Result<u
 }
 
 pub fn stream_git_result_set_as_blob(writer: impl Write, git_result_set: &GitResultSet) -> anyhow::Result<()> {
-    match git_result_set.object.kind() {
-        Some(ObjectType::Blob) => {
-            match git_result_set.object.as_blob() {
-                Some(blob) => {
-                    stream_blob(writer, blob)?;
-                    Ok(())
+    match &git_result_set.target {
+        GitResultTarget::Object(object) => match object.kind() {
+            Some(ObjectType::Blob) => {
+                match &object.as_blob() {
+                    Some(blob) => {
+                        stream_blob(writer, blob)?;
+                        Ok(())
+                    }
+                    None => bail!("failed to get blob from object")
                 }
-                None => bail!("failed to get blob from object")
+            }
+            Some(_) | None => {
+                bail!("target is not a git blob")
             }
         }
-        Some(_) | None => {
-            bail!("target is not a git blob")
+        _ => bail!("target is not a git blob")
+    }
+}
+
+fn get_submodule_target(
+    repo: &Repository,
+    tree: &Tree,
+    path: &str,
+) -> anyhow::Result<String> {
+    let obj = tree.get_path(Path::new(".gitmodules"))?.to_object(&repo)?;
+    let blob = std::str::from_utf8(obj.as_blob().unwrap().content())?;
+    let config = git_config::File::try_from(blob)?;
+    for rec in config.sections_and_ids() {
+        match rec.0.value("path") {
+            Some(rec_path) => {
+                if path == rec_path.into_owned() {
+                    return Ok(format!("{}", rec.0.value("url").unwrap()));
+                }
+            },
+            None => {},
         }
     }
+    bail!("no submodule declared at {}", path)
 }
 
 // If trait aliases <https://github.com/rust-lang/rust/issues/41517> are stabilized:
@@ -328,13 +382,15 @@ impl<'a, P: PmrWorkspaceBackend> GitPmrAccessor<'a, P> {
         }
         let commit = obj.as_commit().unwrap();
         let tree = commit.tree()?;
+        let location: String;
+        let location_commit: String;
         info!("Found tree {}", tree.id());
         // TODO only further navigate into tree_entry if path
         // repopath is the sanitized path to the repo
-        let (repopath, git_object) = match path {
+        let (path, target) = match path {
             Some("") | Some("/") | None => {
                 info!("No path provided; using root tree entry");
-                ("".as_ref(), tree.into_object())
+                ("".as_ref(), GitResultTarget::Object(tree.into_object()))
             },
             Some(s) => {
                 let path = if s.chars().nth(0) == Some('/') {
@@ -342,17 +398,60 @@ impl<'a, P: PmrWorkspaceBackend> GitPmrAccessor<'a, P> {
                 } else {
                     &s
                 };
-                let tree_entry = tree.get_path(Path::new(path))?;
-                info!("Found tree_entry {} {}", tree_entry.kind().unwrap().str(), tree_entry.id());
-                (path, tree_entry.to_object(&repo)?)
+
+                let mut curr_tree = tree;
+                let mut curr_path = PathBuf::new();
+                let mut target: Option<GitResultTarget> = None;
+
+                let mut comps = Path::new(path).components();
+
+                while let Some(component) = comps.next() {
+                    let entry = curr_tree.get_path(Path::new(&component))?;
+                    curr_path.push(component);
+                    match entry.kind() {
+                        Some(ObjectType::Tree) => {
+                            curr_tree = entry
+                                .to_object(&repo)?
+                                .into_tree()
+                                .unwrap();
+                            info!("got {:?}", curr_tree);
+                        },
+                        Some(ObjectType::Commit) => {
+                            info!("entry at {:?} a commit", entry.id());
+                            location = get_submodule_target(
+                                &repo,
+                                &commit.tree()?,
+                                curr_path.to_str().unwrap(),
+                            )?;
+                            location_commit = entry.id().to_string();
+                            target = Some(GitResultTarget::SubRepoPath {
+                                location: &location,
+                                commit: &location_commit,
+                                path: comps.as_path().to_str().unwrap(),
+                            });
+                            break;
+                        }
+                        _ => {
+                            info!("path {:?} not a tree", &curr_path);
+                        }
+                    }
+                    target = match entry.to_object(&repo) {
+                        Ok(git_object) => Some(GitResultTarget::Object(git_object)),
+                        Err(e) => {
+                            info!("Will error later due to {}", e);
+                            None
+                        }
+                    }
+                };
+                (path, target.unwrap())
             },
         };
-        info!("using git_object {} {}", git_object.kind().unwrap().str(), git_object.id());
+        // info!("using git_object {} {}", git_object.kind().unwrap().str(), git_object.id());
         let git_result_set = GitResultSet {
             repo: &repo,
             commit: commit,
-            path: repopath,
-            object: git_object,
+            path: path,
+            target: target,
         };
         Ok(processor(&self, &git_result_set))
     }

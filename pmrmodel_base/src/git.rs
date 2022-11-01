@@ -43,6 +43,13 @@ pub struct LogInfo {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct RemoteInfo {
+    pub location: String,
+    pub commit: String,
+    pub path: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ObjectInfo {
     FileInfo(FileInfo),
     TreeInfo(TreeInfo),
@@ -54,6 +61,7 @@ pub enum ObjectInfo {
 pub enum PathObject {
     FileInfo(FileInfo),
     TreeInfo(TreeInfo),
+    RemoteInfo(RemoteInfo),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
