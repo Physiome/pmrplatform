@@ -572,7 +572,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_git_sync_workspace_empty() {
-        let (td_, _) = crate::test::repo_init(None, None);
+        let (td_, _) = crate::test::repo_init(None, None, false, None);
         let td = td_.unwrap();
         let mut mock_backend = MockBackend::new();
         mock_backend.expect_begin_sync()
@@ -589,7 +589,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_git_sync_workspace_with_index_tag() {
-        let (td_, repo) = crate::test::repo_init(None, None);
+        let (td_, repo) = crate::test::repo_init(None, None, false, None);
         let td = td_.unwrap();
         let id = repo.head().unwrap().target().unwrap();
         let obj = repo.find_object(id, None).unwrap();
@@ -640,7 +640,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_git_sync_failure_dropped_source() {
-        let (td_, _) = crate::test::repo_init(None, None);
+        let (td_, _) = crate::test::repo_init(None, None, false, None);
         let td = td_.unwrap();
         let mut mock_backend = MockBackend::new();
         mock_backend.expect_begin_sync()
@@ -679,14 +679,14 @@ mod tests {
 
     #[async_std::test]
     async fn test_git_sync_workspace_not_bare() {
-        let (origin_, _) = crate::test::repo_init(None, None);
+        let (origin_, _) = crate::test::repo_init(None, None, false, None);
         let origin = origin_.unwrap();
 
         let git_root_dir = TempDir::new().unwrap();
         let repo_dir = git_root_dir.path().join("10");
         let err_msg = format!("Invalid data at local {:?} - expected bare repo", repo_dir);
-        let (_, repo) = crate::test::repo_init(None, Some(&repo_dir));
-        let (_, _) = crate::test::commit(&repo, "some_file");
+        let (_, repo) = crate::test::repo_init(None, Some(&repo_dir), false, None);
+        let (_, _) = crate::test::commit(&repo, vec![("some_file", "")]);
 
         let mut mock_backend = MockBackend::new();
         mock_backend.expect_begin_sync()
@@ -705,8 +705,8 @@ mod tests {
 
     #[async_std::test]
     async fn test_workspace_path_info_from_workspace_git_result_set() {
-        let (td_, repo) = crate::test::repo_init(None, None);
-        let (_, _) = crate::test::commit(&repo, "some_file");
+        let (td_, repo) = crate::test::repo_init(None, None, false, None);
+        let (_, _) = crate::test::commit(&repo, vec![("some_file", "")]);
 
         let td = td_.unwrap();
         let td_path = td.path().to_owned();
