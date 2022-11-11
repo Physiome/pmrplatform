@@ -1,6 +1,5 @@
 pub mod backend {
     pub mod db;
-    pub mod jsonld;
 }
 pub mod repo {
     pub mod git;
