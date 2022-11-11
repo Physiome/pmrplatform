@@ -525,6 +525,7 @@ mod tests {
     use mockall::mock;
     use mockall::predicate::*;
     use tempfile::TempDir;
+    use textwrap_macros::dedent;
 
     // use crate::backend::db::MockHasPool;
     use crate::backend::db::PmrBackend;
@@ -752,4 +753,153 @@ mod tests {
             }
         }
     }
+
+    #[async_std::test]
+    async fn test_workspace_submodule_access() {
+        use crate::test::GitObj::{
+            Blob,
+            Commit,
+            Tree,
+        };
+        // import1
+        let (_td1, import1) = crate::test::repo_init(
+            None, None, true, Some(1111010101));
+        let (if1_c1, _) = crate::test::append_commit_from_objects(
+            &import1, Some(1111010110), Some("readme for import1"), vec![
+            Blob("README", dedent!("
+            this is import1
+            ")),
+        ]);
+        let (if1_c2, _) = crate::test::append_commit_from_objects(
+            &import1, Some(1111010111), Some("adding import1"), vec![
+            Blob("if1", dedent!("
+            if1
+            ")),
+            Blob("README", dedent!("
+            The readme for import1.
+            ")),
+        ]);
+
+        // import2
+        let (_td2, import2) = crate::test::repo_init(
+            None, None, true, Some(1111020202));
+        let (if2_c1, _) = crate::test::append_commit_from_objects(
+            &import2, Some(1222020220), Some("readme for import2"), vec![
+            Blob("README", dedent!("
+            this is import2
+            ")),
+        ]);
+        let (if2_c2, _) = crate::test::append_commit_from_objects(
+            &import2, Some(1222020221), Some("adding import2"), vec![
+            Blob("if2", dedent!("
+            if2
+            ")),
+            Blob("README", dedent!("
+            The readme for import2.
+            ")),
+        ]);
+        let (if2_c3, _) = crate::test::append_commit_from_objects(
+            &import2, Some(1222020222), Some("adding import1 as an import"), vec![
+            Commit("import1", &format!("{}", if1_c2)),
+            Blob(".gitmodules", dedent!(r#"
+            [submodule "ext/import1"]
+                   path = import1
+                   url = http://models.example.com/w/import1
+            "#)),
+        ]);
+
+        // repodata
+        let (_td3, repodata) = crate::test::repo_init(
+            None, None, true, Some(1654321000));
+        crate::test::append_commit_from_objects(
+            &repodata, Some(1666666700), Some("Initial commit of repodata"), vec![
+            Blob("file1", dedent!("
+            This is file1, initial commit.
+            ")),
+            Blob("README", dedent!("
+            A simple readme file.
+            ")),
+        ]);
+        crate::test::append_commit_from_objects(
+            &repodata, Some(1666666710), Some("adding import1"), vec![
+            Blob(".gitmodules", dedent!(r#"
+            [submodule "ext/import1"]
+                   path = ext/import1
+                   url = http://models.example.com/w/import1
+            "#)),
+            Tree("ext", vec![
+                Commit("import1", &format!("{}", if1_c1)),
+            ]),
+        ]);
+        crate::test::append_commit_from_objects(
+            &repodata, Some(1666666720), Some("adding some files"), vec![
+            Tree("dir1", vec![
+                Blob("file1", "file1 is new"),
+                Blob("file2", "file2 is new"),
+                Tree("nested", vec![
+                    Blob("file_a", "file_a is new"),
+                    Blob("file_b", "file_b is new"),
+                ]),
+            ]),
+        ]);
+        crate::test::append_commit_from_objects(
+            &repodata, Some(1666666730), Some("bumping import1"), vec![
+            Tree("ext", vec![
+                Commit("import1", &format!("{}", if1_c2)),
+            ]),
+            Blob("file1", dedent!("
+            This is file1, initial commit.
+            This line added with import1 bump.
+            ")),
+            Blob("file2", dedent!("
+            This is file2, added with import1 bump.
+            ")),
+        ]);
+        crate::test::append_commit_from_objects(
+            &repodata, Some(1666666740), Some("adding import2"), vec![
+            Blob(".gitmodules", dedent!(r#"
+            [submodule "ext/import1"]
+                   path = ext/import1
+                   url = http://models.example.com/w/import1
+            [submodule "ext/import2"]
+                   path = ext/import2
+                   url = http://models.example.com/w/import2
+            "#)),
+            Tree("ext", vec![
+                Commit("import2", &format!("{}", if2_c1)),
+            ]),
+        ]);
+        crate::test::append_commit_from_objects(
+            &repodata, Some(1666666750), Some("bumping import2"), vec![
+            Tree("ext", vec![
+                Commit("import2", &format!("{}", if2_c2)),
+            ]),
+        ]);
+        crate::test::append_commit_from_objects(
+            &repodata, Some(1666666760),
+            Some("bumping import2, breaking import1"), vec![
+            Tree("ext", vec![
+                Commit("import1", &format!("{}", if2_c2)),
+                Commit("import2", &format!("{}", if2_c3)),
+            ]),
+        ]);
+        crate::test::append_commit_from_objects(
+            &repodata, Some(1666666770),
+            Some("fixing import1"), vec![
+            Tree("ext", vec![
+                Commit("import1", &format!("{}", if1_c2)),
+            ]),
+        ]);
+        crate::test::append_commit_from_objects(
+            &repodata, Some(1666666780), Some("updating dir1"), vec![
+            Tree("dir1", vec![
+                Blob("file2", "file2 is modified"),
+                Tree("nested", vec![
+                    Blob("file_c", "file_c is new"),
+                ]),
+            ]),
+        ]);
+
+    }
+
 }

@@ -84,7 +84,8 @@ fn append_tree_from_objects(
 ) {
     match gitobj {
         GitObj::Blob(name, contents) => {
-            let oid = repo.blob(contents.as_bytes()).unwrap();
+            let oid = repo.blob(
+                contents.trim_start_matches('\n').as_bytes()).unwrap();
             builder.insert(name, oid, 0o100644).unwrap();
         },
         GitObj::Commit(name, contents) => {
@@ -203,7 +204,7 @@ fn smoke_test_append_commit_from_objects() {
     let (_, _) = crate::test::append_commit_from_objects(
         &repo_check, Some(1666666800), None,
         vec![
-            crate::test::GitObj::Blob("new_file", "another_file"),
+            crate::test::GitObj::Blob("new_file", "\na new_file\n"),
             crate::test::GitObj::Tree("some_dir", vec![
                 crate::test::GitObj::Blob("file2", "file2 modified"),
                 crate::test::GitObj::Blob("file3", "file3 is new"),
@@ -215,6 +216,8 @@ fn smoke_test_append_commit_from_objects() {
         ],
     );
 
+    // first newline trimed out (helps with formatting)
+    assert_blob(&repo_check, "new_file", "a new_file\n");
     assert_blob(&repo_check, "some_dir/nested/file_a", "file_a modified");
     assert_blob(&repo_check, "some_dir/nested/file_b", "file_b in nested");
     assert_blob(&repo_check, "some_dir/nested/file_c", "file_c is new");
