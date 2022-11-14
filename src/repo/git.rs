@@ -371,7 +371,7 @@ impl<'a, P: PmrWorkspaceBackend> GitPmrAccessor<'a, P> {
         // TODO the default value should be the default (main?) branch.
         // TODO the sync procedure should fast forward of sort
         // TODO the model should have a field for main branch
-        let obj = repo.revparse_single(commit_id.unwrap_or("origin/HEAD"))?;
+        let obj = repo.revparse_single(commit_id.unwrap_or("HEAD"))?;
 
         // TODO streamline this a bit.
         match obj.kind() {
@@ -522,6 +522,7 @@ mod tests {
     use super::*;
 
     use async_trait::async_trait;
+    use git2::Oid;
     use mockall::mock;
     use mockall::predicate::*;
     use tempfile::TempDir;
@@ -754,23 +755,33 @@ mod tests {
         }
     }
 
-    #[async_std::test]
-    async fn test_workspace_submodule_access() {
+    fn create_repodata() -> (
+        TempDir,
+        (Repository, Vec<Oid>),
+        (Repository, Vec<Oid>),
+        (Repository, Vec<Oid>),
+    ) {
         use crate::test::GitObj::{
             Blob,
             Commit,
             Tree,
         };
+
+        let tempdir = TempDir::new().unwrap();
         // import1
-        let (_td1, import1) = crate::test::repo_init(
-            None, None, true, Some(1111010101));
-        let (if1_c1, _) = crate::test::append_commit_from_objects(
+        let (_, import1) = crate::test::repo_init(
+            None, Some(&tempdir.path().join("1")), true, Some(1111010101));
+        let mut import1_oids = <Vec<Oid>>::new();
+        let mut import2_oids = <Vec<Oid>>::new();
+        let mut repodata_oids = <Vec<Oid>>::new();
+
+        import1_oids.push(crate::test::append_commit_from_objects(
             &import1, Some(1111010110), Some("readme for import1"), vec![
             Blob("README", dedent!("
             this is import1
             ")),
-        ]);
-        let (if1_c2, _) = crate::test::append_commit_from_objects(
+        ]).0);
+        import1_oids.push(crate::test::append_commit_from_objects(
             &import1, Some(1111010111), Some("adding import1"), vec![
             Blob("if1", dedent!("
             if1
@@ -778,18 +789,18 @@ mod tests {
             Blob("README", dedent!("
             The readme for import1.
             ")),
-        ]);
+        ]).0);
 
         // import2
-        let (_td2, import2) = crate::test::repo_init(
-            None, None, true, Some(1111020202));
-        let (if2_c1, _) = crate::test::append_commit_from_objects(
+        let (_, import2) = crate::test::repo_init(
+            None, Some(&tempdir.path().join("2")), true, Some(1111020202));
+        import2_oids.push(crate::test::append_commit_from_objects(
             &import2, Some(1222020220), Some("readme for import2"), vec![
             Blob("README", dedent!("
             this is import2
             ")),
-        ]);
-        let (if2_c2, _) = crate::test::append_commit_from_objects(
+        ]).0);
+        import2_oids.push(crate::test::append_commit_from_objects(
             &import2, Some(1222020221), Some("adding import2"), vec![
             Blob("if2", dedent!("
             if2
@@ -797,21 +808,21 @@ mod tests {
             Blob("README", dedent!("
             The readme for import2.
             ")),
-        ]);
-        let (if2_c3, _) = crate::test::append_commit_from_objects(
+        ]).0);
+        import2_oids.push(crate::test::append_commit_from_objects(
             &import2, Some(1222020222), Some("adding import1 as an import"), vec![
-            Commit("import1", &format!("{}", if1_c2)),
+            Commit("import1", &format!("{}", import1_oids[1])),
             Blob(".gitmodules", dedent!(r#"
             [submodule "ext/import1"]
                    path = import1
                    url = http://models.example.com/w/import1
             "#)),
-        ]);
+        ]).0);
 
         // repodata
-        let (_td3, repodata) = crate::test::repo_init(
-            None, None, true, Some(1654321000));
-        crate::test::append_commit_from_objects(
+        let (_, repodata) = crate::test::repo_init(
+            None, Some(&tempdir.path().join("3")), true, Some(1654321000));
+        repodata_oids.push(crate::test::append_commit_from_objects(
             &repodata, Some(1666666700), Some("Initial commit of repodata"), vec![
             Blob("file1", dedent!("
             This is file1, initial commit.
@@ -819,8 +830,8 @@ mod tests {
             Blob("README", dedent!("
             A simple readme file.
             ")),
-        ]);
-        crate::test::append_commit_from_objects(
+        ]).0);
+        repodata_oids.push(crate::test::append_commit_from_objects(
             &repodata, Some(1666666710), Some("adding import1"), vec![
             Blob(".gitmodules", dedent!(r#"
             [submodule "ext/import1"]
@@ -828,10 +839,10 @@ mod tests {
                    url = http://models.example.com/w/import1
             "#)),
             Tree("ext", vec![
-                Commit("import1", &format!("{}", if1_c1)),
+                Commit("import1", &format!("{}", import1_oids[0])),
             ]),
-        ]);
-        crate::test::append_commit_from_objects(
+        ]).0);
+        repodata_oids.push(crate::test::append_commit_from_objects(
             &repodata, Some(1666666720), Some("adding some files"), vec![
             Tree("dir1", vec![
                 Blob("file1", "file1 is new"),
@@ -841,11 +852,11 @@ mod tests {
                     Blob("file_b", "file_b is new"),
                 ]),
             ]),
-        ]);
-        crate::test::append_commit_from_objects(
+        ]).0);
+        repodata_oids.push(crate::test::append_commit_from_objects(
             &repodata, Some(1666666730), Some("bumping import1"), vec![
             Tree("ext", vec![
-                Commit("import1", &format!("{}", if1_c2)),
+                Commit("import1", &format!("{}", import1_oids[1])),
             ]),
             Blob("file1", dedent!("
             This is file1, initial commit.
@@ -854,8 +865,8 @@ mod tests {
             Blob("file2", dedent!("
             This is file2, added with import1 bump.
             ")),
-        ]);
-        crate::test::append_commit_from_objects(
+        ]).0);
+        repodata_oids.push(crate::test::append_commit_from_objects(
             &repodata, Some(1666666740), Some("adding import2"), vec![
             Blob(".gitmodules", dedent!(r#"
             [submodule "ext/import1"]
@@ -866,31 +877,31 @@ mod tests {
                    url = http://models.example.com/w/import2
             "#)),
             Tree("ext", vec![
-                Commit("import2", &format!("{}", if2_c1)),
+                Commit("import2", &format!("{}", import2_oids[0])),
             ]),
-        ]);
-        crate::test::append_commit_from_objects(
+        ]).0);
+        repodata_oids.push(crate::test::append_commit_from_objects(
             &repodata, Some(1666666750), Some("bumping import2"), vec![
             Tree("ext", vec![
-                Commit("import2", &format!("{}", if2_c2)),
+                Commit("import2", &format!("{}", import2_oids[1])),
             ]),
-        ]);
-        crate::test::append_commit_from_objects(
+        ]).0);
+        repodata_oids.push(crate::test::append_commit_from_objects(
             &repodata, Some(1666666760),
             Some("bumping import2, breaking import1"), vec![
             Tree("ext", vec![
-                Commit("import1", &format!("{}", if2_c2)),
-                Commit("import2", &format!("{}", if2_c3)),
+                Commit("import1", &format!("{}", import2_oids[1])),
+                Commit("import2", &format!("{}", import2_oids[2])),
             ]),
-        ]);
-        crate::test::append_commit_from_objects(
+        ]).0);
+        repodata_oids.push(crate::test::append_commit_from_objects(
             &repodata, Some(1666666770),
             Some("fixing import1"), vec![
             Tree("ext", vec![
-                Commit("import1", &format!("{}", if1_c2)),
+                Commit("import1", &format!("{}", import1_oids[1])),
             ]),
-        ]);
-        crate::test::append_commit_from_objects(
+        ]).0);
+        repodata_oids.push(crate::test::append_commit_from_objects(
             &repodata, Some(1666666780), Some("updating dir1"), vec![
             Tree("dir1", vec![
                 Blob("file2", "file2 is modified"),
@@ -898,7 +909,99 @@ mod tests {
                     Blob("file_c", "file_c is new"),
                 ]),
             ]),
-        ]);
+        ]).0);
+
+        (
+            tempdir,
+            (import1, import1_oids),
+            (import2, import2_oids),
+            (repodata, repodata_oids),
+        )
+    }
+
+    #[async_std::test]
+    async fn test_workspace_submodule_access() {
+        let (
+            git_root,
+            _, // (import1, import1_oids),
+            _, // (import2, import2_oids),
+            _, // (repodata, repodata_oids)
+        ) = create_repodata();
+
+        // let import1_workspace = WorkspaceRecord {
+        //     id: 1,
+        //     url: "http://models.example.com/w/import1".to_string(),
+        //     description: Some("The import1 workspace".to_string())
+        // };
+        // let import2_workspace = WorkspaceRecord {
+        //     id: 2,
+        //     url: "http://models.example.com/w/import2".to_string(),
+        //     description: Some("The import2 workspace".to_string())
+        // };
+        let repodata_workspace = WorkspaceRecord {
+            id: 3,
+            url: "http://models.example.com/w/repodata".to_string(),
+            description: Some("The repodata workspace".to_string())
+        };
+
+        let mock_backend = MockBackend::new();
+        let git_pmr_accessor = GitPmrAccessor::new(
+            &mock_backend,
+            git_root.path().to_path_buf(),
+            repodata_workspace,
+        );
+
+        match git_pmr_accessor.process_pathinfo(
+            Some("557ee3cb13fb421d2bd6897615ae95830eb427c8"),
+            Some("ext/import1/README"),
+            |git_pmr_accessor, result| {
+                <WorkspacePathInfo>::from(&WorkspaceGitResultSet::new(
+                    &git_pmr_accessor.workspace, result))
+            }
+        ).await {
+            Ok(workspace_path_info) => {
+                assert_eq!(
+                    workspace_path_info.path,
+                    "ext/import1/README".to_string());
+                assert_eq!(
+                    workspace_path_info.object,
+                    Some(PathObject::RemoteInfo(RemoteInfo {
+                        location: "http://models.example.com/w/import1"
+                            .to_string(),
+                        commit: "01b952d14a0a33d22a0aa465fe763e5d17b15d46"
+                            .to_string(),
+                        path: "README".to_string(),
+                    })),
+                );
+            }
+            Err(_) => unreachable!()
+        }
+
+        match git_pmr_accessor.process_pathinfo(
+            Some("c4d735e5a305559c1cb0ce8de4c25ed5c3f4f263"),
+            Some("ext/import2/import1/if1"),
+            |git_pmr_accessor, result| {
+                <WorkspacePathInfo>::from(&WorkspaceGitResultSet::new(
+                    &git_pmr_accessor.workspace, result))
+            }
+        ).await {
+            Ok(workspace_path_info) => {
+                assert_eq!(
+                    workspace_path_info.path,
+                    "ext/import2/import1/if1".to_string());
+                assert_eq!(
+                    workspace_path_info.object,
+                    Some(PathObject::RemoteInfo(RemoteInfo {
+                        location: "http://models.example.com/w/import2"
+                            .to_string(),
+                        commit: "0ab8a26a0e85a033bea0388216667d83cc0dc1dd"
+                            .to_string(),
+                        path: "import1/if1".to_string(),
+                    })),
+                );
+            }
+            Err(_) => unreachable!()
+        }
 
     }
 
