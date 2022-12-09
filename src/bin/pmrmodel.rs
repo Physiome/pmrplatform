@@ -16,7 +16,8 @@ use pmrmodel::model::workspace_alias::WorkspaceAliasBackend;
 use pmrmodel::model::workspace_sync::WorkspaceSyncBackend;
 use pmrmodel::model::workspace_tag::WorkspaceTagBackend;
 use pmrmodel::repo::git::{
-    GitPmrAccessor,
+    PmrBackendW,
+    PmrBackendWR,
 
     stream_git_result_set_as_blob,
     stream_git_result_set_as_json,
@@ -137,16 +138,16 @@ async fn main(args: Args) -> anyhow::Result<()> {
             else {
                 println!("Syncing commits for workspace with id {}...", workspace_id);
                 let workspace = WorkspaceBackend::get_workspace_by_id(&backend, workspace_id).await?;
-                let git_pmr_accessor = GitPmrAccessor::new(&backend, git_root, workspace);
-                git_pmr_accessor.git_sync_workspace().await?;
+                let pmrbackend = PmrBackendW::new(&backend, git_root, workspace);
+                pmrbackend.git_sync_workspace().await?;
             }
         }
         Some(Command::Tags { workspace_id, index }) => {
             if index {
                 println!("Indexing tags for workspace with id {}...", workspace_id);
                 let workspace = WorkspaceBackend::get_workspace_by_id(&backend, workspace_id).await?;
-                let git_pmr_accessor = GitPmrAccessor::new(&backend, git_root, workspace);
-                git_pmr_accessor.index_tags().await?;
+                let pmrbackend = PmrBackendWR::new(&backend, git_root, workspace)?;
+                pmrbackend.index_tags().await?;
             }
             else {
                 println!("Listing of indexed tags workspace with id {}", workspace_id);
@@ -159,37 +160,37 @@ async fn main(args: Args) -> anyhow::Result<()> {
         }
         Some(Command::Blob { workspace_id, obj_id }) => {
             let workspace = WorkspaceBackend::get_workspace_by_id(&backend, workspace_id).await?;
-            let git_pmr_accessor = GitPmrAccessor::new(&backend, git_root, workspace);
-            git_pmr_accessor.get_obj_by_spec(&obj_id).await?;
+            let pmrbackend = PmrBackendWR::new(&backend, git_root, workspace)?;
+            pmrbackend.get_obj_by_spec(&obj_id).await?;
         }
         Some(Command::Info { workspace_id, commit_id, path, raw }) => {
             let workspace = WorkspaceBackend::get_workspace_by_id(&backend, workspace_id).await?;
-            let git_pmr_accessor = GitPmrAccessor::new(&backend, git_root, workspace);
+            let pmrbackend = PmrBackendWR::new(&backend, git_root, workspace)?;
             if raw {
-                git_pmr_accessor.process_pathinfo(
-                    commit_id.as_deref(), path.as_deref(),
-                    |_, git_result_set| stream_git_result_set_as_blob(io::stdout(), git_result_set)
-                ).await??;
+                let git_result_set = pmrbackend.pathinfo(
+                    commit_id.as_deref(), path.as_deref()).await?;
+                stream_git_result_set_as_blob(
+                    io::stdout(), &git_result_set)?;
             }
             else {
                 if args.json {
-                    git_pmr_accessor.process_pathinfo(
-                        commit_id.as_deref(), path.as_deref(),
-                        |_, git_result_set| stream_git_result_set_as_json(io::stdout(), git_result_set)
-                    ).await??;
+                    let git_result_set = pmrbackend.pathinfo(
+                        commit_id.as_deref(), path.as_deref()).await?;
+                    stream_git_result_set_as_json(
+                        io::stdout(), &git_result_set)?;
                 }
                 else {
-                    git_pmr_accessor.process_pathinfo(
-                        commit_id.as_deref(), path.as_deref(),
-                        |_, git_result_set| stream_git_result_set_default(io::stdout(), git_result_set)
-                    ).await??;
+                    let git_result_set = pmrbackend.pathinfo(
+                        commit_id.as_deref(), path.as_deref()).await?;
+                    stream_git_result_set_default(
+                        io::stdout(), &git_result_set)?;
                 }
             }
         }
         Some(Command::Log { workspace_id, commit_id }) => {
             let workspace = WorkspaceBackend::get_workspace_by_id(&backend, workspace_id).await?;
-            let git_pmr_accessor = GitPmrAccessor::new(&backend, git_root, workspace);
-            git_pmr_accessor.process_loginfo(commit_id.as_deref()).await?;
+            let pmrbackend = PmrBackendWR::new(&backend, git_root, workspace)?;
+            pmrbackend.process_loginfo(commit_id.as_deref()).await?;
         }
         Some(Command::Alias { workspace_id, alias }) => {
             if alias.is_none() {

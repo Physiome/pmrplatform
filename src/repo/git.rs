@@ -37,24 +37,31 @@ use crate::model::workspace_sync::{
 };
 use crate::model::workspace_tag::WorkspaceTagBackend;
 
-pub struct GitPmrAccessor<'a, P: PmrBackend> {
+pub struct PmrBackendW<'a, P: PmrBackend> {
     backend: &'a P,
     git_root: PathBuf,
     pub workspace: WorkspaceRecord,
 }
 
+pub struct PmrBackendWR<'a, P: PmrBackend> {
+    backend: &'a P,
+    git_root: PathBuf,
+    pub workspace: WorkspaceRecord,
+    pub repo: Repository,
+}
+
 pub enum GitResultTarget<'a> {
     Object(Object<'a>),
     SubRepoPath {
-        location: &'a str,
-        commit: &'a str,
+        location: String,
+        commit: String,
         path: &'a str,
     },
 }
 
 pub struct GitResultSet<'a> {
     pub repo: &'a Repository,
-    pub commit: &'a Commit<'a>,
+    pub commit: Commit<'a>,
     pub path: &'a str,
     pub target: GitResultTarget<'a>,
 }
@@ -270,11 +277,21 @@ fn get_submodule_target(
 
 // If trait aliases <https://github.com/rust-lang/rust/issues/41517> are stabilized:
 // pub trait PmrWorkspaceBackend = PmrBackend + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBackend;
-pub trait PmrWorkspaceBackend: PmrBackend + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBackend {}
-impl<P: PmrBackend + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBackend> PmrWorkspaceBackend for P {}
+pub trait PmrWorkspaceBackend: PmrBackend
+    + WorkspaceBackend
+    + WorkspaceSyncBackend
+    + WorkspaceTagBackend {}
+impl<P: PmrBackend
+    + WorkspaceBackend
+    + WorkspaceSyncBackend
+    + WorkspaceTagBackend> PmrWorkspaceBackend for P {}
 
-impl<'a, P: PmrWorkspaceBackend> GitPmrAccessor<'a, P> {
-    pub fn new(backend: &'a P, git_root: PathBuf, workspace: WorkspaceRecord) -> Self {
+impl<'a, P: PmrWorkspaceBackend> PmrBackendW<'a, P> {
+    pub fn new(
+        backend: &'a P,
+        git_root: PathBuf,
+        workspace: WorkspaceRecord,
+    ) -> Self {
         Self {
             backend: &backend,
             git_root: git_root,
@@ -282,7 +299,7 @@ impl<'a, P: PmrWorkspaceBackend> GitPmrAccessor<'a, P> {
         }
     }
 
-    pub async fn git_sync_workspace(&self) -> anyhow::Result<()> {
+    pub async fn git_sync_workspace(self) -> anyhow::Result<PmrBackendWR<'a, P>> {
         let repo_dir = self.git_root.join(self.workspace.id.to_string());
         let repo_check = Repository::open_bare(&repo_dir);
 
@@ -312,21 +329,33 @@ impl<'a, P: PmrWorkspaceBackend> GitPmrAccessor<'a, P> {
         }
 
         WorkspaceSyncBackend::complete_sync(self.backend, sync_id, WorkspaceSyncStatus::Completed).await?;
-        self.index_tags().await?;
+        let result = PmrBackendWR::new(self.backend, self.git_root, self.workspace)?;
+        result.index_tags().await?;
 
-        Ok(())
+        Ok(result)
+    }
+}
+
+
+impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
+    pub fn new(backend: &'a P, git_root: PathBuf, workspace: WorkspaceRecord) -> anyhow::Result<Self> {
+        let repo_dir = git_root.join(workspace.id.to_string());
+        let repo = Repository::open_bare(repo_dir)?;
+        Ok(Self {
+            backend: &backend,
+            git_root: git_root,
+            workspace: workspace,
+            repo: repo,
+        })
     }
 
     pub async fn index_tags(&self) -> anyhow::Result<()> {
         let backend = self.backend;
-        let git_root = &self.git_root;
         let workspace = &self.workspace;
-        let repo_dir = git_root.join(workspace.id.to_string());
-        let repo = Repository::open_bare(repo_dir)?;
 
         // collect all the tags for processing later
         let mut tags = Vec::new();
-        repo.tag_foreach(|oid, name| {
+        self.repo.tag_foreach(|oid, name| {
             match String::from_utf8(name.into()) {
                 // swapped position for next part.
                 Ok(tag_name) => tags.push((tag_name, format!("{}", oid))),
@@ -358,20 +387,15 @@ impl<'a, P: PmrWorkspaceBackend> GitPmrAccessor<'a, P> {
     }
 
     // commit_id/path should be a pathinfo struct?
-    pub async fn process_pathinfo<T>(
+    pub async fn pathinfo(
         &self,
         commit_id: Option<&str>,
-        path: Option<&str>,
-        processor: fn(&Self, &GitResultSet) -> T
-    ) -> anyhow::Result<T> {
-        let git_root = &self.git_root;
-        let workspace = &self.workspace;
-        let repo_dir = git_root.join(workspace.id.to_string());
-        let repo = Repository::open_bare(repo_dir)?;
+        path: Option<&'a str>,
+    ) -> anyhow::Result<GitResultSet> {
         // TODO the default value should be the default (main?) branch.
         // TODO the sync procedure should fast forward of sort
         // TODO the model should have a field for main branch
-        let obj = repo.revparse_single(commit_id.unwrap_or("HEAD"))?;
+        let obj = self.repo.revparse_single(commit_id.unwrap_or("HEAD"))?;
 
         // TODO streamline this a bit.
         match obj.kind() {
@@ -380,7 +404,7 @@ impl<'a, P: PmrWorkspaceBackend> GitPmrAccessor<'a, P> {
             }
             Some(_) | None => bail!("'{}' does not refer to a valid commit", commit_id.unwrap_or(""))
         }
-        let commit = obj.as_commit().unwrap();
+        let commit = obj.into_commit().unwrap();
         let tree = commit.tree()?;
         let location: String;
         let location_commit: String;
@@ -393,11 +417,7 @@ impl<'a, P: PmrWorkspaceBackend> GitPmrAccessor<'a, P> {
                 ("".as_ref(), GitResultTarget::Object(tree.into_object()))
             },
             Some(s) => {
-                let path = if s.chars().nth(0) == Some('/') {
-                    &s[1..]
-                } else {
-                    &s
-                };
+                let path = s.strip_prefix('/').unwrap_or(&s);
 
                 let mut curr_tree = tree;
                 let mut curr_path = PathBuf::new();
@@ -411,7 +431,7 @@ impl<'a, P: PmrWorkspaceBackend> GitPmrAccessor<'a, P> {
                     match entry.kind() {
                         Some(ObjectType::Tree) => {
                             curr_tree = entry
-                                .to_object(&repo)?
+                                .to_object(&self.repo)?
                                 .into_tree()
                                 .unwrap();
                             info!("got {:?}", curr_tree);
@@ -419,14 +439,14 @@ impl<'a, P: PmrWorkspaceBackend> GitPmrAccessor<'a, P> {
                         Some(ObjectType::Commit) => {
                             info!("entry at {:?} a commit", entry.id());
                             location = get_submodule_target(
-                                &repo,
+                                &self.repo,
                                 &commit.tree()?,
                                 curr_path.to_str().unwrap(),
                             )?;
                             location_commit = entry.id().to_string();
                             target = Some(GitResultTarget::SubRepoPath {
-                                location: &location,
-                                commit: &location_commit,
+                                location: location,
+                                commit: location_commit,
                                 path: comps.as_path().to_str().unwrap(),
                             });
                             break;
@@ -435,7 +455,7 @@ impl<'a, P: PmrWorkspaceBackend> GitPmrAccessor<'a, P> {
                             info!("path {:?} not a tree", &curr_path);
                         }
                     }
-                    target = match entry.to_object(&repo) {
+                    target = match entry.to_object(&self.repo) {
                         Ok(git_object) => Some(GitResultTarget::Object(git_object)),
                         Err(e) => {
                             info!("Will error later due to {}", e);
@@ -448,12 +468,12 @@ impl<'a, P: PmrWorkspaceBackend> GitPmrAccessor<'a, P> {
         };
         // info!("using git_object {} {}", git_object.kind().unwrap().str(), git_object.id());
         let git_result_set = GitResultSet {
-            repo: &repo,
+            repo: &self.repo,
             commit: commit,
             path: path,
             target: target,
         };
-        Ok(processor(&self, &git_result_set))
+        Ok(git_result_set)
     }
 
     // pub async fn process_loginfo<T>(
@@ -568,8 +588,9 @@ mod tests {
         mock_backend: &MockBackend, id: i64, url: &str, git_root: &TempDir
     ) -> anyhow::Result<()> {
         let workspace = WorkspaceRecord { id: id, url: url.to_string(), description: None };
-        let git_pmr_accessor = GitPmrAccessor::new(mock_backend, git_root.path().to_owned().to_path_buf(), workspace);
-        git_pmr_accessor.git_sync_workspace().await
+        let pmrbackend = PmrBackendW::new(mock_backend, git_root.path().to_owned().to_path_buf(), workspace);
+        pmrbackend.git_sync_workspace().await?;
+        Ok(())
     }
 
     #[async_std::test]
@@ -732,27 +753,16 @@ mod tests {
             description: Some("demo workspace 10".to_string())
         };
 
-        let git_pmr_accessor = GitPmrAccessor::new(
+        let pmrbackend = PmrBackendWR::new(
             &mock_backend,
             git_root.path().to_path_buf(),
             workspace,
-        );
+        ).unwrap();
 
-        match git_pmr_accessor.process_pathinfo(
-            None,
-            None,
-            |git_pmr_accessor, result| {
-                <WorkspacePathInfo>::from(&WorkspaceGitResultSet::new(&git_pmr_accessor.workspace, result))
-            }
-        ).await {
-            Ok(workspace_path_info) => {
-                assert_eq!(workspace_path_info.path, "".to_string());
-                assert_eq!(workspace_path_info.description, Some("demo workspace 10".to_string()));
-            }
-            Err(_) => {
-                unreachable!();
-            }
-        }
+        let result = pmrbackend.pathinfo(None, None).await.unwrap();
+        let pathinfo = <WorkspacePathInfo>::from(&WorkspaceGitResultSet::new(&pmrbackend.workspace, &result));
+        assert_eq!(pathinfo.path, "".to_string());
+        assert_eq!(pathinfo.description, Some("demo workspace 10".to_string()));
     }
 
     fn create_repodata() -> (
@@ -945,63 +955,52 @@ mod tests {
         };
 
         let mock_backend = MockBackend::new();
-        let git_pmr_accessor = GitPmrAccessor::new(
+        let pmrbackend = PmrBackendWR::new(
             &mock_backend,
             git_root.path().to_path_buf(),
             repodata_workspace,
-        );
+        ).unwrap();
 
-        match git_pmr_accessor.process_pathinfo(
+        let result = pmrbackend.pathinfo(
             Some("557ee3cb13fb421d2bd6897615ae95830eb427c8"),
             Some("ext/import1/README"),
-            |git_pmr_accessor, result| {
-                <WorkspacePathInfo>::from(&WorkspaceGitResultSet::new(
-                    &git_pmr_accessor.workspace, result))
-            }
-        ).await {
-            Ok(workspace_path_info) => {
-                assert_eq!(
-                    workspace_path_info.path,
-                    "ext/import1/README".to_string());
-                assert_eq!(
-                    workspace_path_info.object,
-                    Some(PathObject::RemoteInfo(RemoteInfo {
-                        location: "http://models.example.com/w/import1"
-                            .to_string(),
-                        commit: "01b952d14a0a33d22a0aa465fe763e5d17b15d46"
-                            .to_string(),
-                        path: "README".to_string(),
-                    })),
-                );
-            }
-            Err(_) => unreachable!()
-        }
+        ).await.unwrap();
 
-        match git_pmr_accessor.process_pathinfo(
+        let pathinfo = <WorkspacePathInfo>::from(&WorkspaceGitResultSet::new(
+            &pmrbackend.workspace, &result));
+        assert_eq!(
+            pathinfo.path,
+            "ext/import1/README".to_string());
+        assert_eq!(
+            pathinfo.object,
+            Some(PathObject::RemoteInfo(RemoteInfo {
+                location: "http://models.example.com/w/import1"
+                    .to_string(),
+                commit: "01b952d14a0a33d22a0aa465fe763e5d17b15d46"
+                    .to_string(),
+                path: "README".to_string(),
+            })),
+        );
+
+        let result = pmrbackend.pathinfo(
             Some("c4d735e5a305559c1cb0ce8de4c25ed5c3f4f263"),
             Some("ext/import2/import1/if1"),
-            |git_pmr_accessor, result| {
-                <WorkspacePathInfo>::from(&WorkspaceGitResultSet::new(
-                    &git_pmr_accessor.workspace, result))
-            }
-        ).await {
-            Ok(workspace_path_info) => {
-                assert_eq!(
-                    workspace_path_info.path,
-                    "ext/import2/import1/if1".to_string());
-                assert_eq!(
-                    workspace_path_info.object,
-                    Some(PathObject::RemoteInfo(RemoteInfo {
-                        location: "http://models.example.com/w/import2"
-                            .to_string(),
-                        commit: "0ab8a26a0e85a033bea0388216667d83cc0dc1dd"
-                            .to_string(),
-                        path: "import1/if1".to_string(),
-                    })),
-                );
-            }
-            Err(_) => unreachable!()
-        }
+        ).await.unwrap();
+        let pathinfo = <WorkspacePathInfo>::from(&WorkspaceGitResultSet::new(
+            &pmrbackend.workspace, &result));
+        assert_eq!(
+            pathinfo.path,
+            "ext/import2/import1/if1".to_string());
+        assert_eq!(
+            pathinfo.object,
+            Some(PathObject::RemoteInfo(RemoteInfo {
+                location: "http://models.example.com/w/import2"
+                    .to_string(),
+                commit: "0ab8a26a0e85a033bea0388216667d83cc0dc1dd"
+                    .to_string(),
+                path: "import1/if1".to_string(),
+            })),
+        );
 
     }
 
