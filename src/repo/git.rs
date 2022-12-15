@@ -409,8 +409,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         let location: String;
         let location_commit: String;
         info!("Found tree {}", tree.id());
-        // TODO only further navigate into tree_entry if path
-        // repopath is the sanitized path to the repo
+
         let (path, target) = match path {
             Some("") | Some("/") | None => {
                 info!("No path provided; using root tree entry");
@@ -476,21 +475,14 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         Ok(git_result_set)
     }
 
-    // pub async fn process_loginfo<T>(
-    pub async fn process_loginfo(
+    pub async fn loginfo(
         &self,
         commit_id: Option<&str>,
-    //     processor: fn(&GitResultSet) -> T
-    // ) -> anyhow::Result<T> {
-    ) -> anyhow::Result<()> {
-        let git_root = &self.git_root;
-        let workspace = &self.workspace;
-        let repo_dir = git_root.join(workspace.id.to_string());
-        let repo = Repository::open_bare(repo_dir)?;
+        _path: Option<&'a str>,
+    ) -> anyhow::Result<ObjectInfo> {
         // TODO the default value should be the default (main?) branch.
-        // TODO the sync procedure should fast forward of sort
         // TODO the model should have a field for main branch
-        let obj = repo.revparse_single(commit_id.unwrap_or("origin/HEAD"))?;
+        let obj = self.repo.revparse_single(commit_id.unwrap_or("HEAD"))?;
 
         // TODO streamline this a bit.
         match obj.kind() {
@@ -499,7 +491,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
             },
             Some(_) | None => bail!("'{}' does not refer to a valid commit", commit_id.unwrap_or("")),
         }
-        let mut revwalk = repo.revwalk()?;
+        let mut revwalk = self.repo.revwalk()?;
         revwalk.set_sorting(git2::Sort::TIME)?;
         revwalk.push(obj.id())?;
 
@@ -510,7 +502,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
                     // Err(e) => return Some(Err(e)),
                     Err(_) => return None,
                 };
-                let commit = match repo.find_commit(id) {
+                let commit = match self.repo.find_commit(id) {
                     Ok(t) => t,
                     // Err(e) => return Some(Err(e)),
                     Err(_) => return None,
@@ -526,13 +518,8 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
             })
             .collect::<Vec<_>>();
 
-        info!("{:?}", log_entries);
-
         let result = ObjectInfo::LogInfo(LogInfo { entries: log_entries });
-
-        info!("{}", serde_json::to_string(&result).unwrap());
-
-        Ok(())
+        Ok(result)
     }
 
 }
