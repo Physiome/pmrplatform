@@ -59,21 +59,21 @@ pub enum GitResultTarget<'a> {
     },
 }
 
-pub struct GitResultSet<'a> {
+pub struct GitResult<'a> {
     pub repo: &'a Repository,
     pub commit: Commit<'a>,
     pub path: &'a str,
     pub target: GitResultTarget<'a>,
 }
 
-pub struct WorkspaceGitResultSet<'a>(&'a WorkspaceRecord, &'a GitResultSet<'a>);
+pub struct WorkspaceGitResult<'a>(&'a WorkspaceRecord, &'a GitResult<'a>);
 
-impl WorkspaceGitResultSet<'_> {
+impl WorkspaceGitResult<'_> {
     pub fn new<'a>(
         workspace_record: &'a WorkspaceRecord,
-        git_result_set: &'a GitResultSet,
-    ) -> WorkspaceGitResultSet<'a> {
-        WorkspaceGitResultSet(&workspace_record, git_result_set)
+        git_result: &'a GitResult,
+    ) -> WorkspaceGitResult<'a> {
+        WorkspaceGitResult(&workspace_record, git_result)
     }
 }
 
@@ -107,12 +107,12 @@ fn commit_to_info(commit: &Commit) -> ObjectInfo {
 }
 
 fn gitresultset_target_to_pathobject(
-    git_result_set: &GitResultSet,
+    git_result: &GitResult,
 ) -> Option<PathObject> {
     // TODO None may represent error here?
-    match &git_result_set.target {
+    match &git_result.target {
         GitResultTarget::Object(object) => match object_to_info(
-            &git_result_set.repo,
+            &git_result.repo,
             object,
         ) {
             Some(ObjectInfo::FileInfo(file_info)) => Some(PathObject::FileInfo(file_info)),
@@ -129,37 +129,37 @@ fn gitresultset_target_to_pathobject(
     }
 }
 
-impl From<&GitResultSet<'_>> for PathInfo {
-    fn from(git_result_set: &GitResultSet) -> Self {
+impl From<&GitResult<'_>> for PathInfo {
+    fn from(git_result: &GitResult) -> Self {
         PathInfo {
             commit: CommitInfo {
-                commit_id: format!("{}", &git_result_set.commit.id()),
-                author: format!("{}", &git_result_set.commit.author()),
-                committer: format!("{}", &git_result_set.commit.committer()),
+                commit_id: format!("{}", &git_result.commit.id()),
+                author: format!("{}", &git_result.commit.author()),
+                committer: format!("{}", &git_result.commit.committer()),
             },
-            path: format!("{}", &git_result_set.path),
-            object: gitresultset_target_to_pathobject(git_result_set),
+            path: format!("{}", &git_result.path),
+            object: gitresultset_target_to_pathobject(git_result),
         }
     }
 }
 
-impl From<&WorkspaceGitResultSet<'_>> for WorkspacePathInfo {
+impl From<&WorkspaceGitResult<'_>> for WorkspacePathInfo {
     fn from(
-        WorkspaceGitResultSet(
+        WorkspaceGitResult(
             workspace,
-            git_result_set,
-        ): &WorkspaceGitResultSet<'_>
+            git_result,
+        ): &WorkspaceGitResult<'_>
     ) -> Self {
         WorkspacePathInfo {
             workspace_id: workspace.id,
             description: workspace.description.clone(),
             commit: CommitInfo {
-                commit_id: format!("{}", &git_result_set.commit.id()),
-                author: format!("{}", &git_result_set.commit.author()),
-                committer: format!("{}", &git_result_set.commit.committer()),
+                commit_id: format!("{}", &git_result.commit.id()),
+                author: format!("{}", &git_result.commit.author()),
+                committer: format!("{}", &git_result.commit.committer()),
             },
-            path: format!("{}", &git_result_set.path),
-            object: gitresultset_target_to_pathobject(git_result_set),
+            path: format!("{}", &git_result.path),
+            object: gitresultset_target_to_pathobject(git_result),
         }
     }
 }
@@ -186,18 +186,18 @@ fn object_to_info(repo: &Repository, git_object: &Object) -> Option<ObjectInfo> 
     }
 }
 
-impl From<&GitResultSet<'_>> for Option<ObjectInfo> {
-    fn from(git_result_set: &GitResultSet) -> Self {
-        match &git_result_set.target {
+impl From<&GitResult<'_>> for Option<ObjectInfo> {
+    fn from(git_result: &GitResult) -> Self {
+        match &git_result.target {
             GitResultTarget::Object(object) => {
-                object_to_info(&git_result_set.repo, &object)
+                object_to_info(&git_result.repo, &object)
             }
             _ => None
         }
     }
 }
 
-pub fn stream_git_result_set_default(mut writer: impl Write, git_result_set: &GitResultSet) -> std::result::Result<usize, std::io::Error> {
+pub fn stream_git_result_default(mut writer: impl Write, git_result: &GitResult) -> std::result::Result<usize, std::io::Error> {
     // TODO split off to a formatter version?
     // alternatively, produce some structured data?
     writer.write(format!("
@@ -208,40 +208,39 @@ pub fn stream_git_result_set_default(mut writer: impl Write, git_result_set: &Gi
         have git_object {:?}
         have path_info {:?}
         \n",
-        git_result_set.repo.path(),
-        &git_result_set.commit.id(),
-        commit_to_info(&git_result_set.commit),
-        git_result_set.path,
-        <Option<ObjectInfo>>::from(git_result_set),
-        <PathInfo>::from(git_result_set),
+        git_result.repo.path(),
+        &git_result.commit.id(),
+        commit_to_info(&git_result.commit),
+        git_result.path,
+        <Option<ObjectInfo>>::from(git_result),
+        <PathInfo>::from(git_result),
     ).as_bytes())
 }
 
-pub fn stream_git_result_set_as_json(
+pub fn stream_git_result_as_json(
     writer: impl Write,
-    git_result_set: &GitResultSet,
+    git_result: &GitResult,
 ) -> Result<(), serde_json::Error> {
     // TODO how to generalize this to deal with a common "theme" of JSON outputs?
-    // currently, this is directly coupled to GitResultSet, but perhaps there needs
+    // currently, this is directly coupled to GitResult, but perhaps there needs
     // to be some trait that provide the output desired?
     // Also, need to consider how to provide a more generic JSON-LD builder framework
     // of sort?  Need to build context and what not...
     // generalize a UI based on that schema/grammar?
-    serde_json::to_writer(writer, &<PathInfo>::from(git_result_set))
+    serde_json::to_writer(writer, &<PathInfo>::from(git_result))
 }
 
-pub fn stream_blob(mut writer: impl Write, blob: &Blob) -> std::result::Result<usize, std::io::Error> {
+pub async fn stream_blob(mut writer: impl Write, blob: &Blob<'_>) -> std::result::Result<usize, std::io::Error> {
     writer.write(blob.content())
 }
 
-pub fn stream_git_result_set_as_blob(writer: impl Write, git_result_set: &GitResultSet) -> anyhow::Result<()> {
-    match &git_result_set.target {
+pub async fn stream_git_result_as_blob(writer: impl Write, git_result: &GitResult<'_>) -> anyhow::Result<usize> {
+    match &git_result.target {
         GitResultTarget::Object(object) => match object.kind() {
             Some(ObjectType::Blob) => {
                 match &object.as_blob() {
                     Some(blob) => {
-                        stream_blob(writer, blob)?;
-                        Ok(())
+                        Ok(stream_blob(writer, blob).await?)
                     }
                     None => bail!("failed to get blob from object")
                 }
@@ -249,8 +248,11 @@ pub fn stream_git_result_set_as_blob(writer: impl Write, git_result_set: &GitRes
             Some(_) | None => {
                 bail!("target is not a git blob")
             }
-        }
-        _ => bail!("target is not a git blob")
+        },
+        // GitResultTarget::SubRepoPath { location, commit, path } => {
+        //     bail!("subrepopath not supported")
+        // },
+        _ => bail!("target is not a git blob"),
     }
 }
 
@@ -391,7 +393,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         &self,
         commit_id: Option<&str>,
         path: Option<&'a str>,
-    ) -> anyhow::Result<GitResultSet> {
+    ) -> anyhow::Result<GitResult> {
         // TODO the default value should be the default (main?) branch.
         // TODO the sync procedure should fast forward of sort
         // TODO the model should have a field for main branch
@@ -466,13 +468,13 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
             },
         };
         // info!("using git_object {} {}", git_object.kind().unwrap().str(), git_object.id());
-        let git_result_set = GitResultSet {
+        let git_result = GitResult {
             repo: &self.repo,
             commit: commit,
             path: path,
             target: target,
         };
-        Ok(git_result_set)
+        Ok(git_result)
     }
 
     pub async fn loginfo(
@@ -714,7 +716,7 @@ mod tests {
     }
 
     #[async_std::test]
-    async fn test_workspace_path_info_from_workspace_git_result_set() {
+    async fn test_workspace_path_info_from_workspace_git_result() {
         let (td_, repo) = crate::test::repo_init(None, None, false, None);
         let (_, _) = crate::test::commit(&repo, vec![("some_file", "")]);
 
@@ -747,7 +749,7 @@ mod tests {
         ).unwrap();
 
         let result = pmrbackend.pathinfo(None, None).await.unwrap();
-        let pathinfo = <WorkspacePathInfo>::from(&WorkspaceGitResultSet::new(&pmrbackend.workspace, &result));
+        let pathinfo = <WorkspacePathInfo>::from(&WorkspaceGitResult::new(&pmrbackend.workspace, &result));
         assert_eq!(pathinfo.path, "".to_string());
         assert_eq!(pathinfo.description, Some("demo workspace 10".to_string()));
     }
@@ -953,7 +955,7 @@ mod tests {
             Some("ext/import1/README"),
         ).await.unwrap();
 
-        let pathinfo = <WorkspacePathInfo>::from(&WorkspaceGitResultSet::new(
+        let pathinfo = <WorkspacePathInfo>::from(&WorkspaceGitResult::new(
             &pmrbackend.workspace, &result));
         assert_eq!(
             pathinfo.path,
@@ -973,7 +975,7 @@ mod tests {
             Some("c4d735e5a305559c1cb0ce8de4c25ed5c3f4f263"),
             Some("ext/import2/import1/if1"),
         ).await.unwrap();
-        let pathinfo = <WorkspacePathInfo>::from(&WorkspaceGitResultSet::new(
+        let pathinfo = <WorkspacePathInfo>::from(&WorkspaceGitResult::new(
             &pmrbackend.workspace, &result));
         assert_eq!(
             pathinfo.path,

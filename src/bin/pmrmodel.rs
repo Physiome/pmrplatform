@@ -19,9 +19,9 @@ use pmrmodel::repo::git::{
     PmrBackendW,
     PmrBackendWR,
 
-    stream_git_result_set_as_blob,
-    stream_git_result_set_as_json,
-    stream_git_result_set_default,
+    stream_git_result_as_blob,
+    stream_git_result_as_json,
+    stream_git_result_default,
 };
 
 #[derive(StructOpt)]
@@ -167,23 +167,23 @@ async fn main(args: Args) -> anyhow::Result<()> {
             let workspace = WorkspaceBackend::get_workspace_by_id(&backend, workspace_id).await?;
             let pmrbackend = PmrBackendWR::new(&backend, git_root, workspace)?;
             if raw {
-                let git_result_set = pmrbackend.pathinfo(
+                let git_result = pmrbackend.pathinfo(
                     commit_id.as_deref(), path.as_deref()).await?;
-                stream_git_result_set_as_blob(
-                    io::stdout(), &git_result_set)?;
+                stream_git_result_as_blob(
+                    io::stdout(), &git_result).await?;
             }
             else {
                 if args.json {
-                    let git_result_set = pmrbackend.pathinfo(
+                    let git_result = pmrbackend.pathinfo(
                         commit_id.as_deref(), path.as_deref()).await?;
-                    stream_git_result_set_as_json(
-                        io::stdout(), &git_result_set)?;
+                    stream_git_result_as_json(
+                        io::stdout(), &git_result)?;
                 }
                 else {
-                    let git_result_set = pmrbackend.pathinfo(
+                    let git_result = pmrbackend.pathinfo(
                         commit_id.as_deref(), path.as_deref()).await?;
-                    stream_git_result_set_default(
-                        io::stdout(), &git_result_set)?;
+                    stream_git_result_default(
+                        io::stdout(), &git_result)?;
                 }
             }
         }
@@ -192,12 +192,12 @@ async fn main(args: Args) -> anyhow::Result<()> {
             let pmrbackend = PmrBackendWR::new(&backend, git_root, workspace)?;
             let logs = pmrbackend.loginfo(commit_id.as_deref(), None).await?;
             if args.json {
-                // stream_git_result_set_as_json(io::stdout(), &logs)?;
+                // stream_git_result_as_json(io::stdout(), &logs)?;
                 let writer = io::stdout();
                 serde_json::to_writer(writer, &logs)?;
             }
             else {
-                // stream_git_result_set_default(io::stdout(), &logs)?;
+                // stream_git_result_default(io::stdout(), &logs)?;
                 let mut writer = io::stdout();
                 writer.write(format!("have log_info {:?}", logs).as_bytes())?;
             }
