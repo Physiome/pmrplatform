@@ -19,7 +19,6 @@ use pmrmodel::repo::git::{
     PmrBackendW,
     PmrBackendWR,
 
-    stream_git_result_as_blob,
     stream_git_result_as_json,
     stream_git_result_default,
 };
@@ -169,7 +168,7 @@ async fn main(args: Args) -> anyhow::Result<()> {
             if raw {
                 let git_result = pmrbackend.pathinfo(
                     commit_id.as_deref(), path.as_deref()).await?;
-                stream_git_result_as_blob(
+                pmrbackend.stream_result_blob(
                     io::stdout(), &git_result).await?;
             }
             else {

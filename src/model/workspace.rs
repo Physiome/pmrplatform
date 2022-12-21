@@ -18,6 +18,7 @@ pub trait WorkspaceBackend {
     ) -> anyhow::Result<bool>;
     async fn list_workspaces(&self) -> anyhow::Result<Vec<WorkspaceRecord>>;
     async fn get_workspace_by_id(&self, id: i64) -> anyhow::Result<WorkspaceRecord>;
+    async fn get_workspace_by_url(&self, url: &str) -> anyhow::Result<WorkspaceRecord>;
 }
 
 pub fn stream_workspace_records_default(mut writer: impl Write, records: Vec<WorkspaceRecord>) -> std::result::Result<usize, std::io::Error> {
@@ -95,6 +96,22 @@ FROM workspace
 WHERE id = ?1
             "#,
             id,
+        )
+        .fetch_one(&*self.pool)
+        .await?;
+        Ok(rec)
+    }
+
+    // XXX this assumes url is unique
+    async fn get_workspace_by_url(&self, url: &str) -> anyhow::Result<WorkspaceRecord> {
+        // ignoring superceded_by_id for now?
+        let rec = sqlx::query_as!(WorkspaceRecord,
+            r#"
+SELECT id, url, description
+FROM workspace
+WHERE url = ?1
+            "#,
+            url,
         )
         .fetch_one(&*self.pool)
         .await?;

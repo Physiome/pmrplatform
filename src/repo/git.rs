@@ -1,4 +1,5 @@
 use anyhow::bail;
+use async_recursion::async_recursion;
 use futures::stream::StreamExt;
 use futures::stream::futures_unordered::FuturesUnordered;
 use std::io::Write;
@@ -234,28 +235,6 @@ pub async fn stream_blob(mut writer: impl Write, blob: &Blob<'_>) -> std::result
     writer.write(blob.content())
 }
 
-pub async fn stream_git_result_as_blob(writer: impl Write, git_result: &GitResult<'_>) -> anyhow::Result<usize> {
-    match &git_result.target {
-        GitResultTarget::Object(object) => match object.kind() {
-            Some(ObjectType::Blob) => {
-                match &object.as_blob() {
-                    Some(blob) => {
-                        Ok(stream_blob(writer, blob).await?)
-                    }
-                    None => bail!("failed to get blob from object")
-                }
-            }
-            Some(_) | None => {
-                bail!("target is not a git blob")
-            }
-        },
-        // GitResultTarget::SubRepoPath { location, commit, path } => {
-        //     bail!("subrepopath not supported")
-        // },
-        _ => bail!("target is not a git blob"),
-    }
-}
-
 fn get_submodule_target(
     repo: &Repository,
     tree: &Tree,
@@ -477,6 +456,40 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         Ok(git_result)
     }
 
+    #[async_recursion(?Send)]
+    pub async fn stream_result_blob(
+        &self,
+        writer: impl Write + 'async_recursion,
+        git_result: &GitResult<'a>,
+    ) -> anyhow::Result<usize> {
+        match &git_result.target {
+            GitResultTarget::Object(object) => match object.kind() {
+                Some(ObjectType::Blob) => {
+                    match object.as_blob() {
+                        Some(blob) => {
+                            Ok(stream_blob(writer, blob).await?)
+                        }
+                        None => bail!("failed to get blob from object")
+                    }
+                }
+                Some(_) | None => {
+                    bail!("target is not a git blob")
+                }
+            },
+            GitResultTarget::SubRepoPath { location, commit, path } => {
+                let workspace = WorkspaceBackend::get_workspace_by_url(
+                    self.backend, &location,
+                ).await?;
+                let pmrbackend = PmrBackendWR::new(
+                    self.backend, self.git_root.clone(), workspace)?;
+                let git_result = pmrbackend.pathinfo(
+                    Some(commit), Some(path),
+                ).await?;
+                Ok(self.stream_result_blob(writer, &git_result).await?)
+            },
+        }
+    }
+
     pub async fn loginfo(
         &self,
         commit_id: Option<&str>,
@@ -562,6 +575,7 @@ mod tests {
             ) -> anyhow::Result<bool>;
             async fn list_workspaces(&self) -> anyhow::Result<Vec<WorkspaceRecord>>;
             async fn get_workspace_by_id(&self, id: i64) -> anyhow::Result<WorkspaceRecord>;
+            async fn get_workspace_by_url(&self, url: &str) -> anyhow::Result<WorkspaceRecord>;
         }
 
         #[async_trait]
@@ -943,7 +957,16 @@ mod tests {
             description: Some("The repodata workspace".to_string())
         };
 
-        let mock_backend = MockBackend::new();
+        let mut mock_backend = MockBackend::new();
+        // used later.
+        mock_backend.expect_get_workspace_by_url()
+            .times(1)
+            .with(eq("http://models.example.com/w/import2"))
+            .returning(|_| Ok(WorkspaceRecord {
+                id: 2,
+                url: "http://models.example.com/w/import2".to_string(),
+                description: Some("The import2 workspace".to_string())
+            }));
         let pmrbackend = PmrBackendWR::new(
             &mock_backend,
             git_root.path().to_path_buf(),
@@ -989,6 +1012,34 @@ mod tests {
                     .to_string(),
                 path: "import1/if1".to_string(),
             })),
+        );
+
+        let mut buffer = <Vec<u8>>::new();
+        let readme_result = pmrbackend.pathinfo(
+            Some("557ee3cb13fb421d2bd6897615ae95830eb427c8"),
+            Some("README"),
+        ).await.unwrap();
+        assert_eq!(
+            pmrbackend.stream_result_blob(&mut buffer, &readme_result).await.unwrap(),
+            22,
+        );
+        assert_eq!(
+            std::str::from_utf8(&buffer).unwrap(),
+            "A simple readme file.\n",
+        );
+
+        let mut buffer = <Vec<u8>>::new();
+        let import2_result = pmrbackend.pathinfo(
+            Some("a4a04eed5e243e3019592579a7f6eb950399f9bf"),
+            Some("ext/import2/if2"),
+        ).await.unwrap();
+        assert_eq!(
+            pmrbackend.stream_result_blob(&mut buffer, &import2_result).await.unwrap(),
+            4,
+        );
+        assert_eq!(
+            std::str::from_utf8(&buffer).unwrap(),
+            "if2\n",
         );
 
     }

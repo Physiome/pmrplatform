@@ -184,6 +184,36 @@
     },
     "query": "\nUPDATE workspace\nSET description = ?1, long_description = ?2\nWHERE id = ?3\n            "
   },
+  "a48371425a24e415019b07a6672e380ba83801697b3e4dcbc9e84186af507e3e": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "url",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "description",
+          "ordinal": 2,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        true
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "\nSELECT id, url, description\nFROM workspace\nWHERE url = ?1\n            "
+  },
   "bfaeaf8d073d8e14c1ecc8279da15d21b8990fa4bf4ec331dec619ad669b1f2d": {
     "describe": {
       "columns": [],
