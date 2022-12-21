@@ -391,7 +391,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
     // commit_id/path should be a pathinfo struct?
     pub async fn pathinfo(
         &self,
-        commit_id: Option<&str>,
+        commit_id: Option<&'a str>,
         path: Option<&'a str>,
     ) -> anyhow::Result<GitResult> {
         // TODO the default value should be the default (main?) branch.
