@@ -41,13 +41,13 @@ use crate::model::workspace_tag::WorkspaceTagBackend;
 pub struct PmrBackendW<'a, P: PmrBackend> {
     backend: &'a P,
     git_root: PathBuf,
-    pub workspace: WorkspaceRecord,
+    pub workspace: &'a WorkspaceRecord,
 }
 
 pub struct PmrBackendWR<'a, P: PmrBackend> {
     backend: &'a P,
     git_root: PathBuf,
-    pub workspace: WorkspaceRecord,
+    pub workspace: &'a WorkspaceRecord,
     pub repo: Repository,
 }
 
@@ -271,12 +271,12 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendW<'a, P> {
     pub fn new(
         backend: &'a P,
         git_root: PathBuf,
-        workspace: WorkspaceRecord,
+        workspace: &'a WorkspaceRecord,
     ) -> Self {
         Self {
             backend: &backend,
             git_root: git_root,
-            workspace: workspace,
+            workspace: &workspace,
         }
     }
 
@@ -310,7 +310,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendW<'a, P> {
         }
 
         WorkspaceSyncBackend::complete_sync(self.backend, sync_id, WorkspaceSyncStatus::Completed).await?;
-        let result = PmrBackendWR::new(self.backend, self.git_root, self.workspace)?;
+        let result = PmrBackendWR::new(self.backend, self.git_root, &self.workspace)?;
         result.index_tags().await?;
 
         Ok(result)
@@ -319,13 +319,17 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendW<'a, P> {
 
 
 impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
-    pub fn new(backend: &'a P, git_root: PathBuf, workspace: WorkspaceRecord) -> anyhow::Result<Self> {
+    pub fn new(
+        backend: &'a P,
+        git_root: PathBuf,
+        workspace: &'a WorkspaceRecord,
+    ) -> anyhow::Result<Self> {
         let repo_dir = git_root.join(workspace.id.to_string());
         let repo = Repository::open_bare(repo_dir)?;
         Ok(Self {
             backend: &backend,
             git_root: git_root,
-            workspace: workspace,
+            workspace: &workspace,
             repo: repo,
         })
     }
@@ -481,7 +485,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
                     self.backend, &location,
                 ).await?;
                 let pmrbackend = PmrBackendWR::new(
-                    self.backend, self.git_root.clone(), workspace)?;
+                    self.backend, self.git_root.clone(), &workspace)?;
                 let git_result = pmrbackend.pathinfo(
                     Some(commit), Some(path),
                 ).await?;
@@ -591,7 +595,7 @@ mod tests {
         mock_backend: &MockBackend, id: i64, url: &str, git_root: &TempDir
     ) -> anyhow::Result<()> {
         let workspace = WorkspaceRecord { id: id, url: url.to_string(), description: None };
-        let pmrbackend = PmrBackendW::new(mock_backend, git_root.path().to_owned().to_path_buf(), workspace);
+        let pmrbackend = PmrBackendW::new(mock_backend, git_root.path().to_owned().to_path_buf(), &workspace);
         pmrbackend.git_sync_workspace().await?;
         Ok(())
     }
@@ -759,7 +763,7 @@ mod tests {
         let pmrbackend = PmrBackendWR::new(
             &mock_backend,
             git_root.path().to_path_buf(),
-            workspace,
+            &workspace,
         ).unwrap();
 
         let result = pmrbackend.pathinfo(None, None).await.unwrap();
@@ -970,7 +974,7 @@ mod tests {
         let pmrbackend = PmrBackendWR::new(
             &mock_backend,
             git_root.path().to_path_buf(),
-            repodata_workspace,
+            &repodata_workspace,
         ).unwrap();
 
         let result = pmrbackend.pathinfo(
