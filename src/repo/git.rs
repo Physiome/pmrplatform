@@ -372,7 +372,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
     }
 
     // commit_id/path should be a pathinfo struct?
-    pub async fn pathinfo(
+    pub fn pathinfo(
         &self,
         commit_id: Option<&'a str>,
         path: Option<&'a str>,
@@ -488,13 +488,13 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
                     self.backend, self.git_root.clone(), &workspace)?;
                 let git_result = pmrbackend.pathinfo(
                     Some(commit), Some(path),
-                ).await?;
+                )?;
                 Ok(self.stream_result_blob(writer, &git_result).await?)
             },
         }
     }
 
-    pub async fn loginfo(
+    pub fn loginfo(
         &self,
         commit_id: Option<&str>,
         _path: Option<&'a str>,
@@ -766,7 +766,7 @@ mod tests {
             &workspace,
         ).unwrap();
 
-        let result = pmrbackend.pathinfo(None, None).await.unwrap();
+        let result = pmrbackend.pathinfo(None, None).unwrap();
         let pathinfo = <WorkspacePathInfo>::from(&WorkspaceGitResult::new(&pmrbackend.workspace, &result));
         assert_eq!(pathinfo.path, "".to_string());
         assert_eq!(pathinfo.description, Some("demo workspace 10".to_string()));
@@ -980,7 +980,7 @@ mod tests {
         let result = pmrbackend.pathinfo(
             Some("557ee3cb13fb421d2bd6897615ae95830eb427c8"),
             Some("ext/import1/README"),
-        ).await.unwrap();
+        ).unwrap();
 
         let pathinfo = <WorkspacePathInfo>::from(&WorkspaceGitResult::new(
             &pmrbackend.workspace, &result));
@@ -1001,7 +1001,7 @@ mod tests {
         let result = pmrbackend.pathinfo(
             Some("c4d735e5a305559c1cb0ce8de4c25ed5c3f4f263"),
             Some("ext/import2/import1/if1"),
-        ).await.unwrap();
+        ).unwrap();
         let pathinfo = <WorkspacePathInfo>::from(&WorkspaceGitResult::new(
             &pmrbackend.workspace, &result));
         assert_eq!(
@@ -1022,7 +1022,7 @@ mod tests {
         let readme_result = pmrbackend.pathinfo(
             Some("557ee3cb13fb421d2bd6897615ae95830eb427c8"),
             Some("README"),
-        ).await.unwrap();
+        ).unwrap();
         assert_eq!(
             pmrbackend.stream_result_blob(&mut buffer, &readme_result).await.unwrap(),
             22,
@@ -1036,7 +1036,7 @@ mod tests {
         let import2_result = pmrbackend.pathinfo(
             Some("a4a04eed5e243e3019592579a7f6eb950399f9bf"),
             Some("ext/import2/if2"),
-        ).await.unwrap();
+        ).unwrap();
         assert_eq!(
             pmrbackend.stream_result_blob(&mut buffer, &import2_result).await.unwrap(),
             4,
