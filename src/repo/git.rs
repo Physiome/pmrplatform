@@ -4,7 +4,9 @@ use futures::stream::StreamExt;
 use futures::stream::futures_unordered::FuturesUnordered;
 use std::io::Write;
 use git2::{Repository, Blob, Commit, Object, ObjectType, Tree};
+use std::cell::Cell;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use pmrmodel_base::{
     git::{
         TreeEntryInfo,
@@ -231,7 +233,7 @@ pub fn stream_git_result_as_json(
     serde_json::to_writer(writer, &<PathInfo>::from(git_result))
 }
 
-pub async fn stream_blob(mut writer: impl Write, blob: &Blob<'_>) -> std::result::Result<usize, std::io::Error> {
+pub fn stream_blob(mut writer: impl Write, blob: &Blob<'_>) -> std::result::Result<usize, std::io::Error> {
     writer.write(blob.content())
 }
 
@@ -317,6 +319,46 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendW<'a, P> {
     }
 }
 
+#[async_recursion(?Send)]
+pub async fn stream_result_blob<P: PmrWorkspaceBackend + Sync>(
+    pmr_backend: &PmrBackendW<'async_recursion, P>,
+    writer: impl Write + Send + 'async_recursion,
+    mc_git_result: Mutex<Cell<GitResult<'async_recursion>>>,
+) -> anyhow::Result<usize> {
+    let lock = mc_git_result.try_lock();
+    if let Ok(mut guard) = lock {
+        let git_result = &guard.get_mut();
+        match &git_result.target {
+            GitResultTarget::Object(object) => match object.kind() {
+                Some(ObjectType::Blob) => {
+                    match object.as_blob() {
+                        Some(blob) => {
+                            Ok(stream_blob(writer, blob)?)
+                        }
+                        None => bail!("failed to get blob from object")
+                    }
+                }
+                Some(_) | None => {
+                    bail!("target is not a git blob")
+                }
+            },
+            GitResultTarget::SubRepoPath { location, commit, path } => {
+                let workspace = WorkspaceBackend::get_workspace_by_url(
+                    pmr_backend.backend, &location,
+                ).await?;
+                let pmrbackend = PmrBackendWR::new(
+                    pmr_backend.backend, pmr_backend.git_root.clone(), &workspace)?;
+                let git_result = pmrbackend.pathinfo(
+                    Some(commit), Some(path),
+                )?;
+                Ok(stream_result_blob(&pmr_backend, writer, Mutex::new(Cell::new(git_result))).await?)
+            },
+        }
+    }
+    else {
+        bail!("cannot acquire mutex for stream_result_blob");
+    }
+}
 
 impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
     pub fn new(
@@ -332,6 +374,11 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
             workspace: &workspace,
             repo: repo,
         })
+    }
+
+    // drops the problematic Repository object for cases where Send + Sync is required
+    pub fn drop_repo(&self) -> PmrBackendW<'a, P> {
+        PmrBackendW::new(&self.backend, self.git_root.clone(), &self.workspace)
     }
 
     pub async fn index_tags(&self) -> anyhow::Result<()> {
@@ -458,40 +505,6 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
             target: target,
         };
         Ok(git_result)
-    }
-
-    #[async_recursion(?Send)]
-    pub async fn stream_result_blob(
-        &self,
-        writer: impl Write + 'async_recursion,
-        git_result: &GitResult<'a>,
-    ) -> anyhow::Result<usize> {
-        match &git_result.target {
-            GitResultTarget::Object(object) => match object.kind() {
-                Some(ObjectType::Blob) => {
-                    match object.as_blob() {
-                        Some(blob) => {
-                            Ok(stream_blob(writer, blob).await?)
-                        }
-                        None => bail!("failed to get blob from object")
-                    }
-                }
-                Some(_) | None => {
-                    bail!("target is not a git blob")
-                }
-            },
-            GitResultTarget::SubRepoPath { location, commit, path } => {
-                let workspace = WorkspaceBackend::get_workspace_by_url(
-                    self.backend, &location,
-                ).await?;
-                let pmrbackend = PmrBackendWR::new(
-                    self.backend, self.git_root.clone(), &workspace)?;
-                let git_result = pmrbackend.pathinfo(
-                    Some(commit), Some(path),
-                )?;
-                Ok(self.stream_result_blob(writer, &git_result).await?)
-            },
-        }
     }
 
     pub fn loginfo(
@@ -1024,7 +1037,7 @@ mod tests {
             Some("README"),
         ).unwrap();
         assert_eq!(
-            pmrbackend.stream_result_blob(&mut buffer, &readme_result).await.unwrap(),
+            stream_result_blob(&pmrbackend.drop_repo(), &mut buffer, Mutex::new(Cell::new(readme_result))).await.unwrap(),
             22,
         );
         assert_eq!(
@@ -1038,7 +1051,7 @@ mod tests {
             Some("ext/import2/if2"),
         ).unwrap();
         assert_eq!(
-            pmrbackend.stream_result_blob(&mut buffer, &import2_result).await.unwrap(),
+            stream_result_blob(&pmrbackend.drop_repo(), &mut buffer, Mutex::new(Cell::new(import2_result))).await.unwrap(),
             4,
         );
         assert_eq!(
