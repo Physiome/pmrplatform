@@ -3,7 +3,7 @@ use async_recursion::async_recursion;
 use futures::stream::StreamExt;
 use futures::stream::futures_unordered::FuturesUnordered;
 use std::io::Write;
-use git2::{Repository, Blob, Commit, Object, ObjectType, Tree};
+pub use git2::{Repository, Blob, Commit, Object, ObjectType, Tree};
 use std::path::{Path, PathBuf};
 use pmrmodel_base::{
     git::{
