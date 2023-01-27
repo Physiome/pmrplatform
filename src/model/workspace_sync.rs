@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use anyhow::bail;
-use chrono::{TimeZone, Utc};
+use chrono::{LocalResult, TimeZone, Utc};
 
 use enum_primitive::FromPrimitive;
 
@@ -36,9 +36,15 @@ impl std::fmt::Display for WorkspaceSyncRecord {
         write!(
             f,
             "{} - {} - {:?}",
-            Utc.timestamp(self.start, 0).to_rfc3339(),
+            match Utc.timestamp_opt(self.start, 0) {
+                LocalResult::Single(v) => v.to_rfc3339(),
+                _ => "<invalid>".to_string(),
+            },
             match self.end {
-                Some(v) => Utc.timestamp(v, 0).to_rfc3339(),
+                Some(v) => match Utc.timestamp_opt(v, 0) {
+                    LocalResult::Single(v) => v.to_rfc3339(),
+                    _ => "<invalid>".to_string(),
+                },
                 None => "<nil>".to_string(),
             },
             WorkspaceSyncStatus::from_i64(self.status).unwrap_or(WorkspaceSyncStatus::Unknown),
