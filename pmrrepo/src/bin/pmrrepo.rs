@@ -1,3 +1,7 @@
+use sqlx::{
+    Sqlite,
+    migrate::MigrateDatabase,
+};
 use std::env;
 use std::io::{self, Write};
 use std::path::PathBuf;
@@ -5,7 +9,8 @@ use std::process;
 use structopt::StructOpt;
 
 use pmrmodel::backend::db::{
-    SqliteBackend
+    Profile,
+    SqliteBackend,
 };
 use pmrmodel::model::workspace::{
     WorkspaceBackend,
@@ -100,16 +105,24 @@ fn fetch_envvar(key: &str) -> anyhow::Result<String> {
 #[async_std::main]
 #[paw::main]
 async fn main(args: Args) -> anyhow::Result<()> {
-    // TODO make this be sourced from a configuration file of sort...
-    let git_root = PathBuf::from(fetch_envvar("PMR_GIT_ROOT")?);
-    let backend = SqliteBackend::from_url(&fetch_envvar("DATABASE_URL")?).await?;
-
     stderrlog::new()
         .module(module_path!())
         .verbosity(args.verbose + 1)
         .timestamp(stderrlog::Timestamp::Second)
         .init()
         .unwrap();
+
+    // TODO make this be sourced from a configuration file of sort...
+    let git_root = PathBuf::from(fetch_envvar("PMR_GIT_ROOT")?);
+    let db_url = fetch_envvar("DATABASE_URL")?;
+    if !Sqlite::database_exists(&db_url).await.unwrap_or(false) {
+        log::warn!("database {} does not exist; creating...", &db_url);
+        Sqlite::create_database(&db_url).await?
+    }
+    let backend = SqliteBackend::from_url(&db_url)
+        .await?
+        .run_migration_profile(Profile::Pmrapp)
+        .await?;
 
     match args.cmd {
         Some(Command::Register { url, description, long_description }) => {
