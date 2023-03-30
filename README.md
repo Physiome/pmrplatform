@@ -1,6 +1,7 @@
 # pmrmodel
 
-A demo of the core concepts for PMR, written in Rust.
+This library provides the core model for the next generation of PMR -
+Physiome Model Repository.
 
 ## Build
 
@@ -12,12 +13,5 @@ $ cargo build
 
 ## Usage
 
-To use the demo binary, the database should be built.
-
-```console
-$ touch workspace.db
-$ source .env
-$ sqlx migrate run
-```
-
-The `sqlx` utility should be installed from the sqlx-cli crate.
+Generally, this is a library meant as a base for which other components
+of PMR are built upon.
