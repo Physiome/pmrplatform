@@ -9,6 +9,7 @@ edition = "2021"
 anyhow = "1.0"
 async-std = { version = "1.5.0", features = [ "attributes" ] }
 async-recursion = "1.0.0"
+dotenv = "0.15.0"
 futures = "0.3"
 git2 = "0.13"
 gix-config = "0.16.3"
