@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use pmrmodel_base::workspace::{
     WorkspaceRecord,
-    JsonWorkspaceRecords,
+    WorkspaceRecords,
 };
 use std::io::Write;
 
@@ -31,7 +31,7 @@ pub fn stream_workspace_records_default(mut writer: impl Write, records: Vec<Wor
 }
 
 pub fn stream_workspace_records_as_json(writer: impl Write, records: Vec<WorkspaceRecord>) -> Result<(), serde_json::Error> {
-    serde_json::to_writer(writer, &JsonWorkspaceRecords { workspaces: records })
+    serde_json::to_writer(writer, &WorkspaceRecords { workspaces: records })
 }
 
 #[async_trait]

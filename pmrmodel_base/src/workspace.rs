@@ -13,7 +13,7 @@ pub struct WorkspaceRecord {
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct JsonWorkspaceRecords {
+pub struct WorkspaceRecords {
     pub workspaces: Vec<WorkspaceRecord>
 }
 
