@@ -25,12 +25,14 @@ CREATE INDEX IF NOT EXISTS exposure_file__exposure_id ON exposure_file(exposure_
 CREATE INDEX IF NOT EXISTS exposure_file__exposure_id_workspace_file_path ON exposure_file(exposure_id, workspace_file_path);
 
 CREATE TABLE IF NOT EXISTS exposure_file_view (
-    exposure_file_view_id INTEGER PRIMARY KEY NOT NULL,
+    id INTEGER PRIMARY KEY NOT NULL,
     exposure_file_id INTEGER NOT NULL,
-    view_suffix TEXT,
+    view_key TEXT NOT NULL,  -- the suffix to get to the view
     -- the views are then implemented by the underlying framework
     FOREIGN KEY(exposure_file_id) REFERENCES exposure_file(id)
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS exposure_file_view__exposure_file_id_view_key ON exposure_file_view(exposure_file_id, view_key);
 
 -- each file view can have multiple tasks
 CREATE TABLE IF NOT EXISTS exposure_file_view_tasks (
