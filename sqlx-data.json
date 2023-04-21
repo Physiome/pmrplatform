@@ -112,6 +112,16 @@
     },
     "query": "\nSELECT id, url, description\nFROM workspace\nWHERE id = ?1\n            "
   },
+  "2d18251bd35deb69fd056da567bac35c4e496a49fa60a4cc5f48176f22d7f9e9": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 3
+      }
+    },
+    "query": "\nINSERT INTO task_template_arg_choice (\n    task_template_arg_id,\n    value,\n    label\n)\nVALUES ( ?1, ?2, ?3 )\n        "
+  },
   "3718960faae75106733d002d14e8f63eed12c6dc339fdd2cdfbbce5ae312da65": {
     "describe": {
       "columns": [],
@@ -121,6 +131,16 @@
       }
     },
     "query": "\n    INSERT INTO workspace_sync ( workspace_id, start, status )\n    VALUES ( ?1, ?2, ?3 )\n            "
+  },
+  "4098e733bc0056457e9a8d2ccb66d39092b2246c62647b6f7a61b0e252151a69": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 7
+      }
+    },
+    "query": "\nINSERT INTO task_template_arg (\n    task_template_id,\n    flag,\n    flag_joined,\n    prompt,\n    default_value,\n    choice_fixed,\n    choice_source\n)\nVALUES ( ?1, ?2, ?3, ?4, ?5, ?6, ?7 )\n        "
   },
   "62a8cd79866cbc5e20def80d9c1174458ef1fab94bd6378c87b6c84b82c8034e": {
     "describe": {
@@ -183,6 +203,16 @@
       }
     },
     "query": "\nUPDATE workspace\nSET description = ?1, long_description = ?2\nWHERE id = ?3\n            "
+  },
+  "a42f58be3929d01da7c6e56803df10adabb0ed9e6df6f7fa70ca8bc6f1ea4eec": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 3
+      }
+    },
+    "query": "\nINSERT INTO task_template (\n    bin_path,\n    version_id,\n    created_ts\n)\nVALUES ( ?1, ?2, ?3 )\n        "
   },
   "a48371425a24e415019b07a6672e380ba83801697b3e4dcbc9e84186af507e3e": {
     "describe": {
@@ -263,5 +293,53 @@
       }
     },
     "query": "\nSELECT id, url, description\nFROM workspace\nORDER BY id\n            "
+  },
+  "f2e1dcf8de08a4fae66afcc69ff63296454688e2a3dd78fb022b7b37684b5674": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "bin_path",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "version_id",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "created_ts",
+          "ordinal": 3,
+          "type_info": "Int64"
+        },
+        {
+          "name": "final_task_template_arg_id",
+          "ordinal": 4,
+          "type_info": "Int64"
+        },
+        {
+          "name": "superceded_by_id",
+          "ordinal": 5,
+          "type_info": "Int64"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        true,
+        true
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "\nSELECT\n    id,\n    bin_path,\n    version_id,\n    created_ts,\n    final_task_template_arg_id,\n    superceded_by_id\nFROM task_template\nWHERE id = ?1\n        "
   }
 }

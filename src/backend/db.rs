@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 pub enum Profile {
     Pmrapp,
+    Pmrtqs,
 }
 
 pub trait PmrBackend {}
@@ -38,6 +39,9 @@ impl<DB: sqlx::Database> Backend<Pool<DB>> {
         match profile {
             Profile::Pmrapp => {
                 sqlx::migrate!("migrations/pmrapp").run(&*self.pool).await?;
+            }
+            Profile::Pmrtqs => {
+                sqlx::migrate!("migrations/pmrtqs").run(&*self.pool).await?;
             }
         }
         Ok(self)

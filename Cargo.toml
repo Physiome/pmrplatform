@@ -22,7 +22,6 @@ sqlx = { version = "0.6.2", features = [ "runtime-async-std-native-tls", "sqlite
 [dev-dependencies]
 mockall = "0.10.2"
 tempfile = "3.1.0"
-textwrap-macros = "0.3.0"
 
 [workspace]
 members = [ "pmrmodel_base" ]
