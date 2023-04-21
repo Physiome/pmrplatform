@@ -244,6 +244,54 @@
     },
     "query": "\nSELECT id, url, description\nFROM workspace\nWHERE url = ?1\n            "
   },
+  "b38473c885d985812fdd0d63317b8233e75e007999b44d5948414e0e339dfd3f": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "bin_path",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "version_id",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "created_ts",
+          "ordinal": 3,
+          "type_info": "Int64"
+        },
+        {
+          "name": "final_task_template_arg_id",
+          "ordinal": 4,
+          "type_info": "Int64"
+        },
+        {
+          "name": "superceded_by_id",
+          "ordinal": 5,
+          "type_info": "Int64"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        true,
+        true
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "\nSELECT\n    id,\n    bin_path,\n    version_id,\n    created_ts,\n    final_task_template_arg_id,\n    superceded_by_id\nFROM task_template\nWHERE id = ?1\n"
+  },
   "bfaeaf8d073d8e14c1ecc8279da15d21b8990fa4bf4ec331dec619ad669b1f2d": {
     "describe": {
       "columns": [],
@@ -293,53 +341,5 @@
       }
     },
     "query": "\nSELECT id, url, description\nFROM workspace\nORDER BY id\n            "
-  },
-  "f2e1dcf8de08a4fae66afcc69ff63296454688e2a3dd78fb022b7b37684b5674": {
-    "describe": {
-      "columns": [
-        {
-          "name": "id",
-          "ordinal": 0,
-          "type_info": "Int64"
-        },
-        {
-          "name": "bin_path",
-          "ordinal": 1,
-          "type_info": "Text"
-        },
-        {
-          "name": "version_id",
-          "ordinal": 2,
-          "type_info": "Text"
-        },
-        {
-          "name": "created_ts",
-          "ordinal": 3,
-          "type_info": "Int64"
-        },
-        {
-          "name": "final_task_template_arg_id",
-          "ordinal": 4,
-          "type_info": "Int64"
-        },
-        {
-          "name": "superceded_by_id",
-          "ordinal": 5,
-          "type_info": "Int64"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false,
-        false,
-        true,
-        true
-      ],
-      "parameters": {
-        "Right": 1
-      }
-    },
-    "query": "\nSELECT\n    id,\n    bin_path,\n    version_id,\n    created_ts,\n    final_task_template_arg_id,\n    superceded_by_id\nFROM task_template\nWHERE id = ?1\n        "
   }
 }

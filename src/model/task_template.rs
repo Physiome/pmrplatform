@@ -40,20 +40,28 @@ async fn get_task_template_by_id_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
 ) -> anyhow::Result<TaskTemplate> {
-    let rec = sqlx::query_as(
-        dedent!(r#"
-        SELECT
-            id,
-            bin_path,
-            version_id,
-            created_ts,
-            final_task_template_arg_id,
-            superceded_by_id
-        FROM task_template
-        WHERE id = ?1
-        "#),
+    let rec = sqlx::query!(r#"
+SELECT
+    id,
+    bin_path,
+    version_id,
+    created_ts,
+    final_task_template_arg_id,
+    superceded_by_id
+FROM task_template
+WHERE id = ?1
+"#,
+        id,
     )
-    .bind(id)
+    .map(|row| TaskTemplate {
+        id: row.id,
+        bin_path: row.bin_path,
+        version_id: row.version_id,
+        created_ts: row.created_ts,
+        final_task_template_arg_id: row.final_task_template_arg_id,
+        superceded_by_id: row.superceded_by_id,
+        args: None,
+    })
     .fetch_one(&*sqlite.pool)
     .await?;
     Ok(rec)

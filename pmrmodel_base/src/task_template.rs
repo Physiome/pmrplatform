@@ -10,7 +10,7 @@ pub struct TaskTemplate {
     pub created_ts: i64,
     pub final_task_template_arg_id: Option<i64>,
     pub superceded_by_id: Option<i64>,
-    pub args: Vec<TaskTemplateArg>,
+    pub args: Option<Vec<TaskTemplateArg>>,
 }
 
 impl<'c> FromRow<'c, SqliteRow> for TaskTemplate {
@@ -22,7 +22,7 @@ impl<'c> FromRow<'c, SqliteRow> for TaskTemplate {
             created_ts: row.get(3),
             final_task_template_arg_id: row.get(4),
             superceded_by_id: row.get(5),
-            args: Vec::with_capacity(0),
+            args: None,
         })
     }
 }
