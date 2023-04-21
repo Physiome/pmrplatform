@@ -1,26 +1,43 @@
 use serde::{Deserialize, Serialize};
+use sqlx::sqlite::SqliteRow;
+use sqlx::{FromRow, Row};
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct TaskTemplateRecord {
+pub struct TaskTemplate {
     pub id: i64,
     pub bin_path: String,
     pub version_id: String,
     pub created_ts: i64,
     pub final_task_template_arg_id: Option<i64>,
     pub superceded_by_id: Option<i64>,
+    pub args: Vec<TaskTemplateArg>,
+}
+
+impl<'c> FromRow<'c, SqliteRow> for TaskTemplate {
+    fn from_row(row: &SqliteRow) -> Result<Self, sqlx::Error> {
+        Ok(TaskTemplate {
+            id: row.get(0),
+            bin_path: row.get(1),
+            version_id: row.get(2),
+            created_ts: row.get(3),
+            final_task_template_arg_id: row.get(4),
+            superceded_by_id: row.get(5),
+            args: Vec::with_capacity(0),
+        })
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct TaskTemplateRecords {
-    pub task_templates: Vec<TaskTemplateRecord>
+pub struct TaskTemplates {
+    pub task_templates: Vec<TaskTemplate>
 }
 
 /*
-TaskTemplateArgRecord
+TaskTemplateArg
 
 ordered by its id - this means the underlying order cannot be changed, can only be
 extended
-task_template_id - points to the TaskTemplateRecord.id this arg is associated with
+task_template_id - points to the TaskTemplate.id this arg is associated with
 flag - the flag to provide (e.g. `-D`, `--define`)
 flag_joined - if false, the value is a separate arg, if true, value is joined with flag, e.g:
                 - if flag = `-D`, flag_joined = true, `-Dvalue`
@@ -70,7 +87,7 @@ choice_fixed - if true, the provided value for task must be one of the choices
 */
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct TaskTemplateArgRecord {
+pub struct TaskTemplateArg {
     pub id: i64,
     pub task_template_id: i64,
     pub flag: Option<String>,
@@ -79,11 +96,14 @@ pub struct TaskTemplateArgRecord {
     pub default_value: Option<String>,
     pub choice_fixed: bool,
     pub choice_source: Option<String>,
+    // TODO may need an enum instead that disambiguates the DB one and
+    // the generated ones provided by alternative sources
+    pub choices: Vec<TaskTemplateArgChoice>,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct TaskTemplateArgRecords {
-    pub task_template_args: Vec<TaskTemplateArgRecord>
+pub struct TaskTemplateArgs {
+    pub task_template_args: Vec<TaskTemplateArg>
 }
 
 /*
@@ -92,7 +112,7 @@ likewise for empty-string for the disambiguation.
 */
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct TaskTemplateArgChoiceRecord {
+pub struct TaskTemplateArgChoice {
     pub id: i64,
     pub task_template_arg_id: i64,
     pub value: Option<String>,
@@ -100,14 +120,8 @@ pub struct TaskTemplateArgChoiceRecord {
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct TaskTemplateArgChoiceRecords {
-    pub task_template_arg_choices: Vec<TaskTemplateArgChoiceRecords>
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct TaskTemplate {
-    pub task_template: TaskTemplateRecord,
-    // pub args: Vec<TaskTemplateArgChoice>,
+pub struct TaskTemplateArgChoices {
+    pub task_template_arg_choices: Vec<TaskTemplateArgChoices>
 }
 
 /*

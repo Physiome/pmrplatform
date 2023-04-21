@@ -1,10 +1,11 @@
 use async_trait::async_trait;
 use chrono::Utc;
 use pmrmodel_base::task_template::{
-    TaskTemplateRecord,
-    TaskTemplateArgRecord,
-    TaskTemplateArgChoiceRecord,
+    TaskTemplate,
+    TaskTemplateArg,
+    TaskTemplateArgChoice,
 };
+use textwrap_macros::dedent;
 
 use crate::backend::db::SqliteBackend;
 
@@ -38,21 +39,21 @@ VALUES ( ?1, ?2, ?3 )
 async fn get_task_template_by_id_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
-) -> anyhow::Result<TaskTemplateRecord> {
-    let rec = sqlx::query_as!(TaskTemplateRecord,
-        r#"
-SELECT
-    id,
-    bin_path,
-    version_id,
-    created_ts,
-    final_task_template_arg_id,
-    superceded_by_id
-FROM task_template
-WHERE id = ?1
-        "#,
-        id,
+) -> anyhow::Result<TaskTemplate> {
+    let rec = sqlx::query_as(
+        dedent!(r#"
+        SELECT
+            id,
+            bin_path,
+            version_id,
+            created_ts,
+            final_task_template_arg_id,
+            superceded_by_id
+        FROM task_template
+        WHERE id = ?1
+        "#),
     )
+    .bind(id)
     .fetch_one(&*sqlite.pool)
     .await?;
     Ok(rec)
@@ -132,7 +133,7 @@ pub trait TaskTemplateBackend {
     async fn get_task_template_by_id(
         &self,
         id: i64,
-    ) -> anyhow::Result<TaskTemplateRecord>;
+    ) -> anyhow::Result<TaskTemplate>;
 }
 
 #[async_trait]
@@ -148,7 +149,7 @@ impl TaskTemplateBackend for SqliteBackend {
     async fn get_task_template_by_id(
         &self,
         id: i64,
-    ) -> anyhow::Result<TaskTemplateRecord> {
+    ) -> anyhow::Result<TaskTemplate> {
         get_task_template_by_id_sqlite(&self, id).await
     }
 }
