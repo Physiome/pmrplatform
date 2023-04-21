@@ -98,7 +98,7 @@ pub struct TaskTemplateArg {
     pub choice_source: Option<String>,
     // TODO may need an enum instead that disambiguates the DB one and
     // the generated ones provided by alternative sources
-    pub choices: Vec<TaskTemplateArgChoice>,
+    pub choices: Option<Vec<TaskTemplateArgChoice>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]

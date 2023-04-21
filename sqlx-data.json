@@ -341,5 +341,65 @@
       }
     },
     "query": "\nSELECT id, url, description\nFROM workspace\nORDER BY id\n            "
+  },
+  "d7a5871aaa2fc3c57f50e2b8737f460dfaa6200453927cbffba14bf8cb5b8b50": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "task_template_id",
+          "ordinal": 1,
+          "type_info": "Int64"
+        },
+        {
+          "name": "flag",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "flag_joined",
+          "ordinal": 3,
+          "type_info": "Bool"
+        },
+        {
+          "name": "prompt",
+          "ordinal": 4,
+          "type_info": "Text"
+        },
+        {
+          "name": "default_value",
+          "ordinal": 5,
+          "type_info": "Text"
+        },
+        {
+          "name": "choice_fixed",
+          "ordinal": 6,
+          "type_info": "Bool"
+        },
+        {
+          "name": "choice_source",
+          "ordinal": 7,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        true,
+        false,
+        true,
+        true,
+        false,
+        true
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "\nSELECT\n    id,\n    task_template_id,\n    flag,\n    flag_joined,\n    prompt,\n    default_value,\n    choice_fixed,\n    choice_source\nFROM task_template_arg\nWHERE task_template_id = ?1\n"
   }
 }
