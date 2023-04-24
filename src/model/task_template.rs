@@ -1,3 +1,4 @@
+use futures::future;
 use async_trait::async_trait;
 use chrono::Utc;
 use pmrmodel_base::task_template::{
@@ -32,6 +33,29 @@ VALUES ( ?1, ?2, ?3 )
     .execute(&*sqlite.pool)
     .await?
     .last_insert_rowid();
+
+    Ok(id)
+}
+
+async fn finalize_task_template_sqlite(
+    sqlite: &SqliteBackend,
+    id: i64,
+) -> Result<i64, sqlx::Error> {
+    sqlx::query!(
+        r#"
+UPDATE task_template
+SET
+    final_task_template_arg_id = (
+        SELECT COALESCE(MAX(id), 0)
+        FROM task_template_arg
+        WHERE task_template_id = ?1
+    )
+WHERE id = ?1
+        "#,
+        id,
+    )
+    .execute(&*sqlite.pool)
+    .await?;
 
     Ok(id)
 }
@@ -172,6 +196,14 @@ pub trait TaskTemplateBackend {
         &self,
         bin_path: &str,
         version_id: &str,
+        arguments: &[(
+            Option<&str>,
+            bool,
+            Option<&str>,
+            Option<&str>,
+            bool,
+            Option<&str>,
+        )],
     ) -> Result<i64, sqlx::Error>;
     async fn get_task_template_by_id(
         &self,
@@ -185,8 +217,31 @@ impl TaskTemplateBackend for SqliteBackend {
         &self,
         bin_path: &str,
         version_id: &str,
+        arguments: &[(
+            Option<&str>,
+            bool,
+            Option<&str>,
+            Option<&str>,
+            bool,
+            Option<&str>,
+        )],
     ) -> Result<i64, sqlx::Error> {
-        add_task_template_sqlite(&self, bin_path, version_id).await
+        let result = add_task_template_sqlite(&self, bin_path, version_id).await?;
+        let _args = future::try_join_all(arguments.into_iter().map(|x| {
+            add_task_template_arg_sqlite(
+                &self,
+                result,
+                x.0,
+                x.1,
+                x.2,
+                x.3,
+                x.4,
+                x.5,
+            )
+        }))
+        .await?;
+        finalize_task_template_sqlite(&self, result).await;
+        Ok(result)
     }
 
     async fn get_task_template_by_id(
@@ -203,7 +258,10 @@ impl TaskTemplateBackend for SqliteBackend {
 
 #[cfg(test)]
 mod tests {
-    use pmrmodel_base::task_template::TaskTemplate;
+    use pmrmodel_base::task_template::{
+        TaskTemplate,
+        TaskTemplateArg,
+    };
     use crate::backend::db::{
         Profile,
         SqliteBackend,
@@ -211,7 +269,7 @@ mod tests {
     use crate::model::task_template::TaskTemplateBackend;
 
     #[async_std::test]
-    async fn test_smoketest() {
+    async fn test_smoketest_no_args() {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await
             .unwrap()
@@ -220,7 +278,7 @@ mod tests {
             .unwrap();
 
         let id = TaskTemplateBackend::add_task_template(
-            &backend, "/bin/true", "1.0.0"
+            &backend, "/bin/true", "1.0.0", &[],
         ).await
             .unwrap();
         let template = TaskTemplateBackend::get_task_template_by_id(
@@ -231,10 +289,75 @@ mod tests {
             id: 1,
             bin_path: "/bin/true".into(),
             version_id: "1.0.0".into(),
-            created_ts: template.created_ts,
-            final_task_template_arg_id: None,
+            created_ts: template.created_ts,  // matching itself
+            final_task_template_arg_id: Some(0),
             superceded_by_id: None,
             args: Some([].to_vec()),
         });
     }
+
+    #[async_std::test]
+    async fn test_smoketest_with_args() {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await
+            .unwrap()
+            .run_migration_profile(Profile::Pmrtqs)
+            .await
+            .unwrap();
+
+        let id = TaskTemplateBackend::add_task_template(
+            &backend, "/bin/echo", "1.0.0", &[(
+                None,
+                false,
+                Some("First statement"),
+                None,
+                false,
+                None,
+            ), (
+                None,
+                false,
+                Some("Second statement"),
+                None,
+                false,
+                None,
+            )],
+        ).await
+            .unwrap();
+        let template = TaskTemplateBackend::get_task_template_by_id(
+            &backend, id
+        ).await
+            .unwrap();
+        assert_eq!(template, TaskTemplate {
+            id: 1,
+            bin_path: "/bin/echo".into(),
+            version_id: "1.0.0".into(),
+            created_ts: template.created_ts,  // matching itself
+            final_task_template_arg_id: Some(2),
+            superceded_by_id: None,
+            args: Some([TaskTemplateArg {
+                id: 1,
+                task_template_id: 1,
+                flag: None,
+                flag_joined: false,
+                prompt: Some("First statement".to_string()),
+                default_value: None,
+                choice_fixed: false,
+                choice_source: None,
+                choices: None
+            }, TaskTemplateArg {
+                id: 2,
+                task_template_id: 1,
+                flag: None,
+                flag_joined: false,
+                prompt: Some("Second statement".to_string()),
+                default_value: None,
+                choice_fixed: false,
+                choice_source: None,
+                choices: None
+            }].to_vec()),
+        });
+    }
+
+
+
 }
