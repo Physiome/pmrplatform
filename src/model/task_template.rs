@@ -11,8 +11,8 @@ use crate::backend::db::SqliteBackend;
 
 async fn add_task_template_sqlite(
     sqlite: &SqliteBackend,
-    bin_path: String,
-    version_id: String,
+    bin_path: &str,
+    version_id: &str,
 ) -> Result<i64, sqlx::Error> {
     let created_ts = Utc::now().timestamp();
 
@@ -70,12 +70,12 @@ WHERE id = ?1
 async fn add_task_template_arg_sqlite(
     sqlite: &SqliteBackend,
     task_template_id: i64,
-    flag: Option<String>,
+    flag: Option<&str>,
     flag_joined: bool,
-    prompt: Option<String>,
-    default_value: Option<String>,
+    prompt: Option<&str>,
+    default_value: Option<&str>,
     choice_fixed: bool,
-    choice_source: Option<String>,
+    choice_source: Option<&str>,
 ) -> Result<i64, sqlx::Error> {
     let id = sqlx::query!(
         r#"
@@ -108,8 +108,8 @@ VALUES ( ?1, ?2, ?3, ?4, ?5, ?6, ?7 )
 async fn add_task_template_arg_choice_sqlite(
     sqlite: &SqliteBackend,
     task_template_arg_id: i64,
-    value: Option<String>,
-    label: String,
+    value: Option<&str>,
+    label: &str,
 ) -> Result<i64, sqlx::Error> {
     let id = sqlx::query!(
         r#"
@@ -170,8 +170,8 @@ WHERE task_template_id = ?1
 pub trait TaskTemplateBackend {
     async fn add_task_template(
         &self,
-        bin_path: String,
-        version_id: String,
+        bin_path: &str,
+        version_id: &str,
     ) -> Result<i64, sqlx::Error>;
     async fn get_task_template_by_id(
         &self,
@@ -183,8 +183,8 @@ pub trait TaskTemplateBackend {
 impl TaskTemplateBackend for SqliteBackend {
     async fn add_task_template(
         &self,
-        bin_path: String,
-        version_id: String,
+        bin_path: &str,
+        version_id: &str,
     ) -> Result<i64, sqlx::Error> {
         add_task_template_sqlite(&self, bin_path, version_id).await
     }
@@ -220,7 +220,7 @@ mod tests {
             .unwrap();
 
         let id = TaskTemplateBackend::add_task_template(
-            &backend, "/bin/true".into(), "1.0.0".into()
+            &backend, "/bin/true", "1.0.0"
         ).await
             .unwrap();
         let template = TaskTemplateBackend::get_task_template_by_id(
