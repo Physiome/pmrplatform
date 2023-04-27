@@ -194,6 +194,16 @@
     },
     "query": "\n    SELECT id, workspace_id, start, end, status\n    FROM workspace_sync\n    WHERE workspace_id = ?1\n            "
   },
+  "7aee61c023cb994214ae21f7c71c4ab699169c9a28747bb3248a299cd6608c88": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "\nUPDATE task_template\nSET\n    final_task_template_arg_id = (\n        SELECT COALESCE(MAX(id), 0)\n        FROM task_template_arg\n        WHERE task_template_id = ?1\n    )\nWHERE id = ?1\n        "
+  },
   "96176ab4d312f2dff1925d25f2976bf1252996bcd2af8bb57aca04796213edc8": {
     "describe": {
       "columns": [],
@@ -291,16 +301,6 @@
       }
     },
     "query": "\nSELECT\n    id,\n    bin_path,\n    version_id,\n    created_ts,\n    final_task_template_arg_id,\n    superceded_by_id\nFROM task_template\nWHERE id = ?1\n"
-  },
-  "bbf4db4a436e316a3746d208774810018a996d25f4242083ee49b2b10e378ede": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Right": 1
-      }
-    },
-    "query": "\nUPDATE task_template\nSET \n    final_task_template_arg_id = (\n        SELECT COALESCE(MAX(id), 0)\n        FROM task_template_arg \n        WHERE task_template_id = ?1\n    )\nWHERE id = ?1\n        "
   },
   "bfaeaf8d073d8e14c1ecc8279da15d21b8990fa4bf4ec331dec619ad669b1f2d": {
     "describe": {

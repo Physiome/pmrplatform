@@ -227,8 +227,8 @@ impl TaskTemplateBackend for SqliteBackend {
         )],
     ) -> Result<i64, sqlx::Error> {
         let result = add_task_template_sqlite(&self, bin_path, version_id).await?;
-        let _args = future::try_join_all(arguments.into_iter().map(|x| {
-            add_task_template_arg_sqlite(
+        let mut tasks = arguments.into_iter()
+            .map(|x| { add_task_template_arg_sqlite(
                 &self,
                 result,
                 x.0,
@@ -237,9 +237,11 @@ impl TaskTemplateBackend for SqliteBackend {
                 x.3,
                 x.4,
                 x.5,
-            )
-        }))
-        .await?;
+            )})
+            .into_iter();
+        while let Some(task) = tasks.next() {
+            task.await?;
+        }
         finalize_task_template_sqlite(&self, result).await;
         Ok(result)
     }
@@ -339,7 +341,7 @@ mod tests {
                 task_template_id: 1,
                 flag: None,
                 flag_joined: false,
-                prompt: Some("First statement".to_string()),
+                prompt: Some("First statement".into()),
                 default_value: None,
                 choice_fixed: false,
                 choice_source: None,
@@ -349,7 +351,7 @@ mod tests {
                 task_template_id: 1,
                 flag: None,
                 flag_joined: false,
-                prompt: Some("Second statement".to_string()),
+                prompt: Some("Second statement".into()),
                 default_value: None,
                 choice_fixed: false,
                 choice_source: None,

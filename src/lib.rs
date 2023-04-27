@@ -14,4 +14,5 @@ pub mod utils;
 extern crate chrono;
 #[macro_use]
 extern crate enum_primitive;
+#[macro_use]
 extern crate log;
