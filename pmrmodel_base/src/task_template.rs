@@ -4,6 +4,8 @@ use sqlx::{FromRow, Row};
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct TaskTemplate {
+    // providing this as a default on deserialize, should serialize omit to hide for API?
+    #[serde(default)]
     pub id: i64,
     pub bin_path: String,
     pub version_id: String,
@@ -88,7 +90,9 @@ choice_fixed - if true, the provided value for task must be one of the choices
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct TaskTemplateArg {
+    #[serde(default)]
     pub id: i64,
+    #[serde(default)]
     pub task_template_id: i64,
     pub flag: Option<String>,
     pub flag_joined: bool,
@@ -113,7 +117,9 @@ likewise for empty-string for the disambiguation.
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct TaskTemplateArgChoice {
+    #[serde(default)]
     pub id: i64,
+    #[serde(default)]
     pub task_template_arg_id: i64,
     pub value: Option<String>,
     pub label: String,

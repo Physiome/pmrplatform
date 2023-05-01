@@ -11,6 +11,9 @@ pub mod model {
 }
 pub mod utils;
 
+#[cfg(test)]
+pub mod test;
+
 extern crate chrono;
 #[macro_use]
 extern crate enum_primitive;
