@@ -367,6 +367,7 @@ mod tests {
     use pmrmodel_base::task_template::{
         TaskTemplate,
         TaskTemplateArg,
+        TaskTemplateArgChoice,
     };
     use crate::backend::db::{
         Profile,
@@ -497,6 +498,78 @@ mod tests {
             ]
         }
         "#).unwrap());
+
+        // add a couple choices
+        TaskTemplateBackend::add_task_template_arg_choice(
+            &backend, 2, None, "omit").await.unwrap();
+        TaskTemplateBackend::add_task_template_arg_choice(
+            &backend, 2, Some(""), "empty string").await.unwrap();
+        let template = TaskTemplateBackend::get_task_template_by_id(
+            &backend, id
+        ).await.unwrap();
+
+        assert_eq!(template, serde_json::from_str(r#"
+        {
+            "id": 1,
+            "bin_path": "/bin/echo",
+            "version_id": "1.0.0",
+            "created_ts": 1234567890,
+            "final_task_template_arg_id": 2,
+            "superceded_by_id": null,
+            "args": [
+                {
+                    "id": 1,
+                    "task_template_id": 1,
+                    "flag": null,
+                    "flag_joined": false,
+                    "prompt": "First statement",
+                    "default_value": null,
+                    "choice_fixed": false,
+                    "choice_source": null,
+                    "choices": []
+                },
+                {
+                    "id": 2,
+                    "task_template_id": 1,
+                    "flag": null,
+                    "flag_joined": false,
+                    "prompt": "Second statement",
+                    "default_value": null,
+                    "choice_fixed": false,
+                    "choice_source": null,
+                    "choices": [
+                        {
+                            "id": 1,
+                            "task_template_arg_id": 2,
+                            "value": null,
+                            "label": "omit"
+                        },
+                        {
+                            "id": 2,
+                            "task_template_arg_id": 2,
+                            "value": "",
+                            "label": "empty string"
+                        }
+                    ]
+                }
+            ]
+        }
+        "#).unwrap());
+        assert_eq!(template.args.unwrap()[1].choices, Some([
+            TaskTemplateArgChoice {
+                id: 1,
+                task_template_arg_id: 2,
+                value: None,
+                label: "omit".into(),
+            },
+            TaskTemplateArgChoice {
+                id: 2,
+                task_template_arg_id: 2,
+                value: Some("".into()),
+                label: "empty string".into(),
+            },
+        ].to_vec()));
+
     }
 
     #[async_std::test]
