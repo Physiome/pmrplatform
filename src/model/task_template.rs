@@ -339,23 +339,14 @@ impl TaskTemplateBackend for SqliteBackend {
             &self, result.id
         ).await?;
 
-        async fn assign_choices(
-            sqlite: &SqliteBackend,
-            arg: &mut TaskTemplateArg,
-        ) -> Result<(), sqlx::Error> {
-            arg.choices = Some(
+        future::try_join_all(args.iter_mut().map(|arg| async {
+            Ok::<(), sqlx::Error>(arg.choices = Some(
                 get_task_template_arg_choices_by_task_template_arg_id_sqlite(
-                    &sqlite,
+                    &self,
                     arg.id,
                 ).await?
-            );
-            Ok(())
-        }
-
-        future::try_join_all(args.iter_mut().map(|x| {
-            assign_choices(&self, x)
-        }))
-        .await?;
+            ))
+        })).await?;
 
         result.args = Some(args);
         Ok(result)
