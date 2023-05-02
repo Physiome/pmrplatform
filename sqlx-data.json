@@ -1,5 +1,41 @@
 {
   "db": "SQLite",
+  "0a279d6379026325d321a927916eaef85576f9f856c9efa33e5d9473fcd6fd5e": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "task_template_arg_id",
+          "ordinal": 1,
+          "type_info": "Int64"
+        },
+        {
+          "name": "value",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "label",
+          "ordinal": 3,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "\nSELECT\n    id,\n    task_template_arg_id,\n    value,\n    label\nFROM task_template_arg_choice\nWHERE task_template_arg_id = ?1\n"
+  },
   "0ba3b972f857c643b4dd4d11919f279e524f81ba519a7561b3a1aeb21deed1bf": {
     "describe": {
       "columns": [

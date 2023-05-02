@@ -206,6 +206,26 @@ WHERE task_template_id = ?1 AND id <= (
     Ok(rec)
 }
 
+async fn get_task_template_arg_choices_by_task_template_arg_id_sqlite(
+    sqlite: &SqliteBackend,
+    id: i64,
+) -> Result<Vec<TaskTemplateArgChoice>, sqlx::Error> {
+    let rec = sqlx::query_as!(TaskTemplateArgChoice, r#"
+SELECT
+    id,
+    task_template_arg_id,
+    value,
+    label
+FROM task_template_arg_choice
+WHERE task_template_arg_id = ?1
+"#,
+        id,
+    )
+    .fetch_all(&*sqlite.pool)
+    .await?;
+    Ok(rec)
+}
+
 #[async_trait]
 pub trait TaskTemplateBackend {
     // add a new task template that's open to updates
@@ -315,9 +335,29 @@ impl TaskTemplateBackend for SqliteBackend {
         id: i64,
     ) -> Result<TaskTemplate, sqlx::Error> {
         let mut result = get_task_template_by_id_sqlite(&self, id).await?;
-        result.args = Some(get_task_template_args_by_task_template_id_sqlite(
+        let mut args = get_task_template_args_by_task_template_id_sqlite(
             &self, result.id
-        ).await?);
+        ).await?;
+
+        async fn assign_choices(
+            sqlite: &SqliteBackend,
+            arg: &mut TaskTemplateArg,
+        ) -> Result<(), sqlx::Error> {
+            arg.choices = Some(
+                get_task_template_arg_choices_by_task_template_arg_id_sqlite(
+                    &sqlite,
+                    arg.id,
+                ).await?
+            );
+            Ok(())
+        }
+
+        future::try_join_all(args.iter_mut().map(|x| {
+            assign_choices(&self, x)
+        }))
+        .await?;
+
+        result.args = Some(args);
         Ok(result)
     }
 }
@@ -409,7 +449,7 @@ mod tests {
                 default_value: None,
                 choice_fixed: false,
                 choice_source: None,
-                choices: None
+                choices: Some([].to_vec()),
             }, TaskTemplateArg {
                 id: 2,
                 task_template_id: 1,
@@ -419,7 +459,7 @@ mod tests {
                 default_value: None,
                 choice_fixed: false,
                 choice_source: None,
-                choices: None
+                choices: Some([].to_vec()),
             }].to_vec()),
         };
         assert_eq!(template, answer);
@@ -441,7 +481,7 @@ mod tests {
                     "default_value": null,
                     "choice_fixed": false,
                     "choice_source": null,
-                    "choices": null
+                    "choices": []
                 },
                 {
                     "id": 2,
@@ -452,7 +492,7 @@ mod tests {
                     "default_value": null,
                     "choice_fixed": false,
                     "choice_source": null,
-                    "choices": null
+                    "choices": []
                 }
             ]
         }
