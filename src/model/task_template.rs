@@ -610,7 +610,7 @@ mod tests {
         });
 
         // doing a manual insert to avoid API changes that may prevent this
-        sqlx::query(
+        sqlx::query!(
             r#"
             INSERT INTO task_template_arg (
                 task_template_id,

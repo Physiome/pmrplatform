@@ -188,6 +188,16 @@
     },
     "query": "\nINSERT INTO task_template_arg (\n    task_template_id,\n    flag,\n    flag_joined,\n    prompt,\n    default_value,\n    choice_fixed,\n    choice_source\n)\nVALUES ( ?1, ?2, ?3, ?4, ?5, ?6, ?7 )\n        "
   },
+  "5d32d4c8e82986ac788d8edfa1b86a1b6f2f08dbb3cd1a1356e7083979e61cf6": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 0
+      }
+    },
+    "query": "\n            INSERT INTO task_template_arg (\n                task_template_id,\n                flag,\n                flag_joined,\n                prompt,\n                default_value,\n                choice_fixed,\n                choice_source\n            )\n            VALUES ( 1, \"-h\", FALSE, \"The prompt\", NULL, FALSE, NULL)\n            "
+  },
   "62a8cd79866cbc5e20def80d9c1174458ef1fab94bd6378c87b6c84b82c8034e": {
     "describe": {
       "columns": [],
