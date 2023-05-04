@@ -1,3 +1,3 @@
 [workspace]
-members = ["pmrmodel_base", "pmrmodel"]
-default-members = ["pmrmodel_base", "pmrmodel"]
+members = ["pmrmodel_base", "pmrmodel", "pmrtqs"]
+default-members = ["pmrmodel_base", "pmrmodel", "pmrtqs"]

@@ -1,2 +1,5 @@
 /target
 *.swp
+*.db
+*.db-shm
+*.db-wal
