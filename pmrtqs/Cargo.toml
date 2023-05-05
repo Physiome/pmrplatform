@@ -26,9 +26,3 @@ async-trait = "0.1.50"
 mockall = "0.10.2"
 tempfile = "3.1.0"
 textwrap-macros = "0.3.0"
-
-[patch.crates-io]
-# pmrmodel = { git = "https://github.com/metatoaster/pmrmodel.git", branch = "main" }
-# pmrmodel_base = { git = "https://github.com/metatoaster/pmrmodel.git", branch = "main" }
-pmrmodel = { path = "../pmrmodel" }
-pmrmodel_base = { path = "../pmrmodel/pmrmodel_base" }
