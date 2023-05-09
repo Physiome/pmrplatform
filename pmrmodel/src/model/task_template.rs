@@ -253,6 +253,16 @@ pub trait TaskTemplateBackend {
         &self,
         id: i64,
     ) -> Result<i64, sqlx::Error>;
+    async fn add_task_template_arg(
+        &self,
+        task_template_id: i64,
+        flag: Option<&str>,
+        flag_joined: bool,
+        prompt: Option<&str>,
+        default_value: Option<&str>,
+        choice_fixed: bool,
+        choice_source: Option<&str>,
+    ) -> Result<i64, sqlx::Error>;
     async fn add_task_template_arg_choice(
         &self,
         task_template_arg_id: i64,
@@ -280,6 +290,28 @@ impl TaskTemplateBackend for SqliteBackend {
         id: i64,
     ) -> Result<i64, sqlx::Error> {
         finalize_task_template_sqlite(&self, id).await
+    }
+
+    async fn add_task_template_arg(
+        &self,
+        task_template_id: i64,
+        flag: Option<&str>,
+        flag_joined: bool,
+        prompt: Option<&str>,
+        default_value: Option<&str>,
+        choice_fixed: bool,
+        choice_source: Option<&str>,
+    ) -> Result<i64, sqlx::Error> {
+        add_task_template_arg_sqlite(
+            &self,
+            task_template_id,
+            flag,
+            flag_joined,
+            prompt,
+            default_value,
+            choice_fixed,
+            choice_source,
+        ).await
     }
 
     async fn add_task_template_arg_choice(
@@ -565,6 +597,50 @@ mod tests {
 
     #[async_std::test]
     async fn test_add_manual_finalize() {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await
+            .unwrap()
+            .run_migration_profile(Profile::Pmrtqs)
+            .await
+            .unwrap();
+
+        let id = TaskTemplateBackend::add_new_task_template(
+            &backend, "/bin/true", "1.0.0",
+        ).await
+            .unwrap();
+        TaskTemplateBackend::add_task_template_arg(
+            &backend, 1, Some("-i"), false, None, None, false, None
+        ).await.unwrap();
+        TaskTemplateBackend::finalize_new_task_template(
+            &backend, id,
+        ).await.unwrap();
+
+        let template = TaskTemplateBackend::get_task_template_by_id(
+            &backend, id
+        ).await.unwrap();
+        assert_eq!(template, TaskTemplate {
+            id: 1,
+            bin_path: "/bin/true".into(),
+            version_id: "1.0.0".into(),
+            created_ts: 1234567890,
+            final_task_template_arg_id: Some(1),
+            superceded_by_id: None,
+            args: Some([TaskTemplateArg {
+                id: 1,
+                task_template_id: 1,
+                flag: Some("-i".into()),
+                flag_joined: false,
+                prompt: None,
+                default_value: None,
+                choice_fixed: false,
+                choice_source: None,
+                choices: Some([].to_vec()),
+            }].to_vec()),
+        });
+    }
+
+    #[async_std::test]
+    async fn test_add_manual_finalize_nospill() {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await
             .unwrap()
