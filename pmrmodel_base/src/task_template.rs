@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::sqlite::SqliteRow;
 use sqlx::{FromRow, Row};
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct TaskTemplate {
@@ -26,6 +27,23 @@ impl<'c> FromRow<'c, SqliteRow> for TaskTemplate {
             superceded_by_id: row.get(5),
             args: None,
         })
+    }
+}
+
+impl Display for TaskTemplate {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "TaskTemplate {{ id: {}, version_id: {:?}, ... }} \n{} {}",
+            self.id,
+            &self.version_id,
+            &self.bin_path,
+            &(match &self.args {
+                Some(args) => format!("{}", args.iter().fold(
+                    String::new(), |acc, arg| acc + &arg.to_string() + " ")),
+                None => "?arguments not finalized?".to_string(),
+            }),
+        )
     }
 }
 
@@ -103,6 +121,23 @@ pub struct TaskTemplateArg {
     // TODO may need an enum instead that disambiguates the DB one and
     // the generated ones provided by alternative sources
     pub choices: Option<Vec<TaskTemplateArgChoice>>,
+}
+
+impl Display for TaskTemplateArg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}{}{}",
+            &self.flag.as_ref().unwrap_or(&("".to_string())),
+            if self.flag_joined { " " } else { "" },
+            match (&self.prompt, &self.default_value) {
+                (None, None) => "".into(),
+                (Some(prompt), None) => format!("<{}>", &prompt),
+                (None, Some(default_value)) => format!("{:?}", &default_value),
+                (Some(prompt), Some(_)) => format!("<{}>", &prompt),
+            }
+        )
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
