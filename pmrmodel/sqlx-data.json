@@ -250,7 +250,7 @@
     },
     "query": "\n    SELECT id, workspace_id, start, end, status\n    FROM workspace_sync\n    WHERE workspace_id = ?1\n            "
   },
-  "92134dd860241d0aee90e705c52299a79b6de8e3e8ba15d4d3cb5a9aee67d0b6": {
+  "93ccd8a2584efd7b4cf658c9b0c7e444955a15f3b02f4cd3ae692ebcb0fe1cdb": {
     "describe": {
       "columns": [
         {
@@ -308,7 +308,7 @@
         "Right": 1
       }
     },
-    "query": "\nSELECT\n    id,\n    task_template_id,\n    flag,\n    flag_joined,\n    prompt,\n    default_value,\n    choice_fixed,\n    choice_source\nFROM task_template_arg\nWHERE task_template_id = ?1 AND id <= (\n    SELECT final_task_template_arg_id\n    FROM task_template\n    WHERE id = ?1\n)\n"
+    "query": "\nSELECT\n    id,\n    task_template_id,\n    flag,\n    flag_joined,\n    prompt,\n    default_value,\n    choice_fixed,\n    choice_source\nFROM task_template_arg,\n    (\n        SELECT final_task_template_arg_id\n        FROM task_template\n        WHERE id = ?1\n    ) tt\nWHERE\n    task_template_id = ?1 AND\n    (\n        tt.final_task_template_arg_id IS NULL OR\n        id <= tt.final_task_template_arg_id\n    )\n"
   },
   "96176ab4d312f2dff1925d25f2976bf1252996bcd2af8bb57aca04796213edc8": {
     "describe": {

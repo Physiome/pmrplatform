@@ -181,12 +181,18 @@ SELECT
     default_value,
     choice_fixed,
     choice_source
-FROM task_template_arg
-WHERE task_template_id = ?1 AND id <= (
-    SELECT final_task_template_arg_id
-    FROM task_template
-    WHERE id = ?1
-)
+FROM task_template_arg,
+    (
+        SELECT final_task_template_arg_id
+        FROM task_template
+        WHERE id = ?1
+    ) tt
+WHERE
+    task_template_id = ?1 AND
+    (
+        tt.final_task_template_arg_id IS NULL OR
+        id <= tt.final_task_template_arg_id
+    )
 "#,
         id,
     )
@@ -611,6 +617,29 @@ mod tests {
         TaskTemplateBackend::add_task_template_arg(
             &backend, 1, Some("-i"), false, None, None, false, None
         ).await.unwrap();
+        let template = TaskTemplateBackend::get_task_template_by_id(
+            &backend, id
+        ).await.unwrap();
+        assert_eq!(template, TaskTemplate {
+            id: 1,
+            bin_path: "/bin/true".into(),
+            version_id: "1.0.0".into(),
+            created_ts: 1234567890,
+            final_task_template_arg_id: None,
+            superceded_by_id: None,
+            args: Some([TaskTemplateArg {
+                id: 1,
+                task_template_id: 1,
+                flag: Some("-i".into()),
+                flag_joined: false,
+                prompt: None,
+                default_value: None,
+                choice_fixed: false,
+                choice_source: None,
+                choices: Some([].to_vec()),
+            }].to_vec()),
+        });
+
         TaskTemplateBackend::finalize_new_task_template(
             &backend, id,
         ).await.unwrap();
