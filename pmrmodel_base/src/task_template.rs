@@ -34,15 +34,21 @@ impl Display for TaskTemplate {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "TaskTemplate {{ id: {}, version_id: {:?}, ... }} \n{} {}",
+            "TaskTemplate {{ id: {}, version_id: {:?}, ... }} \n{}{}{}",
             self.id,
             &self.version_id,
             &self.bin_path,
             &(match &self.args {
                 Some(args) => format!("{}", args.iter().fold(
-                    String::new(), |acc, arg| acc + &arg.to_string() + " ")),
-                None => "?arguments not finalized?".to_string(),
+                    String::new(), |acc, arg| acc + " " + &arg.to_string())),
+                None => "?arguments missing?".to_string(),
             }),
+            if self.final_task_template_arg_id.is_some() {
+                ""
+            }
+            else {
+                " ?not finalized?"
+            },
         )
     }
 }
@@ -132,9 +138,10 @@ impl Display for TaskTemplateArg {
             if self.flag_joined { " " } else { "" },
             match (&self.prompt, &self.default_value) {
                 (None, None) => "".into(),
-                (Some(prompt), None) => format!("<{}>", &prompt),
                 (None, Some(default_value)) => format!("{:?}", &default_value),
-                (Some(prompt), Some(_)) => format!("<{}>", &prompt),
+                (Some(prompt), None) => format!("<{}>", &prompt),
+                (Some(prompt), Some(default_value)) =>
+                    format!("[<{}>;default={:?}]", &prompt, &default_value),
             }
         )
     }

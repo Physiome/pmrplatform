@@ -43,7 +43,16 @@ enum Commands {
         id: i64,
     },
     #[command(arg_required_else_help = true)]
-    Args {
+    Arg {
+        #[command(subcommand)]
+        arg: Arg,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum Arg {
+    #[command(arg_required_else_help = true)]
+    Add {
         id: i64,
         #[arg(long, value_name = "FLAG")]
         flag: Option<String>,
@@ -57,6 +66,15 @@ enum Commands {
         choice_fixed: bool,
         #[arg(long, value_name = "CHOICE_SOURCE")]
         choice_source: Option<String>,
+    },
+    #[command(arg_required_else_help = true)]
+    Rm {
+        #[arg(long, value_name = "ARG_ID")]
+        argid: i64,
+    },
+    #[command(arg_required_else_help = true)]
+    Show {
+        id: i64,
     },
 }
 
@@ -108,22 +126,53 @@ async fn main() -> anyhow::Result<()> {
                 Err(_) => println!("Task template {} not found", id),
             };
         }
-        Commands::Args { id, flag, flag_joined, prompt, default_value, choice_fixed, choice_source } => {
-            println!("Setting argument for id {}", &id);
-            TaskTemplateBackend::add_task_template_arg(
-                &backend,
-                id,
-                flag.as_deref(),
-                flag_joined,
-                prompt.as_deref(),
-                default_value.as_deref(),
-                choice_fixed,
-                choice_source.as_deref(),
-            ).await?;
-            let task_template = TaskTemplateBackend::get_task_template_by_id(
-                &backend, id,
-            ).await?;
-            println!("{}", task_template);
+        Commands::Arg { arg } => {
+            match arg {
+                Arg::Add { id, flag, flag_joined, prompt, default_value, choice_fixed, choice_source } => {
+                    println!("Setting argument for id {}", &id);
+                    TaskTemplateBackend::add_task_template_arg(
+                        &backend,
+                        id,
+                        flag.as_deref(),
+                        flag_joined,
+                        prompt.as_deref(),
+                        default_value.as_deref(),
+                        choice_fixed,
+                        choice_source.as_deref(),
+                    ).await?;
+                    let task_template = TaskTemplateBackend::get_task_template_by_id(
+                        &backend, id,
+                    ).await?;
+                    println!("{}", task_template);
+                }
+                Arg::Show { id } => {
+                    let task_template = TaskTemplateBackend::get_task_template_by_id(
+                        &backend, id,
+                    ).await?;
+                    let args = task_template.args.unwrap_or([].into());
+                    println!(
+                        "Showing detailed arguments for task template id:{}",
+                        task_template.id,
+                    );
+                    for arg in args.iter() {
+                        println!("arg id:{} - {}", arg.id, arg);
+                    }
+                }
+                Arg::Rm { argid } => {
+                    let result = TaskTemplateBackend::delete_task_template_arg_by_id(
+                        &backend, argid).await?;
+                    match result {
+                        None => println!("no argument with argument id:{}", argid),
+                        Some(arg) => {
+                            println!("argument id:{} deleted: {}", argid, arg);
+                            let task_template = TaskTemplateBackend::get_task_template_by_id(
+                                &backend, arg.task_template_id,
+                            ).await?;
+                            println!("{}", task_template);
+                        },
+                    }
+                }
+            }
         }
     }
 
