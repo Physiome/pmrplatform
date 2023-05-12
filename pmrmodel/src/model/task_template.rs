@@ -103,6 +103,41 @@ WHERE id = ?1
     Ok(rec)
 }
 
+async fn get_task_template_by_arg_id_sqlite(
+    sqlite: &SqliteBackend,
+    id: i64,
+) -> Result<TaskTemplate, sqlx::Error> {
+    let rec = sqlx::query!(r#"
+SELECT
+    id,
+    bin_path,
+    version_id,
+    created_ts,
+    final_task_template_arg_id,
+    superceded_by_id
+FROM task_template
+WHERE id = (
+    SELECT task_template_id
+    FROM task_template_arg
+        WHERE id = ?1
+)
+"#,
+        id,
+    )
+    .map(|row| TaskTemplate {
+        id: row.id,
+        bin_path: row.bin_path,
+        version_id: row.version_id,
+        created_ts: row.created_ts,
+        final_task_template_arg_id: row.final_task_template_arg_id,
+        superceded_by_id: row.superceded_by_id,
+        args: None,
+    })
+    .fetch_one(&*sqlite.pool)
+    .await?;
+    Ok(rec)
+}
+
 async fn add_task_template_arg_sqlite(
     sqlite: &SqliteBackend,
     task_template_id: i64,
@@ -323,6 +358,10 @@ pub trait TaskTemplateBackend {
         &self,
         id: i64,
     ) -> Result<TaskTemplate, sqlx::Error>;
+    async fn get_task_template_by_arg_id(
+        &self,
+        id: i64,
+    ) -> Result<TaskTemplate, sqlx::Error>;
 }
 
 #[async_trait]
@@ -427,6 +466,31 @@ impl TaskTemplateBackend for SqliteBackend {
         id: i64,
     ) -> Result<TaskTemplate, sqlx::Error> {
         let mut result = get_task_template_by_id_sqlite(&self, id).await?;
+        let mut args = get_task_template_args_by_task_template_id_sqlite(
+            &self, result.id
+        ).await?;
+
+        future::try_join_all(args.iter_mut().map(|arg| async {
+            Ok::<(), sqlx::Error>(arg.choices = Some(
+                get_task_template_arg_choices_by_task_template_arg_id_sqlite(
+                    &self,
+                    arg.id,
+                ).await?
+            ))
+        })).await?;
+
+        result.args = Some(args);
+        Ok(result)
+    }
+
+    async fn get_task_template_by_arg_id(
+        &self,
+        id: i64,
+    ) -> Result<TaskTemplate, sqlx::Error> {
+        let mut result = get_task_template_by_arg_id_sqlite(&self, id).await?;
+        // TODO the following duplicates the above; will need to investigate
+        // how to better incorporate these additional selects into the function
+        // or provide additional functions/arguments/etc
         let mut args = get_task_template_args_by_task_template_id_sqlite(
             &self, result.id
         ).await?;

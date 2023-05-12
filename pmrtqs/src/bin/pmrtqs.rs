@@ -162,14 +162,31 @@ async fn main() -> anyhow::Result<()> {
                     let result = TaskTemplateBackend::delete_task_template_arg_by_id(
                         &backend, argid).await?;
                     match result {
-                        None => println!("no argument with argument id:{}", argid),
+                        None => {
+                            match TaskTemplateBackend::get_task_template_by_arg_id(
+                                &backend, argid,
+                            ).await {
+                                Ok(task_template) => {
+                                    match task_template.final_task_template_arg_id {
+                                        Some(_) => {
+                                            println!("task template already finalized");
+                                            println!("{}", task_template);
+                                        }
+                                        None => {
+                                            println!("task template not finalized but failed to remove");
+                                        }
+                                    }
+                                }
+                                Err(_) => println!("no argument with argument id:{}", argid),
+                            }
+                        }
                         Some(arg) => {
                             println!("argument id:{} deleted: {}", argid, arg);
                             let task_template = TaskTemplateBackend::get_task_template_by_id(
                                 &backend, arg.task_template_id,
                             ).await?;
                             println!("{}", task_template);
-                        },
+                        }
                     }
                 }
             }
