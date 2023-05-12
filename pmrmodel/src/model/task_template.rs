@@ -212,6 +212,46 @@ WHERE
     Ok(rec)
 }
 
+async fn delete_task_template_arg_by_id_sqlite(
+    sqlite: &SqliteBackend,
+    id: i64,
+) -> Result<Option<TaskTemplateArg>, sqlx::Error> {
+    let mut tx = sqlite.pool.begin().await?;
+    let rec = sqlx::query!(r#"
+DELETE FROM
+    task_template_arg
+WHERE
+    (
+        SELECT final_task_template_arg_id
+        FROM task_template
+        WHERE id = (
+            SELECT task_template_id
+            FROM task_template_arg
+            WHERE id = ?1
+        )
+    ) is NULL AND
+    id = ?1
+    RETURNING *
+"#,
+        id,
+    )
+    .map(|row| TaskTemplateArg {
+        id: row.id.unwrap_or(0),
+        task_template_id: row.task_template_id.unwrap_or(0),
+        flag: row.flag,
+        flag_joined: row.flag_joined.unwrap_or(false),
+        prompt: row.prompt,
+        default_value: row.default_value,
+        choice_fixed: row.choice_fixed.unwrap_or(false),
+        choice_source: row.choice_source,
+        choices: None,
+    })
+    .fetch_optional(&mut tx)
+    .await?;
+    tx.commit().await?;
+    Ok(rec)
+}
+
 async fn get_task_template_arg_choices_by_task_template_arg_id_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
@@ -269,6 +309,10 @@ pub trait TaskTemplateBackend {
         choice_fixed: bool,
         choice_source: Option<&str>,
     ) -> Result<i64, sqlx::Error>;
+    async fn delete_task_template_arg_by_id(
+        &self,
+        id: i64,
+    ) -> Result<Option<TaskTemplateArg>, sqlx::Error>;
     async fn add_task_template_arg_choice(
         &self,
         task_template_arg_id: i64,
@@ -317,6 +361,16 @@ impl TaskTemplateBackend for SqliteBackend {
             default_value,
             choice_fixed,
             choice_source,
+        ).await
+    }
+
+    async fn delete_task_template_arg_by_id(
+        &self,
+        id: i64,
+    ) -> Result<Option<TaskTemplateArg>, sqlx::Error> {
+        delete_task_template_arg_by_id_sqlite(
+            &self,
+            id,
         ).await
     }
 
@@ -644,6 +698,10 @@ mod tests {
             &backend, id,
         ).await.unwrap();
 
+        // deleting should fail
+        assert_eq!(None, TaskTemplateBackend::delete_task_template_arg_by_id(
+            &backend, 1).await.unwrap());
+
         let template = TaskTemplateBackend::get_task_template_by_id(
             &backend, id
         ).await.unwrap();
@@ -665,6 +723,49 @@ mod tests {
                 choice_source: None,
                 choices: Some([].to_vec()),
             }].to_vec()),
+        });
+    }
+
+    #[async_std::test]
+    async fn test_add_rm() {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await
+            .unwrap()
+            .run_migration_profile(Profile::Pmrtqs)
+            .await
+            .unwrap();
+
+        let id = TaskTemplateBackend::add_new_task_template(
+            &backend, "/bin/true", "1.0.0",
+        ).await.unwrap();
+        TaskTemplateBackend::add_task_template_arg(
+            &backend, 1, Some("-i"), false, None, None, false, None
+        ).await.unwrap();
+        assert_eq!(TaskTemplateBackend::delete_task_template_arg_by_id(
+            &backend, 1).await.unwrap(), Some(TaskTemplateArg {
+                id: 1,
+                task_template_id: 1,
+                flag: Some("-i".into()),
+                flag_joined: false,
+                prompt: None,
+                default_value: None,
+                choice_fixed: false,
+                choice_source: None,
+                choices: None,
+            }
+        ));
+
+        let template = TaskTemplateBackend::get_task_template_by_id(
+            &backend, id
+        ).await.unwrap();
+        assert_eq!(template, TaskTemplate {
+            id: 1,
+            bin_path: "/bin/true".into(),
+            version_id: "1.0.0".into(),
+            created_ts: 1234567890,
+            final_task_template_arg_id: None,
+            superceded_by_id: None,
+            args: Some([].to_vec()),
         });
     }
 
