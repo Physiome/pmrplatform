@@ -127,71 +127,78 @@ async fn main() -> anyhow::Result<()> {
             };
         }
         Commands::Arg { arg } => {
-            match arg {
-                Arg::Add { id, flag, flag_joined, prompt, default_value, choice_fixed, choice_source } => {
-                    println!("Setting argument for id {}", &id);
-                    TaskTemplateBackend::add_task_template_arg(
-                        &backend,
-                        id,
-                        flag.as_deref(),
-                        flag_joined,
-                        prompt.as_deref(),
-                        default_value.as_deref(),
-                        choice_fixed,
-                        choice_source.as_deref(),
-                    ).await?;
+            parse_arg(arg, &backend).await?;
+        }
+    }
+
+    Ok(())
+}
+
+
+async fn parse_arg(arg: Arg, backend: &SqliteBackend) -> anyhow::Result<()> {
+    match arg {
+        Arg::Add { id, flag, flag_joined, prompt, default_value, choice_fixed, choice_source } => {
+            println!("Setting argument for id {}", &id);
+            TaskTemplateBackend::add_task_template_arg(
+                backend,
+                id,
+                flag.as_deref(),
+                flag_joined,
+                prompt.as_deref(),
+                default_value.as_deref(),
+                choice_fixed,
+                choice_source.as_deref(),
+            ).await?;
+            let task_template = TaskTemplateBackend::get_task_template_by_id(
+                backend, id,
+            ).await?;
+            println!("{}", task_template);
+        }
+        Arg::Show { id } => {
+            let task_template = TaskTemplateBackend::get_task_template_by_id(
+                backend, id,
+            ).await?;
+            let args = task_template.args.unwrap_or([].into());
+            println!(
+                "Showing detailed arguments for task template id:{}",
+                task_template.id,
+            );
+            for arg in args.iter() {
+                println!("arg id:{}> {}", arg.id, arg);
+            }
+        }
+        Arg::Rm { argid } => {
+            let result = TaskTemplateBackend::delete_task_template_arg_by_id(
+                backend, argid).await?;
+            match result {
+                None => {
+                    match TaskTemplateBackend::get_task_template_by_arg_id(
+                        backend, argid,
+                    ).await {
+                        Ok(task_template) => {
+                            match task_template.final_task_template_arg_id {
+                                Some(_) => {
+                                    println!("task template already finalized");
+                                    println!("{}", task_template);
+                                }
+                                None => {
+                                    println!("task template not finalized but failed to remove");
+                                }
+                            }
+                        }
+                        Err(_) => println!("no argument with argument id:{}", argid),
+                    }
+                }
+                Some(arg) => {
+                    println!("argument id:{} deleted: {}", argid, arg);
                     let task_template = TaskTemplateBackend::get_task_template_by_id(
-                        &backend, id,
+                        backend, arg.task_template_id,
                     ).await?;
                     println!("{}", task_template);
                 }
-                Arg::Show { id } => {
-                    let task_template = TaskTemplateBackend::get_task_template_by_id(
-                        &backend, id,
-                    ).await?;
-                    let args = task_template.args.unwrap_or([].into());
-                    println!(
-                        "Showing detailed arguments for task template id:{}",
-                        task_template.id,
-                    );
-                    for arg in args.iter() {
-                        println!("arg id:{} - {}", arg.id, arg);
-                    }
-                }
-                Arg::Rm { argid } => {
-                    let result = TaskTemplateBackend::delete_task_template_arg_by_id(
-                        &backend, argid).await?;
-                    match result {
-                        None => {
-                            match TaskTemplateBackend::get_task_template_by_arg_id(
-                                &backend, argid,
-                            ).await {
-                                Ok(task_template) => {
-                                    match task_template.final_task_template_arg_id {
-                                        Some(_) => {
-                                            println!("task template already finalized");
-                                            println!("{}", task_template);
-                                        }
-                                        None => {
-                                            println!("task template not finalized but failed to remove");
-                                        }
-                                    }
-                                }
-                                Err(_) => println!("no argument with argument id:{}", argid),
-                            }
-                        }
-                        Some(arg) => {
-                            println!("argument id:{} deleted: {}", argid, arg);
-                            let task_template = TaskTemplateBackend::get_task_template_by_id(
-                                &backend, arg.task_template_id,
-                            ).await?;
-                            println!("{}", task_template);
-                        }
-                    }
-                }
             }
         }
-    }
+    };
 
     Ok(())
 }
