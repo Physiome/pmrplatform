@@ -131,19 +131,24 @@ pub struct TaskTemplateArg {
 
 impl Display for TaskTemplateArg {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}{}{}",
-            &self.flag.as_ref().unwrap_or(&("".to_string())),
-            if self.flag_joined { " " } else { "" },
+        match (
+            &self.flag, self.flag_joined,
             match (&self.prompt, &self.default_value) {
-                (None, None) => "".into(),
-                (None, Some(default_value)) => format!("{:?}", &default_value),
-                (Some(prompt), None) => format!("<{}>", &prompt),
+                (None, None) => None,
+                (None, Some(default_value)) =>
+                    Some(format!("{:?}", &default_value)),
+                (Some(prompt), None) => Some(format!("<{}>", &prompt)),
                 (Some(prompt), Some(default_value)) =>
-                    format!("[<{}>;default={:?}]", &prompt, &default_value),
+                    Some(format!("[<{}>;default={:?}]",
+                        &prompt, &default_value)),
             }
-        )
+        ) {
+            (None, _, None) => write!(f, ""),
+            (Some(flag), _, None) => write!(f, "{}", flag),
+            (None, _, Some(arg)) => write!(f, "{}", arg),
+            (Some(flag), false, Some(arg)) => write!(f, "{} {}", flag, arg),
+            (Some(flag), true, Some(arg)) => write!(f, "{}{}", flag, arg),
+        }
     }
 }
 
