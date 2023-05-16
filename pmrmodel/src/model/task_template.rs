@@ -202,6 +202,26 @@ VALUES ( ?1, ?2, ?3 )
     Ok(id)
 }
 
+async fn delete_task_template_arg_choice_by_id_sqlite(
+    sqlite: &SqliteBackend,
+    id: i64,
+) -> Result<Option<TaskTemplateArgChoice>, sqlx::Error> {
+    let mut tx = sqlite.pool.begin().await?;
+    let rec = sqlx::query_as!(TaskTemplateArgChoice, r#"
+DELETE FROM
+    task_template_arg_choice
+WHERE
+    id = ?1
+    RETURNING *
+"#,
+        id,
+    )
+    .fetch_optional(&mut tx)
+    .await?;
+    tx.commit().await?;
+    Ok(rec)
+}
+
 async fn get_task_template_args_by_task_template_id_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
@@ -354,6 +374,10 @@ pub trait TaskTemplateBackend {
         value: Option<&str>,
         label: &str,
     ) -> Result<i64, sqlx::Error>;
+    async fn delete_task_template_arg_choice_by_id(
+        &self,
+        id: i64,
+    ) -> Result<Option<TaskTemplateArgChoice>, sqlx::Error>;
     async fn get_task_template_by_id(
         &self,
         id: i64,
@@ -424,6 +448,16 @@ impl TaskTemplateBackend for SqliteBackend {
             task_template_arg_id,
             value,
             label,
+        ).await
+    }
+
+    async fn delete_task_template_arg_choice_by_id(
+        &self,
+        id: i64,
+    ) -> Result<Option<TaskTemplateArgChoice>, sqlx::Error> {
+        delete_task_template_arg_choice_by_id_sqlite(
+            &self,
+            id,
         ).await
     }
 
@@ -717,6 +751,19 @@ mod tests {
             },
         ].to_vec()));
 
+        TaskTemplateBackend::delete_task_template_arg_choice_by_id(
+            &backend, 2).await.unwrap();
+        let template = TaskTemplateBackend::get_task_template_by_id(
+            &backend, id
+        ).await.unwrap();
+        assert_eq!(template.args.unwrap()[1].choices, Some([
+            TaskTemplateArgChoice {
+                id: 1,
+                task_template_arg_id: 2,
+                value: None,
+                label: "omit".into(),
+            },
+        ].to_vec()));
     }
 
     #[async_std::test]

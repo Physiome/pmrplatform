@@ -380,6 +380,54 @@
     },
     "query": "\nDELETE FROM\n    task_template_arg\nWHERE\n    (\n        SELECT final_task_template_arg_id\n        FROM task_template\n        WHERE id = (\n            SELECT task_template_id\n            FROM task_template_arg\n            WHERE id = ?1\n        )\n    ) is NULL AND\n    id = ?1\n    RETURNING *\n"
   },
+  "9f1e84d4c692ef63f9b273a3adcbc16a7a865fe7725c91a156aebe46642df129": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "bin_path",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "version_id",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "created_ts",
+          "ordinal": 3,
+          "type_info": "Int64"
+        },
+        {
+          "name": "final_task_template_arg_id",
+          "ordinal": 4,
+          "type_info": "Int64"
+        },
+        {
+          "name": "superceded_by_id",
+          "ordinal": 5,
+          "type_info": "Int64"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        true,
+        true
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "\nSELECT\n    id,\n    bin_path,\n    version_id,\n    created_ts,\n    final_task_template_arg_id,\n    superceded_by_id\nFROM task_template\nWHERE id = (\n    SELECT task_template_id\n    FROM task_template_arg\n        WHERE id = ?1\n)\n"
+  },
   "a42f58be3929d01da7c6e56803df10adabb0ed9e6df6f7fa70ca8bc6f1ea4eec": {
     "describe": {
       "columns": [],
@@ -517,5 +565,41 @@
       }
     },
     "query": "\nSELECT id, url, description\nFROM workspace\nORDER BY id\n            "
+  },
+  "fdfbfa59c1d4c69406dce85d1b65582ce9232699ea832ca492934e31161f8cc9": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "task_template_arg_id",
+          "ordinal": 1,
+          "type_info": "Int64"
+        },
+        {
+          "name": "value",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "label",
+          "ordinal": 3,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "\nDELETE FROM\n    task_template_arg_choice\nWHERE\n    id = ?1\n    RETURNING *\n"
   }
 }
