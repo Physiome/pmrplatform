@@ -267,6 +267,61 @@ WHERE
     Ok(rec)
 }
 
+async fn get_task_template_arg_by_id_sqlite(
+    sqlite: &SqliteBackend,
+    id: i64,
+    complete: bool,
+) -> Result<Option<TaskTemplateArg>, sqlx::Error> {
+    let mut rec = sqlx::query!(r#"
+SELECT
+    id,
+    task_template_id,
+    flag,
+    flag_joined,
+    prompt,
+    default_value,
+    choice_fixed,
+    choice_source
+FROM
+    task_template_arg
+WHERE
+    id = ?1
+"#,
+        id,
+    )
+    .map(|row| TaskTemplateArg {
+        id: row.id,
+        task_template_id: row.task_template_id,
+        flag: row.flag,
+        flag_joined: row.flag_joined,
+        prompt: row.prompt,
+        default_value: row.default_value,
+        choice_fixed: row.choice_fixed,
+        choice_source: row.choice_source,
+        choices: None,
+    })
+    .fetch_optional(&*sqlite.pool)
+    .await?;
+
+    match &mut rec {
+        Some(ref mut rec) =>
+            rec.choices = if complete {
+                Some(
+                    get_task_template_arg_choices_by_task_template_arg_id_sqlite(
+                        sqlite,
+                        rec.id,
+                    ).await?
+                )
+            }
+            else {
+                None
+            },
+        None => {}
+    }
+
+    Ok(rec)
+}
+
 async fn delete_task_template_arg_by_id_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
@@ -374,6 +429,10 @@ pub trait TaskTemplateBackend {
         value: Option<&str>,
         label: &str,
     ) -> Result<i64, sqlx::Error>;
+    async fn get_task_template_arg_by_id(
+        &self,
+        id: i64,
+    ) -> Result<Option<TaskTemplateArg>, sqlx::Error>;
     async fn delete_task_template_arg_choice_by_id(
         &self,
         id: i64,
@@ -448,6 +507,17 @@ impl TaskTemplateBackend for SqliteBackend {
             task_template_arg_id,
             value,
             label,
+        ).await
+    }
+
+    async fn get_task_template_arg_by_id(
+        &self,
+        id: i64,
+    ) -> Result<Option<TaskTemplateArg>, sqlx::Error>{
+        get_task_template_arg_by_id_sqlite(
+            &self,
+            id,
+            true,
         ).await
     }
 
@@ -737,6 +807,24 @@ mod tests {
         }
         "#).unwrap());
         assert_eq!(template.args.unwrap()[1].choices, Some([
+            TaskTemplateArgChoice {
+                id: 1,
+                task_template_arg_id: 2,
+                value: None,
+                label: "omit".into(),
+            },
+            TaskTemplateArgChoice {
+                id: 2,
+                task_template_arg_id: 2,
+                value: Some("".into()),
+                label: "empty string".into(),
+            },
+        ].to_vec()));
+
+        let arg = TaskTemplateBackend::get_task_template_arg_by_id(
+            &backend, 2).await.unwrap().unwrap();
+        assert_eq!(arg.prompt, Some("Second statement".into()));
+        assert_eq!(arg.choices, Some([
             TaskTemplateArgChoice {
                 id: 1,
                 task_template_arg_id: 2,
