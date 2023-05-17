@@ -34,7 +34,10 @@ impl Display for TaskTemplate {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "TaskTemplate {{ id: {}, version_id: {:?}, ... }} \n{}{}{}",
+            "\
+            TaskTemplate {{ id: {}, version_id: {:?}, ... }}\n\
+            {}{}{}\
+            ",
             self.id,
             &self.version_id,
             &self.bin_path,
@@ -133,13 +136,19 @@ impl Display for TaskTemplateArg {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match (
             &self.flag, self.flag_joined,
-            match (&self.prompt, &self.default_value) {
-                (None, None) => None,
-                (None, Some(default_value)) =>
+            match (&self.prompt, &self.default_value, self.choice_fixed) {
+                (None, None, _) => None,
+                (None, Some(default_value), _) =>
                     Some(format!("{:?}", &default_value)),
-                (Some(prompt), None) => Some(format!("<{}>", &prompt)),
-                (Some(prompt), Some(default_value)) =>
+                (Some(prompt), None, false) =>
+                    Some(format!("<{}>", &prompt)),
+                (Some(prompt), Some(default_value), false) =>
                     Some(format!("[<{}>;default={:?}]",
+                        &prompt, &default_value)),
+                (Some(prompt), None, true) =>
+                    Some(format!("<{};choices={{...}}>", &prompt)),
+                (Some(prompt), Some(default_value), true) =>
+                    Some(format!("[<{}>;default={:?};choices={{...}}]",
                         &prompt, &default_value)),
             }
         ) {
@@ -170,6 +179,20 @@ pub struct TaskTemplateArgChoice {
     pub task_template_arg_id: i64,
     pub value: Option<String>,
     pub label: String,
+}
+
+impl Display for TaskTemplateArgChoice {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} - {}",
+            match self.value.as_deref() {
+                Some(s) => format!("{:?}", s),
+                None => "<OMITTED>".into(),
+            },
+            &self.label,
+        )
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
