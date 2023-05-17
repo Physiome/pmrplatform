@@ -47,6 +47,11 @@ enum Commands {
         #[command(subcommand)]
         arg: Arg,
     },
+    #[command(arg_required_else_help = true)]
+    Choice {
+        #[command(subcommand)]
+        choice: Choice,
+    }
 }
 
 #[derive(Debug, Subcommand)]
@@ -77,6 +82,28 @@ enum Arg {
         id: i64,
     },
 }
+
+#[derive(Debug, Subcommand)]
+enum Choice {
+    #[command(arg_required_else_help = true)]
+    Add {
+        #[arg(long, value_name = "ARG_ID")]
+        argid: i64,
+        label: String,
+        value: Option<String>,
+    },
+    #[command(arg_required_else_help = true)]
+    Rm {
+        #[arg(long, value_name = "CHOICE_ID")]
+        choiceid: i64,
+    },
+    #[command(arg_required_else_help = true)]
+    Show {
+        #[arg(long, value_name = "ARG_ID")]
+        argid: i64,
+    },
+}
+
 
 #[async_std::main]
 async fn main() -> anyhow::Result<()> {
@@ -128,6 +155,9 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Arg { arg } => {
             parse_arg(arg, &backend).await?;
+        }
+        Commands::Choice { choice } => {
+            parse_choice(choice, &backend).await?
         }
     }
 
@@ -199,6 +229,42 @@ async fn parse_arg(arg: Arg, backend: &SqliteBackend) -> anyhow::Result<()> {
             }
         }
     };
+    Ok(())
+}
 
+async fn parse_choice(choice: Choice, backend: &SqliteBackend) -> anyhow::Result<()> {
+    match choice {
+        Choice::Add { argid, label, value } => {
+            println!("Adding choice for arg:id {}", &argid);
+            TaskTemplateBackend::add_task_template_arg_choice(
+                backend,
+                argid,
+                value.as_deref(),
+                &label,
+            ).await?;
+        }
+        Choice::Rm { choiceid } => {
+            println!("removing choice with choice:id {}", &choiceid);
+            TaskTemplateBackend::delete_task_template_arg_choice_by_id(
+                backend,
+                choiceid,
+            ).await?;
+        }
+        Choice::Show { argid } => {
+            match TaskTemplateBackend::get_task_template_arg_by_id(
+                backend,
+                argid,
+            ).await? {
+                Some(arg) => {
+                    println!("arg id:{}> {}", arg.id, arg);
+                    for choice in arg.choices.unwrap_or([].into()).iter() {
+                        println!("  choice id:{}> {}", choice.id, choice);
+                    }
+                }
+                // this should error?
+                None => println!("no argument with argid: {}", argid),
+            }
+        }
+    };
     Ok(())
 }
