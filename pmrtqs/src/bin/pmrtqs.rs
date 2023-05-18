@@ -257,13 +257,21 @@ async fn parse_choice(choice: Choice, backend: &SqliteBackend) -> anyhow::Result
             ).await? {
                 Some(arg) => {
                     println!("arg id:{}> {}", arg.id, arg);
-                    for choice in arg.choices.unwrap_or([].into()).iter() {
-                        println!("  choice id:{}> {}", choice.id, choice);
+                    match arg.choices.as_ref() {
+                        None => println!("<choices not selected with template>"),
+                        Some(choices) => {
+                            if choices.iter().peekable().peek().is_none() {
+                                println!("<no choices recorded>");
+                            }
+                            for choice in choices.iter() {
+                                println!("  choice id:{}> {}", choice.id, choice);
+                            }
+                        }
                     }
                 }
                 // this should error?
                 None => println!("no argument with argid: {}", argid),
-            }
+            };
         }
     };
     Ok(())
