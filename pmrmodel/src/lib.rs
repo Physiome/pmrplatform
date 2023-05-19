@@ -2,6 +2,7 @@ pub mod backend {
     pub mod db;
 }
 pub mod model {
+    pub mod task;
     pub mod task_template;
 
     pub mod workspace;

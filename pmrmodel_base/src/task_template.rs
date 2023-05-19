@@ -115,7 +115,7 @@ production of the final arguments will omit all None values
 choice_fixed - if true, the provided value for task must be one of the choices
 */
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
 pub struct TaskTemplateArg {
     #[serde(default)]
     pub id: i64,
