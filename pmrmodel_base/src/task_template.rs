@@ -61,60 +61,6 @@ pub struct TaskTemplates {
     pub task_templates: Vec<TaskTemplate>
 }
 
-/*
-TaskTemplateArg
-
-ordered by its id - this means the underlying order cannot be changed, can only be
-extended
-task_template_id - points to the TaskTemplate.id this arg is associated with
-flag - the flag to provide (e.g. `-D`, `--define`)
-flag_joined - if false, the value is a separate arg, if true, value is joined with flag, e.g:
-                - if flag = `-D`, flag_joined = true, `-Dvalue`
-                - if flag = `-D`, flag_joined = false, `-D` `value`
-                - if flag = `--define=`, flag_joined = true, `--define=value`
-                - if flag = `--define`, flag_joined = false, `--define` `value`
-effectively, it should concat the result tuple in matrix at the end.
-
-prompt - if not provided, this will not be prompted to user.
-default_value - if provided, this value be used if user input is an empty string
-              - if not provided (i.e. null), and prompt is not null, this must be supplied by user
-
-The following table applies if no choices?
-flag prompt default_value value  result tuple
-NULL NULL   NULL          NULL   Ok((None, None))
-NULL NULL   NULL          ''     Err("user supplied value without prompt")
-NULL NULL   NULL          'val'  Err("user supplied value without prompt")
-''   NULL   NULL          NULL   Ok(("", None))
-''   NULL   NULL          ''     Err("user supplied value without prompt")
-''   NULL   NULL          'val'  Err("user supplied value without prompt")
-NULL ''     NULL          NULL   Err("user supplied value missing")
-NULL ''     NULL          ''     Err("user supplied value missing")
-NULL ''     NULL          'val'  Ok((None, "val",))
-''   ''     NULL          NULL   Err("user supplied value missing")
-''   ''     NULL          ''     Err("user supplied value missing")
-''   ''     NULL          'val'  Ok(("", "val",))
-NULL NULL   'def'         NULL   Ok((None, "def"))
-NULL NULL   'def'         ''     Err("user supplied value without prompt")
-NULL NULL   'def'         'val'  Err("user supplied value without prompt")
-''   NULL   'def'         NULL   Ok(("", "def"))
-''   NULL   'def'         ''     Err("user supplied value without prompt")
-''   NULL   'def'         'val'  Err("user supplied value without prompt")
-NULL ''     'def'         NULL   Ok((None, "def",))
-NULL ''     'def'         ''     Ok((None, "def",))
-NULL ''     'def'         'val'  Ok((None, "val",))
-''   ''     'def'         NULL   Ok(("", "def",))
-''   ''     'def'         ''     Ok(("", "def",))
-''   ''     'def'         'val'  Ok(("", "val",))
-
-The result tuple that has the form `Ok(("", None))` does not have a
-corresponding outcome that is user toggleable.  The way that a user can
-specify that particular form will require choice that has a NULL value.
-
-production of the final arguments will omit all None values
-
-choice_fixed - if true, the provided value for task must be one of the choices
-*/
-
 #[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
 pub struct TaskTemplateArg {
     #[serde(default)]
