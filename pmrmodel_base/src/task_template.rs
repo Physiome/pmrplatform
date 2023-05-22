@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::sqlite::SqliteRow;
 use sqlx::{FromRow, Row};
+use std::ops::{Deref, DerefMut};
 use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -13,7 +14,7 @@ pub struct TaskTemplate {
     pub created_ts: i64,
     pub final_task_template_arg_id: Option<i64>,
     pub superceded_by_id: Option<i64>,
-    pub args: Option<Vec<TaskTemplateArg>>,
+    pub args: Option<TaskTemplateArgs>,
 }
 
 impl<'c> FromRow<'c, SqliteRow> for TaskTemplate {
@@ -57,9 +58,7 @@ impl Display for TaskTemplate {
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct TaskTemplates {
-    pub task_templates: Vec<TaskTemplate>
-}
+pub struct TaskTemplates(Vec<TaskTemplate>);
 
 #[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
 pub struct TaskTemplateArg {
@@ -75,7 +74,7 @@ pub struct TaskTemplateArg {
     pub choice_source: Option<String>,
     // TODO may need an enum instead that disambiguates the DB one and
     // the generated ones provided by alternative sources
-    pub choices: Option<Vec<TaskTemplateArgChoice>>,
+    pub choices: Option<TaskTemplateArgChoices>,
 }
 
 impl Display for TaskTemplateArg {
@@ -108,8 +107,32 @@ impl Display for TaskTemplateArg {
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct TaskTemplateArgs {
-    pub task_template_args: Vec<TaskTemplateArg>
+pub struct TaskTemplateArgs(Vec<TaskTemplateArg>);
+
+impl From<Vec<TaskTemplateArg>> for TaskTemplateArgs {
+    fn from(args: Vec<TaskTemplateArg>) -> Self {
+        Self(args)
+    }
+}
+
+impl From<[TaskTemplateArg; 0]> for TaskTemplateArgs {
+    fn from(args: [TaskTemplateArg; 0]) -> Self {
+        Self(args.into())
+    }
+}
+
+impl Deref for TaskTemplateArgs {
+    type Target = Vec<TaskTemplateArg>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for TaskTemplateArgs {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
 
 /*
@@ -142,17 +165,30 @@ impl Display for TaskTemplateArgChoice {
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct TaskTemplateArgChoices {
-    pub task_template_arg_choices: Vec<TaskTemplateArgChoices>
+pub struct TaskTemplateArgChoices(Vec<TaskTemplateArgChoice>);
+
+impl From<Vec<TaskTemplateArgChoice>> for TaskTemplateArgChoices {
+    fn from(choices: Vec<TaskTemplateArgChoice>) -> Self {
+        Self(choices)
+    }
 }
 
-/*
-testing can be done on the task?
+impl From<[TaskTemplateArgChoice; 0]> for TaskTemplateArgChoices {
+    fn from(choices: [TaskTemplateArgChoice; 0]) -> Self {
+        Self(choices.into())
+    }
+}
 
-each arg does soemthing like
+impl Deref for TaskTemplateArgChoices {
+    type Target = Vec<TaskTemplateArgChoice>;
 
-fn validate_task_arg_against_template_arg(
-    task_arg: <Task>,
-    template_arg: <TaskTemplateArg>,
-) -> Result<(), ErrorString>
-*/
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for TaskTemplateArgChoices {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}

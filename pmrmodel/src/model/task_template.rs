@@ -1,11 +1,13 @@
-use futures::future;
 use async_trait::async_trait;
 #[cfg(not(test))]
 use chrono::Utc;
+use futures::future;
 use pmrmodel_base::task_template::{
     TaskTemplate,
     TaskTemplateArg,
+    TaskTemplateArgs,
     TaskTemplateArgChoice,
+    TaskTemplateArgChoices,
 };
 use textwrap_macros::dedent;
 
@@ -225,7 +227,7 @@ WHERE
 async fn get_task_template_args_by_task_template_id_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
-) -> Result<Vec<TaskTemplateArg>, sqlx::Error> {
+) -> Result<TaskTemplateArgs, sqlx::Error> {
     let rec = sqlx::query!(r#"
 SELECT
     id,
@@ -264,7 +266,7 @@ WHERE
     })
     .fetch_all(&*sqlite.pool)
     .await?;
-    Ok(rec)
+    Ok(rec.into())
 }
 
 async fn get_task_template_arg_by_id_sqlite(
@@ -365,7 +367,7 @@ WHERE
 async fn get_task_template_arg_choices_by_task_template_arg_id_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
-) -> Result<Vec<TaskTemplateArgChoice>, sqlx::Error> {
+) -> Result<TaskTemplateArgChoices, sqlx::Error> {
     let rec = sqlx::query_as!(TaskTemplateArgChoice, r#"
 SELECT
     id,
@@ -379,7 +381,7 @@ WHERE task_template_arg_id = ?1
     )
     .fetch_all(&*sqlite.pool)
     .await?;
-    Ok(rec)
+    Ok(rec.into())
 }
 
 #[async_trait]
@@ -650,7 +652,7 @@ mod tests {
             created_ts: 1234567890,
             final_task_template_arg_id: Some(0),
             superceded_by_id: None,
-            args: Some([].to_vec()),
+            args: Some([].to_vec().into()),
         });
     }
 
@@ -701,7 +703,7 @@ mod tests {
                 default_value: None,
                 choice_fixed: false,
                 choice_source: None,
-                choices: Some([].to_vec()),
+                choices: Some([].to_vec().into()),
             }, TaskTemplateArg {
                 id: 2,
                 task_template_id: 1,
@@ -711,8 +713,8 @@ mod tests {
                 default_value: None,
                 choice_fixed: false,
                 choice_source: None,
-                choices: Some([].to_vec()),
-            }].to_vec()),
+                choices: Some([].to_vec().into()),
+            }].to_vec().into()),
         };
         assert_eq!(template, answer);
         assert_eq!(template, serde_json::from_str(r#"
@@ -819,7 +821,7 @@ mod tests {
                 value: Some("".into()),
                 label: "empty string".into(),
             },
-        ].to_vec()));
+        ].to_vec().into()));
 
         let arg = TaskTemplateBackend::get_task_template_arg_by_id(
             &backend, 2).await.unwrap().unwrap();
@@ -837,7 +839,7 @@ mod tests {
                 value: Some("".into()),
                 label: "empty string".into(),
             },
-        ].to_vec()));
+        ].to_vec().into()));
 
         TaskTemplateBackend::delete_task_template_arg_choice_by_id(
             &backend, 2).await.unwrap();
@@ -851,7 +853,7 @@ mod tests {
                 value: None,
                 label: "omit".into(),
             },
-        ].to_vec()));
+        ].to_vec().into()));
     }
 
     #[async_std::test]
@@ -889,8 +891,8 @@ mod tests {
                 default_value: None,
                 choice_fixed: false,
                 choice_source: None,
-                choices: Some([].to_vec()),
-            }].to_vec()),
+                choices: Some([].to_vec().into()),
+            }].to_vec().into()),
         });
 
         TaskTemplateBackend::finalize_new_task_template(
@@ -920,8 +922,8 @@ mod tests {
                 default_value: None,
                 choice_fixed: false,
                 choice_source: None,
-                choices: Some([].to_vec()),
-            }].to_vec()),
+                choices: Some([].to_vec().into()),
+            }].to_vec().into()),
         });
     }
 
@@ -964,7 +966,7 @@ mod tests {
             created_ts: 1234567890,
             final_task_template_arg_id: None,
             superceded_by_id: None,
-            args: Some([].to_vec()),
+            args: Some([].to_vec().into()),
         });
     }
 
@@ -992,7 +994,7 @@ mod tests {
             created_ts: 1234567890,
             final_task_template_arg_id: None,
             superceded_by_id: None,
-            args: Some([].to_vec()),
+            args: Some([].to_vec().into()),
         });
 
         // finalizing
@@ -1011,7 +1013,7 @@ mod tests {
             created_ts: 1234567890,
             final_task_template_arg_id: Some(0),
             superceded_by_id: None,
-            args: Some([].to_vec()),
+            args: Some([].to_vec().into()),
         });
 
         // doing a manual insert to avoid API changes that may prevent this
@@ -1049,7 +1051,7 @@ mod tests {
             created_ts: 1234567890,
             final_task_template_arg_id: Some(0),
             superceded_by_id: None,
-            args: Some([].to_vec()),
+            args: Some([].to_vec().into()),
         });
 
     }
