@@ -178,17 +178,67 @@
     },
     "query": "\n    INSERT INTO workspace_sync ( workspace_id, start, status )\n    VALUES ( ?1, ?2, ?3 )\n            "
   },
-  "4098e733bc0056457e9a8d2ccb66d39092b2246c62647b6f7a61b0e252151a69": {
+  "38ed200a9a2b8249c5b935b3aafafea2945daad710ee4cd1f1534a7369258d92": {
     "describe": {
-      "columns": [],
-      "nullable": [],
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "task_template_id",
+          "ordinal": 1,
+          "type_info": "Int64"
+        },
+        {
+          "name": "flag",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "flag_joined",
+          "ordinal": 3,
+          "type_info": "Bool"
+        },
+        {
+          "name": "prompt",
+          "ordinal": 4,
+          "type_info": "Text"
+        },
+        {
+          "name": "default",
+          "ordinal": 5,
+          "type_info": "Text"
+        },
+        {
+          "name": "choice_fixed",
+          "ordinal": 6,
+          "type_info": "Bool"
+        },
+        {
+          "name": "choice_source",
+          "ordinal": 7,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        true,
+        false,
+        true,
+        true,
+        false,
+        true
+      ],
       "parameters": {
-        "Right": 7
+        "Right": 1
       }
     },
-    "query": "\nINSERT INTO task_template_arg (\n    task_template_id,\n    flag,\n    flag_joined,\n    prompt,\n    default_value,\n    choice_fixed,\n    choice_source\n)\nVALUES ( ?1, ?2, ?3, ?4, ?5, ?6, ?7 )\n        "
+    "query": "\nSELECT\n    id,\n    task_template_id,\n    flag,\n    flag_joined,\n    prompt,\n    \"default\",\n    choice_fixed,\n    choice_source\nFROM task_template_arg,\n    (\n        SELECT final_task_template_arg_id\n        FROM task_template\n        WHERE id = ?1\n    ) tt\nWHERE\n    task_template_id = ?1 AND\n    (\n        tt.final_task_template_arg_id IS NULL OR\n        id <= tt.final_task_template_arg_id\n    )\n"
   },
-  "5d32d4c8e82986ac788d8edfa1b86a1b6f2f08dbb3cd1a1356e7083979e61cf6": {
+  "3f6cec588c0222028b3c59e950ebc9dc9b396971ac2341014f133a3c47ebe0c5": {
     "describe": {
       "columns": [],
       "nullable": [],
@@ -196,7 +246,7 @@
         "Right": 0
       }
     },
-    "query": "\n            INSERT INTO task_template_arg (\n                task_template_id,\n                flag,\n                flag_joined,\n                prompt,\n                default_value,\n                choice_fixed,\n                choice_source\n            )\n            VALUES ( 1, \"-h\", FALSE, \"The prompt\", NULL, FALSE, NULL)\n            "
+    "query": "\n            INSERT INTO task_template_arg (\n                task_template_id,\n                flag,\n                flag_joined,\n                prompt,\n                'default',\n                choice_fixed,\n                choice_source\n            )\n            VALUES ( 1, \"-h\", FALSE, \"The prompt\", NULL, FALSE, NULL)\n            "
   },
   "62a8cd79866cbc5e20def80d9c1174458ef1fab94bd6378c87b6c84b82c8034e": {
     "describe": {
@@ -250,66 +300,6 @@
     },
     "query": "\n    SELECT id, workspace_id, start, end, status\n    FROM workspace_sync\n    WHERE workspace_id = ?1\n            "
   },
-  "93ccd8a2584efd7b4cf658c9b0c7e444955a15f3b02f4cd3ae692ebcb0fe1cdb": {
-    "describe": {
-      "columns": [
-        {
-          "name": "id",
-          "ordinal": 0,
-          "type_info": "Int64"
-        },
-        {
-          "name": "task_template_id",
-          "ordinal": 1,
-          "type_info": "Int64"
-        },
-        {
-          "name": "flag",
-          "ordinal": 2,
-          "type_info": "Text"
-        },
-        {
-          "name": "flag_joined",
-          "ordinal": 3,
-          "type_info": "Bool"
-        },
-        {
-          "name": "prompt",
-          "ordinal": 4,
-          "type_info": "Text"
-        },
-        {
-          "name": "default_value",
-          "ordinal": 5,
-          "type_info": "Text"
-        },
-        {
-          "name": "choice_fixed",
-          "ordinal": 6,
-          "type_info": "Bool"
-        },
-        {
-          "name": "choice_source",
-          "ordinal": 7,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        true,
-        false,
-        true,
-        true,
-        false,
-        true
-      ],
-      "parameters": {
-        "Right": 1
-      }
-    },
-    "query": "\nSELECT\n    id,\n    task_template_id,\n    flag,\n    flag_joined,\n    prompt,\n    default_value,\n    choice_fixed,\n    choice_source\nFROM task_template_arg,\n    (\n        SELECT final_task_template_arg_id\n        FROM task_template\n        WHERE id = ?1\n    ) tt\nWHERE\n    task_template_id = ?1 AND\n    (\n        tt.final_task_template_arg_id IS NULL OR\n        id <= tt.final_task_template_arg_id\n    )\n"
-  },
   "96176ab4d312f2dff1925d25f2976bf1252996bcd2af8bb57aca04796213edc8": {
     "describe": {
       "columns": [],
@@ -349,7 +339,7 @@
           "type_info": "Text"
         },
         {
-          "name": "default_value",
+          "name": "default",
           "ordinal": 5,
           "type_info": "Text"
         },
@@ -516,66 +506,6 @@
     },
     "query": "\nSELECT\n    id,\n    bin_path,\n    version_id,\n    created_ts,\n    final_task_template_arg_id,\n    superceded_by_id\nFROM task_template\nWHERE id = ?1\n"
   },
-  "b4e0a2b27ce2de2f8b4f8b06433b7024237d01dabcfe405d6ba81be0dcd84948": {
-    "describe": {
-      "columns": [
-        {
-          "name": "id",
-          "ordinal": 0,
-          "type_info": "Int64"
-        },
-        {
-          "name": "task_template_id",
-          "ordinal": 1,
-          "type_info": "Int64"
-        },
-        {
-          "name": "flag",
-          "ordinal": 2,
-          "type_info": "Text"
-        },
-        {
-          "name": "flag_joined",
-          "ordinal": 3,
-          "type_info": "Bool"
-        },
-        {
-          "name": "prompt",
-          "ordinal": 4,
-          "type_info": "Text"
-        },
-        {
-          "name": "default_value",
-          "ordinal": 5,
-          "type_info": "Text"
-        },
-        {
-          "name": "choice_fixed",
-          "ordinal": 6,
-          "type_info": "Bool"
-        },
-        {
-          "name": "choice_source",
-          "ordinal": 7,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        true,
-        false,
-        true,
-        true,
-        false,
-        true
-      ],
-      "parameters": {
-        "Right": 1
-      }
-    },
-    "query": "\nSELECT\n    id,\n    task_template_id,\n    flag,\n    flag_joined,\n    prompt,\n    default_value,\n    choice_fixed,\n    choice_source\nFROM\n    task_template_arg\nWHERE\n    id = ?1\n"
-  },
   "bfaeaf8d073d8e14c1ecc8279da15d21b8990fa4bf4ec331dec619ad669b1f2d": {
     "describe": {
       "columns": [],
@@ -625,6 +555,76 @@
       }
     },
     "query": "\nSELECT id, url, description\nFROM workspace\nORDER BY id\n            "
+  },
+  "cc8aa5dac74e39ce721737f6233d1d629cc29567cea6721d55e66864dbd10c8e": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 7
+      }
+    },
+    "query": "\nINSERT INTO task_template_arg (\n    task_template_id,\n    flag,\n    flag_joined,\n    prompt,\n    'default',\n    choice_fixed,\n    choice_source\n)\nVALUES ( ?1, ?2, ?3, ?4, ?5, ?6, ?7 )\n        "
+  },
+  "f31a19e9050af00f8cda7c4d7c6288e0f5eb37d5dd7dc38708cdd7385a4b8172": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "task_template_id",
+          "ordinal": 1,
+          "type_info": "Int64"
+        },
+        {
+          "name": "flag",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "flag_joined",
+          "ordinal": 3,
+          "type_info": "Bool"
+        },
+        {
+          "name": "prompt",
+          "ordinal": 4,
+          "type_info": "Text"
+        },
+        {
+          "name": "default",
+          "ordinal": 5,
+          "type_info": "Text"
+        },
+        {
+          "name": "choice_fixed",
+          "ordinal": 6,
+          "type_info": "Bool"
+        },
+        {
+          "name": "choice_source",
+          "ordinal": 7,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        true,
+        false,
+        true,
+        true,
+        false,
+        true
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "\nSELECT\n    id,\n    task_template_id,\n    flag,\n    flag_joined,\n    prompt,\n    \"default\",\n    choice_fixed,\n    choice_source\nFROM\n    task_template_arg\nWHERE\n    id = ?1\n"
   },
   "fdfbfa59c1d4c69406dce85d1b65582ce9232699ea832ca492934e31161f8cc9": {
     "describe": {

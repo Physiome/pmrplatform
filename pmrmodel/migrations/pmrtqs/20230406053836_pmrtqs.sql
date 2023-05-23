@@ -63,9 +63,10 @@ CREATE TABLE IF NOT EXISTS task_template_arg (
     flag_joined BOOLEAN NOT NULL,
 
     prompt TEXT,   -- NULL implies auto?
-    default_value TEXT,  -- if no prompt and default, this is required?
+    'default' TEXT,  -- if no prompt and default, this is required?
     choice_fixed BOOLEAN NOT NULL, -- if choice is fixed, user can't edit
-    choice_source TEXT, -- if NULL, use the table below
+    choice_source TEXT, -- if NULL, ignore usage of choices
+                        -- if empty string, use table below
                         -- otherwise, programmatically defined?
     -- fixed args vs generated args vs user supplied args
     -- what about calculated args?
@@ -75,8 +76,8 @@ CREATE TABLE IF NOT EXISTS task_template_arg (
 CREATE TABLE IF NOT EXISTS task_template_arg_choice (
     id INTEGER PRIMARY KEY NOT NULL,
     task_template_arg_id INTEGER NOT NULL,
-    value TEXT,
-    label TEXT NOT NULL,
+    value TEXT,           -- the value this gets mapped to
+    label TEXT NOT NULL,  -- the user facing label
     FOREIGN KEY(task_template_arg_id) REFERENCES task_template_arg(id)
 );
 

@@ -69,7 +69,8 @@ pub struct TaskTemplateArg {
     pub flag: Option<String>,
     pub flag_joined: bool,
     pub prompt: Option<String>,
-    pub default_value: Option<String>,
+    pub default: Option<String>,
+    // choice_fixed == false should imply flag_joined == true for security
     pub choice_fixed: bool,
     pub choice_source: Option<String>,
     // TODO may need an enum instead that disambiguates the DB one and
@@ -81,20 +82,20 @@ impl Display for TaskTemplateArg {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match (
             &self.flag, self.flag_joined,
-            match (&self.prompt, &self.default_value, self.choice_fixed) {
+            match (&self.prompt, &self.default, self.choice_fixed) {
                 (None, None, _) => None,
-                (None, Some(default_value), _) =>
-                    Some(format!("{:?}", &default_value)),
+                (None, Some(default), _) =>
+                    Some(format!("{:?}", &default)),
                 (Some(prompt), None, false) =>
                     Some(format!("<{}>", &prompt)),
-                (Some(prompt), Some(default_value), false) =>
+                (Some(prompt), Some(default), false) =>
                     Some(format!("[<{}>;default={:?}]",
-                        &prompt, &default_value)),
+                        &prompt, &default)),
                 (Some(prompt), None, true) =>
                     Some(format!("<{};choices={{...}}>", &prompt)),
-                (Some(prompt), Some(default_value), true) =>
+                (Some(prompt), Some(default), true) =>
                     Some(format!("[<{}>;default={:?};choices={{...}}]",
-                        &prompt, &default_value)),
+                        &prompt, &default)),
             }
         ) {
             (None, _, None) => write!(f, ""),
@@ -146,7 +147,9 @@ pub struct TaskTemplateArgChoice {
     pub id: i64,
     #[serde(default)]
     pub task_template_arg_id: i64,
+    // this is the underlying value that will be resolved
     pub value: Option<String>,
+    // the label is what gets picked by the user.
     pub label: String,
 }
 

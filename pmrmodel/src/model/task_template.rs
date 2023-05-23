@@ -146,7 +146,7 @@ async fn add_task_template_arg_sqlite(
     flag: Option<&str>,
     flag_joined: bool,
     prompt: Option<&str>,
-    default_value: Option<&str>,
+    default: Option<&str>,
     choice_fixed: bool,
     choice_source: Option<&str>,
 ) -> Result<i64, sqlx::Error> {
@@ -157,7 +157,7 @@ INSERT INTO task_template_arg (
     flag,
     flag_joined,
     prompt,
-    default_value,
+    'default',
     choice_fixed,
     choice_source
 )
@@ -167,7 +167,7 @@ VALUES ( ?1, ?2, ?3, ?4, ?5, ?6, ?7 )
         flag,
         flag_joined,
         prompt,
-        default_value,
+        default,
         choice_fixed,
         choice_source,
     )
@@ -235,7 +235,7 @@ SELECT
     flag,
     flag_joined,
     prompt,
-    default_value,
+    "default",
     choice_fixed,
     choice_source
 FROM task_template_arg,
@@ -259,7 +259,7 @@ WHERE
         flag: row.flag,
         flag_joined: row.flag_joined,
         prompt: row.prompt,
-        default_value: row.default_value,
+        default: row.default,
         choice_fixed: row.choice_fixed,
         choice_source: row.choice_source,
         choices: None,
@@ -281,7 +281,7 @@ SELECT
     flag,
     flag_joined,
     prompt,
-    default_value,
+    "default",
     choice_fixed,
     choice_source
 FROM
@@ -297,7 +297,7 @@ WHERE
         flag: row.flag,
         flag_joined: row.flag_joined,
         prompt: row.prompt,
-        default_value: row.default_value,
+        default: row.default,
         choice_fixed: row.choice_fixed,
         choice_source: row.choice_source,
         choices: None,
@@ -353,7 +353,7 @@ WHERE
         flag: row.flag,
         flag_joined: row.flag_joined.unwrap_or(false),
         prompt: row.prompt,
-        default_value: row.default_value,
+        default: row.default,
         choice_fixed: row.choice_fixed.unwrap_or(false),
         choice_source: row.choice_source,
         choices: None,
@@ -417,7 +417,7 @@ pub trait TaskTemplateBackend {
         flag: Option<&str>,
         flag_joined: bool,
         prompt: Option<&str>,
-        default_value: Option<&str>,
+        default: Option<&str>,
         choice_fixed: bool,
         choice_source: Option<&str>,
     ) -> Result<i64, sqlx::Error>;
@@ -472,7 +472,7 @@ impl TaskTemplateBackend for SqliteBackend {
         flag: Option<&str>,
         flag_joined: bool,
         prompt: Option<&str>,
-        default_value: Option<&str>,
+        default: Option<&str>,
         choice_fixed: bool,
         choice_source: Option<&str>,
     ) -> Result<i64, sqlx::Error> {
@@ -482,7 +482,7 @@ impl TaskTemplateBackend for SqliteBackend {
             flag,
             flag_joined,
             prompt,
-            default_value,
+            default,
             choice_fixed,
             choice_source,
         ).await
@@ -700,7 +700,7 @@ mod tests {
                 flag: None,
                 flag_joined: false,
                 prompt: Some("First statement".into()),
-                default_value: None,
+                default: None,
                 choice_fixed: false,
                 choice_source: None,
                 choices: Some([].to_vec().into()),
@@ -710,7 +710,7 @@ mod tests {
                 flag: None,
                 flag_joined: false,
                 prompt: Some("Second statement".into()),
-                default_value: None,
+                default: None,
                 choice_fixed: false,
                 choice_source: None,
                 choices: Some([].to_vec().into()),
@@ -732,7 +732,7 @@ mod tests {
                     "flag": null,
                     "flag_joined": false,
                     "prompt": "First statement",
-                    "default_value": null,
+                    "default": null,
                     "choice_fixed": false,
                     "choice_source": null,
                     "choices": []
@@ -743,7 +743,7 @@ mod tests {
                     "flag": null,
                     "flag_joined": false,
                     "prompt": "Second statement",
-                    "default_value": null,
+                    "default": null,
                     "choice_fixed": false,
                     "choice_source": null,
                     "choices": []
@@ -776,7 +776,7 @@ mod tests {
                     "flag": null,
                     "flag_joined": false,
                     "prompt": "First statement",
-                    "default_value": null,
+                    "default": null,
                     "choice_fixed": false,
                     "choice_source": null,
                     "choices": []
@@ -787,7 +787,7 @@ mod tests {
                     "flag": null,
                     "flag_joined": false,
                     "prompt": "Second statement",
-                    "default_value": null,
+                    "default": null,
                     "choice_fixed": false,
                     "choice_source": null,
                     "choices": [
@@ -888,7 +888,7 @@ mod tests {
                 flag: Some("-i".into()),
                 flag_joined: false,
                 prompt: None,
-                default_value: None,
+                default: None,
                 choice_fixed: false,
                 choice_source: None,
                 choices: Some([].to_vec().into()),
@@ -919,7 +919,7 @@ mod tests {
                 flag: Some("-i".into()),
                 flag_joined: false,
                 prompt: None,
-                default_value: None,
+                default: None,
                 choice_fixed: false,
                 choice_source: None,
                 choices: Some([].to_vec().into()),
@@ -949,7 +949,7 @@ mod tests {
                 flag: Some("-i".into()),
                 flag_joined: false,
                 prompt: None,
-                default_value: None,
+                default: None,
                 choice_fixed: false,
                 choice_source: None,
                 choices: None,
@@ -1024,7 +1024,7 @@ mod tests {
                 flag,
                 flag_joined,
                 prompt,
-                default_value,
+                'default',
                 choice_fixed,
                 choice_source
             )

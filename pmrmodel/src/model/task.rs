@@ -14,18 +14,21 @@ use pmrmodel_base::task_template::{
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq)]
-pub enum BuildArgError {
+pub enum ArgumentError {
     UnexpectedValue,
     ValueExpected,
+    InvalidChoice,
 }
 
-impl Display for BuildArgError {
+impl Display for ArgumentError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", match &self {
-            BuildArgError::UnexpectedValue =>
+            ArgumentError::UnexpectedValue =>
                 "unexpected user value provided",
-            BuildArgError::ValueExpected =>
+            ArgumentError::ValueExpected =>
                 "user provided value expected but missing",
+            ArgumentError::InvalidChoice =>
+                "value not a valid choice",
         })
     }
 }
@@ -37,25 +40,25 @@ impl Display for BuildArgError {
 fn build_arg(
     value: Option<&str>,
     arg: &TaskTemplateArg,
-) -> Result<Vec<String>, BuildArgError> {
+) -> Result<Vec<String>, ArgumentError> {
     match (
         &arg.prompt,
         &arg.flag,
-        &arg.default_value,
+        &arg.default,
         value,
     ) {
-        (None, _, _, Some(_)) => Err(BuildArgError::UnexpectedValue),
+        (None, _, _, Some(_)) => Err(ArgumentError::UnexpectedValue),
         (None, None, None, None) =>
             Ok([].into()),
-        (_, None, Some(default_value), None) =>
-            Ok([default_value.into()].into()),
+        (_, None, Some(default), None) =>
+            Ok([default.into()].into()),
         (None, Some(flag), None, None) =>
             Ok([flag.into()].into()),
-        (_, Some(flag), Some(default_value), None) =>
-            Ok([flag.into(), default_value.into()].into()),
+        (_, Some(flag), Some(default), None) =>
+            Ok([flag.into(), default.into()].into()),
 
         // XXX empty value string supplied by user not handled
-        (Some(_), _, None, None) => Err(BuildArgError::ValueExpected),
+        (Some(_), _, None, None) => Err(ArgumentError::ValueExpected),
         (Some(_), None, _, Some(value)) =>
             Ok([value.into()].into()),
         (Some(_), Some(flag), _, Some(value)) =>
@@ -80,7 +83,7 @@ th flag, e.g:
 effectively, it should concat the result tuple in matrix at the end.
 
 prompt - if not provided, this will not be prompted to user.
-default_value - if provided, this value be used if user input is an empty string
+default - if provided, this value be used if user input is an empty string
               - if not provided (i.e. null), and prompt is not null, this must b
 e supplied by user
 
@@ -89,10 +92,10 @@ choice_fixed - if true, the provided value for task must be one of the choices
 
 
 #[test]
-fn test_build_arg_standard() {
-    let default_arg = TaskTemplateArg { .. Default::default() };
+fn test_build_arg_standard_no_choices() {
+    let default = TaskTemplateArg { .. Default::default() };
     let none_none_default = TaskTemplateArg {
-        default_value: Some("just a default value".into()),
+        default: Some("just a default value".into()),
         .. Default::default()
     };
     let none_flag_none = TaskTemplateArg {
@@ -101,7 +104,7 @@ fn test_build_arg_standard() {
     };
     let none_flag_default = TaskTemplateArg {
         flag: Some("--flag".into()),
-        default_value: Some("flagged default value".into()),
+        default: Some("flagged default value".into()),
         .. Default::default()
     };
     let prompt_none_none = TaskTemplateArg {
@@ -110,7 +113,12 @@ fn test_build_arg_standard() {
     };
     let prompt_none_default = TaskTemplateArg {
         prompt: Some("Prompt for some user input".into()),
-        default_value: Some("prompted but have default value".into()),
+        default: Some("prompted but have default value".into()),
+        .. Default::default()
+    };
+    let prompt_none_dempty = TaskTemplateArg {
+        prompt: Some("Prompt for some user input".into()),
+        default: Some("".into()),
         .. Default::default()
     };
     let prompt_flag_none = TaskTemplateArg {
@@ -121,13 +129,19 @@ fn test_build_arg_standard() {
     let prompt_flag_default = TaskTemplateArg {
         prompt: Some("Prompt for some optional user input".into()),
         flag: Some("-P".into()),
-        default_value: Some("prompted and flagged default value".into()),
+        default: Some("prompted and flagged default value".into()),
+        .. Default::default()
+    };
+    let prompt_flag_dempty = TaskTemplateArg {
+        prompt: Some("Prompt for some optional user input".into()),
+        flag: Some("-P".into()),
+        default: Some("".into()),
         .. Default::default()
     };
 
     // default
     assert_eq!(
-        build_arg(None, &default_arg),
+        build_arg(None, &default),
         Ok([].into()),
     );
     assert_eq!(
@@ -145,38 +159,46 @@ fn test_build_arg_standard() {
 
     // unexpected values (from user input)
     assert_eq!(
-        build_arg(Some("foo"), &default_arg),
-        Err(BuildArgError::UnexpectedValue),
+        build_arg(Some("foo"), &default),
+        Err(ArgumentError::UnexpectedValue),
     );
     assert_eq!(
         build_arg(Some("foo"), &none_none_default),
-        Err(BuildArgError::UnexpectedValue),
+        Err(ArgumentError::UnexpectedValue),
     );
     assert_eq!(
         build_arg(Some("foo"), &none_flag_none),
-        Err(BuildArgError::UnexpectedValue),
+        Err(ArgumentError::UnexpectedValue),
     );
     assert_eq!(
         build_arg(Some("foo"), &none_flag_default),
-        Err(BuildArgError::UnexpectedValue),
+        Err(ArgumentError::UnexpectedValue),
     );
 
     // prompted, no response
     assert_eq!(
         build_arg(None, &prompt_none_none),
-        Err(BuildArgError::ValueExpected),
+        Err(ArgumentError::ValueExpected),
     );
     assert_eq!(
         &build_arg(None, &prompt_none_default).unwrap(),
         &["prompted but have default value"],
     );
     assert_eq!(
+        &build_arg(None, &prompt_none_dempty).unwrap(),
+        &[""],
+    );
+    assert_eq!(
         build_arg(None, &prompt_flag_none),
-        Err(BuildArgError::ValueExpected),
+        Err(ArgumentError::ValueExpected),
     );
     assert_eq!(
         &build_arg(None, &prompt_flag_default).unwrap(),
         &["-P", "prompted and flagged default value"],
+    );
+    assert_eq!(
+        &build_arg(None, &prompt_flag_dempty).unwrap(),
+        &["-P", ""],
     );
 
     // prompted with non-empty string response
@@ -189,6 +211,10 @@ fn test_build_arg_standard() {
         &["user value"],
     );
     assert_eq!(
+        &build_arg(Some("user value"), &prompt_none_dempty).unwrap(),
+        &["user value"],
+    );
+    assert_eq!(
         &build_arg(Some("user value"), &prompt_flag_none).unwrap(),
         &["-P", "user value"],
     );
@@ -196,5 +222,35 @@ fn test_build_arg_standard() {
         &build_arg(Some("user value"), &prompt_flag_default).unwrap(),
         &["-P", "user value"],
     );
+    assert_eq!(
+        &build_arg(Some("user value"), &prompt_flag_dempty).unwrap(),
+        &["-P", "user value"],
+    );
+
+    // // prompted with non-empty string response
+    // assert_eq!(
+    //     build_arg(Some(""), &prompt_none_none),
+    //     Err(ArgumentError::ValueExpected),
+    // );
+    // assert_eq!(
+    //     &build_arg(Some(""), &prompt_none_default).unwrap(),
+    //     &["prompted but have default value"],
+    // );
+    // assert_eq!(
+    //     &build_arg(Some(""), &prompt_none_dempty).unwrap(),
+    //     &[""],
+    // );
+    // assert_eq!(
+    //     build_arg(Some(""), &prompt_flag_none),
+    //     Err(ArgumentError::ValueExpected),
+    // );
+    // assert_eq!(
+    //     &build_arg(Some(""), &prompt_flag_default).unwrap(),
+    //     &["-P", "prompted and flagged default value"],
+    // );
+    // assert_eq!(
+    //     &build_arg(Some(""), &prompt_flag_dempty).unwrap(),
+    //     &["-P", ""],
+    // );
 
 }
