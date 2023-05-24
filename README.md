@@ -17,14 +17,16 @@ As this package make use of the `sqlx::query!` family of macros using
 offline mode, the `sqlx-cli` package must be installed, and be used to
 update the query metadata so that the package may be built.
 
+On systems with `sh` compatible shell, at the project root, run the
+following commands instead of `cargo sqlx prepare`
+
 ```console
 $ cargo install sqlx-cli
-$ touch pmrmodel.db  # create the sqlite file.
-$ cat migrations/*/*sql | sqlite3 pmrmodel.db
-$ cargo sqlx prepare -- --tests  # ensure queries in tests are included
-$ cargo test
-$ cargo build
+$ ./pmrmodel/sqlx_prepare.sh
 ```
+
+Otherwise systems that use batch files (i.e. Windows) will need to
+replicate those steps manually, or have the database file available.
 
 ## Usage
 
