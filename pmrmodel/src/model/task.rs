@@ -33,6 +33,7 @@ impl Display for ArgumentError {
     }
 }
 
+// TODO newtypes for public API for various unsafe user provided data.
 // TODO maybe consider something more compact than Vec<String> for return type
 // TODO handle arg.join_flag
 // TODO handle internal choices (e.g. None value override from choice)

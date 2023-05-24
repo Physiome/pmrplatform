@@ -147,8 +147,8 @@ pub struct TaskTemplateArgChoice {
     pub id: i64,
     #[serde(default)]
     pub task_template_arg_id: i64,
-    // this is the underlying value that will be resolved
-    pub value: Option<String>,
+    // to the underlying argument.
+    pub to_arg: Option<String>,
     // the label is what gets picked by the user.
     pub label: String,
 }
@@ -157,13 +157,12 @@ impl Display for TaskTemplateArgChoice {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{} - {}",
-            match self.value.as_deref() {
+            "{} => {}",
+            match self.to_arg.as_deref() {
                 Some(s) => format!("{:?}", s),
                 None => "<OMITTED>".into(),
             },
-            &self.label,
-        )
+            &self.label,)
     }
 }
 

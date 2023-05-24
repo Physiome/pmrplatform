@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS task_template_arg (
 CREATE TABLE IF NOT EXISTS task_template_arg_choice (
     id INTEGER PRIMARY KEY NOT NULL,
     task_template_arg_id INTEGER NOT NULL,
-    value TEXT,           -- the value this gets mapped to
+    to_arg TEXT,          -- the value this gets mapped to
     label TEXT NOT NULL,  -- the user facing label
     FOREIGN KEY(task_template_arg_id) REFERENCES task_template_arg(id)
 );

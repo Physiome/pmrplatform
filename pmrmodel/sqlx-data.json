@@ -1,41 +1,5 @@
 {
   "db": "SQLite",
-  "0a279d6379026325d321a927916eaef85576f9f856c9efa33e5d9473fcd6fd5e": {
-    "describe": {
-      "columns": [
-        {
-          "name": "id",
-          "ordinal": 0,
-          "type_info": "Int64"
-        },
-        {
-          "name": "task_template_arg_id",
-          "ordinal": 1,
-          "type_info": "Int64"
-        },
-        {
-          "name": "value",
-          "ordinal": 2,
-          "type_info": "Text"
-        },
-        {
-          "name": "label",
-          "ordinal": 3,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        true,
-        false
-      ],
-      "parameters": {
-        "Right": 1
-      }
-    },
-    "query": "\nSELECT\n    id,\n    task_template_arg_id,\n    value,\n    label\nFROM task_template_arg_choice\nWHERE task_template_arg_id = ?1\n"
-  },
   "0ba3b972f857c643b4dd4d11919f279e524f81ba519a7561b3a1aeb21deed1bf": {
     "describe": {
       "columns": [
@@ -158,15 +122,41 @@
     },
     "query": "\nSELECT id, url, description\nFROM workspace\nWHERE id = ?1\n            "
   },
-  "2d18251bd35deb69fd056da567bac35c4e496a49fa60a4cc5f48176f22d7f9e9": {
+  "2dea709dc5671bdc06c5acb1b0d1e99cdc28847ca85c99913683146a8056117e": {
     "describe": {
-      "columns": [],
-      "nullable": [],
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "task_template_arg_id",
+          "ordinal": 1,
+          "type_info": "Int64"
+        },
+        {
+          "name": "to_arg",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "label",
+          "ordinal": 3,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        true,
+        false
+      ],
       "parameters": {
-        "Right": 3
+        "Right": 1
       }
     },
-    "query": "\nINSERT INTO task_template_arg_choice (\n    task_template_arg_id,\n    value,\n    label\n)\nVALUES ( ?1, ?2, ?3 )\n        "
+    "query": "\nSELECT\n    id,\n    task_template_arg_id,\n    to_arg,\n    label\nFROM task_template_arg_choice\nWHERE task_template_arg_id = ?1\n"
   },
   "3718960faae75106733d002d14e8f63eed12c6dc339fdd2cdfbbce5ae312da65": {
     "describe": {
@@ -247,6 +237,16 @@
       }
     },
     "query": "\n            INSERT INTO task_template_arg (\n                task_template_id,\n                flag,\n                flag_joined,\n                prompt,\n                'default',\n                choice_fixed,\n                choice_source\n            )\n            VALUES ( 1, \"-h\", FALSE, \"The prompt\", NULL, FALSE, NULL)\n            "
+  },
+  "4f165bcee4cce406317740f091e2a5f8f64c84a5a97d86ee857e76d5d4fc981f": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 3
+      }
+    },
+    "query": "\nINSERT INTO task_template_arg_choice (\n    task_template_arg_id,\n    to_arg,\n    label\n)\nVALUES ( ?1, ?2, ?3 )\n        "
   },
   "62a8cd79866cbc5e20def80d9c1174458ef1fab94bd6378c87b6c84b82c8034e": {
     "describe": {
@@ -640,7 +640,7 @@
           "type_info": "Int64"
         },
         {
-          "name": "value",
+          "name": "to_arg",
           "ordinal": 2,
           "type_info": "Text"
         },

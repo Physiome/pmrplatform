@@ -181,20 +181,20 @@ VALUES ( ?1, ?2, ?3, ?4, ?5, ?6, ?7 )
 async fn add_task_template_arg_choice_sqlite(
     sqlite: &SqliteBackend,
     task_template_arg_id: i64,
-    value: Option<&str>,
+    to_arg: Option<&str>,
     label: &str,
 ) -> Result<i64, sqlx::Error> {
     let id = sqlx::query!(
         r#"
 INSERT INTO task_template_arg_choice (
     task_template_arg_id,
-    value,
+    to_arg,
     label
 )
 VALUES ( ?1, ?2, ?3 )
         "#,
         task_template_arg_id,
-        value,
+        to_arg,
         label,
     )
     .execute(&*sqlite.pool)
@@ -372,7 +372,7 @@ async fn get_task_template_arg_choices_by_task_template_arg_id_sqlite(
 SELECT
     id,
     task_template_arg_id,
-    value,
+    to_arg,
     label
 FROM task_template_arg_choice
 WHERE task_template_arg_id = ?1
@@ -428,7 +428,7 @@ pub trait TaskTemplateBackend {
     async fn add_task_template_arg_choice(
         &self,
         task_template_arg_id: i64,
-        value: Option<&str>,
+        to_arg: Option<&str>,
         label: &str,
     ) -> Result<i64, sqlx::Error>;
     async fn get_task_template_arg_by_id(
@@ -501,13 +501,13 @@ impl TaskTemplateBackend for SqliteBackend {
     async fn add_task_template_arg_choice(
         &self,
         task_template_arg_id: i64,
-        value: Option<&str>,
+        to_arg: Option<&str>,
         label: &str,
     ) -> Result<i64, sqlx::Error> {
         add_task_template_arg_choice_sqlite(
             &self,
             task_template_arg_id,
-            value,
+            to_arg,
             label,
         ).await
     }
@@ -794,13 +794,13 @@ mod tests {
                         {
                             "id": 1,
                             "task_template_arg_id": 2,
-                            "value": null,
+                            "to_arg": null,
                             "label": "omit"
                         },
                         {
                             "id": 2,
                             "task_template_arg_id": 2,
-                            "value": "",
+                            "to_arg": "",
                             "label": "empty string"
                         }
                     ]
@@ -812,13 +812,13 @@ mod tests {
             TaskTemplateArgChoice {
                 id: 1,
                 task_template_arg_id: 2,
-                value: None,
+                to_arg: None,
                 label: "omit".into(),
             },
             TaskTemplateArgChoice {
                 id: 2,
                 task_template_arg_id: 2,
-                value: Some("".into()),
+                to_arg: Some("".into()),
                 label: "empty string".into(),
             },
         ].to_vec().into()));
@@ -830,13 +830,13 @@ mod tests {
             TaskTemplateArgChoice {
                 id: 1,
                 task_template_arg_id: 2,
-                value: None,
+                to_arg: None,
                 label: "omit".into(),
             },
             TaskTemplateArgChoice {
                 id: 2,
                 task_template_arg_id: 2,
-                value: Some("".into()),
+                to_arg: Some("".into()),
                 label: "empty string".into(),
             },
         ].to_vec().into()));
@@ -850,7 +850,7 @@ mod tests {
             TaskTemplateArgChoice {
                 id: 1,
                 task_template_arg_id: 2,
-                value: None,
+                to_arg: None,
                 label: "omit".into(),
             },
         ].to_vec().into()));
