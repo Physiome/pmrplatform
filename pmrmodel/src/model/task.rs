@@ -11,6 +11,7 @@ use pmrmodel_base::task_template::{
     TaskTemplateArg,
     TaskTemplateArgChoice,
 };
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq)]
@@ -42,28 +43,48 @@ fn build_arg(
     value: Option<&str>,
     arg: &TaskTemplateArg,
 ) -> Result<Vec<String>, ArgumentError> {
-    match (
-        &arg.prompt,
-        &arg.flag,
-        &arg.default,
-        value,
-    ) {
-        (None, _, _, Some(_)) => Err(ArgumentError::UnexpectedValue),
-        (None, None, None, None) =>
-            Ok([].into()),
-        (_, None, Some(default), None) =>
-            Ok([default.into()].into()),
-        (None, Some(flag), None, None) =>
-            Ok([flag.into()].into()),
-        (_, Some(flag), Some(default), None) =>
-            Ok([flag.into(), default.into()].into()),
+    if arg.choice_source.is_some() {
+        match (
+            arg.prompt.is_some(),
+            &arg.flag,
+            value,
+        ) {
+            (false, _, Some(_)) => Err(ArgumentError::UnexpectedValue),
+            (_, None, None) =>
+                Ok([].into()),
+            (true, None, Some(value)) =>
+                Ok([value.into()].into()),
+            (_, Some(flag), None) =>
+                Ok([flag.into()].into()),
+            (true, Some(flag), Some(value)) =>
+                Ok([flag.into(), value.into()].into()),
+        }
+    }
+    else {
+        let value = if value == Some("") { None } else { value };
+        match (
+            arg.prompt.is_some(),
+            &arg.flag,
+            &arg.default,
+            value,
+        ) {
+            (false, _, _, Some(_)) => Err(ArgumentError::UnexpectedValue),
+            (false, None, None, None) =>
+                Ok([].into()),
+            (_, None, Some(default), None) =>
+                Ok([default.into()].into()),
+            (false, Some(flag), None, None) =>
+                Ok([flag.into()].into()),
+            (_, Some(flag), Some(default), None) =>
+                Ok([flag.into(), default.into()].into()),
 
-        // XXX empty value string supplied by user not handled
-        (Some(_), _, None, None) => Err(ArgumentError::ValueExpected),
-        (Some(_), None, _, Some(value)) =>
-            Ok([value.into()].into()),
-        (Some(_), Some(flag), _, Some(value)) =>
-            Ok([flag.into(), value.into()].into()),
+            // XXX empty value string supplied by user not handled
+            (true, _, None, None) => Err(ArgumentError::ValueExpected),
+            (true, None, _, Some(value)) =>
+                Ok([value.into()].into()),
+            (true, Some(flag), _, Some(value)) =>
+                Ok([flag.into(), value.into()].into()),
+        }
     }
 }
 
@@ -228,30 +249,155 @@ fn test_build_arg_standard_no_choices() {
         &["-P", "user value"],
     );
 
-    // // prompted with non-empty string response
-    // assert_eq!(
-    //     build_arg(Some(""), &prompt_none_none),
-    //     Err(ArgumentError::ValueExpected),
-    // );
-    // assert_eq!(
-    //     &build_arg(Some(""), &prompt_none_default).unwrap(),
-    //     &["prompted but have default value"],
-    // );
-    // assert_eq!(
-    //     &build_arg(Some(""), &prompt_none_dempty).unwrap(),
-    //     &[""],
-    // );
-    // assert_eq!(
-    //     build_arg(Some(""), &prompt_flag_none),
-    //     Err(ArgumentError::ValueExpected),
-    // );
-    // assert_eq!(
-    //     &build_arg(Some(""), &prompt_flag_default).unwrap(),
-    //     &["-P", "prompted and flagged default value"],
-    // );
-    // assert_eq!(
-    //     &build_arg(Some(""), &prompt_flag_dempty).unwrap(),
-    //     &["-P", ""],
-    // );
+    // prompted with non-empty string response
+    assert_eq!(
+        build_arg(Some(""), &prompt_none_none),
+        Err(ArgumentError::ValueExpected),
+    );
+    assert_eq!(
+        &build_arg(Some(""), &prompt_none_default).unwrap(),
+        &["prompted but have default value"],
+    );
+    assert_eq!(
+        &build_arg(Some(""), &prompt_none_dempty).unwrap(),
+        &[""],
+    );
+    assert_eq!(
+        build_arg(Some(""), &prompt_flag_none),
+        Err(ArgumentError::ValueExpected),
+    );
+    assert_eq!(
+        &build_arg(Some(""), &prompt_flag_default).unwrap(),
+        &["-P", "prompted and flagged default value"],
+    );
+    assert_eq!(
+        &build_arg(Some(""), &prompt_flag_dempty).unwrap(),
+        &["-P", ""],
+    );
 
+}
+
+#[test]
+fn test_build_arg_standard_choices() {
+    let none_none = TaskTemplateArg {
+        choice_source: Some("".into()),
+        .. Default::default()
+    };
+    let none_flag = TaskTemplateArg {
+        flag: Some("--flag".into()),
+        choice_source: Some("".into()),
+        .. Default::default()
+    };
+    let prompt_none = TaskTemplateArg {
+        prompt: Some("Prompt for some user input".into()),
+        choice_source: Some("".into()),
+        .. Default::default()
+    };
+    let prompt_flag = TaskTemplateArg {
+        prompt: Some("Prompt for some required user input".into()),
+        flag: Some("-P".into()),
+        choice_source: Some("".into()),
+        .. Default::default()
+    };
+
+    assert_eq!(
+        build_arg(None, &none_none),
+        Ok([].into()),
+    );
+    assert_eq!(
+        build_arg(None, &none_flag).unwrap(),
+        &["--flag"],
+    );
+    assert_eq!(
+        build_arg(None, &prompt_none),
+        Ok([].into()),
+    );
+    assert_eq!(
+        build_arg(None, &prompt_flag).unwrap(),
+        &["-P"],
+    );
+
+}
+
+fn value_to_arg<'a>(
+    value: Option<&'a str>,
+    arg: &'a TaskTemplateArg,
+    choices: &HashMap<&str, Option<&'a str>>,
+) -> Result<Option<&'a str>, ArgumentError> {
+    let value = match value {
+        Some(value) => value,
+        None => match &arg.default {
+            Some(value) => value,
+            None => return Err(ArgumentError::InvalidChoice),
+        }
+    };
+    match choices.get(value) {
+        Some(to_arg) => Ok(*to_arg),
+        None => match arg.choice_fixed {
+            true => Err(ArgumentError::InvalidChoice),
+            false => Ok(Some(value))
+        }
+    }
+}
+
+#[test]
+fn test_validate_choice_value_standard() {
+    // to emulate usage of choice within an arg
+    let prompt_choices = TaskTemplateArg {
+        prompt: Some("Prompt for some user input".into()),
+        choices: serde_json::from_str(r#"[
+            {
+                "to_arg": null,
+                "label": "omit"
+            },
+            {
+                "to_arg": "",
+                "label": "empty string"
+            }
+        ]"#).unwrap(),
+        choice_fixed: true,
+        .. Default::default()
+    };
+    let choices = prompt_choices.choices.as_ref().unwrap().build_lookup();
+    assert_eq!(
+        Ok(None),
+        value_to_arg(Some("omit"), &prompt_choices, &choices),
+    );
+    assert_eq!(
+        Ok(Some("")),
+        value_to_arg(Some("empty string"), &prompt_choices, &choices),
+    );
+    assert_eq!(
+        Err(ArgumentError::InvalidChoice),
+        value_to_arg(Some("invalid choice"), &prompt_choices, &choices),
+    );
+    assert_eq!(
+        Err(ArgumentError::InvalidChoice),
+        value_to_arg(None, &prompt_choices, &choices),
+    );
+}
+
+#[test]
+fn test_validate_choice_value_default() {
+    // to emulate usage of choice within an arg
+    let prompt_choices = TaskTemplateArg {
+        prompt: Some("Prompt for some user input".into()),
+        default: Some("default value".into()),
+        .. Default::default()
+    };
+    let choices = HashMap::from([
+        ("default value", Some("the hidden default")),
+    ]);
+    assert_eq!(
+        Ok(Some("the hidden default")),
+        value_to_arg(None, &prompt_choices, &choices),
+    );
+    assert_eq!(
+        Ok(Some("the hidden default")),
+        value_to_arg(Some("default value"), &prompt_choices, &choices),
+    );
+    assert_eq!(
+        Ok(Some("unmodified value")),
+        value_to_arg(Some("unmodified value"), &prompt_choices, &choices),
+    );
 }

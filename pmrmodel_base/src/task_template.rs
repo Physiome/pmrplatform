@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::sqlite::SqliteRow;
 use sqlx::{FromRow, Row};
+use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::fmt::{Display, Formatter};
 
@@ -192,5 +193,13 @@ impl Deref for TaskTemplateArgChoices {
 impl DerefMut for TaskTemplateArgChoices {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+impl TaskTemplateArgChoices {
+    pub fn build_lookup(&self) -> HashMap<&str, Option<&str>> {
+        self.iter()
+            .map(|c| (c.label.as_ref(), c.to_arg.as_deref()))
+            .collect()
     }
 }
