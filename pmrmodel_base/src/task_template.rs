@@ -196,10 +196,29 @@ impl DerefMut for TaskTemplateArgChoices {
     }
 }
 
-impl<'a> Into<HashMap<&'a str, Option<&'a str>>> for &'a TaskTemplateArgChoices {
-    fn into(self) -> HashMap<&'a str, Option<&'a str>> {
+// What an owned version might have looked like
+// pub struct MapToArg(HashMap<String, Option<String>>);
+pub struct MapToArgRef<'a>(HashMap<&'a str, Option<&'a str>>);
+
+impl<'a> From<HashMap<&'a str, Option<&'a str>>> for MapToArgRef<'a> {
+    fn from(value: HashMap<&'a str, Option<&'a str>>) -> Self {
+        Self(value)
+    }
+}
+
+impl<'a> Deref for MapToArgRef<'a> {
+    type Target = HashMap<&'a str, Option<&'a str>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> Into<MapToArgRef<'a>> for &'a TaskTemplateArgChoices {
+    fn into(self) -> MapToArgRef<'a> {
         self.iter()
             .map(|c| (c.label.as_ref(), c.to_arg.as_deref()))
-            .collect()
+            .collect::<HashMap<&'_ str, Option<&'_ str>>>()
+            .into()
     }
 }

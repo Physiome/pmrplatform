@@ -7,6 +7,7 @@ use pmrmodel_base::task::{
     TaskArg,
 };
 use pmrmodel_base::task_template::{
+    MapToArgRef,
     TaskTemplate,
     TaskTemplateArg,
     TaskTemplateArgChoice,
@@ -322,7 +323,7 @@ fn test_build_arg_standard_choices() {
 fn value_to_arg<'a>(
     value: Option<&'a str>,
     arg: &'a TaskTemplateArg,
-    choices: &HashMap<&str, Option<&'a str>>,
+    choices: &'a MapToArgRef,
 ) -> Result<Option<&'a str>, ArgumentError> {
     let value = match value {
         Some(value) => value,
@@ -358,7 +359,7 @@ fn test_validate_choice_value_standard() {
         choice_fixed: true,
         .. Default::default()
     };
-    let choices: HashMap<&str, Option<&str>> = prompt_choices
+    let choices: MapToArgRef = prompt_choices
         .choices
         .as_ref()
         .unwrap()
@@ -390,9 +391,9 @@ fn test_validate_choice_value_default() {
         default: Some("default value".into()),
         .. Default::default()
     };
-    let choices = HashMap::from([
+    let choices: MapToArgRef = HashMap::from([
         ("default value", Some("the hidden default")),
-    ]);
+    ]).into();
     assert_eq!(
         Ok(Some("the hidden default")),
         value_to_arg(None, &prompt_choices, &choices),
