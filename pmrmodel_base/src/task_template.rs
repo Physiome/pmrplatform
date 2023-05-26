@@ -196,8 +196,8 @@ impl DerefMut for TaskTemplateArgChoices {
     }
 }
 
-impl TaskTemplateArgChoices {
-    pub fn build_lookup(&self) -> HashMap<&str, Option<&str>> {
+impl<'a> Into<HashMap<&'a str, Option<&'a str>>> for &'a TaskTemplateArgChoices {
+    fn into(self) -> HashMap<&'a str, Option<&'a str>> {
         self.iter()
             .map(|c| (c.label.as_ref(), c.to_arg.as_deref()))
             .collect()

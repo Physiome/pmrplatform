@@ -358,7 +358,12 @@ fn test_validate_choice_value_standard() {
         choice_fixed: true,
         .. Default::default()
     };
-    let choices = prompt_choices.choices.as_ref().unwrap().build_lookup();
+    let choices: HashMap<&str, Option<&str>> = prompt_choices
+        .choices
+        .as_ref()
+        .unwrap()
+        .into();
+
     assert_eq!(
         Ok(None),
         value_to_arg(Some("omit"), &prompt_choices, &choices),
