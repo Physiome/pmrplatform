@@ -407,3 +407,43 @@ fn test_validate_choice_value_default() {
         value_to_arg(Some("unmodified value"), &prompt_choices, &choices),
     );
 }
+
+#[test]
+fn test_validate_choice_values_from_list() {
+    // to emulate arg with choice gathered externally for any of these
+    // common sequence of string types.
+    let prompt_choices = TaskTemplateArg {
+        prompt: Some("Prompt for some user input".into()),
+        choice_source: Some("file_list".into()),
+        .. Default::default()
+    };
+
+    let fully_owned_choices: Vec<String> = vec![
+        "owned_1".into(),
+        "owned_2".into(),
+    ];
+    assert_eq!(
+        Ok(Some("owned_1")),
+        value_to_arg(Some("owned_1"), &prompt_choices, &(&fully_owned_choices).into()),
+    );
+
+    let ref_choices: Vec<&str> = vec![
+        "str_1",
+        "str_2",
+    ];
+    assert_eq!(
+        Ok(Some("str_2")),
+        value_to_arg(Some("str_2"), &prompt_choices, &(&ref_choices).into()),
+    );
+
+    let slice = [
+        "value_1",
+        "value_2",
+        "value_3",
+    ];
+    assert_eq!(
+        Ok(Some("value_3")),
+        value_to_arg(Some("value_3"), &prompt_choices, &slice.into()),
+    );
+
+}

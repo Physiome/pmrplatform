@@ -222,3 +222,30 @@ impl<'a> Into<MapToArgRef<'a>> for &'a TaskTemplateArgChoices {
             .into()
     }
 }
+
+impl<'a> Into<MapToArgRef<'a>> for &'a Vec<String> {
+    fn into(self) -> MapToArgRef<'a> {
+        self.iter()
+            .map(|s| (s.as_ref(), Some(s.as_ref())))
+            .collect::<HashMap<&'_ str, Option<&'_ str>>>()
+            .into()
+    }
+}
+
+impl<'a> Into<MapToArgRef<'a>> for &Vec<&'a str> {
+    fn into(self) -> MapToArgRef<'a> {
+        self.iter()
+            .map(|s| (*s, Some(*s)))
+            .collect::<HashMap<&'_ str, Option<&'_ str>>>()
+            .into()
+    }
+}
+
+impl<'a, const N: usize> Into<MapToArgRef<'a>> for [&'a str; N] {
+    fn into(self) -> MapToArgRef<'a> {
+        self.iter()
+            .map(|s| (*s, Some(*s)))
+            .collect::<HashMap<&'_ str, Option<&'_ str>>>()
+            .into()
+    }
+}
