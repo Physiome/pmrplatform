@@ -117,8 +117,8 @@ impl From<Vec<TaskTemplateArg>> for TaskTemplateArgs {
     }
 }
 
-impl From<[TaskTemplateArg; 0]> for TaskTemplateArgs {
-    fn from(args: [TaskTemplateArg; 0]) -> Self {
+impl<const N: usize> From<[TaskTemplateArg; N]> for TaskTemplateArgs {
+    fn from(args: [TaskTemplateArg; N]) -> Self {
         Self(args.into())
     }
 }
