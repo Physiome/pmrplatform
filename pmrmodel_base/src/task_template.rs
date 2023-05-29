@@ -176,8 +176,8 @@ impl From<Vec<TaskTemplateArgChoice>> for TaskTemplateArgChoices {
     }
 }
 
-impl From<[TaskTemplateArgChoice; 0]> for TaskTemplateArgChoices {
-    fn from(choices: [TaskTemplateArgChoice; 0]) -> Self {
+impl<const N: usize> From<[TaskTemplateArgChoice; N]> for TaskTemplateArgChoices {
+    fn from(choices: [TaskTemplateArgChoice; N]) -> Self {
         Self(choices.into())
     }
 }
