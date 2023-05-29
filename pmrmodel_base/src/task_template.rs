@@ -214,36 +214,36 @@ impl<'a> Deref for MapToArgRef<'a> {
     }
 }
 
-impl<'a> Into<MapToArgRef<'a>> for &'a TaskTemplateArgChoices {
-    fn into(self) -> MapToArgRef<'a> {
-        self.iter()
+impl<'a> From<&'a TaskTemplateArgChoices> for MapToArgRef<'a> {
+    fn from(value: &'a TaskTemplateArgChoices) -> Self {
+        value.iter()
             .map(|c| (c.label.as_ref(), c.to_arg.as_deref()))
             .collect::<HashMap<&'_ str, Option<&'_ str>>>()
             .into()
     }
 }
 
-impl<'a> Into<MapToArgRef<'a>> for &'a Vec<String> {
-    fn into(self) -> MapToArgRef<'a> {
-        self.iter()
+impl<'a> From<&'a Vec<String>> for MapToArgRef<'a> {
+    fn from(value: &'a Vec<String>) -> Self {
+        value.iter()
             .map(|s| (s.as_ref(), Some(s.as_ref())))
             .collect::<HashMap<&'_ str, Option<&'_ str>>>()
             .into()
     }
 }
 
-impl<'a> Into<MapToArgRef<'a>> for &Vec<&'a str> {
-    fn into(self) -> MapToArgRef<'a> {
-        self.iter()
+impl<'a> From<&Vec<&'a str>> for MapToArgRef<'a> {
+    fn from(value: &Vec<&'a str>) -> Self {
+        value.iter()
             .map(|s| (*s, Some(*s)))
             .collect::<HashMap<&'_ str, Option<&'_ str>>>()
             .into()
     }
 }
 
-impl<'a, const N: usize> Into<MapToArgRef<'a>> for [&'a str; N] {
-    fn into(self) -> MapToArgRef<'a> {
-        self.iter()
+impl<'a, const N: usize> From<[&'a str; N]> for MapToArgRef<'a> {
+    fn from(value: [&'a str; N]) -> Self {
+        value.iter()
             .map(|s| (*s, Some(*s)))
             .collect::<HashMap<&'_ str, Option<&'_ str>>>()
             .into()

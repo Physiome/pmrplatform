@@ -447,3 +447,30 @@ fn test_validate_choice_values_from_list() {
     );
 
 }
+
+#[test]
+fn test_prototype() {
+    let user_input = Some("user input");
+    let task_template_arg = TaskTemplateArg {
+        prompt: Some("Prompt for some user input".into()),
+        choice_source: Some("file_list".into()),
+        .. Default::default()
+    };
+    let raw_choices: Vec<String> = vec![
+        "owned_1".into(),
+        "owned_2".into(),
+    ];
+    let choices = MapToArgRef::from(&raw_choices);
+
+    let value = match value_to_arg(
+        user_input,
+        &task_template_arg,
+        &choices,
+    ) {
+        Err(_) => unreachable!(),
+        Ok(value) => value,
+    };
+
+    let taskarg = value_to_taskarg(value, &task_template_arg);
+    assert_eq!(Ok(["user input".to_string()].to_vec()), taskarg);
+}
