@@ -15,7 +15,8 @@ use pmrmodel::model::workspace::{
 use pmrmodel::model::workspace_alias::WorkspaceAliasBackend;
 use pmrmodel::model::workspace_sync::WorkspaceSyncBackend;
 use pmrmodel::model::workspace_tag::WorkspaceTagBackend;
-use pmrmodel::repo::git::{
+
+use pmrrepo::git::{
     PmrBackendW,
     PmrBackendWR,
 

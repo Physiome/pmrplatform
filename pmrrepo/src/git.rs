@@ -27,16 +27,16 @@ use pmrmodel_base::{
     },
 };
 
-use crate::backend::db::PmrBackend;
-use crate::model::workspace::{
+use pmrmodel::backend::db::PmrBackend;
+use pmrmodel::model::workspace::{
     WorkspaceBackend,
 };
-use crate::model::workspace_sync::{
+use pmrmodel::model::workspace_sync::{
     WorkspaceSyncBackend,
     WorkspaceSyncStatus,
     fail_sync,
 };
-use crate::model::workspace_tag::WorkspaceTagBackend;
+use pmrmodel::model::workspace_tag::WorkspaceTagBackend;
 
 pub struct PmrBackendW<'a, P: PmrBackend> {
     backend: &'a P,
@@ -242,7 +242,7 @@ fn get_submodule_target(
 ) -> anyhow::Result<String> {
     let obj = tree.get_path(Path::new(".gitmodules"))?.to_object(&repo)?;
     let blob = std::str::from_utf8(obj.as_blob().unwrap().content())?;
-    let config = git_config::File::try_from(blob)?;
+    let config = gix_config::File::try_from(blob)?;
     for rec in config.sections_and_ids() {
         match rec.0.value("path") {
             Some(rec_path) => {
@@ -554,10 +554,10 @@ mod tests {
     use tempfile::TempDir;
     use textwrap_macros::dedent;
 
-    // use crate::backend::db::MockHasPool;
-    use crate::backend::db::PmrBackend;
-    use crate::model::workspace_tag::WorkspaceTagRecord;
-    use crate::model::workspace_sync::WorkspaceSyncRecord;
+    // use pmrmodel::backend::db::MockHasPool;
+    use pmrmodel::backend::db::PmrBackend;
+    use pmrmodel::model::workspace_tag::WorkspaceTagRecord;
+    use pmrmodel::model::workspace_sync::WorkspaceSyncRecord;
 
     mock! {
         Backend {}
