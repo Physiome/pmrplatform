@@ -79,3 +79,9 @@ created for each of the ids.
 $ ls ./repos
 1  2  3
 ```
+
+## Issues
+
+Currently, the schema will change and database migration steps may
+abruptly get changed, as this package is currently undergoing rapid
+iteration.
