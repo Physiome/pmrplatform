@@ -13,7 +13,8 @@ SQLite and PostgreSQL for production usage.
 
 ## Build
 
-To build, simply clone this repository, change to that directory, and:
+To build, simply clone the workspace this package resides in, change
+to the directory where the repository was cloned to, and:
 
 ```console
 $ cargo build --release

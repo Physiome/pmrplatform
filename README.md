@@ -1,7 +1,7 @@
-# pmrmodel
+# Physiome Model Repository
 
-This library provides the core model for the next generation of PMR -
-Physiome Model Repository.
+This is the Cargo workspace for the PMR project, for building the next
+generation of Physiome Model Repository.
 
 ## Build
 
@@ -13,9 +13,16 @@ $ cargo build
 
 ## Develop
 
-As this package make use of the `sqlx::query!` family of macros using
-offline mode, the `sqlx-cli` package must be installed, and be used to
-update the query metadata so that the package may be built.
+Each member in this workspace are packages that together form the
+Physiome Model Repository.  There will be additional README files within
+each of them, documenting their use.
+
+One thing of note, the `pmrmodel` packagemakes  use of the
+`sqlx::query!` family of macros using offline mode to allow the project
+to build without requiring a connection to a database.  The project will
+build as normal unless modifications to SQL are required, in which case
+the `sqlx-cli` package must be installed, and be used to update the
+metadata file so that the package may be built with the updated queries.
 
 On systems with `sh` compatible shell, at the project root, run the
 following commands instead of `cargo sqlx prepare`
@@ -30,5 +37,6 @@ replicate those steps manually, or have the database file available.
 
 ## Usage
 
-Generally, this is a library meant as a base for which other components
-of PMR are built upon.
+If `cargo build` is issued at the root of this workspace, all available
+CLI utilities within PMR will be built.  Please refer to the README in
+the relevant packages for additional details.
