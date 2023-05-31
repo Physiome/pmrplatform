@@ -13,7 +13,7 @@ use pmrmodel_base::merged::WorkspacePathInfo;
 use pmrmodel_base::workspace::WorkspaceRecords;
 use std::path::PathBuf;
 
-use client::model::JsonWorkspaceRecord;
+use pmrapp_client::model::JsonWorkspaceRecord;
 use crate::http::AppContext;
 use crate::http::{Error, Result};
 

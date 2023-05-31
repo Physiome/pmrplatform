@@ -24,9 +24,9 @@ use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 
 use crate::config::Config;
-pub use client::sauron;
-use client::App;
-use client::sauron::Render;
+pub use pmrapp_client::sauron;
+use pmrapp_client::App;
+use pmrapp_client::sauron::Render;
 
 mod page;
 mod error;
@@ -74,8 +74,8 @@ fn router() -> Router {
         .route("/", get(index_root))
         .route("/api/", get(api_root))
         .route("/style/main.css", get(style_main))
-        .route("/pkg/client.js", get(client_js))
-        .route("/pkg/client_bg.wasm", get(client_bg_wasm))
+        .route("/pkg/pmrapp_client.js", get(client_js))
+        .route("/pkg/pmrapp_client_bg.wasm", get(client_bg_wasm))
 }
 
 // placeholder thingers
@@ -107,7 +107,7 @@ async fn client_js() -> (HeaderMap, String) {
     headers.insert(HeaderName::from_static("content-type"),
         HeaderValue::from_static("text/javascript"));
 
-    (headers, include_str!("../../../client/pkg/client.js").to_string())
+    (headers, include_str!("../../../pmrapp_client/pkg/pmrapp_client.js").to_string())
 }
 
 async fn client_bg_wasm() -> (HeaderMap, Vec<u8>) {
@@ -115,5 +115,5 @@ async fn client_bg_wasm() -> (HeaderMap, Vec<u8>) {
     headers.insert(HeaderName::from_static("content-type"),
         HeaderValue::from_static("application/wasm"));
 
-    (headers, include_bytes!("../../../client/pkg/client_bg.wasm").to_vec())
+    (headers, include_bytes!("../../../pmrapp_client/pkg/pmrapp_client_bg.wasm").to_vec())
 }

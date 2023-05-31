@@ -1,7 +1,7 @@
 use clap::Parser;
 use pmrmodel::backend::db::SqliteBackend;
-use server::config::Config;
-use server::http;
+use pmrapp_server::config::Config;
+use pmrapp_server::http;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

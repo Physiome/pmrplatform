@@ -1,6 +1,6 @@
-use client::sauron;
-use client::sauron::prelude::*;
-use client::{App, Msg};
+use pmrapp_client::sauron;
+use pmrapp_client::sauron::prelude::*;
+use pmrapp_client::{App, Msg};
 use crate::http::page::jss::jss;
 
 pub fn index(app: &App) -> Node<Msg> {
@@ -13,7 +13,7 @@ pub fn index(app: &App) -> Node<Msg> {
                 <title>"Example app"</title>
                 <script type="module">
                     {text!("
-import init, {{ main }} from '/pkg/client.js';
+import init, {{ main }} from '/pkg/pmrapp_client.js';
 async function start() {{
   await init();
   let app_state = String.raw`{}`;

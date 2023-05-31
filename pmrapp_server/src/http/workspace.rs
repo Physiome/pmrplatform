@@ -24,8 +24,8 @@ use crate::http::{
     page,
     Result,
 };
-use client::App;
-use client::sauron::Render;
+use pmrapp_client::App;
+use pmrapp_client::sauron::Render;
 
 
 pub fn router() -> Router {
