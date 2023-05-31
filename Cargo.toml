@@ -1,3 +1,12 @@
 [workspace]
-members = ["pmrmodel_base", "pmrmodel", "pmrrepo", "pmrtqs"]
+members = ["pmrapp_client", "pmrapp_server", "pmrmodel_base", "pmrmodel", "pmrrepo", "pmrtqs"]
 default-members = ["pmrmodel_base", "pmrmodel", "pmrrepo", "pmrtqs"]
+
+
+[patch.crates-io]
+pmrapp_client = { path = "./pmrapp_client" }
+pmrapp_server = { path = "./pmrapp_server" }
+pmrmodel = { path = "./pmrmodel" }
+pmrmodel_base = { path = "./pmrmodel_base" }
+pmrrepo = { path = "./pmrrepo" }
+pmrtqs = { path = "./pmrtqs" }

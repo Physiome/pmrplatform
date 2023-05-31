@@ -1,5 +1,5 @@
 [package]
-name = "server"
+name = "pmrapp_server"
 version = "0.0.0"
 edition = "2021"
 authors = ["Tommy Yu <tommy.yu@auckland.ac.nz>"]
@@ -10,9 +10,9 @@ anyhow = "1.0"
 axum-macros = "0.3.0"
 axum = "0.6.1"
 clap = { version = "3.2", features = [ "derive", "env" ] }
-client = { path = "../client", default-features = false }
 dotenv = "0.15.0"
 log = { version = "0.4", features = ["std", "serde"] }
+pmrapp_client = "0.0.0"
 pmrmodel = "0.1.0"
 pmrmodel_base = "0.1.0"
 pmrrepo = "0.1.0"
