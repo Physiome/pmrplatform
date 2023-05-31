@@ -2,7 +2,7 @@
 pub struct Config {
     /// The database URL
     #[clap(long, env)]
-    pub database_url: String,
+    pub pmrapp_db_url: String,
 
     /// The root for the git repos
     #[clap(long, env)]

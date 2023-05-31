@@ -13,7 +13,7 @@ async fn main() -> anyhow::Result<()> {
         .init()
         .unwrap();
     let config = Config::parse();
-    let backend = SqliteBackend::from_url(&config.database_url).await?;
+    let backend = SqliteBackend::from_url(&config.pmrapp_db_url).await?;
     http::serve(config, backend).await?;
     Ok(())
 }
