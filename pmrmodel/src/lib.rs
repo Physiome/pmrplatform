@@ -10,6 +10,8 @@ pub mod model {
     pub mod workspace_sync;
     pub mod workspace_tag;
 }
+#[cfg(test)]
+pub mod test;
 pub mod utils;
 
 extern crate chrono;
