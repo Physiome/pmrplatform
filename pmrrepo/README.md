@@ -13,8 +13,8 @@ SQLite and PostgreSQL for production usage.
 
 ## Build
 
-To build, simply clone the workspace this package resides in, change
-to the directory where the repository was cloned to, and:
+To build, simply clone the cargo workspace this package resides in,
+change to the directory where the repository was cloned to, and:
 
 ```console
 $ cargo build --release
@@ -22,7 +22,7 @@ $ cargo build --release
 
 ## Configuration
 
-The database source is defined in the `.env` file at the project root,
+The database source is defined in the `.env` file at the workspace root,
 and the binary will make use of the `.env` file found in the current
 working directory for the values required.  If modifications to these
 values are needed, it's recommend that a copy be made to a different

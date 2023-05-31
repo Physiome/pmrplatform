@@ -1,4 +1,4 @@
-# pmrmodel-base
+# pmrmodel\_base
 
 This library provides the base model for the next generation of PMR -
 Physiome Model Repository.
