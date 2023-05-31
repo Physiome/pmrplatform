@@ -1,0 +1,10 @@
+[workspace]
+members = [
+    "client",
+    "server",
+]
+
+[patch.crates-io]
+pmrmodel = { git = "https://github.com/metatoaster/pmrmodel.git", branch = "main" }
+pmrmodel_base = { git = "https://github.com/metatoaster/pmrmodel.git", branch = "main" }
+pmrrepo = { git = "https://github.com/metatoaster/pmrrepo.git", branch = "main" }
