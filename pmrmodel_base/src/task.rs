@@ -1,6 +1,4 @@
 use serde::{Deserialize, Serialize};
-use sqlx::sqlite::SqliteRow;
-use sqlx::{FromRow, Row};
 use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]

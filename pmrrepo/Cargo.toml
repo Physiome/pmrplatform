@@ -16,7 +16,7 @@ gix-config = "0.16.3"
 log = { version = "0.4", features = ["std", "serde"] }
 mockall = "0.10.2"
 paw = "1.0"
-pmrmodel_base = "0.1"
+pmrmodel_base = { version = "0.1", features = ["sqlx"] }
 pmrmodel = "0.1"
 serde = "1.0.59"
 serde_json = "1.0.59"

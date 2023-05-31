@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
-use sqlx::sqlite::SqliteRow;
-use sqlx::{FromRow, Row};
+#[cfg(feature = "sqlx")]
+use sqlx::{
+    sqlite::SqliteRow,
+    FromRow,
+    Row,
+};
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::fmt::{Display, Formatter};
@@ -18,6 +22,7 @@ pub struct TaskTemplate {
     pub args: Option<TaskTemplateArgs>,
 }
 
+#[cfg(feature = "sqlx")]
 impl<'c> FromRow<'c, SqliteRow> for TaskTemplate {
     fn from_row(row: &SqliteRow) -> Result<Self, sqlx::Error> {
         Ok(TaskTemplate {
