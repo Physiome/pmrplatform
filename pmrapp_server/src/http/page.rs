@@ -66,6 +66,9 @@ pub fn style() -> String {
             background_size: "20px",
             animation: "loading_indicator 1s infinite linear",
         },
+        ".workspace-pathinfo img": {
+            max_width: "100%",
+        },
         "@keyframes loading_indicator": {
             from: {
                 background_position: "0px 0px",

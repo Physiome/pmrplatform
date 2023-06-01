@@ -123,8 +123,23 @@ impl Content {
                                         }
                                         </div>
                                         <div>
-                                            <a href=href>"download"</a>
+                                            <a href=&href>"download"</a>
                                         </div>
+                                        {
+                                            if &file_info.mime_type[..5] == "image" {
+                                                node! {
+                                                    <div>
+                                                        <p>"Preview"</p>
+                                                        <img src=&href />
+                                                    </div>
+                                                }
+                                            }
+                                            else {
+                                                node! {
+                                                    <div></div>
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                                 _ => {

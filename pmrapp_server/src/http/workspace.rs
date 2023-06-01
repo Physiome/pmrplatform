@@ -1,11 +1,13 @@
 use axum::{
-    extract::{Extension, Path},
     Json,
-    response::{IntoResponse, Response},
-    routing::get,
     Router,
+    extract::{Extension, Path},
+    http::header,
+    response::{IntoResponse, Redirect, Response},
+    routing::get,
 };
 use pmrmodel::model::workspace::WorkspaceBackend;
+use pmrmodel_base::git::PathObject;
 use pmrrepo::git::{
     ObjectType,
     GitResultTarget,
@@ -100,20 +102,23 @@ async fn render_workspace_pathinfo_workspace_id_commit_id_path(
 async fn raw_workspace_pathinfo_workspace_id_commit_id_path(
     ctx: Extension<AppContext>,
     path: Path<(i64, String, String)>,
-) -> Result<Vec<u8>> {
+) -> Response {
     let workspace_id = path.0.0;
     let commit_id = path.1.clone();
     let filepath = path.2.clone();
 
     let workspace = match WorkspaceBackend::get_workspace_by_id(&ctx.backend, workspace_id).await {
         Ok(workspace) => workspace,
-        Err(_) => return Err(Error::NotFound),
+        Err(_) => return Error::NotFound.into_response(),
     };
-    let pmrbackend = PmrBackendWR::new(
+    let pmrbackend = match PmrBackendWR::new(
         &ctx.backend,
         PathBuf::from(&ctx.config.pmr_git_root),
         &workspace
-    )?;
+    ) {
+        Ok(pmrbackend) => pmrbackend,
+        Err(e) => return Error::from(e).into_response()
+    };
 
     let result = match pmrbackend.pathinfo(
         Some(&commit_id),
@@ -128,15 +133,19 @@ async fn raw_workspace_pathinfo_workspace_id_commit_id_path(
             match &result.target {
                 GitResultTarget::Object(object) => match object.kind() {
                     Some(ObjectType::Blob) => {
-                        match object.as_blob() {
-                            Some(blob) => {
-                                // how do we avoid copying these bytes?
+                        let path_object = <Option<PathObject>>::from(&result);
+                        match (path_object, object.as_blob()) {
+                            (Some(PathObject::FileInfo(info)), Some(blob)) => {
+                                // possible to avoid copying these bytes?
                                 match (&mut buffer).write(blob.content()) {
-                                    Ok(_) => Ok(buffer),
+                                    Ok(_) => Ok((
+                                        [(header::CONTENT_TYPE, info.mime_type)],
+                                        buffer
+                                    ).into_response()),
                                     Err(_) => Err(Error::Error),
                                 }
                             },
-                            None => {
+                            _ => {
                                 log::info!("failed to get blob from object");
                                 Err(Error::NotFound)
                             }
@@ -149,7 +158,9 @@ async fn raw_workspace_pathinfo_workspace_id_commit_id_path(
                 },
                 GitResultTarget::SubRepoPath { location, commit, path } => {
                     // XXX this should be a redirect
-                    Ok(format!("{}/raw/{}/{}", location, commit, path).into_bytes())
+                    Ok(Redirect::temporary(
+                        &format!("{}/raw/{}/{}", location, commit, path)
+                    ).into_response())
                 },
             }
         },
@@ -159,5 +170,5 @@ async fn raw_workspace_pathinfo_workspace_id_commit_id_path(
             Err(Error::NotFound)
         }
     };
-    result
+    result.unwrap_or_else(|e| Error::from(e).into_response())
 }
