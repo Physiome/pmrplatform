@@ -20,6 +20,7 @@ pub struct LogEntryInfo {
 pub struct FileInfo {
     pub size: u64,
     pub binary: bool,
+    pub mime_type: String,
 }
 
 

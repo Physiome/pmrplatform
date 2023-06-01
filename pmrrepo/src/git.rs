@@ -78,10 +78,14 @@ impl WorkspaceGitResult<'_> {
     }
 }
 
-fn blob_to_info(blob: &Blob) -> ObjectInfo {
+fn blob_to_info(blob: &Blob, path: Option<&str>) -> ObjectInfo {
     ObjectInfo::FileInfo(FileInfo {
         size: blob.size() as u64,
         binary: blob.is_binary(),
+        mime_type: path
+            .and_then(|path| mime_guess::from_path(path).first_raw())
+            .unwrap_or("application/octet-stream")
+            .to_string(),
     })
 }
 
@@ -164,12 +168,29 @@ impl From<&WorkspaceGitResult<'_>> for WorkspacePathInfo {
     }
 }
 
+fn gitresult_to_info(git_result: &GitResult, git_object: &Object) -> Option<ObjectInfo> {
+    // TODO split off to a formatter version?
+    // alternatively, produce some structured data?
+    match git_object.kind() {
+        Some(ObjectType::Blob) => {
+            Some(blob_to_info(
+                git_object.as_blob().unwrap(),
+                Some(git_result.path),
+            ))
+        },
+        _ => object_to_info(&git_result.repo, git_object),
+    }
+}
+
 fn object_to_info(repo: &Repository, git_object: &Object) -> Option<ObjectInfo> {
     // TODO split off to a formatter version?
     // alternatively, produce some structured data?
     match git_object.kind() {
         Some(ObjectType::Blob) => {
-            Some(blob_to_info(git_object.as_blob().unwrap()))
+            Some(blob_to_info(
+                git_object.as_blob().unwrap(),
+                None,
+            ))
         }
         Some(ObjectType::Tree) => {
             Some(tree_to_info(&repo, git_object.as_tree().unwrap()))
