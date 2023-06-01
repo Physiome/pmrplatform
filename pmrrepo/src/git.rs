@@ -107,26 +107,25 @@ fn commit_to_info(commit: &Commit) -> ObjectInfo {
     })
 }
 
-fn gitresultset_target_to_pathobject(
-    git_result: &GitResult,
-) -> Option<PathObject> {
-    // TODO None may represent error here?
-    match &git_result.target {
-        GitResultTarget::Object(object) => match object_to_info(
-            &git_result.repo,
-            object,
-        ) {
-            Some(ObjectInfo::FileInfo(file_info)) => Some(PathObject::FileInfo(file_info)),
-            Some(ObjectInfo::TreeInfo(tree_info)) => Some(PathObject::TreeInfo(tree_info)),
-            _ => None,
-        },
-        GitResultTarget::SubRepoPath { location, commit, path } => {
-            Some(PathObject::RemoteInfo(RemoteInfo {
-                location: location.to_string(),
-                commit: commit.to_string(),
-                path: path.to_string(),
-            }))
-        },
+impl From<&GitResult<'_>> for Option<PathObject> {
+    fn from(git_result: &GitResult) -> Self {
+        match &git_result.target {
+            GitResultTarget::Object(object) => match gitresult_to_info(
+                git_result,
+                object,
+            ) {
+                Some(ObjectInfo::FileInfo(file_info)) => Some(PathObject::FileInfo(file_info)),
+                Some(ObjectInfo::TreeInfo(tree_info)) => Some(PathObject::TreeInfo(tree_info)),
+                _ => None,
+            },
+            GitResultTarget::SubRepoPath { location, commit, path } => {
+                Some(PathObject::RemoteInfo(RemoteInfo {
+                    location: location.to_string(),
+                    commit: commit.to_string(),
+                    path: path.to_string(),
+                }))
+            },
+        }
     }
 }
 
@@ -139,7 +138,7 @@ impl From<&GitResult<'_>> for PathInfo {
                 committer: format!("{}", &git_result.commit.committer()),
             },
             path: format!("{}", &git_result.path),
-            object: gitresultset_target_to_pathobject(git_result),
+            object: git_result.into(),
         }
     }
 }
@@ -160,7 +159,7 @@ impl From<&WorkspaceGitResult<'_>> for WorkspacePathInfo {
                 committer: format!("{}", &git_result.commit.committer()),
             },
             path: format!("{}", &git_result.path),
-            object: gitresultset_target_to_pathobject(git_result),
+            object: (*git_result).into(),
         }
     }
 }
