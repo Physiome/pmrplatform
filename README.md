@@ -33,7 +33,8 @@ application, the `sync-pmr2-core.sh` helper script may be run to
 register locally with a selection of real models from the main [Physiome
 Model Repository](https://models.physiomeproject.org/).  Once that
 completes successfully, build and run the web application using helper
-script `pmrapp.sh`.
+script `pmrapp.sh`, which should replicate [this demo instance](
+https://pmr3.demo.physiomeproject.org/).
 
 For example:
 
