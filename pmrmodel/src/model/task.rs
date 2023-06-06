@@ -322,7 +322,7 @@ fn test_value_to_taskarg_standard_choices() {
 
 }
 
-fn value_to_arg<'a>(
+fn value_from_choices<'a>(
     value: Option<&'a str>,
     arg: &'a TaskTemplateArg,
     choices: &'a MapToArgRef,
@@ -369,19 +369,19 @@ fn test_validate_choice_value_standard() {
 
     assert_eq!(
         Ok(None),
-        value_to_arg(Some("omit"), &prompt_choices, &choices),
+        value_from_choices(Some("omit"), &prompt_choices, &choices),
     );
     assert_eq!(
         Ok(Some("")),
-        value_to_arg(Some("empty string"), &prompt_choices, &choices),
+        value_from_choices(Some("empty string"), &prompt_choices, &choices),
     );
     assert_eq!(
         Err(ArgumentError::InvalidChoice),
-        value_to_arg(Some("invalid choice"), &prompt_choices, &choices),
+        value_from_choices(Some("invalid choice"), &prompt_choices, &choices),
     );
     assert_eq!(
         Err(ArgumentError::InvalidChoice),
-        value_to_arg(None, &prompt_choices, &choices),
+        value_from_choices(None, &prompt_choices, &choices),
     );
 }
 
@@ -398,15 +398,18 @@ fn test_validate_choice_value_default() {
     ]).into();
     assert_eq!(
         Ok(Some("the hidden default")),
-        value_to_arg(None, &prompt_choices, &choices),
+        value_from_choices(
+            None, &prompt_choices, &choices),
     );
     assert_eq!(
         Ok(Some("the hidden default")),
-        value_to_arg(Some("default value"), &prompt_choices, &choices),
+        value_from_choices(
+            Some("default value"), &prompt_choices, &choices),
     );
     assert_eq!(
         Ok(Some("unmodified value")),
-        value_to_arg(Some("unmodified value"), &prompt_choices, &choices),
+        value_from_choices(
+            Some("unmodified value"), &prompt_choices, &choices),
     );
 }
 
@@ -426,7 +429,8 @@ fn test_validate_choice_values_from_list() {
     ];
     assert_eq!(
         Ok(Some("owned_1")),
-        value_to_arg(Some("owned_1"), &prompt_choices, &(&fully_owned_choices).into()),
+        value_from_choices(
+            Some("owned_1"), &prompt_choices, &(&fully_owned_choices).into()),
     );
 
     let ref_choices: Vec<&str> = vec![
@@ -435,7 +439,8 @@ fn test_validate_choice_values_from_list() {
     ];
     assert_eq!(
         Ok(Some("str_2")),
-        value_to_arg(Some("str_2"), &prompt_choices, &(&ref_choices).into()),
+        value_from_choices(
+            Some("str_2"), &prompt_choices, &(&ref_choices).into()),
     );
 
     let slice = [
@@ -445,7 +450,7 @@ fn test_validate_choice_values_from_list() {
     ];
     assert_eq!(
         Ok(Some("value_3")),
-        value_to_arg(Some("value_3"), &prompt_choices, &slice.into()),
+        value_from_choices(Some("value_3"), &prompt_choices, &slice.into()),
     );
 
 }
@@ -464,7 +469,7 @@ fn test_prototype() {
     ];
     let choices = MapToArgRef::from(&raw_choices);
 
-    let value = match value_to_arg(
+    let value = match value_from_choices(
         user_input,
         &task_template_arg,
         &choices,
