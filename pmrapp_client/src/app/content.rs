@@ -39,7 +39,18 @@ impl Content {
                 node! {
                     <div class="main">
                         <h1>"Physiome Model Repository"</h1>
-                        <p>"Welcome to the Physiome Model Repository"</p>
+                        <p>
+                          "Welcome to the demo of the platform that will \n\
+                          power the next generation of the Physiome Model \n\
+                          Repository, written in Rust."
+                        </p>
+                        <p>
+                          "The code for this project may be found on "
+                          <a href="https://github.com/Physiome/pmrplatform/">
+                            "its project page on GitHub"
+                          </a>
+                          "."
+                        </p>
                         <dl>
                             <dt><a href="/workspace/"
                                 on_click=|e| {

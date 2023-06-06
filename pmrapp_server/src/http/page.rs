@@ -10,7 +10,7 @@ pub fn index(app: &App) -> Node<Msg> {
         <!doctype html>
         <html lang="en">
             <head>
-                <title>"Example app"</title>
+                <title>"Physiome Model Repository"</title>
                 <script type="module">
                     {text!("
 import init, {{ main }} from '/pkg/pmrapp_client.js';
