@@ -35,15 +35,17 @@ impl Display for ArgumentError {
     }
 }
 
+type ArgChunk<'a> = [Option<&'a str>; 2];
+
 // TODO newtypes for public API for various unsafe user provided data.
 // TODO maybe consider something more compact than Vec<String> for return type
 // TODO handle arg.join_flag
 // TODO handle internal choices (e.g. None value override from choice)
 // TODO handle external choices (additional argument?)
-fn value_to_taskarg(
-    value: Option<&str>,
-    arg: &TaskTemplateArg,
-) -> Result<Vec<String>, ArgumentError> {
+fn value_to_argtuple<'a>(
+    value: Option<&'a str>,
+    arg: &'a TaskTemplateArg,
+) -> Result<ArgChunk<'a>, ArgumentError> {
     if arg.choice_source.is_some() {
         match (
             arg.prompt.is_some(),
@@ -52,13 +54,13 @@ fn value_to_taskarg(
         ) {
             (false, _, Some(_)) => Err(ArgumentError::UnexpectedValue),
             (_, None, None) =>
-                Ok([].into()),
+                Ok([None, None]),
             (true, None, Some(value)) =>
-                Ok([value.into()].into()),
+                Ok([None, Some(value)]),
             (_, Some(flag), None) =>
-                Ok([flag.into()].into()),
+                Ok([Some(flag), None]),
             (true, Some(flag), Some(value)) =>
-                Ok([flag.into(), value.into()].into()),
+                Ok([Some(flag), Some(value)]),
         }
     }
     else {
@@ -71,20 +73,20 @@ fn value_to_taskarg(
         ) {
             (false, _, _, Some(_)) => Err(ArgumentError::UnexpectedValue),
             (false, None, None, None) =>
-                Ok([].into()),
+                Ok([None, None]),
             (_, None, Some(default), None) =>
-                Ok([default.into()].into()),
+                Ok([None, Some(default)]),
             (false, Some(flag), None, None) =>
-                Ok([flag.into()].into()),
+                Ok([Some(flag), None]),
             (_, Some(flag), Some(default), None) =>
-                Ok([flag.into(), default.into()].into()),
+                Ok([Some(flag), Some(default)]),
 
             // XXX empty value string supplied by user not handled
             (true, _, None, None) => Err(ArgumentError::ValueExpected),
             (true, None, _, Some(value)) =>
-                Ok([value.into()].into()),
+                Ok([None, Some(value)]),
             (true, Some(flag), _, Some(value)) =>
-                Ok([flag.into(), value.into()].into()),
+                Ok([Some(flag), Some(value)]),
         }
     }
 }
@@ -164,116 +166,116 @@ fn test_value_to_taskarg_standard_no_choices() {
 
     // default
     assert_eq!(
-        value_to_taskarg(None, &default),
-        Ok([].into()),
+        value_to_argtuple(None, &default),
+        Ok([None, None]),
     );
     assert_eq!(
-        &value_to_taskarg(None, &none_none_default).unwrap(),
-        &["just a default value"],
+        value_to_argtuple(None, &none_none_default),
+        Ok([None, Some("just a default value")]),
     );
     assert_eq!(
-        &value_to_taskarg(None, &none_flag_none).unwrap(),
-        &["--flag"],
+        value_to_argtuple(None, &none_flag_none),
+        Ok([Some("--flag"), None]),
     );
     assert_eq!(
-        &value_to_taskarg(None, &none_flag_default).unwrap(),
-        &["--flag", "flagged default value"],
+        value_to_argtuple(None, &none_flag_default),
+        Ok([Some("--flag"), Some("flagged default value")]),
     );
 
     // unexpected values (from user input)
     assert_eq!(
-        value_to_taskarg(Some("foo"), &default),
+        value_to_argtuple(Some("foo"), &default),
         Err(ArgumentError::UnexpectedValue),
     );
     assert_eq!(
-        value_to_taskarg(Some("foo"), &none_none_default),
+        value_to_argtuple(Some("foo"), &none_none_default),
         Err(ArgumentError::UnexpectedValue),
     );
     assert_eq!(
-        value_to_taskarg(Some("foo"), &none_flag_none),
+        value_to_argtuple(Some("foo"), &none_flag_none),
         Err(ArgumentError::UnexpectedValue),
     );
     assert_eq!(
-        value_to_taskarg(Some("foo"), &none_flag_default),
+        value_to_argtuple(Some("foo"), &none_flag_default),
         Err(ArgumentError::UnexpectedValue),
     );
 
     // prompted, no response
     assert_eq!(
-        value_to_taskarg(None, &prompt_none_none),
+        value_to_argtuple(None, &prompt_none_none),
         Err(ArgumentError::ValueExpected),
     );
     assert_eq!(
-        &value_to_taskarg(None, &prompt_none_default).unwrap(),
-        &["prompted but have default value"],
+        value_to_argtuple(None, &prompt_none_default),
+        Ok([None, Some("prompted but have default value")]),
     );
     assert_eq!(
-        &value_to_taskarg(None, &prompt_none_dempty).unwrap(),
-        &[""],
+        value_to_argtuple(None, &prompt_none_dempty),
+        Ok([None, Some("")]),
     );
     assert_eq!(
-        value_to_taskarg(None, &prompt_flag_none),
+        value_to_argtuple(None, &prompt_flag_none),
         Err(ArgumentError::ValueExpected),
     );
     assert_eq!(
-        &value_to_taskarg(None, &prompt_flag_default).unwrap(),
-        &["-P", "prompted and flagged default value"],
+        value_to_argtuple(None, &prompt_flag_default),
+        Ok([Some("-P"), Some("prompted and flagged default value")]),
     );
     assert_eq!(
-        &value_to_taskarg(None, &prompt_flag_dempty).unwrap(),
-        &["-P", ""],
+        value_to_argtuple(None, &prompt_flag_dempty),
+        Ok([Some("-P"), Some("")]),
     );
 
     // prompted with non-empty string response
     assert_eq!(
-        &value_to_taskarg(Some("user value"), &prompt_none_none).unwrap(),
-        &["user value"],
+        value_to_argtuple(Some("user value"), &prompt_none_none),
+        Ok([None, Some("user value")]),
     );
     assert_eq!(
-        &value_to_taskarg(Some("user value"), &prompt_none_default).unwrap(),
-        &["user value"],
+        value_to_argtuple(Some("user value"), &prompt_none_default),
+        Ok([None, Some("user value")]),
     );
     assert_eq!(
-        &value_to_taskarg(Some("user value"), &prompt_none_dempty).unwrap(),
-        &["user value"],
+        value_to_argtuple(Some("user value"), &prompt_none_dempty),
+        Ok([None, Some("user value")]),
     );
     assert_eq!(
-        &value_to_taskarg(Some("user value"), &prompt_flag_none).unwrap(),
-        &["-P", "user value"],
+        value_to_argtuple(Some("user value"), &prompt_flag_none),
+        Ok([Some("-P"), Some("user value")]),
     );
     assert_eq!(
-        &value_to_taskarg(Some("user value"), &prompt_flag_default).unwrap(),
-        &["-P", "user value"],
+        value_to_argtuple(Some("user value"), &prompt_flag_default),
+        Ok([Some("-P"), Some("user value")]),
     );
     assert_eq!(
-        &value_to_taskarg(Some("user value"), &prompt_flag_dempty).unwrap(),
-        &["-P", "user value"],
+        value_to_argtuple(Some("user value"), &prompt_flag_dempty),
+        Ok([Some("-P"), Some("user value")]),
     );
 
     // prompted with non-empty string response
     assert_eq!(
-        value_to_taskarg(Some(""), &prompt_none_none),
+        value_to_argtuple(Some(""), &prompt_none_none),
         Err(ArgumentError::ValueExpected),
     );
     assert_eq!(
-        &value_to_taskarg(Some(""), &prompt_none_default).unwrap(),
-        &["prompted but have default value"],
+        value_to_argtuple(Some(""), &prompt_none_default),
+        Ok([None, Some("prompted but have default value")]),
     );
     assert_eq!(
-        &value_to_taskarg(Some(""), &prompt_none_dempty).unwrap(),
-        &[""],
+        value_to_argtuple(Some(""), &prompt_none_dempty),
+        Ok([None, Some("")]),
     );
     assert_eq!(
-        value_to_taskarg(Some(""), &prompt_flag_none),
+        value_to_argtuple(Some(""), &prompt_flag_none),
         Err(ArgumentError::ValueExpected),
     );
     assert_eq!(
-        &value_to_taskarg(Some(""), &prompt_flag_default).unwrap(),
-        &["-P", "prompted and flagged default value"],
+        value_to_argtuple(Some(""), &prompt_flag_default),
+        Ok([Some("-P"), Some("prompted and flagged default value")]),
     );
     assert_eq!(
-        &value_to_taskarg(Some(""), &prompt_flag_dempty).unwrap(),
-        &["-P", ""],
+        value_to_argtuple(Some(""), &prompt_flag_dempty),
+        Ok([Some("-P"), Some("")]),
     );
 
 }
@@ -302,20 +304,20 @@ fn test_value_to_taskarg_standard_choices() {
     };
 
     assert_eq!(
-        value_to_taskarg(None, &none_none),
-        Ok([].into()),
+        value_to_argtuple(None, &none_none),
+        Ok([None, None]),
     );
     assert_eq!(
-        value_to_taskarg(None, &none_flag).unwrap(),
-        &["--flag"],
+        value_to_argtuple(None, &none_flag),
+        Ok([Some("--flag"), None]),
     );
     assert_eq!(
-        value_to_taskarg(None, &prompt_none),
-        Ok([].into()),
+        value_to_argtuple(None, &prompt_none),
+        Ok([None, None]),
     );
     assert_eq!(
-        value_to_taskarg(None, &prompt_flag).unwrap(),
-        &["-P"],
+        value_to_argtuple(None, &prompt_flag),
+        Ok([Some("-P"), None]),
     );
 
 }
@@ -471,6 +473,9 @@ fn test_prototype() {
         Ok(value) => value,
     };
 
-    let taskarg = value_to_taskarg(value, &task_template_arg);
-    assert_eq!(Ok(["user input".to_string()].to_vec()), taskarg);
+    let taskarg = value_to_argtuple(value, &task_template_arg);
+    assert_eq!(
+        taskarg,
+        Ok([None, Some("user input")]),
+    );
 }
