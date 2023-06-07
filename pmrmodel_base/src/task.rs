@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Task {

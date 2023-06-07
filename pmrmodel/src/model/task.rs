@@ -12,10 +12,11 @@ use pmrmodel_base::task_template::{
     TaskTemplateArg,
     TaskTemplateArgChoice,
 };
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub enum ArgumentError {
     UnexpectedValue,
     ValueExpected,
