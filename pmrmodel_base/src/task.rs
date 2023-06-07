@@ -12,11 +12,23 @@ pub struct Task {
     pub basedir: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
 pub struct TaskArg {
     pub id: i64,
     pub task_id: i64,
     pub arg: String,
+}
+
+impl From<[&str; 2]> for TaskArg {
+    fn from(s: [&str; 2]) -> Self {
+        Self { arg: s[0].to_owned() + s[1], .. Default::default() }
+    }
+}
+
+impl From<&str> for TaskArg {
+    fn from(s: &str) -> Self {
+        Self { arg: s.into(), .. Default::default() }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]

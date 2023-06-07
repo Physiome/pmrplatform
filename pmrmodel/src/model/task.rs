@@ -37,6 +37,130 @@ impl Display for ArgumentError {
 
 type ArgChunk<'a> = [Option<&'a str>; 2];
 
+struct TaskArgBuilder<'a> {
+    args: ArgChunk<'a>,
+    template: &'a TaskTemplateArg,
+}
+
+impl<'a> TaskArgBuilder<'a> {
+    fn new(
+        args: ArgChunk<'a>,
+        template: &'a TaskTemplateArg,
+    ) -> Self {
+        Self {
+            args: args,
+            template: template,
+        }
+    }
+}
+
+impl<'a> From<(ArgChunk<'a>, &'a TaskTemplateArg)> for TaskArgBuilder<'a> {
+    fn from(item: (ArgChunk<'a>, &'a TaskTemplateArg)) -> Self {
+        Self::new(item.0, item.1)
+    }
+}
+
+impl<'a> Iterator for TaskArgBuilder<'a> {
+    type Item = TaskArg;
+
+    fn next(&mut self) -> Option<TaskArg> {
+        match (
+            self.template.flag_joined,
+            self.args[0].is_some(),
+            self.args[1].is_some(),
+        ) {
+            (true, true, true) => Some([
+                self.args[0].take().unwrap().into(),
+                self.args[1].take().unwrap().into(),
+            ].into()),
+            (_, true, _) => Some(self.args[0].take().unwrap().into()),
+            (_, _, true) => Some(self.args[1].take().unwrap().into()),
+            _ => None,
+        }
+    }
+}
+
+#[test]
+fn test_arg_builder() {
+    let sep = TaskTemplateArg { flag_joined: false, .. Default::default() };
+    let join = TaskTemplateArg { flag_joined: true, .. Default::default() };
+    let nothing = [None, None];
+    let flag = [Some("--flag"), None];
+    let value = [None, Some("value")];
+    let flag_value = [Some("--flag"), Some("value")];
+    let flagvalue = [Some("--flag="), Some("value")];
+
+    assert_eq!(
+        TaskArgBuilder::from((flag, &sep))
+            .into_iter()
+            .collect::<Vec<_>>(),
+        vec![
+            TaskArg { arg: "--flag".into(), .. Default::default() },
+        ]
+    );
+
+    assert_eq!(
+        TaskArgBuilder::from((value, &sep))
+            .into_iter()
+            .collect::<Vec<_>>(),
+        vec![
+            TaskArg { arg: "value".into(), .. Default::default() },
+        ]
+    );
+
+    assert_eq!(
+        TaskArgBuilder::from((flag, &join))
+            .into_iter()
+            .collect::<Vec<_>>(),
+        vec![
+            TaskArg { arg: "--flag".into(), .. Default::default() },
+        ]
+    );
+
+    assert_eq!(
+        TaskArgBuilder::from((value, &join))
+            .into_iter()
+            .collect::<Vec<_>>(),
+        vec![
+            TaskArg { arg: "value".into(), .. Default::default() },
+        ]
+    );
+
+    assert_eq!(
+        TaskArgBuilder::from((flag_value, &sep))
+            .into_iter()
+            .collect::<Vec<_>>(),
+        vec![
+            TaskArg { arg: "--flag".into(), .. Default::default() },
+            TaskArg { arg: "value".into(), .. Default::default() },
+        ]
+    );
+
+    assert_eq!(
+        TaskArgBuilder::from((flagvalue, &join))
+            .into_iter()
+            .collect::<Vec<_>>(),
+        vec![
+            TaskArg { arg: "--flag=value".into(), .. Default::default() },
+        ]
+    );
+
+    assert_eq!(
+        TaskArgBuilder::from((nothing, &join))
+            .into_iter()
+            .collect::<Vec<_>>(),
+        vec![]
+    );
+
+    assert_eq!(
+        TaskArgBuilder::from((nothing, &sep))
+            .into_iter()
+            .collect::<Vec<_>>(),
+        vec![]
+    );
+
+}
+
 // TODO newtypes for public API for various unsafe user provided data.
 // TODO maybe consider something more compact than Vec<String> for return type
 // TODO handle arg.join_flag
@@ -457,9 +581,10 @@ fn test_validate_choice_values_from_list() {
 
 #[test]
 fn test_prototype() {
-    let user_input = Some("user input");
+    let user_input = Some("owned_1");
     let task_template_arg = TaskTemplateArg {
         prompt: Some("Prompt for some user input".into()),
+        choice_fixed: true,
         choice_source: Some("file_list".into()),
         .. Default::default()
     };
@@ -467,20 +592,23 @@ fn test_prototype() {
         "owned_1".into(),
         "owned_2".into(),
     ];
-    let choices = MapToArgRef::from(&raw_choices);
 
-    let value = match value_from_choices(
-        user_input,
-        &task_template_arg,
-        &choices,
-    ) {
-        Err(_) => unreachable!(),
-        Ok(value) => value,
-    };
+    let result = (|| { Ok::<Vec<TaskArg>, ArgumentError>(
+        TaskArgBuilder::from((
+            value_to_argtuple(
+                value_from_choices(
+                    user_input,
+                    &task_template_arg,
+                    &MapToArgRef::from(&raw_choices),
+                )?,
+                &task_template_arg,
+            )?,
+            &task_template_arg,
+        )).into_iter()
+            .collect::<Vec<_>>()
+    )})();
 
-    let taskarg = value_to_argtuple(value, &task_template_arg);
-    assert_eq!(
-        taskarg,
-        Ok([None, Some("user input")]),
-    );
+    assert_eq!(result, Ok(vec![
+        TaskArg { arg: "owned_1".into(), .. Default::default() },
+    ]));
 }
