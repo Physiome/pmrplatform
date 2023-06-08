@@ -2,10 +2,7 @@ use futures::future;
 use async_trait::async_trait;
 #[cfg(not(test))]
 use chrono::Utc;
-use pmrmodel_base::task::{
-    Task,
-    TaskArg,
-};
+use pmrmodel_base::task::TaskArg;
 use pmrmodel_base::task_template::{
     MapToArgRef,
     TaskTemplate,
