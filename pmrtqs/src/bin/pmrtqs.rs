@@ -8,7 +8,7 @@ use pmrmodel::backend::db::{
     Profile,
     SqliteBackend,
 };
-use pmrmodel::model::task_template::TaskTemplateBackend;
+use pmrmodel::model::db::task_template::TaskTemplateBackend;
 use sqlx::{
     Sqlite,
     migrate::MigrateDatabase,

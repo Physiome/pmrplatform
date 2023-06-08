@@ -22,21 +22,25 @@ use pmrmodel_base::{
     workspace::{
         WorkspaceRecord,
     },
+    workspace_sync::{
+        WorkspaceSyncStatus,
+    },
     merged::{
         WorkspacePathInfo,
     },
 };
 
 use pmrmodel::backend::db::PmrBackend;
-use pmrmodel::model::workspace::{
+use pmrmodel::model::db::workspace::{
     WorkspaceBackend,
 };
-use pmrmodel::model::workspace_sync::{
+use pmrmodel::model::db::workspace_sync::{
     WorkspaceSyncBackend,
-    WorkspaceSyncStatus,
+};
+use pmrmodel::model::workspace_sync::{
     fail_sync,
 };
-use pmrmodel::model::workspace_tag::WorkspaceTagBackend;
+use pmrmodel::model::db::workspace_tag::WorkspaceTagBackend;
 
 pub struct PmrBackendW<'a, P: PmrBackend> {
     backend: &'a P,
@@ -575,9 +579,9 @@ mod tests {
     use textwrap_macros::dedent;
 
     // use pmrmodel::backend::db::MockHasPool;
+    use pmrmodel_base::workspace_tag::WorkspaceTagRecord;
+    use pmrmodel_base::workspace_sync::WorkspaceSyncRecord;
     use pmrmodel::backend::db::PmrBackend;
-    use pmrmodel::model::workspace_tag::WorkspaceTagRecord;
-    use pmrmodel::model::workspace_sync::WorkspaceSyncRecord;
 
     mock! {
         Backend {}

@@ -626,7 +626,7 @@ mod tests {
         Profile,
         SqliteBackend,
     };
-    use crate::model::task_template::TaskTemplateBackend;
+    use crate::model::db::task_template::TaskTemplateBackend;
 
     #[async_std::test]
     async fn test_smoketest_no_args() {

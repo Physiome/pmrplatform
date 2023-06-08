@@ -13,13 +13,13 @@ use pmrmodel::backend::db::{
     SqliteBackend,
 };
 use pmrmodel::model::workspace::{
-    WorkspaceBackend,
     stream_workspace_records_default,
     stream_workspace_records_as_json,
 };
-use pmrmodel::model::workspace_alias::WorkspaceAliasBackend;
-use pmrmodel::model::workspace_sync::WorkspaceSyncBackend;
-use pmrmodel::model::workspace_tag::WorkspaceTagBackend;
+use pmrmodel::model::db::workspace::WorkspaceBackend;
+use pmrmodel::model::db::workspace_alias::WorkspaceAliasBackend;
+use pmrmodel::model::db::workspace_sync::WorkspaceSyncBackend;
+use pmrmodel::model::db::workspace_tag::WorkspaceTagBackend;
 
 use pmrrepo::git::{
     PmrBackendW,

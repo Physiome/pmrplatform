@@ -4,7 +4,7 @@ use axum::{
     routing::get,
     Router,
 };
-use pmrmodel::model::workspace::WorkspaceBackend;
+use pmrmodel::model::db::workspace::WorkspaceBackend;
 use pmrrepo::git::{
     WorkspaceGitResult,
     PmrBackendWR,
