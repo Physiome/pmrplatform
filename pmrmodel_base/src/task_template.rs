@@ -254,27 +254,3 @@ impl<'a, const N: usize> From<[&'a str; N]> for MapToArgRef<'a> {
             .into()
     }
 }
-
-pub enum SizedMapToArgRef {
-    ArgChoices(TaskTemplateArgChoices),
-    VecString(Vec<String>),
-    VecStaticStr(Vec<&'static str>),
-}
-
-impl<'a> From<&'a SizedMapToArgRef> for MapToArgRef<'a> {
-    fn from(value: &'a SizedMapToArgRef) -> Self {
-        match value {
-            SizedMapToArgRef::ArgChoices(v) => v.into(),
-            SizedMapToArgRef::VecString(v) => v.into(),
-            SizedMapToArgRef::VecStaticStr(v) => v.into(),
-        }
-    }
-}
-
-#[test]
-fn test_conversion() {
-    // let foo: Vec<String> = ["test".into()].into();
-    let foo = SizedMapToArgRef::VecString(["test".into()].into());
-    let lookup: MapToArgRef = (&foo).into();
-    assert_eq!(lookup.get("test"), Some(&Some("test")));
-}

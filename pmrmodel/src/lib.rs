@@ -2,6 +2,7 @@ pub mod backend {
     pub mod db;
 }
 pub mod model;
+pub mod registry;
 
 #[cfg(test)]
 pub mod test;
