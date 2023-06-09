@@ -447,7 +447,7 @@ fn test_value_to_taskarg_standard_choices() {
 fn value_from_choices<'a>(
     value: Option<&'a str>,
     arg: &'a TaskTemplateArg,
-    choices: &'a MapToArgRef,
+    choices: Option<&'a MapToArgRef>,
 ) -> Result<Option<&'a str>, ArgumentError> {
     let value = match value {
         Some(value) => value,
@@ -456,9 +456,9 @@ fn value_from_choices<'a>(
             None => return Err(ArgumentError::InvalidChoice),
         }
     };
-    match choices.get(value) {
-        Some(to_arg) => Ok(*to_arg),
-        None => match arg.choice_fixed {
+    match choices.map(|c| c.get(value)) {
+        Some(Some(to_arg)) => Ok(*to_arg),
+        None | Some(None) => match arg.choice_fixed {
             true => Err(ArgumentError::InvalidChoice),
             false => Ok(Some(value))
         }
@@ -491,19 +491,28 @@ fn test_validate_choice_value_standard() {
 
     assert_eq!(
         Ok(None),
-        value_from_choices(Some("omit"), &prompt_choices, &choices),
+        value_from_choices(
+            Some("omit"), &prompt_choices, Some(&choices)),
     );
     assert_eq!(
         Ok(Some("")),
-        value_from_choices(Some("empty string"), &prompt_choices, &choices),
+        value_from_choices(
+            Some("empty string"), &prompt_choices, Some(&choices)),
     );
     assert_eq!(
         Err(ArgumentError::InvalidChoice),
-        value_from_choices(Some("invalid choice"), &prompt_choices, &choices),
+        value_from_choices(
+            Some("invalid choice"), &prompt_choices, Some(&choices)),
     );
     assert_eq!(
         Err(ArgumentError::InvalidChoice),
-        value_from_choices(None, &prompt_choices, &choices),
+        value_from_choices(
+            None, &prompt_choices, Some(&choices)),
+    );
+    assert_eq!(
+        Err(ArgumentError::InvalidChoice),
+        value_from_choices(
+            Some("invalid choice"), &prompt_choices, None),
     );
 }
 
@@ -521,17 +530,23 @@ fn test_validate_choice_value_default() {
     assert_eq!(
         Ok(Some("the hidden default")),
         value_from_choices(
-            None, &prompt_choices, &choices),
+            None, &prompt_choices, Some(&choices)),
     );
     assert_eq!(
         Ok(Some("the hidden default")),
         value_from_choices(
-            Some("default value"), &prompt_choices, &choices),
+            Some("default value"), &prompt_choices, Some(&choices)),
     );
     assert_eq!(
         Ok(Some("unmodified value")),
         value_from_choices(
-            Some("unmodified value"), &prompt_choices, &choices),
+            Some("unmodified value"), &prompt_choices, Some(&choices)),
+    );
+
+    assert_eq!(
+        Ok(Some("unmodified value")),
+        value_from_choices(
+            Some("unmodified value"), &prompt_choices, None),
     );
 }
 
@@ -552,7 +567,10 @@ fn test_validate_choice_values_from_list() {
     assert_eq!(
         Ok(Some("owned_1")),
         value_from_choices(
-            Some("owned_1"), &prompt_choices, &(&fully_owned_choices).into()),
+            Some("owned_1"),
+            &prompt_choices,
+            Some(&(&fully_owned_choices).into()),
+        ),
     );
 
     let ref_choices: Vec<&str> = vec![
@@ -562,7 +580,10 @@ fn test_validate_choice_values_from_list() {
     assert_eq!(
         Ok(Some("str_2")),
         value_from_choices(
-            Some("str_2"), &prompt_choices, &(&ref_choices).into()),
+            Some("str_2"),
+            &prompt_choices,
+            Some(&(&ref_choices).into()),
+        ),
     );
 
     let slice = [
@@ -572,7 +593,11 @@ fn test_validate_choice_values_from_list() {
     ];
     assert_eq!(
         Ok(Some("value_3")),
-        value_from_choices(Some("value_3"), &prompt_choices, &slice.into()),
+        value_from_choices(
+            Some("value_3"),
+            &prompt_choices,
+            Some(&slice.into()),
+        ),
     );
 
 }
@@ -597,7 +622,7 @@ fn test_prototype() {
                 value_from_choices(
                     user_input,
                     &task_template_arg,
-                    &MapToArgRef::from(&raw_choices),
+                    Some(&MapToArgRef::from(&raw_choices)),
                 )?,
                 &task_template_arg,
             )?,
