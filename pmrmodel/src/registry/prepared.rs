@@ -1,12 +1,13 @@
 use pmrmodel_base::task_template::{
     MapToArgRef,
+    TaskTemplateArg,
     TaskTemplateArgChoices,
 };
 use std::collections::HashMap;
 
 use crate::registry::ChoiceRegistry;
 
-enum SizedMapToArgRef {
+pub enum SizedMapToArgRef {
     ArgChoices(TaskTemplateArgChoices),
     VecString(Vec<String>),
     VecStaticStr(Vec<&'static str>),
@@ -47,7 +48,7 @@ impl ChoiceRegistry<SizedMapToArgRef> for PreparedChoiceRegistry {
         self.0.insert(name.to_string(), registry);
     }
 
-    fn lookup(&self, name: &str) -> Option<MapToArgRef> {
+    fn lookup<'a>(&'a self, name: &str) -> Option<MapToArgRef<'a>> {
         self.0
             .get(name)
             .map(|v| v.into())
@@ -60,10 +61,10 @@ impl PreparedChoiceRegistry {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use crate::registry::ChoiceRegistry;
+    use crate::registry::ChoiceRegistryCache;
     use crate::registry::PreparedChoiceRegistry;
 
     #[test]
