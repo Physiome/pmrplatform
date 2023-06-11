@@ -604,6 +604,12 @@ fn test_validate_choice_values_from_list() {
 
 #[test]
 fn test_prototype() {
+    use crate::registry::{
+        ChoiceRegistry,
+        PreparedChoiceRegistry,
+        ChoiceRegistryCache,
+    };
+
     let user_input = Some("owned_1");
     let task_template_arg = TaskTemplateArg {
         prompt: Some("Prompt for some user input".into()),
@@ -615,23 +621,26 @@ fn test_prototype() {
         "owned_1".into(),
         "owned_2".into(),
     ];
+    let mut registry = PreparedChoiceRegistry::new();
+    registry.register("file_list", raw_choices.into());
+    let cache = ChoiceRegistryCache::from(
+        &registry as &dyn ChoiceRegistry<_>);
+    let binding = cache.lookup(&task_template_arg);
 
-    let result = (|| { Ok::<Vec<TaskArg>, ArgumentError>(
-        TaskArgBuilder::from((
-            value_to_argtuple(
-                value_from_choices(
-                    user_input,
-                    &task_template_arg,
-                    Some(&MapToArgRef::from(&raw_choices)),
-                )?,
+    let chunk_iter = TaskArgBuilder::from((
+        value_to_argtuple(
+            value_from_choices(
+                user_input,
                 &task_template_arg,
-            )?,
+                binding.as_ref(),
+            ).unwrap(),
             &task_template_arg,
-        )).into_iter()
-            .collect::<Vec<_>>()
-    )})();
+        ).unwrap(),
+        &task_template_arg,
+    ));
+    let result = chunk_iter.into_iter().collect::<Vec<_>>();
 
-    assert_eq!(result, Ok(vec![
+    assert_eq!(result, vec![
         TaskArg { arg: "owned_1".into(), .. Default::default() },
-    ]));
+    ]);
 }
