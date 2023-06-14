@@ -1,17 +1,15 @@
-use futures::future;
-use async_trait::async_trait;
-#[cfg(not(test))]
-use chrono::Utc;
 use pmrmodel_base::task::TaskArg;
 use pmrmodel_base::task_template::{
     MapToArgRef,
-    TaskTemplate,
     TaskTemplateArg,
-    TaskTemplateArgChoice,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
+use std::{
+    fmt::{Display, Formatter},
+    ops::Deref,
+};
+
+use crate::registry::ChoiceRegistryCache;
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub enum ArgumentError {
@@ -33,9 +31,33 @@ impl Display for ArgumentError {
     }
 }
 
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
+pub enum BuildArgError {
+    ArgumentError(ArgumentError),
+    ChoiceRegistryNotFound,
+}
+
+impl Display for BuildArgError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", match &self {
+            BuildArgError::ArgumentError(e) => e.to_string(),
+            BuildArgError::ChoiceRegistryNotFound =>
+                // probably should use thiserror at some point...
+                "choice registry for the current argument not found".into(),
+        })
+    }
+}
+
+impl From<ArgumentError> for BuildArgError {
+    fn from(v: ArgumentError) -> Self{
+        Self::ArgumentError(v)
+    }
+}
+
 type ArgChunk<'a> = [Option<&'a str>; 2];
 
-struct TaskArgBuilder<'a> {
+#[derive(Debug, PartialEq)]
+pub struct TaskArgBuilder<'a> {
     args: ArgChunk<'a>,
     template: &'a TaskTemplateArg,
 }
@@ -157,6 +179,24 @@ fn test_arg_builder() {
         vec![]
     );
 
+}
+
+pub fn build_arg_chunk<'a, T>(
+    user_input: Option<&'a str>,
+    task_template_arg: &'a TaskTemplateArg,
+    choice_registry_cache: &'a ChoiceRegistryCache<'a, T>,
+) -> Result<TaskArgBuilder<'a>, BuildArgError> {
+    Ok(TaskArgBuilder::from((
+        value_to_argtuple(
+            value_from_choices(
+                user_input,
+                &task_template_arg,
+                choice_registry_cache.lookup(&task_template_arg),
+            )?,
+            &task_template_arg,
+        )?,
+        task_template_arg,
+    )))
 }
 
 // TODO newtypes for public API for various unsafe user provided data.
@@ -447,7 +487,7 @@ fn test_value_to_taskarg_standard_choices() {
 fn value_from_choices<'a>(
     value: Option<&'a str>,
     arg: &'a TaskTemplateArg,
-    choices: Option<&'a MapToArgRef>,
+    choices: impl Deref<Target = Option<MapToArgRef<'a>>>,
 ) -> Result<Option<&'a str>, ArgumentError> {
     let value = match value {
         Some(value) => value,
@@ -456,7 +496,7 @@ fn value_from_choices<'a>(
             None => return Err(ArgumentError::InvalidChoice),
         }
     };
-    match choices.map(|c| c.get(value)) {
+    match choices.as_ref().map(|c| c.get(value)) {
         Some(Some(to_arg)) => Ok(*to_arg),
         None | Some(None) => match arg.choice_fixed {
             true => Err(ArgumentError::InvalidChoice),
@@ -468,7 +508,7 @@ fn value_from_choices<'a>(
 #[test]
 fn test_validate_choice_value_standard() {
     // to emulate usage of choice within an arg
-    let prompt_choices = TaskTemplateArg {
+    let arg = TaskTemplateArg {
         prompt: Some("Prompt for some user input".into()),
         choices: serde_json::from_str(r#"[
             {
@@ -483,36 +523,42 @@ fn test_validate_choice_value_standard() {
         choice_fixed: true,
         .. Default::default()
     };
-    let choices: MapToArgRef = prompt_choices
-        .choices
-        .as_ref()
-        .unwrap()
-        .into();
+
+    // to emulate lookup of choices from registry cache
+    fn choices(arg: &TaskTemplateArg) -> Option<MapToArgRef<'_>> {
+        Some(arg
+            .choices
+            .as_ref()
+            .unwrap()
+            .into()
+        )
+    }
 
     assert_eq!(
         Ok(None),
         value_from_choices(
-            Some("omit"), &prompt_choices, Some(&choices)),
+            Some("omit"), &arg, &choices(&arg)),
     );
     assert_eq!(
         Ok(Some("")),
         value_from_choices(
-            Some("empty string"), &prompt_choices, Some(&choices)),
+            Some("empty string"), &arg, &choices(&arg)),
     );
     assert_eq!(
         Err(ArgumentError::InvalidChoice),
         value_from_choices(
-            Some("invalid choice"), &prompt_choices, Some(&choices)),
+            Some("invalid choice"), &arg, &choices(&arg)),
     );
     assert_eq!(
         Err(ArgumentError::InvalidChoice),
         value_from_choices(
-            None, &prompt_choices, Some(&choices)),
+            None, &arg, &choices(&arg)),
     );
+
     assert_eq!(
         Err(ArgumentError::InvalidChoice),
         value_from_choices(
-            Some("invalid choice"), &prompt_choices, None),
+            Some("invalid choice"), &arg, &None),
     );
 }
 
@@ -524,29 +570,31 @@ fn test_validate_choice_value_default() {
         default: Some("default value".into()),
         .. Default::default()
     };
-    let choices: MapToArgRef = HashMap::from([
-        ("default value", Some("the hidden default")),
-    ]).into();
+    fn choices() -> Option<MapToArgRef<'static>> {
+        Some(std::collections::HashMap::from([
+            ("default value", Some("the hidden default")),
+        ]).into())
+    }
     assert_eq!(
         Ok(Some("the hidden default")),
         value_from_choices(
-            None, &prompt_choices, Some(&choices)),
+            None, &prompt_choices, &choices()),
     );
     assert_eq!(
         Ok(Some("the hidden default")),
         value_from_choices(
-            Some("default value"), &prompt_choices, Some(&choices)),
+            Some("default value"), &prompt_choices, &choices()),
     );
     assert_eq!(
         Ok(Some("unmodified value")),
         value_from_choices(
-            Some("unmodified value"), &prompt_choices, Some(&choices)),
+            Some("unmodified value"), &prompt_choices, &choices()),
     );
 
     assert_eq!(
         Ok(Some("unmodified value")),
         value_from_choices(
-            Some("unmodified value"), &prompt_choices, None),
+            Some("unmodified value"), &prompt_choices, &None),
     );
 }
 
@@ -569,7 +617,7 @@ fn test_validate_choice_values_from_list() {
         value_from_choices(
             Some("owned_1"),
             &prompt_choices,
-            Some(&(&fully_owned_choices).into()),
+            &Some((&fully_owned_choices).into()),
         ),
     );
 
@@ -582,7 +630,7 @@ fn test_validate_choice_values_from_list() {
         value_from_choices(
             Some("str_2"),
             &prompt_choices,
-            Some(&(&ref_choices).into()),
+            &Some((&ref_choices).into()),
         ),
     );
 
@@ -596,51 +644,119 @@ fn test_validate_choice_values_from_list() {
         value_from_choices(
             Some("value_3"),
             &prompt_choices,
-            Some(&slice.into()),
+            &Some(slice.into()),
         ),
     );
 
 }
 
-#[test]
-fn test_prototype() {
+#[cfg(test)]
+mod test {
+    use pmrmodel_base::task_template::TaskTemplateArg;
+    use pmrmodel_base::task::TaskArg;
+
+    use crate::model::task_template::{
+        ArgumentError,
+        BuildArgError,
+        build_arg_chunk
+    };
     use crate::registry::{
         ChoiceRegistry,
         PreparedChoiceRegistry,
         ChoiceRegistryCache,
     };
 
-    let user_input = Some("owned_1");
-    let task_template_arg = TaskTemplateArg {
-        prompt: Some("Prompt for some user input".into()),
-        choice_fixed: true,
-        choice_source: Some("file_list".into()),
-        .. Default::default()
-    };
-    let raw_choices: Vec<String> = vec![
-        "owned_1".into(),
-        "owned_2".into(),
-    ];
-    let mut registry = PreparedChoiceRegistry::new();
-    registry.register("file_list", raw_choices.into());
-    let cache = ChoiceRegistryCache::from(
-        &registry as &dyn ChoiceRegistry<_>);
-    let binding = cache.lookup(&task_template_arg);
+    #[test]
+    fn test_build_arg_default() {
+        let user_input = Some("owned_1");
+        let task_template_arg = TaskTemplateArg {
+            prompt: Some("Prompt for some user input".into()),
+            choice_fixed: true,
+            choice_source: Some("file_list".into()),
+            .. Default::default()
+        };
+        let raw_choices: Vec<String> = vec![
+            "owned_1".into(),
+            "owned_2".into(),
+        ];
+        let mut registry = PreparedChoiceRegistry::new();
+        registry.register("file_list", raw_choices.into());
+        let cache = ChoiceRegistryCache::from(
+            &registry as &dyn ChoiceRegistry<_>);
 
-    let chunk_iter = TaskArgBuilder::from((
-        value_to_argtuple(
-            value_from_choices(
-                user_input,
-                &task_template_arg,
-                binding.as_ref(),
-            ).unwrap(),
+        let chunk_iter = build_arg_chunk(
+            user_input,
             &task_template_arg,
-        ).unwrap(),
-        &task_template_arg,
-    ));
-    let result = chunk_iter.into_iter().collect::<Vec<_>>();
+            &cache,
+        );
+        let result = chunk_iter.unwrap().into_iter().collect::<Vec<_>>();
+        assert_eq!(result, vec![
+            TaskArg { arg: "owned_1".into(), .. Default::default() },
+        ]);
 
-    assert_eq!(result, vec![
-        TaskArg { arg: "owned_1".into(), .. Default::default() },
-    ]);
+        let chunk_iter = build_arg_chunk(
+            Some("owned_2"),
+            &task_template_arg,
+            &cache,
+        );
+        let result = chunk_iter.unwrap().into_iter().collect::<Vec<_>>();
+        assert_eq!(result, vec![
+            TaskArg { arg: "owned_2".into(), .. Default::default() },
+        ]);
+
+    }
+
+    #[test]
+    fn test_build_arg_failure() {
+        let arg_ext_choices = TaskTemplateArg {
+            id: 1,
+            prompt: Some("Prompt for some user input".into()),
+            choice_fixed: true,
+            choice_source: Some("no_such_registry".into()),
+            .. Default::default()
+        };
+        let arg_with_choices = TaskTemplateArg {
+            id: 2,
+            flag: Some("--flag".into()),
+            prompt: Some("Prompt for more user input".into()),
+            choices: serde_json::from_str(r#"[
+                {
+                    "to_arg": null,
+                    "label": "omit"
+                },
+                {
+                    "to_arg": "",
+                    "label": "empty string"
+                }
+            ]"#).unwrap(),
+            choice_fixed: true,
+            .. Default::default()
+        };
+        let registry = PreparedChoiceRegistry::new();
+        let cache = ChoiceRegistryCache::from(
+            &registry as &dyn ChoiceRegistry<_>);
+
+        let chunk_iter = build_arg_chunk(
+            Some("value"),
+            &arg_ext_choices,
+            &cache,
+        );
+        // TODO the cache lookup will need to account for missing underlying
+        // assert_eq!(
+        //     chunk_iter,
+        //     Err(BuildArgError::ChoiceRegistryNotFound)
+        // );
+
+        let chunk_iter = build_arg_chunk(
+            Some("invalid"),
+            &arg_with_choices,
+            &cache,
+        );
+        assert_eq!(
+            chunk_iter,
+            Err(BuildArgError::ArgumentError(ArgumentError::InvalidChoice))
+        );
+
+    }
+
 }
