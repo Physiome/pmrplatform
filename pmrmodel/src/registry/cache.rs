@@ -1,14 +1,15 @@
+use parking_lot::{
+    Mutex,
+    MutexGuard,
+};
 use pmrmodel_base::task_template::{
     MapToArgRef,
     TaskTemplateArg,
 };
 use std::{
-    cell::{
-        RefCell,
-        RefMut,
-    },
     collections::HashMap,
     ops::Deref,
+    sync::Arc,
 };
 
 use crate::registry::ChoiceRegistry;
@@ -16,18 +17,18 @@ use crate::registry::ChoiceRegistry;
 pub struct ChoiceRegistryCache<'a, T> {
     registry: &'a dyn ChoiceRegistry<T>,
     // punting the cache for the arg to the task_template_arg's unique id.
-    arg: RefCell<HashMap<i64, Option<MapToArgRef<'a>>>>,
-    name: RefCell<HashMap<String, Option<MapToArgRef<'a>>>>,
-    none: RefCell<Option<MapToArgRef<'a>>>,
+    arg: Arc<Mutex<HashMap<i64, Option<MapToArgRef<'a>>>>>,
+    name: Arc<Mutex<HashMap<String, Option<MapToArgRef<'a>>>>>,
+    none: Arc<Mutex<Option<MapToArgRef<'a>>>>,
 }
 
 impl<'a, T> From<&'a dyn ChoiceRegistry<T>> for ChoiceRegistryCache<'a, T> {
     fn from(registry: &'a dyn ChoiceRegistry<T>) -> Self {
         Self {
             registry: registry,
-            arg: RefCell::new(HashMap::new()),
-            name: RefCell::new(HashMap::new()),
-            none: RefCell::new(None),
+            arg: Arc::new(Mutex::new(HashMap::new())),
+            name: Arc::new(Mutex::new(HashMap::new())),
+            none: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -38,10 +39,10 @@ impl<'a, T> ChoiceRegistryCache<'a, T> {
         tta: &'a TaskTemplateArg,
     ) -> impl Deref<Target = Option<MapToArgRef<'a>>> + '_ {
         match &tta.choice_source.as_deref() {
-            None => RefMut::from(self.none.borrow_mut()),
+            None => MutexGuard::map(self.none.lock(), |x| x),
             Some("") => {
-                RefMut::map(
-                    self.arg.borrow_mut(),
+                MutexGuard::map(
+                    self.arg.lock(),
                     |arg| arg
                         .entry(tta.id)
                         .or_insert_with(|| {
@@ -50,8 +51,8 @@ impl<'a, T> ChoiceRegistryCache<'a, T> {
                 )
             }
             Some(source) => {
-                RefMut::map(
-                    self.name.borrow_mut(),
+                MutexGuard::map(
+                    self.name.lock(),
                     |name| name
                         .entry(source.to_string())
                         .or_insert_with(|| {
