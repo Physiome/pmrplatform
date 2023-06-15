@@ -667,7 +667,7 @@ mod test {
     };
 
     #[test]
-    fn test_build_arg_default() {
+    fn test_build_arg_external() {
         let user_input = Some("owned_1");
         let task_template_arg = TaskTemplateArg {
             prompt: Some("Prompt for some user input".into()),
@@ -707,16 +707,9 @@ mod test {
     }
 
     #[test]
-    fn test_build_arg_failure() {
-        let arg_ext_choices = TaskTemplateArg {
+    fn test_build_arg_internal() {
+        let task_template_arg = TaskTemplateArg {
             id: 1,
-            prompt: Some("Prompt for some user input".into()),
-            choice_fixed: true,
-            choice_source: Some("no_such_registry".into()),
-            .. Default::default()
-        };
-        let arg_with_choices = TaskTemplateArg {
-            id: 2,
             flag: Some("--flag".into()),
             prompt: Some("Prompt for more user input".into()),
             choices: serde_json::from_str(r#"[
@@ -730,6 +723,41 @@ mod test {
                 }
             ]"#).unwrap(),
             choice_fixed: true,
+            choice_source: Some("".into()),
+            .. Default::default()
+        };
+        let registry = PreparedChoiceRegistry::new();
+        let cache = ChoiceRegistryCache::from(
+            &registry as &dyn ChoiceRegistry<_>);
+        let chunk_iter = build_arg_chunk(
+            Some("empty string"),
+            &task_template_arg,
+            &cache,
+        );
+        let result = chunk_iter.unwrap().into_iter().collect::<Vec<_>>();
+        assert_eq!(result, vec![
+            TaskArg { arg: "--flag".into(), .. Default::default() },
+            TaskArg { arg: "".into(), .. Default::default() },
+        ]);
+
+    }
+
+    #[test]
+    fn test_build_arg_failure() {
+        let arg_ext_choices = TaskTemplateArg {
+            id: 1,
+            prompt: Some("Prompt for some user input".into()),
+            choice_fixed: true,
+            choice_source: Some("no_such_registry".into()),
+            .. Default::default()
+        };
+        let arg_with_choices = TaskTemplateArg {
+            id: 2,
+            flag: Some("--flag".into()),
+            prompt: Some("Prompt for more user input".into()),
+            choices: Some([].into()),
+            choice_fixed: true,
+            choice_source: Some("".into()),
             .. Default::default()
         };
         let registry = PreparedChoiceRegistry::new();
