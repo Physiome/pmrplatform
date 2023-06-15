@@ -1,13 +1,17 @@
 use pmrmodel_base::task::TaskArg;
 use pmrmodel_base::task_template::{
     MapToArgRef,
+    TaskTemplate,
     TaskTemplateArg,
 };
 use serde::{
     Deserialize,
     Serialize,
 };
-use std::ops::Deref;
+use std::{
+    collections::HashMap,
+    ops::Deref,
+};
 
 use crate::registry::ChoiceRegistryCache;
 use crate::error::{
@@ -17,6 +21,8 @@ use crate::error::{
 };
 
 type ArgChunk<'a> = [Option<&'a str>; 2];
+// the following maps user input by TaskTemplateArg.id
+type UserInputMap = HashMap<i64, String>;
 
 #[derive(Debug, PartialEq)]
 pub struct TaskArgBuilder<'a> {
@@ -78,6 +84,26 @@ pub fn build_arg_chunk<'a, T>(
         )?,
         task_template_arg,
     )))
+}
+
+// TODO maybe make this part of TaskTemplate's impl?
+pub fn task_template_process_user_input<'a, T>(
+    task_template: &'a TaskTemplate,
+    user_input: &'a UserInputMap,
+    choice_registry_cache: &'a ChoiceRegistryCache<'a, T>,
+) -> Result<Vec<TaskArgBuilder<'a>>, BuildArgError> {
+    Ok(match task_template.args {
+        Some(ref args) => args.iter()
+            .map(|arg| {
+                Ok(build_arg_chunk(
+                    user_input.get(&arg.id).map(|x| x.as_str()),
+                    &arg,
+                    choice_registry_cache,
+                )?)
+            })
+            .collect::<Result<Vec<_>, BuildArgError>>()?,
+        None => [].into()
+    })
 }
 
 fn value_to_argtuple<'a>(
@@ -450,7 +476,7 @@ fn test_validate_choice_value_default() {
         .. Default::default()
     };
     fn choices() -> Option<MapToArgRef<'static>> {
-        Some(std::collections::HashMap::from([
+        Some(HashMap::from([
             ("default value", Some("the hidden default")),
         ]).into())
     }
@@ -531,7 +557,10 @@ fn test_validate_choice_values_from_list() {
 
 #[cfg(test)]
 mod test {
-    use pmrmodel_base::task_template::TaskTemplateArg;
+    use pmrmodel_base::task_template::{
+        TaskTemplate,
+        TaskTemplateArg,
+    };
     use pmrmodel_base::task::TaskArg;
 
     use crate::model::task_template::{
@@ -539,7 +568,9 @@ mod test {
         BuildArgError,
         LookupError,
         TaskArgBuilder,
+        UserInputMap,
         build_arg_chunk,
+        task_template_process_user_input,
     };
     use crate::registry::{
         ChoiceRegistry,
@@ -750,6 +781,95 @@ mod test {
             ))
         );
 
+    }
+
+    #[test]
+    fn test_process_user_inputs() {
+        let user_input = UserInputMap::from([
+            (123, "The First Example Model".to_string()),
+            (516, "src/README.md".to_string()),
+            (894, "src/main/example.model".to_string()),
+            (4242, "yes".to_string()),
+        ]);
+        let task_template = TaskTemplate {
+            id: 3,
+            bin_path: "/usr/local/bin/model-processor".into(),
+            version_id: "1.3.2".into(),
+            created_ts: 1686715614,
+            final_task_template_arg_id: Some(4242),
+            superceded_by_id: None,
+            args: Some([
+                TaskTemplateArg {
+                    id: 123,
+                    task_template_id: 3,
+                    flag: Some("--title=".into()),
+                    flag_joined: true,
+                    prompt: Some("Heading for this publication".into()),
+                    default: None,
+                    choice_fixed: false,
+                    choice_source: Some("".into()),
+                    choices: None,
+                },
+                TaskTemplateArg {
+                    id: 516,
+                    task_template_id: 3,
+                    flag: Some("--docsrc".into()),
+                    flag_joined: false,
+                    prompt: Some("Documentation file".into()),
+                    default: None,
+                    choice_fixed: false,
+                    choice_source: Some("".into()),
+                    choices: None,
+                },
+                TaskTemplateArg {
+                    id: 894,
+                    task_template_id: 3,
+                    flag: None,
+                    flag_joined: false,
+                    prompt: Some("The model to process".into()),
+                    default: None,
+                    choice_fixed: true,
+                    choice_source: Some("git_repo".into()),
+                    choices: None,
+                },
+                TaskTemplateArg {
+                    id: 4242,
+                    task_template_id: 3,
+                    flag: None,
+                    flag_joined: false,
+                    prompt: Some("Hidden".into()),
+                    default: Some("no".into()),
+                    choice_fixed: true,
+                    choice_source: Some("".into()),
+                    choices: serde_json::from_str(r#"[
+                        {
+                            "to_arg": "-H",
+                            "label": "yes"
+                        },
+                        {
+                            "to_arg": null,
+                            "label": "no"
+                        }
+                    ]"#).unwrap(),
+                },
+            ].into()),
+        };
+
+        let files: Vec<String> = vec![
+            "src/README.md".into(),
+            "src/main/example.model".into(),
+        ];
+        let mut registry = PreparedChoiceRegistry::new();
+        registry.register("git_repo", files.into());
+        let cache = ChoiceRegistryCache::from(
+            &registry as &dyn ChoiceRegistry<_>);
+        let processed = task_template_process_user_input(
+            &task_template,
+            &user_input,
+            &cache,
+        );
+        dbg!(&processed);
+        assert!(processed.is_ok());
     }
 
 }
