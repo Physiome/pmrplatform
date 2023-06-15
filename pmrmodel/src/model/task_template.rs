@@ -3,56 +3,18 @@ use pmrmodel_base::task_template::{
     MapToArgRef,
     TaskTemplateArg,
 };
-use serde::{Deserialize, Serialize};
-use std::{
-    fmt::{Display, Formatter},
-    ops::Deref,
+use serde::{
+    Deserialize,
+    Serialize,
 };
+use std::ops::Deref;
 
 use crate::registry::ChoiceRegistryCache;
-
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
-pub enum ArgumentError {
-    UnexpectedValue,
-    ValueExpected,
-    InvalidChoice,
-}
-
-impl Display for ArgumentError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match &self {
-            ArgumentError::UnexpectedValue =>
-                "unexpected user value provided",
-            ArgumentError::ValueExpected =>
-                "user provided value expected but missing",
-            ArgumentError::InvalidChoice =>
-                "value not a valid choice",
-        })
-    }
-}
-
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
-pub enum BuildArgError {
-    ArgumentError(ArgumentError),
-    ChoiceRegistryNotFound,
-}
-
-impl Display for BuildArgError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match &self {
-            BuildArgError::ArgumentError(e) => e.to_string(),
-            BuildArgError::ChoiceRegistryNotFound =>
-                // probably should use thiserror at some point...
-                "choice registry for the current argument not found".into(),
-        })
-    }
-}
-
-impl From<ArgumentError> for BuildArgError {
-    fn from(v: ArgumentError) -> Self{
-        Self::ArgumentError(v)
-    }
-}
+use crate::error::{
+    ArgumentError,
+    LookupError,
+    BuildArgError,
+};
 
 type ArgChunk<'a> = [Option<&'a str>; 2];
 
@@ -214,7 +176,8 @@ fn value_to_argtuple<'a>(
             &arg.flag,
             value,
         ) {
-            (false, _, Some(_)) => Err(ArgumentError::UnexpectedValue),
+            (false, _, Some(_)) =>
+                Err(ArgumentError::UnexpectedValue(arg.id)),
             (_, None, None) =>
                 Ok([None, None]),
             (true, None, Some(value)) =>
@@ -233,7 +196,8 @@ fn value_to_argtuple<'a>(
             &arg.default,
             value,
         ) {
-            (false, _, _, Some(_)) => Err(ArgumentError::UnexpectedValue),
+            (false, _, _, Some(_)) =>
+                Err(ArgumentError::UnexpectedValue(arg.id)),
             (false, None, None, None) =>
                 Ok([None, None]),
             (_, None, Some(default), None) =>
@@ -244,7 +208,8 @@ fn value_to_argtuple<'a>(
                 Ok([Some(flag), Some(default)]),
 
             // XXX empty value string supplied by user not handled
-            (true, _, None, None) => Err(ArgumentError::ValueExpected),
+            (true, _, None, None) =>
+                Err(ArgumentError::ValueExpected(arg.id)),
             (true, None, _, Some(value)) =>
                 Ok([None, Some(value)]),
             (true, Some(flag), _, Some(value)) =>
@@ -347,25 +312,25 @@ fn test_value_to_taskarg_standard_no_choices() {
     // unexpected values (from user input)
     assert_eq!(
         value_to_argtuple(Some("foo"), &default),
-        Err(ArgumentError::UnexpectedValue),
+        Err(ArgumentError::UnexpectedValue(0)),
     );
     assert_eq!(
         value_to_argtuple(Some("foo"), &none_none_default),
-        Err(ArgumentError::UnexpectedValue),
+        Err(ArgumentError::UnexpectedValue(0)),
     );
     assert_eq!(
         value_to_argtuple(Some("foo"), &none_flag_none),
-        Err(ArgumentError::UnexpectedValue),
+        Err(ArgumentError::UnexpectedValue(0)),
     );
     assert_eq!(
         value_to_argtuple(Some("foo"), &none_flag_default),
-        Err(ArgumentError::UnexpectedValue),
+        Err(ArgumentError::UnexpectedValue(0)),
     );
 
     // prompted, no response
     assert_eq!(
         value_to_argtuple(None, &prompt_none_none),
-        Err(ArgumentError::ValueExpected),
+        Err(ArgumentError::ValueExpected(0)),
     );
     assert_eq!(
         value_to_argtuple(None, &prompt_none_default),
@@ -377,7 +342,7 @@ fn test_value_to_taskarg_standard_no_choices() {
     );
     assert_eq!(
         value_to_argtuple(None, &prompt_flag_none),
-        Err(ArgumentError::ValueExpected),
+        Err(ArgumentError::ValueExpected(0)),
     );
     assert_eq!(
         value_to_argtuple(None, &prompt_flag_default),
@@ -417,7 +382,7 @@ fn test_value_to_taskarg_standard_no_choices() {
     // prompted with non-empty string response
     assert_eq!(
         value_to_argtuple(Some(""), &prompt_none_none),
-        Err(ArgumentError::ValueExpected),
+        Err(ArgumentError::ValueExpected(0)),
     );
     assert_eq!(
         value_to_argtuple(Some(""), &prompt_none_default),
@@ -429,7 +394,7 @@ fn test_value_to_taskarg_standard_no_choices() {
     );
     assert_eq!(
         value_to_argtuple(Some(""), &prompt_flag_none),
-        Err(ArgumentError::ValueExpected),
+        Err(ArgumentError::ValueExpected(0)),
     );
     assert_eq!(
         value_to_argtuple(Some(""), &prompt_flag_default),
@@ -488,18 +453,18 @@ fn value_from_choices<'a>(
     value: Option<&'a str>,
     arg: &'a TaskTemplateArg,
     choices: impl Deref<Target = Option<MapToArgRef<'a>>>,
-) -> Result<Option<&'a str>, ArgumentError> {
+) -> Result<Option<&'a str>, LookupError> {
     let value = match value {
         Some(value) => value,
         None => match &arg.default {
             Some(value) => value,
-            None => return Err(ArgumentError::InvalidChoice),
+            None => return Err(LookupError::TaskTemplateArgNoDefault(arg.id)),
         }
     };
     match choices.as_ref().map(|c| c.get(value)) {
         Some(Some(to_arg)) => Ok(*to_arg),
         None | Some(None) => match arg.choice_fixed {
-            true => Err(ArgumentError::InvalidChoice),
+            true => Err(LookupError::InvalidChoice(arg.id, value.into())),
             false => Ok(Some(value))
         }
     }
@@ -545,18 +510,18 @@ fn test_validate_choice_value_standard() {
             Some("empty string"), &arg, &choices(&arg)),
     );
     assert_eq!(
-        Err(ArgumentError::InvalidChoice),
+        Err(LookupError::InvalidChoice(0, "invalid choice".into())),
         value_from_choices(
             Some("invalid choice"), &arg, &choices(&arg)),
     );
     assert_eq!(
-        Err(ArgumentError::InvalidChoice),
+        Err(LookupError::TaskTemplateArgNoDefault(0)),
         value_from_choices(
             None, &arg, &choices(&arg)),
     );
 
     assert_eq!(
-        Err(ArgumentError::InvalidChoice),
+        Err(LookupError::InvalidChoice(0, "invalid choice".into())),
         value_from_choices(
             Some("invalid choice"), &arg, &None),
     );
@@ -658,7 +623,8 @@ mod test {
     use crate::model::task_template::{
         ArgumentError,
         BuildArgError,
-        build_arg_chunk
+        LookupError,
+        build_arg_chunk,
     };
     use crate::registry::{
         ChoiceRegistry,
@@ -772,7 +738,9 @@ mod test {
         // TODO the cache lookup will need to account for missing underlying
         // assert_eq!(
         //     chunk_iter,
-        //     Err(BuildArgError::ChoiceRegistryNotFound)
+        //     Err(BuildArgError::LookupError(
+        //         LookupError::RegistryMissing(1, "no_such_registry".into())
+        //     ))
         // );
 
         let chunk_iter = build_arg_chunk(
@@ -782,7 +750,9 @@ mod test {
         );
         assert_eq!(
             chunk_iter,
-            Err(BuildArgError::ArgumentError(ArgumentError::InvalidChoice))
+            Err(BuildArgError::LookupError(
+                LookupError::InvalidChoice(2, "invalid".into())
+            ))
         );
 
     }
