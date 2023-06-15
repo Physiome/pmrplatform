@@ -59,23 +59,50 @@ mod test {
 
         assert_eq!(
             true,
-            cache.lookup(&arg).as_ref().is_none(),
+            cache
+                .lookup(&arg)
+                .unwrap()
+                .as_ref()
+                .is_none(),
         );
         assert_eq!(
             None,
-            cache.lookup(&arg_int).as_ref().unwrap().get("no such value"),
+            cache
+                .lookup(&arg_int)
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .get("no such value"),
         );
         assert_eq!(
             &None,
-            cache.lookup(&arg_int).as_ref().unwrap().get("omit").unwrap(),
+            cache
+                .lookup(&arg_int)
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .get("omit")
+                .unwrap(),
         );
         assert_eq!(
             &Some("the target string"),
-            cache.lookup(&arg_int).as_ref().unwrap().get("keep").unwrap(),
+            cache
+                .lookup(&arg_int)
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .get("keep")
+                .unwrap(),
         );
         assert_eq!(
             &Some("file_a"),
-            cache.lookup(&arg_ext).as_ref().unwrap().get("file_a").unwrap(),
+            cache
+                .lookup(&arg_ext)
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .get("file_a")
+                .unwrap(),
         );
     }
 }

@@ -153,7 +153,7 @@ pub fn build_arg_chunk<'a, T>(
             value_from_choices(
                 user_input,
                 &task_template_arg,
-                choice_registry_cache.lookup(&task_template_arg),
+                choice_registry_cache.lookup(&task_template_arg)?,
             )?,
             &task_template_arg,
         )?,
@@ -735,13 +735,12 @@ mod test {
             &arg_ext_choices,
             &cache,
         );
-        // TODO the cache lookup will need to account for missing underlying
-        // assert_eq!(
-        //     chunk_iter,
-        //     Err(BuildArgError::LookupError(
-        //         LookupError::RegistryMissing(1, "no_such_registry".into())
-        //     ))
-        // );
+        assert_eq!(
+            chunk_iter,
+            Err(BuildArgError::LookupError(
+                LookupError::RegistryMissing(1, "no_such_registry".into())
+            ))
+        );
 
         let chunk_iter = build_arg_chunk(
             Some("invalid"),

@@ -12,6 +12,7 @@ use std::{
     sync::Arc,
 };
 
+use crate::error::LookupError;
 use crate::registry::ChoiceRegistry;
 
 pub struct ChoiceRegistryCache<'a, T> {
@@ -37,28 +38,39 @@ impl<'a, T> ChoiceRegistryCache<'a, T> {
     pub fn lookup(
         &'a self,
         tta: &'a TaskTemplateArg,
-    ) -> impl Deref<Target = Option<MapToArgRef<'a>>> + '_ {
+    ) -> Result<
+        impl Deref<Target = Option<MapToArgRef<'a>>> + '_,
+        LookupError,
+    > {
         match &tta.choice_source.as_deref() {
-            None => MutexGuard::map(self.none.lock(), |x| x),
+            None => Ok(MutexGuard::map(self.none.lock(), |x| x)),
             Some("") => {
-                MutexGuard::map(
+                Ok(MutexGuard::map(
                     self.arg.lock(),
                     |arg| arg
                         .entry(tta.id)
                         .or_insert_with(|| {
                             tta.choices.as_ref().map(|c| c.into())
                         })
-                )
+                ))
             }
             Some(source) => {
-                MutexGuard::map(
+                let result = MutexGuard::map(
                     self.name.lock(),
                     |name| name
                         .entry(source.to_string())
                         .or_insert_with(|| {
-                            self.registry.lookup(source).map(|c| c.into())
+                            self.registry.lookup(source)
+                                .map(|c| c.into())
                         })
-                )
+                );
+                if result.as_ref().is_none() {
+                    Err(LookupError::RegistryMissing(
+                        tta.id, source.to_string()))
+                }
+                else {
+                    Ok(result)
+                }
             }
         }
     }
