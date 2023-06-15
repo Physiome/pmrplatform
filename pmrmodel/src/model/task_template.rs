@@ -62,87 +62,6 @@ impl<'a> Iterator for TaskArgBuilder<'a> {
     }
 }
 
-#[test]
-fn test_arg_builder() {
-    let sep = TaskTemplateArg { flag_joined: false, .. Default::default() };
-    let join = TaskTemplateArg { flag_joined: true, .. Default::default() };
-    let nothing = [None, None];
-    let flag = [Some("--flag"), None];
-    let value = [None, Some("value")];
-    let flag_value = [Some("--flag"), Some("value")];
-    let flagvalue = [Some("--flag="), Some("value")];
-
-    assert_eq!(
-        TaskArgBuilder::from((flag, &sep))
-            .into_iter()
-            .collect::<Vec<_>>(),
-        vec![
-            TaskArg { arg: "--flag".into(), .. Default::default() },
-        ]
-    );
-
-    assert_eq!(
-        TaskArgBuilder::from((value, &sep))
-            .into_iter()
-            .collect::<Vec<_>>(),
-        vec![
-            TaskArg { arg: "value".into(), .. Default::default() },
-        ]
-    );
-
-    assert_eq!(
-        TaskArgBuilder::from((flag, &join))
-            .into_iter()
-            .collect::<Vec<_>>(),
-        vec![
-            TaskArg { arg: "--flag".into(), .. Default::default() },
-        ]
-    );
-
-    assert_eq!(
-        TaskArgBuilder::from((value, &join))
-            .into_iter()
-            .collect::<Vec<_>>(),
-        vec![
-            TaskArg { arg: "value".into(), .. Default::default() },
-        ]
-    );
-
-    assert_eq!(
-        TaskArgBuilder::from((flag_value, &sep))
-            .into_iter()
-            .collect::<Vec<_>>(),
-        vec![
-            TaskArg { arg: "--flag".into(), .. Default::default() },
-            TaskArg { arg: "value".into(), .. Default::default() },
-        ]
-    );
-
-    assert_eq!(
-        TaskArgBuilder::from((flagvalue, &join))
-            .into_iter()
-            .collect::<Vec<_>>(),
-        vec![
-            TaskArg { arg: "--flag=value".into(), .. Default::default() },
-        ]
-    );
-
-    assert_eq!(
-        TaskArgBuilder::from((nothing, &join))
-            .into_iter()
-            .collect::<Vec<_>>(),
-        vec![]
-    );
-
-    assert_eq!(
-        TaskArgBuilder::from((nothing, &sep))
-            .into_iter()
-            .collect::<Vec<_>>(),
-        vec![]
-    );
-
-}
-
 pub fn build_arg_chunk<'a, T>(
     user_input: Option<&'a str>,
     task_template_arg: &'a TaskTemplateArg,
@@ -161,11 +80,6 @@ pub fn build_arg_chunk<'a, T>(
     )))
 }
 
-// TODO newtypes for public API for various unsafe user provided data.
-// TODO maybe consider something more compact than Vec<String> for return type
-// TODO handle arg.join_flag
-// TODO handle internal choices (e.g. None value override from choice)
-// TODO handle external choices (additional argument?)
 fn value_to_argtuple<'a>(
     value: Option<&'a str>,
     arg: &'a TaskTemplateArg,
@@ -624,6 +538,7 @@ mod test {
         ArgumentError,
         BuildArgError,
         LookupError,
+        TaskArgBuilder,
         build_arg_chunk,
     };
     use crate::registry::{
@@ -631,6 +546,87 @@ mod test {
         PreparedChoiceRegistry,
         ChoiceRegistryCache,
     };
+
+    #[test]
+    fn test_arg_builder() {
+        let sep = TaskTemplateArg { flag_joined: false, .. Default::default() };
+        let join = TaskTemplateArg { flag_joined: true, .. Default::default() };
+        let nothing = [None, None];
+        let flag = [Some("--flag"), None];
+        let value = [None, Some("value")];
+        let flag_value = [Some("--flag"), Some("value")];
+        let flagvalue = [Some("--flag="), Some("value")];
+
+        assert_eq!(
+            TaskArgBuilder::from((flag, &sep))
+                .into_iter()
+                .collect::<Vec<_>>(),
+            vec![
+                TaskArg { arg: "--flag".into(), .. Default::default() },
+            ]
+        );
+
+        assert_eq!(
+            TaskArgBuilder::from((value, &sep))
+                .into_iter()
+                .collect::<Vec<_>>(),
+            vec![
+                TaskArg { arg: "value".into(), .. Default::default() },
+            ]
+        );
+
+        assert_eq!(
+            TaskArgBuilder::from((flag, &join))
+                .into_iter()
+                .collect::<Vec<_>>(),
+            vec![
+                TaskArg { arg: "--flag".into(), .. Default::default() },
+            ]
+        );
+
+        assert_eq!(
+            TaskArgBuilder::from((value, &join))
+                .into_iter()
+                .collect::<Vec<_>>(),
+            vec![
+                TaskArg { arg: "value".into(), .. Default::default() },
+            ]
+        );
+
+        assert_eq!(
+            TaskArgBuilder::from((flag_value, &sep))
+                .into_iter()
+                .collect::<Vec<_>>(),
+            vec![
+                TaskArg { arg: "--flag".into(), .. Default::default() },
+                TaskArg { arg: "value".into(), .. Default::default() },
+            ]
+        );
+
+        assert_eq!(
+            TaskArgBuilder::from((flagvalue, &join))
+                .into_iter()
+                .collect::<Vec<_>>(),
+            vec![
+                TaskArg { arg: "--flag=value".into(), .. Default::default() },
+            ]
+        );
+
+        assert_eq!(
+            TaskArgBuilder::from((nothing, &join))
+                .into_iter()
+                .collect::<Vec<_>>(),
+            vec![]
+        );
+
+        assert_eq!(
+            TaskArgBuilder::from((nothing, &sep))
+                .into_iter()
+                .collect::<Vec<_>>(),
+            vec![]
+        );
+
+    }
 
     #[test]
     fn test_build_arg_external() {
