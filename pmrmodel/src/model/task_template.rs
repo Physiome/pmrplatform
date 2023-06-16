@@ -68,7 +68,7 @@ impl<'a> Iterator for TaskArgBuilder<'a> {
     }
 }
 
-pub fn build_arg_chunk<'a, T>(
+fn build_arg_chunk<'a, T>(
     user_input: Option<&'a str>,
     task_template_arg: &'a TaskTemplateArg,
     choice_registry_cache: &'a ChoiceRegistryCache<'a, T>,
@@ -86,10 +86,26 @@ pub fn build_arg_chunk<'a, T>(
     )))
 }
 
+type InputArgLookup<'a, T> = (
+    Option<&'a str>,
+    &'a TaskTemplateArg,
+    &'a ChoiceRegistryCache<'a, T>,
+);
+
+impl<'a, T> TryFrom<InputArgLookup<'a, T>> for TaskArgBuilder<'a> {
+    type Error = BuildArgError;
+
+    fn try_from(
+        item: InputArgLookup<'a, T>,
+    ) -> Result<TaskArgBuilder<'a>, BuildArgError> {
+        build_arg_chunk(item.0, item.1, item.2)
+    }
+}
+
 // TODO maybe make this part of TaskTemplate's impl?
 pub fn task_template_process_user_input<'a, T>(
-    task_template: &'a TaskTemplate,
     user_input: &'a UserInputMap,
+    task_template: &'a TaskTemplate,
     choice_registry_cache: &'a ChoiceRegistryCache<'a, T>,
 ) -> Result<Vec<TaskArgBuilder<'a>>, BuildArgError> {
     Ok(match task_template.args {
@@ -569,7 +585,6 @@ mod test {
         LookupError,
         TaskArgBuilder,
         UserInputMap,
-        build_arg_chunk,
         task_template_process_user_input,
     };
     use crate::registry::{
@@ -677,21 +692,21 @@ mod test {
         let cache = ChoiceRegistryCache::from(
             &registry as &dyn ChoiceRegistry<_>);
 
-        let chunk_iter = build_arg_chunk(
+        let chunk_iter = TaskArgBuilder::try_from((
             user_input,
             &task_template_arg,
             &cache,
-        );
+        ));
         let result = chunk_iter.unwrap().into_iter().collect::<Vec<_>>();
         assert_eq!(result, vec![
             TaskArg { arg: "owned_1".into(), .. Default::default() },
         ]);
 
-        let chunk_iter = build_arg_chunk(
+        let chunk_iter = TaskArgBuilder::try_from((
             Some("owned_2"),
             &task_template_arg,
             &cache,
-        );
+        ));
         let result = chunk_iter.unwrap().into_iter().collect::<Vec<_>>();
         assert_eq!(result, vec![
             TaskArg { arg: "owned_2".into(), .. Default::default() },
@@ -722,11 +737,11 @@ mod test {
         let registry = PreparedChoiceRegistry::new();
         let cache = ChoiceRegistryCache::from(
             &registry as &dyn ChoiceRegistry<_>);
-        let chunk_iter = build_arg_chunk(
+        let chunk_iter = TaskArgBuilder::try_from((
             Some("empty string"),
             &task_template_arg,
             &cache,
-        );
+        ));
         let result = chunk_iter.unwrap().into_iter().collect::<Vec<_>>();
         assert_eq!(result, vec![
             TaskArg { arg: "--flag".into(), .. Default::default() },
@@ -757,11 +772,11 @@ mod test {
         let cache = ChoiceRegistryCache::from(
             &registry as &dyn ChoiceRegistry<_>);
 
-        let chunk_iter = build_arg_chunk(
+        let chunk_iter = TaskArgBuilder::try_from((
             Some("value"),
             &arg_ext_choices,
             &cache,
-        );
+        ));
         assert_eq!(
             chunk_iter,
             Err(BuildArgError::LookupError(
@@ -769,11 +784,11 @@ mod test {
             ))
         );
 
-        let chunk_iter = build_arg_chunk(
+        let chunk_iter = TaskArgBuilder::try_from((
             Some("invalid"),
             &arg_with_choices,
             &cache,
-        );
+        ));
         assert_eq!(
             chunk_iter,
             Err(BuildArgError::LookupError(
@@ -864,8 +879,8 @@ mod test {
         let cache = ChoiceRegistryCache::from(
             &registry as &dyn ChoiceRegistry<_>);
         let processed = task_template_process_user_input(
-            &task_template,
             &user_input,
+            &task_template,
             &cache,
         );
         dbg!(&processed);
