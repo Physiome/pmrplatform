@@ -265,7 +265,8 @@ fn test_value_to_taskarg_standard_no_choices() {
         Ok([Some("--flag"), Some("flagged default value")]),
     );
 
-    // unexpected values (from user input)
+    // unexpected values (can be from user input, or default value NOT
+    // being coverted to a None value through its choices).
     assert_eq!(
         value_to_argtuple(Some("foo"), &default),
         Err(ArgumentError::UnexpectedValue(0)),
@@ -414,7 +415,10 @@ fn value_from_choices<'a>(
         Some(value) => value,
         None => match &arg.default {
             Some(value) => value,
-            None => return Err(LookupError::TaskTemplateArgNoDefault(arg.id)),
+            None => return match arg.prompt.is_none() {
+                true => Ok(None),
+                false => Err(LookupError::TaskTemplateArgNoDefault(arg.id)),
+            },
         }
     };
     match choices.as_ref().map(|c| c.get(value)) {
@@ -445,7 +449,8 @@ fn test_validate_choice_value_standard() {
         .. Default::default()
     };
 
-    // to emulate lookup of choices from registry cache
+    // to emulate lookup of choices from the argument through the
+    // registry cache
     fn choices(arg: &TaskTemplateArg) -> Option<MapToArgRef<'_>> {
         Some(arg
             .choices
@@ -569,6 +574,113 @@ fn test_validate_choice_values_from_list() {
         ),
     );
 
+}
+
+#[test]
+fn test_validate_choice_value_no_prompt_default() {
+    // to emulate usage of choice within an arg
+    let safe_arg = TaskTemplateArg {
+        default: Some("empty string".into()),
+        choices: serde_json::from_str(r#"[
+            {
+                "to_arg": null,
+                "label": "empty string"
+            }
+        ]"#).unwrap(),
+        choice_source: Some("".into()),
+        choice_fixed: true,
+        .. Default::default()
+    };
+
+    assert_eq!(
+        Ok(None),
+        value_from_choices(
+            None, &safe_arg, &choices(&safe_arg)),
+    );
+    assert_eq!(
+        Ok(None),
+        value_from_choices(
+            Some("empty string"), &safe_arg, &choices(&safe_arg)),
+    );
+    assert_eq!(
+        Err(LookupError::InvalidChoice(0, "invalid choice".into())),
+        value_from_choices(
+            Some("invalid choice"), &safe_arg, &choices(&safe_arg)),
+    );
+
+    // this arg _will_ return a value that will cause an eventual
+    // lookup error
+    let unsafe_arg = TaskTemplateArg {
+        default: Some("empty string".into()),
+        choices: serde_json::from_str(r#"[
+            {
+                "to_arg": "non-empty value",
+                "label": "empty string"
+            }
+        ]"#).unwrap(),
+        choice_source: Some("".into()),
+        choice_fixed: true,
+        .. Default::default()
+    };
+
+    // to emulate lookup of choices from registry cache; this will
+    // return some value and cause an unexpected input failure.
+    fn choices(arg: &TaskTemplateArg) -> Option<MapToArgRef<'_>> {
+        Some(arg
+            .choices
+            .as_ref()
+            .unwrap()
+            .into()
+        )
+    }
+
+    assert_eq!(
+        Ok("non-empty value".into()),
+        value_from_choices(
+            None, &unsafe_arg, &choices(&unsafe_arg)),
+    );
+    assert_eq!(
+        Ok("non-empty value".into()),
+        value_from_choices(
+            Some("empty string"), &unsafe_arg, &choices(&unsafe_arg)),
+    );
+    assert_eq!(
+        Err(LookupError::InvalidChoice(0, "invalid choice".into())),
+        value_from_choices(
+            Some("invalid choice"), &unsafe_arg, &choices(&unsafe_arg)),
+    );
+}
+
+#[test]
+fn test_choice_without_prompt() {
+    let prompt_choices = TaskTemplateArg {
+        prompt: None,
+        choice_source: Some("choices".into()),
+        .. Default::default()
+    };
+
+    let choices: Vec<String> = vec![
+        "choice 1".into(),
+        "choice 2".into(),
+    ];
+    assert_eq!(
+        Ok(None),
+        value_from_choices(
+            None,
+            &prompt_choices,
+            &Some((&choices).into()),
+        ),
+    );
+    // This will then flow onto value_to_argtuple and result in an
+    // unexpected value error.
+    assert_eq!(
+        Ok(Some("choice 1")),
+        value_from_choices(
+            Some("choice 1"),
+            &prompt_choices,
+            &Some((&choices).into()),
+        ),
+    );
 }
 
 #[cfg(test)]
@@ -751,6 +863,114 @@ mod test {
     }
 
     #[test]
+    fn test_build_arg_no_choices() {
+        let task_template_arg = TaskTemplateArg {
+            id: 1,
+            flag: Some("--flag".into()),
+            prompt: Some("Prompt for more user input".into()),
+            .. Default::default()
+        };
+        let registry = PreparedChoiceRegistry::new();
+        let cache = ChoiceRegistryCache::from(
+            &registry as &dyn ChoiceRegistry<_>);
+        let chunk_iter = TaskArgBuilder::try_from((
+            Some("some value"),
+            &task_template_arg,
+            &cache,
+        ));
+        let result = chunk_iter.unwrap().into_iter().collect::<Vec<_>>();
+        assert_eq!(result, vec![
+            TaskArg { arg: "--flag".into(), .. Default::default() },
+            TaskArg { arg: "some value".into(), .. Default::default() },
+        ]);
+    }
+
+    #[test]
+    fn test_build_arg_flag_only() {
+        // This is to show how a static value (e.g. subcommands) can be
+        // passed without prompting for the user (not through default
+        // without a prompt)
+        let task_template_arg = TaskTemplateArg {
+            id: 1,
+            flag: Some("Flag".into()),
+            .. Default::default()
+        };
+        let registry = PreparedChoiceRegistry::new();
+        let cache = ChoiceRegistryCache::from(
+            &registry as &dyn ChoiceRegistry<_>);
+        let chunk_iter = TaskArgBuilder::try_from((
+            None,
+            &task_template_arg,
+            &cache,
+        ));
+        let result = chunk_iter.unwrap().into_iter().collect::<Vec<_>>();
+        assert_eq!(result, vec![
+            TaskArg { arg: "Flag".into(), .. Default::default() },
+        ]);
+    }
+
+    #[test]
+    fn test_build_arg_default_mapped_none() {
+        // This test shows how a default value, if the choices are
+        // provided in a way that the default value is mapped back to
+        // None, no unexpected output is produced.
+        let task_template_arg = TaskTemplateArg {
+            id: 1,
+            default: Some("default".into()),
+            choices: serde_json::from_str(r#"[
+                {
+                    "to_arg": null,
+                    "label": "default"
+                }
+            ]"#).unwrap(),
+            choice_source: Some("".into()),
+            .. Default::default()
+        };
+        let registry = PreparedChoiceRegistry::new();
+        let cache = ChoiceRegistryCache::from(
+            &registry as &dyn ChoiceRegistry<_>);
+        let chunk_iter = TaskArgBuilder::try_from((
+            None,
+            &task_template_arg,
+            &cache,
+        ));
+        let result = chunk_iter.unwrap().into_iter().collect::<Vec<_>>();
+        assert_eq!(result, vec![]);
+    }
+
+    #[test]
+    fn test_build_arg_default_mapped_some() {
+        // This test shows how a default value, if the choices are
+        // provided in a way that the default value is mapped to some
+        // value, this results in an error.
+        let task_template_arg = TaskTemplateArg {
+            id: 1,
+            default: Some("default".into()),
+            choices: serde_json::from_str(r#"[
+                {
+                    "to_arg": "some value",
+                    "label": "default"
+                }
+            ]"#).unwrap(),
+            choice_source: Some("".into()),
+            .. Default::default()
+        };
+        let registry = PreparedChoiceRegistry::new();
+        let cache = ChoiceRegistryCache::from(
+            &registry as &dyn ChoiceRegistry<_>);
+        let chunk_iter = TaskArgBuilder::try_from((
+            None,
+            &task_template_arg,
+            &cache,
+        ));
+        assert_eq!(
+            chunk_iter,
+            Err(BuildArgError::ArgumentError(
+                ArgumentError::UnexpectedValue(1))),
+        );
+    }
+
+    #[test]
     fn test_build_arg_failure() {
         let arg_ext_choices = TaskTemplateArg {
             id: 1,
@@ -814,6 +1034,12 @@ mod test {
             final_task_template_arg_id: Some(4242),
             superceded_by_id: None,
             args: Some([
+                TaskTemplateArg {
+                    id: 12,
+                    task_template_id: 3,
+                    flag: Some("build".into()),
+                    .. Default::default()
+                },
                 TaskTemplateArg {
                     id: 123,
                     task_template_id: 3,
@@ -883,7 +1109,6 @@ mod test {
             &task_template,
             &cache,
         );
-        dbg!(&processed);
         assert!(processed.is_ok());
     }
 
