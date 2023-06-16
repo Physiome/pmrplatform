@@ -1,12 +1,11 @@
-use pmrmodel_base::task::TaskArg;
+use pmrmodel_base::task::{
+    Task,
+    TaskArg,
+};
 use pmrmodel_base::task_template::{
     MapToArgRef,
     TaskTemplate,
     TaskTemplateArg,
-};
-use serde::{
-    Deserialize,
-    Serialize,
 };
 use std::{
     collections::HashMap,
@@ -30,6 +29,16 @@ pub struct TaskArgBuilder<'a> {
     template: &'a TaskTemplateArg,
 }
 
+#[derive(Debug)]
+pub struct TaskArgBuilders<'a>(
+    std::iter::Flatten<std::vec::IntoIter<TaskArgBuilder<'a>>>);
+
+#[derive(Debug)]
+pub struct TaskBuilder<'a>{
+    task_template: &'a TaskTemplate,
+    arg_builders: TaskArgBuilders<'a>,
+}
+
 impl<'a> TaskArgBuilder<'a> {
     fn new(
         args: ArgChunk<'a>,
@@ -39,6 +48,23 @@ impl<'a> TaskArgBuilder<'a> {
             args: args,
             template: template,
         }
+    }
+}
+
+impl<'a> TaskBuilder<'a> {
+    fn to_task(self) -> Task {
+        Task {
+            bin_path: self.task_template.bin_path.clone(),
+            basedir: "".into(),  // TODO, determine what actualy goes there
+            args: Some(self.arg_builders.collect::<Vec<_>>().into()),
+            .. Default::default()
+	}
+    }
+}
+
+impl From<TaskBuilder<'_>> for Task {
+    fn from(item: TaskBuilder<'_>) -> Self {
+        item.to_task()
     }
 }
 
@@ -68,7 +94,15 @@ impl<'a> Iterator for TaskArgBuilder<'a> {
     }
 }
 
-fn build_arg_chunk<'a, T>(
+impl<'a> Iterator for TaskArgBuilders<'a> {
+    type Item = TaskArg;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+fn arg_build_arg_chunk<'a, T>(
     user_input: Option<&'a str>,
     task_template_arg: &'a TaskTemplateArg,
     choice_registry_cache: &'a ChoiceRegistryCache<'a, T>,
@@ -98,20 +132,19 @@ impl<'a, T> TryFrom<InputArgLookup<'a, T>> for TaskArgBuilder<'a> {
     fn try_from(
         item: InputArgLookup<'a, T>,
     ) -> Result<TaskArgBuilder<'a>, BuildArgError> {
-        build_arg_chunk(item.0, item.1, item.2)
+        arg_build_arg_chunk(item.0, item.1, item.2)
     }
 }
 
-// TODO maybe make this part of TaskTemplate's impl?
-pub fn task_template_process_user_input<'a, T>(
+fn task_build_arg_chunk<'a, T>(
     user_input: &'a UserInputMap,
     task_template: &'a TaskTemplate,
     choice_registry_cache: &'a ChoiceRegistryCache<'a, T>,
-) -> Result<Vec<TaskArgBuilder<'a>>, BuildArgError> {
-    Ok(match task_template.args {
+) -> Result<TaskArgBuilders<'a>, BuildArgError> {
+    Ok(TaskArgBuilders((match task_template.args {
         Some(ref args) => args.iter()
             .map(|arg| {
-                Ok(build_arg_chunk(
+                Ok(arg_build_arg_chunk(
                     user_input.get(&arg.id).map(|x| x.as_str()),
                     &arg,
                     choice_registry_cache,
@@ -119,7 +152,36 @@ pub fn task_template_process_user_input<'a, T>(
             })
             .collect::<Result<Vec<_>, BuildArgError>>()?,
         None => [].into()
-    })
+    }).into_iter().flatten()))
+}
+
+type InputTaskLookup<'a, T> = (
+    &'a UserInputMap,
+    &'a TaskTemplate,
+    &'a ChoiceRegistryCache<'a, T>,
+);
+
+impl<'a, T> TryFrom<InputTaskLookup<'a, T>> for TaskArgBuilders<'a> {
+    type Error = BuildArgError;
+
+    fn try_from(
+        item: InputTaskLookup<'a, T>,
+    ) -> Result<TaskArgBuilders<'a>, BuildArgError> {
+        task_build_arg_chunk(item.0, item.1, item.2)
+    }
+}
+
+impl<'a, T> TryFrom<InputTaskLookup<'a, T>> for TaskBuilder<'a> {
+    type Error = BuildArgError;
+
+    fn try_from(
+        item: InputTaskLookup<'a, T>,
+    ) -> Result<Self, BuildArgError> {
+        Ok(Self {
+            task_template: item.1,
+            arg_builders: task_build_arg_chunk(item.0, item.1, item.2)?,
+        })
+    }
 }
 
 fn value_to_argtuple<'a>(
@@ -689,15 +751,21 @@ mod test {
         TaskTemplate,
         TaskTemplateArg,
     };
-    use pmrmodel_base::task::TaskArg;
+    use pmrmodel_base::task::{
+        Task,
+        TaskArg,
+    };
 
-    use crate::model::task_template::{
+    use crate::error::{
         ArgumentError,
         BuildArgError,
         LookupError,
+    };
+    use crate::model::task_template::{
         TaskArgBuilder,
+        TaskArgBuilders,
+        TaskBuilder,
         UserInputMap,
-        task_template_process_user_input,
     };
     use crate::registry::{
         ChoiceRegistry,
@@ -1024,6 +1092,7 @@ mod test {
             (123, "The First Example Model".to_string()),
             (516, "src/README.md".to_string()),
             (894, "src/main/example.model".to_string()),
+            (2424, "no".to_string()),
             (4242, "yes".to_string()),
         ]);
         let task_template = TaskTemplate {
@@ -1074,6 +1143,26 @@ mod test {
                     choices: None,
                 },
                 TaskTemplateArg {
+                    id: 2424,
+                    task_template_id: 3,
+                    flag: None,
+                    flag_joined: false,
+                    prompt: Some("Dry run".into()),
+                    default: Some("no".into()),
+                    choice_fixed: true,
+                    choice_source: Some("".into()),
+                    choices: serde_json::from_str(r#"[
+                        {
+                            "to_arg": "--dry-run",
+                            "label": "yes"
+                        },
+                        {
+                            "to_arg": null,
+                            "label": "no"
+                        }
+                    ]"#).unwrap(),
+                },
+                TaskTemplateArg {
                     id: 4242,
                     task_template_id: 3,
                     flag: None,
@@ -1104,12 +1193,31 @@ mod test {
         registry.register("git_repo", files.into());
         let cache = ChoiceRegistryCache::from(
             &registry as &dyn ChoiceRegistry<_>);
-        let processed = task_template_process_user_input(
+        let processed = TaskArgBuilders::try_from((
             &user_input,
             &task_template,
             &cache,
-        );
-        assert!(processed.is_ok());
+        )).unwrap();
+        let args: Vec<String> = processed
+            .map(|a| a.arg.clone())
+            .collect();
+
+        assert_eq!(&args, &[
+            "build",
+            "--title=The First Example Model",
+            "--docsrc",
+            "src/README.md",
+            "src/main/example.model",
+            "-H",
+        ]);
+
+        let task = Task::from(TaskBuilder::try_from((
+            &user_input,
+            &task_template,
+            &cache,
+        )).unwrap());
+
+        assert_eq!(6, task.args.unwrap().len());
     }
 
 }
