@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use chrono::{LocalResult, TimeZone, Utc};
+use chrono::Utc;
 use pmrmodel_base::workspace_sync::{
     WorkspaceSyncRecord,
     WorkspaceSyncStatus,
@@ -9,14 +9,27 @@ use crate::backend::db::SqliteBackend;
 
 #[async_trait]
 pub trait WorkspaceSyncBackend {
-    async fn begin_sync(&self, workspace_id: i64) -> anyhow::Result<i64>;
-    async fn complete_sync(&self, id: i64, status: WorkspaceSyncStatus) -> anyhow::Result<bool>;
-    async fn get_workspaces_sync_records(&self, workspace_id: i64) -> anyhow::Result<Vec<WorkspaceSyncRecord>>;
+    async fn begin_sync(
+        &self,
+        workspace_id: i64,
+    ) -> Result<i64, sqlx::Error>;
+    async fn complete_sync(
+        &self,
+        id: i64,
+        status: WorkspaceSyncStatus,
+    ) -> Result<bool, sqlx::Error>;
+    async fn get_workspaces_sync_records(
+        &self,
+        workspace_id: i64,
+    ) -> Result<Vec<WorkspaceSyncRecord>, sqlx::Error>;
 }
 
 #[async_trait]
 impl WorkspaceSyncBackend for SqliteBackend {
-    async fn begin_sync(&self, workspace_id: i64) -> anyhow::Result<i64> {
+    async fn begin_sync(
+        &self,
+        workspace_id: i64,
+    ) -> Result<i64, sqlx::Error> {
         let ts = Utc::now().timestamp();
 
         let id = sqlx::query!(
@@ -35,7 +48,11 @@ impl WorkspaceSyncBackend for SqliteBackend {
         Ok(id)
     }
 
-    async fn complete_sync(&self, id: i64, status: WorkspaceSyncStatus) -> anyhow::Result<bool> {
+    async fn complete_sync(
+        &self,
+        id: i64,
+        status: WorkspaceSyncStatus,
+    ) -> Result<bool, sqlx::Error> {
         let ts = Utc::now().timestamp();
         let status_ = status as i32;
 
@@ -56,7 +73,10 @@ impl WorkspaceSyncBackend for SqliteBackend {
         Ok(rows_affected > 0)
     }
 
-    async fn get_workspaces_sync_records(&self, workspace_id: i64) -> anyhow::Result<Vec<WorkspaceSyncRecord>> {
+    async fn get_workspaces_sync_records(
+        &self,
+        workspace_id: i64,
+    ) -> Result<Vec<WorkspaceSyncRecord>, sqlx::Error> {
         let recs = sqlx::query_as!(WorkspaceSyncRecord,
             r#"
     SELECT id, workspace_id, start, end, status

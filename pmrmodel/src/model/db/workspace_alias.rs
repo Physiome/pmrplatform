@@ -6,8 +6,15 @@ use crate::backend::db::SqliteBackend;
 
 #[async_trait]
 pub trait WorkspaceAliasBackend {
-    async fn add_alias(&self, workspace_id: i64, alias: &str) -> anyhow::Result<i64>;
-    async fn get_aliases(&self, workspace_id: i64) -> anyhow::Result<Vec<WorkspaceAliasRecord>>;
+    async fn add_alias(
+        &self,
+        workspace_id: i64,
+        alias: &str,
+    ) -> Result<i64, sqlx::Error>;
+    async fn get_aliases(
+        &self,
+        workspace_id: i64,
+    ) -> Result<Vec<WorkspaceAliasRecord>, sqlx::Error>;
 }
 
 pub struct WorkspaceAliasRecord {
@@ -35,7 +42,7 @@ impl WorkspaceAliasBackend for SqliteBackend {
         &self,
         workspace_id: i64,
         alias: &str
-    ) -> anyhow::Result<i64> {
+    ) -> Result<i64, sqlx::Error> {
         let ts = Utc::now().timestamp();
         let id = sqlx::query!(
             r#"
@@ -54,7 +61,10 @@ impl WorkspaceAliasBackend for SqliteBackend {
         Ok(id)
     }
 
-    async fn get_aliases(&self, workspace_id: i64) -> anyhow::Result<Vec<WorkspaceAliasRecord>> {
+    async fn get_aliases(
+        &self,
+        workspace_id: i64,
+    ) -> Result<Vec<WorkspaceAliasRecord>, sqlx::Error> {
         let recs = sqlx::query_as!(WorkspaceAliasRecord,
             r#"
     SELECT id, workspace_id, alias, created

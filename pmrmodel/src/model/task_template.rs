@@ -1218,6 +1218,7 @@ mod test {
         )).unwrap());
 
         assert_eq!(6, task.args.unwrap().len());
+        assert_eq!(task.bin_path, task_template.bin_path);
     }
 
 }

@@ -23,7 +23,7 @@ impl<DB: sqlx::Database> Backend<Pool<DB>> {
         }
     }
 
-    pub async fn from_url(url: &str) -> anyhow::Result<Self> {
+    pub async fn from_url(url: &str) -> Result<Self, sqlx::Error> {
         let pool = Pool::<DB>::connect(url).await?;
         Ok(Self::bind(pool))
     }
@@ -32,7 +32,7 @@ impl<DB: sqlx::Database> Backend<Pool<DB>> {
     pub async fn run_migration_profile(
         self,
         profile: Profile
-    ) -> anyhow::Result<Self>
+    ) -> Result<Self, sqlx::Error>
     where
         <DB as sqlx::Database>::Connection: sqlx::migrate::Migrate,
     {

@@ -316,19 +316,29 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendW<'a, P> {
                 let mut remote = repo.find_remote("origin")?;
                 match remote.fetch(&[] as &[&str], None, None) {
                     Ok(_) => info!("Repository synchronized"),
-                    Err(e) => fail_sync(self.backend, sync_id, format!("Failed to synchronize: {}", e)).await?,
+                    Err(e) => {
+                        fail_sync(self.backend, sync_id).await?;
+                        bail!("Failed to synchronize: {}", e)
+                    },
                 };
-            },
-            Err(ref e) if e.class() == git2::ErrorClass::Repository => fail_sync(
-                self.backend, sync_id, format!(
-                    "Invalid data at local {:?} - expected bare repo", repo_dir)).await?,
+            }
+            Err(ref e) if e.class() == git2::ErrorClass::Repository => {
+                fail_sync(self.backend, sync_id).await?;
+                bail!(
+                    "Invalid data at local {:?} - expected bare repo",
+                    repo_dir,
+                )
+            }
             Err(_) => {
                 info!("Cloning new repository at {:?}...", repo_dir);
                 let mut builder = git2::build::RepoBuilder::new();
                 builder.bare(true);
                 match builder.clone(&self.workspace.url, &repo_dir) {
                     Ok(_) => info!("Repository cloned"),
-                    Err(e) => fail_sync(self.backend, sync_id, format!("Failed to clone: {}", e)).await?,
+                    Err(e) => {
+                        fail_sync(self.backend, sync_id).await?;
+                        bail!("Failed to clone: {}", e)
+                    },
                 };
             }
         }
@@ -589,28 +599,28 @@ mod tests {
 
         #[async_trait]
         impl WorkspaceTagBackend for Backend {
-            async fn index_workspace_tag(&self, workspace_id: i64, name: &str, commit_id: &str) -> anyhow::Result<i64>;
-            async fn get_workspace_tags(&self, workspace_id: i64) -> anyhow::Result<Vec<WorkspaceTagRecord>>;
+            async fn index_workspace_tag(&self, workspace_id: i64, name: &str, commit_id: &str) -> Result<i64, sqlx::Error>;
+            async fn get_workspace_tags(&self, workspace_id: i64) -> Result<Vec<WorkspaceTagRecord>, sqlx::Error>;
         }
 
         #[async_trait]
         impl WorkspaceBackend for Backend {
             async fn add_workspace(
                 &self, url: &str, description: &str, long_description: &str
-            ) -> anyhow::Result<i64>;
+            ) -> Result<i64, sqlx::Error>;
             async fn update_workspace(
                 &self, id: i64, description: &str, long_description: &str
-            ) -> anyhow::Result<bool>;
-            async fn list_workspaces(&self) -> anyhow::Result<Vec<WorkspaceRecord>>;
-            async fn get_workspace_by_id(&self, id: i64) -> anyhow::Result<WorkspaceRecord>;
-            async fn get_workspace_by_url(&self, url: &str) -> anyhow::Result<WorkspaceRecord>;
+            ) -> Result<bool, sqlx::Error>;
+            async fn list_workspaces(&self) -> Result<Vec<WorkspaceRecord>, sqlx::Error>;
+            async fn get_workspace_by_id(&self, id: i64) -> Result<WorkspaceRecord, sqlx::Error>;
+            async fn get_workspace_by_url(&self, url: &str) -> Result<WorkspaceRecord, sqlx::Error>;
         }
 
         #[async_trait]
         impl WorkspaceSyncBackend for Backend {
-            async fn begin_sync(&self, workspace_id: i64) -> anyhow::Result<i64>;
-            async fn complete_sync(&self, id: i64, status: WorkspaceSyncStatus) -> anyhow::Result<bool>;
-            async fn get_workspaces_sync_records(&self, workspace_id: i64) -> anyhow::Result<Vec<WorkspaceSyncRecord>>;
+            async fn begin_sync(&self, workspace_id: i64) -> Result<i64, sqlx::Error>;
+            async fn complete_sync(&self, id: i64, status: WorkspaceSyncStatus) -> Result<bool, sqlx::Error>;
+            async fn get_workspaces_sync_records(&self, workspace_id: i64) -> Result<Vec<WorkspaceSyncRecord>, sqlx::Error>;
         }
     }
 
