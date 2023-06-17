@@ -13,10 +13,7 @@ pub trait ChoiceRegistry<T> {
 
 #[cfg(test)]
 mod test {
-    use pmrmodel_base::task_template::{
-        MapToArgRef,
-        TaskTemplateArg,
-    };
+    use pmrmodel_base::task_template::TaskTemplateArg;
     use crate::registry::{
         ChoiceRegistry,
         PreparedChoiceRegistry,

@@ -1,6 +1,5 @@
 use pmrmodel_base::task_template::{
     MapToArgRef,
-    TaskTemplateArg,
     TaskTemplateArgChoices,
 };
 use std::collections::HashMap;
@@ -64,7 +63,6 @@ impl PreparedChoiceRegistry {
 #[cfg(test)]
 mod test {
     use crate::registry::ChoiceRegistry;
-    use crate::registry::ChoiceRegistryCache;
     use crate::registry::PreparedChoiceRegistry;
 
     #[test]

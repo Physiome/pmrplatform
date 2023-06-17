@@ -10,5 +10,4 @@ pub mod test;
 pub mod utils;
 
 extern crate chrono;
-#[macro_use]
 extern crate log;
