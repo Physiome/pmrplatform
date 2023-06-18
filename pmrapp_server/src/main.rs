@@ -5,7 +5,7 @@ use pmrapp_server::http;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    dotenv::dotenv().ok();
+    dotenvy::dotenv().ok();
     stderrlog::new()
         .module(module_path!())
         .verbosity(2)
@@ -14,6 +14,6 @@ async fn main() -> anyhow::Result<()> {
         .unwrap();
     let config = Config::parse();
     let backend = SqliteBackend::from_url(&config.pmrapp_db_url).await?;
-    http::serve(config, backend).await?;
+    http::serve(config, backend).await;
     Ok(())
 }

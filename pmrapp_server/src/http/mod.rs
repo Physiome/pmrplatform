@@ -46,7 +46,7 @@ pub struct AppContext {
 }
 
 
-pub async fn serve(config: Config, backend: SqliteBackend) -> anyhow::Result<()> {
+pub async fn serve(config: Config, backend: SqliteBackend) {
     let socket: SocketAddr = ([0, 0, 0, 0], config.http_port).into();
     let app = router()
         .nest("/workspace/", workspace::router())
@@ -65,7 +65,6 @@ pub async fn serve(config: Config, backend: SqliteBackend) -> anyhow::Result<()>
         .serve(app.into_make_service())
         .await
         .unwrap();
-    Ok(())
 }
 
 

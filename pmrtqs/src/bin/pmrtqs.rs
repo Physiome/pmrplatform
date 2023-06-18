@@ -107,7 +107,7 @@ enum Choice {
 
 #[async_std::main]
 async fn main() -> anyhow::Result<()> {
-    dotenv::dotenv().ok();
+    dotenvy::dotenv().ok();
     let args = Cli::parse();
     stderrlog::new()
         .module(module_path!())
