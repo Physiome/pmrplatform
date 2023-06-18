@@ -105,7 +105,7 @@ fn fetch_envvar(key: &str) -> anyhow::Result<String> {
 #[async_std::main]
 #[paw::main]
 async fn main(args: Args) -> anyhow::Result<()> {
-    dotenv::dotenv().ok();
+    dotenvy::dotenv().ok();
     stderrlog::new()
         .module(module_path!())
         .verbosity(args.verbose + 1)

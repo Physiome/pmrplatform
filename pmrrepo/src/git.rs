@@ -1,4 +1,3 @@
-use anyhow::bail;
 use async_recursion::async_recursion;
 use futures::stream::StreamExt;
 use futures::stream::futures_unordered::FuturesUnordered;
@@ -41,6 +40,13 @@ use pmrmodel::model::workspace_sync::{
     fail_sync,
 };
 use pmrmodel::model::db::workspace_tag::WorkspaceTagBackend;
+
+use crate::error::{
+    ContentError,
+    ExecutionError,
+    PathError,
+    PmrRepoError,
+};
 
 pub struct PmrBackendW<'a, P: PmrBackend> {
     backend: &'a P,
@@ -93,7 +99,7 @@ fn blob_to_info(blob: &Blob, path: Option<&str>) -> ObjectInfo {
     })
 }
 
-fn tree_to_info(repo: &Repository, tree: &Tree) -> ObjectInfo {
+fn tree_to_info(_repo: &Repository, tree: &Tree) -> ObjectInfo {
     ObjectInfo::TreeInfo(
         TreeInfo {
             filecount: tree.len() as u64,
@@ -259,14 +265,42 @@ pub async fn stream_blob(mut writer: impl Write, blob: &Blob<'_>) -> std::result
     writer.write(blob.content())
 }
 
-fn get_submodule_target(
-    repo: &Repository,
-    tree: &Tree,
+fn get_submodule_target<P: PmrBackend>(
+    pmrbackend: &PmrBackendWR<P>,
+    commit: &Commit,
     path: &str,
-) -> anyhow::Result<String> {
-    let obj = tree.get_path(Path::new(".gitmodules"))?.to_object(&repo)?;
-    let blob = std::str::from_utf8(obj.as_blob().unwrap().content())?;
-    let config = gix_config::File::try_from(blob)?;
+) -> Result<String, PmrRepoError> {
+    let obj = commit
+        .tree()?
+        .get_path(Path::new(".gitmodules"))?
+        .to_object(&pmrbackend.repo)?;
+    let blob = match std::str::from_utf8(
+        obj.as_blob()
+        .ok_or(PmrRepoError::ContentError(ContentError::Invalid {
+            workspace_id: pmrbackend.workspace.id,
+            oid: commit.id().to_string(),
+            path: path.to_string(),
+            msg: format!("expected to be a blob"),
+        }))?
+        .content()
+    ) {
+        Ok(blob) => blob,
+        Err(e) => return Err(ContentError::Invalid {
+            workspace_id: pmrbackend.workspace.id,
+            oid: commit.id().to_string(),
+            path: path.to_string(),
+            msg: format!("error parsing `.gitmodules`: {}", e),
+        }.into())
+    };
+    let config = match gix_config::File::try_from(blob) {
+        Ok(config) => config,
+        Err(e) => return Err(ContentError::Invalid {
+            workspace_id: pmrbackend.workspace.id,
+            oid: commit.id().to_string(),
+            path: path.to_string(),
+            msg: format!("error parsing `.gitmodules`: {}", e),
+        }.into())
+    };
     for rec in config.sections_and_ids() {
         match rec.0.value("path") {
             Some(rec_path) => {
@@ -277,7 +311,11 @@ fn get_submodule_target(
             None => {},
         }
     }
-    bail!("no submodule declared at {}", path)
+    Err(PathError::NotSubmodule {
+        workspace_id: pmrbackend.workspace.id,
+        oid: commit.id().to_string(),
+        path: path.to_string(),
+    }.into())
 }
 
 // If trait aliases <https://github.com/rust-lang/rust/issues/41517> are stabilized:
@@ -304,7 +342,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendW<'a, P> {
         }
     }
 
-    pub async fn git_sync_workspace(self) -> anyhow::Result<PmrBackendWR<'a, P>> {
+    pub async fn git_sync_workspace(self) -> Result<PmrBackendWR<'a, P>, PmrRepoError> {
         let repo_dir = self.git_root.join(self.workspace.id.to_string());
         let repo_check = Repository::open_bare(&repo_dir);
 
@@ -318,16 +356,21 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendW<'a, P> {
                     Ok(_) => info!("Repository synchronized"),
                     Err(e) => {
                         fail_sync(self.backend, sync_id).await?;
-                        bail!("Failed to synchronize: {}", e)
+                        return Err(ExecutionError::Synchronize {
+                            workspace_id: self.workspace.id,
+                            remote: self.workspace.url.clone(),
+                            msg: e.to_string(),
+                        }.into())
                     },
                 };
             }
             Err(ref e) if e.class() == git2::ErrorClass::Repository => {
                 fail_sync(self.backend, sync_id).await?;
-                bail!(
-                    "Invalid data at local {:?} - expected bare repo",
-                    repo_dir,
-                )
+                return Err(ExecutionError::Synchronize {
+                    workspace_id: self.workspace.id,
+                    remote: self.workspace.url.clone(),
+                    msg: "expected local underlying repo to be a bare repo".to_string(),
+                }.into())
             }
             Err(_) => {
                 info!("Cloning new repository at {:?}...", repo_dir);
@@ -337,7 +380,11 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendW<'a, P> {
                     Ok(_) => info!("Repository cloned"),
                     Err(e) => {
                         fail_sync(self.backend, sync_id).await?;
-                        bail!("Failed to clone: {}", e)
+                        return Err(ExecutionError::Synchronize {
+                            workspace_id: self.workspace.id,
+                            remote: self.workspace.url.clone(),
+                            msg: format!("fail to clone: {}", e),
+                        }.into())
                     },
                 };
             }
@@ -357,7 +404,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         backend: &'a P,
         git_root: PathBuf,
         workspace: &'a WorkspaceRecord,
-    ) -> anyhow::Result<Self> {
+    ) -> Result<Self, PmrRepoError> {
         let repo_dir = git_root.join(workspace.id.to_string());
         let repo = Repository::open_bare(repo_dir)?;
         Ok(Self {
@@ -368,7 +415,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         })
     }
 
-    pub async fn index_tags(&self) -> anyhow::Result<()> {
+    pub async fn index_tags(&self) -> Result<(), PmrRepoError> {
         let backend = self.backend;
         let workspace = &self.workspace;
 
@@ -394,7 +441,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         Ok(())
     }
 
-    pub async fn get_obj_by_spec(&self, spec: &str) -> anyhow::Result<()> {
+    pub async fn get_obj_by_spec(&self, spec: &str) -> Result<(), PmrRepoError> {
         let git_root = &self.git_root;
         let workspace = &self.workspace;
         let repo_dir = git_root.join(workspace.id.to_string());
@@ -410,20 +457,26 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         &self,
         commit_id: Option<&'a str>,
         path: Option<&'a str>,
-    ) -> anyhow::Result<GitResult> {
+    ) -> Result<GitResult, PmrRepoError> {
         // TODO the default value should be the default (main?) branch.
         // TODO the sync procedure should fast forward of sort
         // TODO the model should have a field for main branch
         let obj = self.repo.revparse_single(commit_id.unwrap_or("HEAD"))?;
+        let id = obj.id();
 
         // TODO streamline this a bit.
         match obj.kind() {
-            Some(ObjectType::Commit) => {
-                info!("Found {} {}", obj.kind().unwrap().str(), obj.id());
+            Some(kind) if kind == ObjectType::Commit => {
+                info!("Found {} {}", kind, id);
             }
-            Some(_) | None => bail!("'{}' does not refer to a valid commit", commit_id.unwrap_or(""))
+            Some(_) | None => return Err(PathError::NoSuchCommit {
+                workspace_id: self.workspace.id,
+                oid: commit_id.unwrap_or("HEAD?").into(),
+            }.into())
         }
-        let commit = obj.into_commit().unwrap();
+        let commit = obj
+            .into_commit()
+            .expect(&format!("libgit2 said {:?} was a commit?", id));
         let tree = commit.tree()?;
         let location: String;
         let location_commit: String;
@@ -457,8 +510,8 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
                         Some(ObjectType::Commit) => {
                             info!("entry at {:?} a commit", entry.id());
                             location = get_submodule_target(
-                                &self.repo,
-                                &commit.tree()?,
+                                &self,
+                                &commit,
                                 curr_path.to_str().unwrap(),
                             )?;
                             location_commit = entry.id().to_string();
@@ -499,20 +552,26 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         &self,
         writer: impl Write + 'async_recursion,
         git_result: &GitResult<'a>,
-    ) -> anyhow::Result<usize> {
+    ) -> Result<usize, PmrRepoError> {
         match &git_result.target {
             GitResultTarget::Object(object) => match object.kind() {
                 Some(ObjectType::Blob) => {
                     match object.as_blob() {
-                        Some(blob) => {
-                            Ok(stream_blob(writer, blob).await?)
-                        }
-                        None => bail!("failed to get blob from object")
+                        Some(blob) => Ok(stream_blob(writer, blob).await?),
+                        None => Err(ContentError::Invalid {
+                            workspace_id: self.workspace.id,
+                            oid: git_result.commit.id().to_string(),
+                            path: git_result.path.to_string(),
+                            msg: format!("expected to be a blob"),
+                        }.into())
                     }
                 }
-                Some(_) | None => {
-                    bail!("target is not a git blob")
-                }
+                Some(_) | None => Err(ContentError::Invalid {
+                    workspace_id: self.workspace.id,
+                    oid: git_result.commit.id().to_string(),
+                    path: git_result.path.to_string(),
+                    msg: format!("expected to be a blob"),
+                }.into())
             },
             GitResultTarget::SubRepoPath { location, commit, path } => {
                 let workspace = WorkspaceBackend::get_workspace_by_url(
@@ -532,7 +591,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         &self,
         commit_id: Option<&str>,
         _path: Option<&'a str>,
-    ) -> anyhow::Result<ObjectInfo> {
+    ) -> Result<ObjectInfo, PmrRepoError> {
         // TODO the default value should be the default (main?) branch.
         // TODO the model should have a field for main branch
         let obj = self.repo.revparse_single(commit_id.unwrap_or("HEAD"))?;
@@ -542,7 +601,10 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
             Some(ObjectType::Commit) => {
                 info!("Found {} {}", obj.kind().unwrap().str(), obj.id());
             },
-            Some(_) | None => bail!("'{}' does not refer to a valid commit", commit_id.unwrap_or("")),
+            Some(_) | None => return Err(PathError::NoSuchCommit {
+                workspace_id: self.workspace.id,
+                oid: commit_id.unwrap_or("HEAD?").to_string(),
+            }.into())
         }
         let mut revwalk = self.repo.revwalk()?;
         revwalk.set_sorting(git2::Sort::TIME)?;
@@ -627,7 +689,7 @@ mod tests {
     // helper to deal with moves of the workspace record.
     async fn git_sync_helper(
         mock_backend: &MockBackend, id: i64, url: &str, git_root: &TempDir
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), PmrRepoError> {
         let workspace = WorkspaceRecord { id: id, url: url.to_string(), description: None };
         let pmrbackend = PmrBackendW::new(mock_backend, git_root.path().to_owned().to_path_buf(), &workspace);
         pmrbackend.git_sync_workspace().await?;
@@ -684,8 +746,9 @@ mod tests {
         // where remote couldn't be found or invalid.
         let td = TempDir::new().unwrap();
         let err_msg = format!(
-            "Failed to clone: could not find repository from '{}'; \
-            class=Repository (6); code=NotFound (-3)", td.path().to_str().unwrap());
+            "ExecutionError: workspace `{0}`: failed to synchronize with \nremote `{1}`: \
+            fail to clone: could not find repository from '{1}'; \
+            class=Repository (6); code=NotFound (-3)", 2, td.path().to_str().unwrap());
         let mut mock_backend = MockBackend::new();
         mock_backend.expect_begin_sync()
             .times(1)
@@ -737,7 +800,10 @@ mod tests {
             .returning(|_, _| Ok(true));
 
         let failed_sync = git_sync_helper(&mock_backend, 42, url, &git_root).await;
-        let err_msg = "Failed to synchronize: unsupported URL protocol; class=Net (12)";
+        let err_msg = format!(
+            "ExecutionError: workspace `42`: failed to synchronize with \n\
+            remote `{}`: unsupported URL protocol; class=Net (12)", url
+        );
         assert_eq!(failed_sync.unwrap_err().to_string(), err_msg);
     }
 
@@ -748,7 +814,6 @@ mod tests {
 
         let git_root_dir = TempDir::new().unwrap();
         let repo_dir = git_root_dir.path().join("10");
-        let err_msg = format!("Invalid data at local {:?} - expected bare repo", repo_dir);
         let (_, repo) = crate::test::repo_init(None, Some(&repo_dir), false, None);
         let (_, _) = crate::test::commit(&repo, vec![("some_file", "")]);
 
@@ -764,6 +829,11 @@ mod tests {
         let failed_sync = git_sync_helper(
             &mock_backend, 10, origin.path().to_str().unwrap(), &git_root_dir
         ).await.unwrap_err();
+        let err_msg = format!(
+            "ExecutionError: workspace `10`: failed to synchronize with \n\
+            remote `{}`: expected local underlying repo to be a bare repo",
+            origin.path().display(),
+        );
         assert_eq!(failed_sync.to_string(), err_msg);
     }
 

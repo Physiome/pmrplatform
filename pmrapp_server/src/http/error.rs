@@ -22,7 +22,7 @@ pub enum Error {
     #[error("500 Internal Server Error")]
     Sqlx(#[from] sqlx::Error),
     #[error("500 Internal Server Error")]
-    Anyhow(#[from] anyhow::Error),
+    PmrRepoError(#[from] pmrrepo::error::PmrRepoError),
 }
 
 
@@ -41,8 +41,8 @@ impl Error {
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
         let body = match self {
-            Self::Anyhow(ref e) => {
-                log::error!("Unhandled error: {:?}", e);
+            Self::PmrRepoError(ref e) => {
+                log::info!("repo error: {:?}", e);
             },
             _ => (),
         };
