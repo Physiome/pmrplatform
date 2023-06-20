@@ -1,29 +1,40 @@
--- Task runner should be on a separate project
--- allocate tasks through API?
-
-CREATE TABLE IF NOT EXISTS task_basedir (
-    id INTEGER PRIMARY KEY NOT NULL,
-    path TEXT NOT NULL
-);
-
--- workdir and tmpdir implied?
--- need a final dir, to ensure that only workdir entries be moved once process complete
--- also this prevents loss of data on job rerun that fail
-
--- TODO also all of this lies independant of workspace data - this may be a good thing
--- to keep the project independant, but integration becomes an interesting problem...
+-- Schema definition for pmrtqs
+--
+-- These definitions are done in a way that is completely independent of
+-- the workspace/exposure definitions, as pmrtqs is designed without any
+-- direct coupling to other projects - a bridge will be required for the
+-- actual integration most likely.
+--
+-- The bridge to make this be the task setup and task runner for the
+-- actual repository will need to consider the following still:
+--
+-- - Profiles should be a collection of task templates.
+-- - The exposure file will point to a collection of task templates, but
+--   how does this relate to profiles.  Would it reference the profiles
+--   directly, or would it continue to reference the set of task
+--   templates that was choosen at the time it was made (like in current
+--   PMR2, as its ExposureFileType configuration is rather analogous to
+--   this), or some combination of this?
+-- - Is the `task.basedir` going to be the specific path for the given
+--   exposure file (and the system will reference the image path?), or
+--   should this be organized in some other way?
+-- - How much raw files be stored under this?
 
 CREATE TABLE IF NOT EXISTS task (
     id INTEGER PRIMARY KEY NOT NULL,
     bin_path TEXT NOT NULL,
     pid INTEGER,
+    create_ts INTEGER NOT NULL,
     start_ts INTEGER,
     stop_ts INTEGER,
     exit_status INTEGER,
-    -- TODO figure out if we link the above?
-    -- task_basedir_id NOT NULL,
-    -- FOREIGN KEY(task_basedir_id) REFERENCES task_basedir(id)
+    -- `basedir` will contain source, build and image directory
     basedir TEXT NOT NULL
+    -- One thing to note is that multiple tasks may reference the same
+    -- basedir, one way this can happen is where basedir references the
+    -- corresponding workspace/exposure directory where the generated
+    -- artefacts are needed, and that a rebuild is required.  This will
+    -- likely need to be revisited later (e.g. have an install dir too?)
 );
 
 CREATE INDEX task__pid ON task(pid);
@@ -41,50 +52,94 @@ CREATE INDEX task_arg__task_id ON task_arg(task_id);
 CREATE TABLE IF NOT EXISTS task_template (
     id INTEGER PRIMARY KEY NOT NULL,
     bin_path TEXT NOT NULL,
-    -- version_id only identifies the program version, we are not going to deal
-    -- with the program's own dependency tree - NixOS implemented that so not
-    -- reinventing/replicating that work here.
+    -- `version_id` should only identify the program version at bin_path
+    -- - pmrtqs is not designed to address the problem where the program
+    -- having its own own dependency tree - given that other projects
+    -- (e.g NixOS) have solutions for that, should integrators need that
+    -- level of version management, use those tools to build the target
+    -- binaries and reference the build identifiers as the version_id.
+    -- No attempt will be made to solve this problem within here.
     version_id TEXT NOT NULL,
     created_ts INTEGER NOT NULL,
-    -- if the following is present, it has been finalized and ready for use
+    -- `final_task_template_arg_id` stores the `task_template_arg.id`
+    -- that marks the end of this sequential id.  Will need to revisit
+    -- if the primary key is changed, in any case this is the current
+    -- way to determine if this task_template is ready for use.
     final_task_template_arg_id INTEGER,
     superceded_by_id INTEGER
 );
 
--- how do we generate a UI from this?
-
 CREATE TABLE IF NOT EXISTS task_template_arg (
     id INTEGER PRIMARY KEY NOT NULL,
     task_template_id INTEGER NOT NULL,
-    flag TEXT,     -- this is for the flag argument that precede this
-
-    -- whether or not the flag is joined with the supplied argument,
-    -- e.g. those ending with = or CMake styled flags.
+    -- `flag` is for a static flag that precedes the user provided
+    -- argument, or simply be a static argument (e.g. to specify a
+    -- subcommand).
+    flag TEXT,
+    -- `flag_joined` specifies whether or not the flag value is joined
+    -- with the user provided argument, e.g. for flags ending with = or
+    -- cmake styled configuration flags.
     flag_joined BOOLEAN NOT NULL,
-
-    prompt TEXT,   -- NULL implies auto?
-    'default' TEXT,  -- if no prompt and default, this is required?
-    choice_fixed BOOLEAN NOT NULL, -- if choice is fixed, user can't edit
-    choice_source TEXT, -- if NULL, ignore usage of choices
-                        -- if empty string, use table below
-                        -- otherwise, programmatically defined?
-    -- fixed args vs generated args vs user supplied args
-    -- what about calculated args?
+    -- `prompt` is the prompt that will be passed to the users for the
+    -- request of user arguments.  NULL value implies that no arguments
+    -- will be requested and that _any_ arguments generated will result
+    -- in an `UnexpectedArgument` error by the system.  Empty string
+    -- will not generate this error but will not result in a prompt
+    -- being generated for the user either.
+    prompt TEXT,
+    -- `default` is the default value to be treated as the user input
+    -- should no value be provided by the user (in the form of NULL or
+    -- an empty string).  If there is no prompt this will still be used
+    -- to generate an argument (as if this was a user provided value),
+    -- which if filtered through choice does not result in a NULL, an
+    -- `UnexpectedArgument` will be generated by the validation system.
+    'default' TEXT,
+    -- `choice_fixed` determines if the provided choices may be ignored
+    -- by the user, which would allow them to pass through any unmatched
+    -- values to the underlying argument as-is if set to false.
+    -- Otherwise, user provided value must be one of the choices that
+    -- was provided.
+    choice_fixed BOOLEAN NOT NULL,
+    -- `choice_source` determines if choices will be provided.
+    -- NULL
+    --     - no choices will be provided.
+    -- empty string
+    --     - choices will be sourced from the following table
+    -- any other string
+    --     - will be sourced from the choice registry generated during
+    --       runtime stage.
+    choice_source TEXT,
+    -- The most common argument types may be done as the following:
+    --
+    -- - Fixed arguments can be done using `flag`.
+    -- - Generated arguments effectively can be done by referencing a
+    --   runtime choice_source, that generates a single choice that
+    --   take the value specified at default, with an empty string
+    --   as the prompt (to not prompt the user for input).
+    -- - Calculated values can be done using the appropriate registry
+    --   to provide the calcuated value at the specific default vlaue
+    --   defined above.
+    -- - User supplied arguments that are not constrained to a choice
+    --   should be locked down using `flag_joined` set to TRUE, so that
+    --   it can't be intentionally used to enable unwanted flags.
     FOREIGN KEY(task_template_id) REFERENCES task_template(id)
 );
 
 CREATE TABLE IF NOT EXISTS task_template_arg_choice (
     id INTEGER PRIMARY KEY NOT NULL,
     task_template_arg_id INTEGER NOT NULL,
-    to_arg TEXT,          -- the value this gets mapped to
-    label TEXT NOT NULL,  -- the user facing label
+    -- `to_arg` is the value that gets mapped to - note that this is an
+    -- optional value so that arguments with a fixed default with choice
+    -- source set can be used to calculate whether or not the target
+    -- value can be omitted (e.g. for use to determine whether a flag is
+    -- set or not).
+    to_arg TEXT,
+    -- `label` is the user facing label, and is the raw value that gets
+    -- submitted and filtered - the default value will also be treated
+    -- as such (i.e. default value identical to the label will be
+    -- filtered into the `to_arg` value).
+    label TEXT NOT NULL,
     FOREIGN KEY(task_template_arg_id) REFERENCES task_template_arg(id)
 );
 
 CREATE INDEX task_template_arg_choice__task_template_arg_id ON task_template_arg_choice(task_template_arg_id);
-
--- profiles will be a collection of task templates?
--- exposure file will point to a collection of task templates, but what about relation to profiles?
-
--- need to determine how the basedir map to exposure/file/
--- how much should be stored about paths?
