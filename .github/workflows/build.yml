@@ -16,11 +16,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+    - name: Install wasm-pack
+      run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
     - name: Build
       run: |
         cargo build
-        wasm-pack build pmrapp_client --release --target web
-        cargo run --release --bin pmrapp_server --package pmrapp_server
+        wasm-pack build pmrapp_client --target web
+        cargo build --bin pmrapp_server --package pmrapp_server
     - name: Run tests
       run: |
         cargo test
