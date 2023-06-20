@@ -1,4 +1,4 @@
-name: name
+name: build
 
 on:
   push:
@@ -17,6 +17,11 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build
-      run: cargo build --verbose
+      run: |
+        cargo build
+        wasm-pack build pmrapp_client --release --target web
+        cargo run --release --bin pmrapp_server --package pmrapp_server
     - name: Run tests
-      run: cargo test --verbose
+      run: |
+        cargo test
+        cargo test --package pmrapp_server --package pmrapp_client

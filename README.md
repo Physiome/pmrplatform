@@ -3,7 +3,9 @@
 This is the Cargo workspace for the PMR project, for building the next
 generation of Physiome Model Repository.
 
-(Name may still be subject to change)
+[![build](https://github.com/Physiome/pmrplatform/workflows/build/badge.svg?branch=main
+)](https://github.com/Physiome/pmrplatform/actions/workflows/build.yml?query=branch:main
+)
 
 ## Build
 
