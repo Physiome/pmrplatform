@@ -88,20 +88,36 @@ impl Display for TaskTemplateArg {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match (
             &self.flag, self.flag_joined,
-            match (&self.prompt, &self.default, self.choice_fixed) {
-                (None, None, _) => None,
-                (None, Some(default), _) =>
-                    Some(format!("{:?}", &default)),
-                (Some(prompt), None, false) =>
+            match (
+                &self.prompt,
+                &self.default,
+                self.choice_fixed,
+                &self.choice_source.as_deref(),
+            ) {
+                (None, None, _, _) => None,
+                (None, Some(default), _, _) =>
+                    Some(format!(">?{:?}?<", &default)),
+                (Some(prompt), None, false, _) =>
                     Some(format!("<{}>", &prompt)),
-                (Some(prompt), Some(default), false) =>
+                (Some(prompt), Some(default), false, _) =>
                     Some(format!("[<{}>;default={:?}]",
                         &prompt, &default)),
-                (Some(prompt), None, true) =>
+                (Some(prompt), None, true, None) =>
                     Some(format!("<{};choices={{...}}>", &prompt)),
-                (Some(prompt), Some(default), true) =>
+                (Some(prompt), Some(default), true, None) =>
                     Some(format!("[<{}>;default={:?};choices={{...}}]",
                         &prompt, &default)),
+                (Some(prompt), None, true, Some("")) =>
+                    Some(format!("<{};choices={{...}}>", &prompt)),
+                (Some(prompt), None, true, Some(source)) =>
+                    Some(format!("<{};choices={{source:'{}'}}>",
+                        &prompt, &source)),
+                (Some(prompt), Some(default), true, Some("")) =>
+                    Some(format!("[<{}>;default={:?};choices={{...}}]",
+                        &prompt, &default)),
+                (Some(prompt), Some(default), true, Some(source)) =>
+                    Some(format!("<<{}>;default={:?};choices={{source:'{}'}}>",
+                        &prompt, &default, &source)),
             }
         ) {
             (None, _, None) => write!(f, ""),
