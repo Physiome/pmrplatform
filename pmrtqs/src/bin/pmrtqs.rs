@@ -1,19 +1,20 @@
+use anyhow::bail;
 use clap::{
-    Args,
     Parser,
     Subcommand,
-    ValueEnum,
 };
 use pmrmodel::backend::db::{
     Profile,
     SqliteBackend,
 };
 use pmrmodel::model::db::task_template::TaskTemplateBackend;
+use pmrmodel_base::task_template::{
+    TaskTemplate,
+};
 use sqlx::{
     Sqlite,
     migrate::MigrateDatabase,
 };
-use std::path::PathBuf;
 
 
 #[derive(Debug, Parser)]
@@ -139,19 +140,12 @@ async fn main() -> anyhow::Result<()> {
                 &backend, id,
             ).await?;
             println!("program id {} is finalized.", id);
-            let task_template = TaskTemplateBackend::get_task_template_by_id(
-                &backend, id,
-            ).await?;
+            let task_template = get_task_template_by_id(&backend, id).await?;
             println!("{}", task_template);
         }
         Commands::Show { id } => {
-            match TaskTemplateBackend::get_task_template_by_id(
-                &backend, id,
-            ).await {
-                Ok(task_template) => println!("{}", task_template),
-                // discern error that actually match this case
-                Err(_) => println!("Task template {} not found", id),
-            };
+            let task_template = get_task_template_by_id(&backend, id).await?;
+            println!("{}", task_template);
         }
         Commands::Arg { arg } => {
             parse_arg(arg, &backend).await?;
@@ -164,6 +158,19 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+async fn get_task_template_by_id(
+    backend: &SqliteBackend,
+    id: i64,
+) -> anyhow::Result<TaskTemplate> {
+    match TaskTemplateBackend::get_task_template_by_id(
+        backend, id,
+    ).await {
+        Ok(task_template) => Ok(task_template),
+        // TODO disambiguate certain problematic errors and print them
+        // out.
+        Err(_) => bail!("Task Template with id {} not found", id),
+    }
+}
 
 async fn parse_arg(arg: Arg, backend: &SqliteBackend) -> anyhow::Result<()> {
     match arg {
@@ -179,13 +186,13 @@ async fn parse_arg(arg: Arg, backend: &SqliteBackend) -> anyhow::Result<()> {
                 choice_fixed,
                 choice_source.as_deref(),
             ).await?;
-            let task_template = TaskTemplateBackend::get_task_template_by_id(
+            let task_template = get_task_template_by_id(
                 backend, id,
             ).await?;
             println!("{}", task_template);
         }
         Arg::Show { id } => {
-            let task_template = TaskTemplateBackend::get_task_template_by_id(
+            let task_template = get_task_template_by_id(
                 backend, id,
             ).await?;
             let args = task_template.args.unwrap_or([].into());
@@ -221,7 +228,7 @@ async fn parse_arg(arg: Arg, backend: &SqliteBackend) -> anyhow::Result<()> {
                 }
                 Some(arg) => {
                     println!("argument id:{} deleted: {}", argid, arg);
-                    let task_template = TaskTemplateBackend::get_task_template_by_id(
+                    let task_template = get_task_template_by_id(
                         backend, arg.task_template_id,
                     ).await?;
                     println!("{}", task_template);
