@@ -69,7 +69,7 @@ pub fn commit(
 
     let tree_id = index.write_tree().unwrap();
     let tree = repo.find_tree(tree_id).unwrap();
-    let sig = repo.signature().unwrap();
+    let sig = Signature::now("user", "user@example.com").unwrap();
     let head_id = repo.refname_to_id("HEAD").unwrap();
     let parent = repo.find_commit(head_id).unwrap();
     let commit = repo.commit(Some("HEAD"), &sig, &sig, "commit", &tree, &[&parent]).unwrap();
