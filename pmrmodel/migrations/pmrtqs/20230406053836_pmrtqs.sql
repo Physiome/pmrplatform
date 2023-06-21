@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS task (
     id INTEGER PRIMARY KEY NOT NULL,
     bin_path TEXT NOT NULL,
     pid INTEGER,
-    create_ts INTEGER NOT NULL,
+    created_ts INTEGER NOT NULL,
     start_ts INTEGER,
     stop_ts INTEGER,
     exit_status INTEGER,
@@ -142,4 +142,5 @@ CREATE TABLE IF NOT EXISTS task_template_arg_choice (
     FOREIGN KEY(task_template_arg_id) REFERENCES task_template_arg(id)
 );
 
-CREATE INDEX task_template_arg_choice__task_template_arg_id ON task_template_arg_choice(task_template_arg_id);
+CREATE INDEX task_template_arg_choice__task_template_arg_id
+    ON task_template_arg_choice(task_template_arg_id);

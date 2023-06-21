@@ -6,7 +6,7 @@ pub struct Task {
     pub id: i64,
     pub bin_path: String,
     pub pid: Option<i64>,
-    pub create_ts: i64,
+    pub created_ts: i64,
     pub start_ts: Option<i64>,
     pub stop_ts: Option<i64>,
     pub exit_status: Option<i64>,
