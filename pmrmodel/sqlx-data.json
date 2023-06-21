@@ -1,5 +1,15 @@
 {
   "db": "SQLite",
+  "03220554abf4125aacfa87080b03cb775001d9f0faeea7537ba759224c148725": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "\nINSERT INTO task_arg (\n    task_id,\n    arg\n)\nVALUES ( ?1, ?2 )"
+  },
   "0ba3b972f857c643b4dd4d11919f279e524f81ba519a7561b3a1aeb21deed1bf": {
     "describe": {
       "columns": [
@@ -565,6 +575,16 @@
       }
     },
     "query": "\nINSERT INTO task_template_arg (\n    task_template_id,\n    flag,\n    flag_joined,\n    prompt,\n    'default',\n    choice_fixed,\n    choice_source\n)\nVALUES ( ?1, ?2, ?3, ?4, ?5, ?6, ?7 )\n        "
+  },
+  "d94258590be1e9430c0f975b0ed61a9d8fd5a3529e6d6556dfae74dcb6e14888": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 3
+      }
+    },
+    "query": "\nINSERT INTO task (\n    bin_path,\n    created_ts,\n    basedir\n)\nVALUES ( ?1, ?2, ?3 )"
   },
   "f31a19e9050af00f8cda7c4d7c6288e0f5eb37d5dd7dc38708cdd7385a4b8172": {
     "describe": {

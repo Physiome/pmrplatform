@@ -29,3 +29,11 @@ pub enum BuildArgError {
     #[error(transparent)]
     LookupError(#[from] LookupError),
 }
+
+#[derive(Debug, Error)]
+pub enum TaskError {
+    #[error("task already has already been queued with id: {0}")]
+    TaskAlreadyQueued(i64),
+    #[error(transparent)]
+    SqlxError(#[from] sqlx::Error),
+}
