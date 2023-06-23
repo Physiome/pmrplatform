@@ -292,7 +292,7 @@ fn get_submodule_target<P: PmrBackend>(
             msg: format!("error parsing `.gitmodules`: {}", e),
         }.into())
     };
-    let config = match gix_config::File::try_from(blob) {
+    let config = match gix::config::File::try_from(blob) {
         Ok(config) => config,
         Err(e) => return Err(ContentError::Invalid {
             workspace_id: pmrbackend.workspace.id,
@@ -638,7 +638,6 @@ mod tests {
     use super::*;
 
     use async_trait::async_trait;
-    use git2::Oid;
     use mockall::mock;
     use mockall::predicate::*;
     use tempfile::TempDir;
@@ -692,7 +691,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_git_sync_workspace_empty() {
-        let (td_, _) = crate::test::repo_init(None, None, false, None);
+        let (td_, _) = crate::test::repo_init(None, None, None).unwrap();
         let td = td_.unwrap();
         let mut mock_backend = MockBackend::new();
         mock_backend.expect_begin_sync()
@@ -709,8 +708,9 @@ mod tests {
 
     #[async_std::test]
     async fn test_git_sync_workspace_with_index_tag() {
-        let (td_, repo) = crate::test::repo_init(None, None, false, None);
-        let td = td_.unwrap();
+        let (td_, _) = crate::test::repo_init(None, None, None).unwrap();
+        let td = td_.as_ref().unwrap();
+        let repo = Repository::open_bare(td).unwrap();
         let id = repo.head().unwrap().target().unwrap();
         let obj = repo.find_object(id, None).unwrap();
         repo.tag_lightweight("new_tag", &obj, false).unwrap();
@@ -740,7 +740,7 @@ mod tests {
         // where remote couldn't be found or invalid.
         let td = TempDir::new().unwrap();
         let err_msg = format!(
-            "ExecutionError: workspace `{0}`: failed to synchronize with \nremote `{1}`: \
+            "ExecutionError: workspace `{0}`: failed to synchronize with remote `{1}`: \
             fail to clone: could not find repository from '{1}'; \
             class=Repository (6); code=NotFound (-3)", 2, td.path().to_str().unwrap());
         let mut mock_backend = MockBackend::new();
@@ -761,7 +761,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_git_sync_failure_dropped_source() {
-        let (td_, _) = crate::test::repo_init(None, None, false, None);
+        let (td_, _) = crate::test::repo_init(None, None, None).unwrap();
         let td = td_.unwrap();
         let mut mock_backend = MockBackend::new();
         mock_backend.expect_begin_sync()
@@ -795,7 +795,7 @@ mod tests {
 
         let failed_sync = git_sync_helper(&mock_backend, 42, url, &git_root).await;
         let err_msg = format!(
-            "ExecutionError: workspace `42`: failed to synchronize with \n\
+            "ExecutionError: workspace `42`: failed to synchronize with \
             remote `{}`: unsupported URL protocol; class=Net (12)", url
         );
         assert_eq!(failed_sync.unwrap_err().to_string(), err_msg);
@@ -803,13 +803,24 @@ mod tests {
 
     #[async_std::test]
     async fn test_git_sync_workspace_not_bare() {
-        let (origin_, _) = crate::test::repo_init(None, None, false, None);
+        let (origin_, _) = crate::test::repo_init(None, None, None).unwrap();
         let origin = origin_.unwrap();
 
         let git_root_dir = TempDir::new().unwrap();
         let repo_dir = git_root_dir.path().join("10");
-        let (_, repo) = crate::test::repo_init(None, Some(&repo_dir), false, None);
-        let (_, _) = crate::test::commit(&repo, vec![("some_file", "")]);
+
+        let mut repo = gix::ThreadSafeRepository::init_opts(
+            &repo_dir,
+            gix::create::Kind::WithWorktree,
+            gix::create::Options::default(),
+            gix::open::Options::isolated(),
+        ).unwrap().to_thread_local();
+        let mut config = repo.config_snapshot_mut();
+        config.set_raw_value("committer", None, "name", "user").unwrap();
+        config.set_raw_value("committer", None, "email", "user@example.com").unwrap();
+        drop(config);
+        crate::test::init_empty_commit(&repo, None).unwrap();
+        crate::test::commit(&repo, vec![("some_file", "")]).unwrap();
 
         let mut mock_backend = MockBackend::new();
         mock_backend.expect_begin_sync()
@@ -824,7 +835,7 @@ mod tests {
             &mock_backend, 10, origin.path().to_str().unwrap(), &git_root_dir
         ).await.unwrap_err();
         let err_msg = format!(
-            "ExecutionError: workspace `10`: failed to synchronize with \n\
+            "ExecutionError: workspace `10`: failed to synchronize with \
             remote `{}`: expected local underlying repo to be a bare repo",
             origin.path().display(),
         );
@@ -833,8 +844,8 @@ mod tests {
 
     #[async_std::test]
     async fn test_workspace_path_info_from_workspace_git_result() {
-        let (td_, repo) = crate::test::repo_init(None, None, false, None);
-        let (_, _) = crate::test::commit(&repo, vec![("some_file", "")]);
+        let (td_, repo) = crate::test::repo_init(None, None, None).unwrap();
+        crate::test::commit(&repo, vec![("some_file", "")]).unwrap();
 
         let td = td_.unwrap();
         let td_path = td.path().to_owned();
@@ -872,9 +883,9 @@ mod tests {
 
     fn create_repodata() -> (
         TempDir,
-        (Repository, Vec<Oid>),
-        (Repository, Vec<Oid>),
-        (Repository, Vec<Oid>),
+        (gix::Repository, Vec<gix::ObjectId>),
+        (gix::Repository, Vec<gix::ObjectId>),
+        (gix::Repository, Vec<gix::ObjectId>),
     ) {
         use crate::test::GitObj::{
             Blob,
@@ -885,17 +896,17 @@ mod tests {
         let tempdir = TempDir::new().unwrap();
         // import1
         let (_, import1) = crate::test::repo_init(
-            None, Some(&tempdir.path().join("1")), true, Some(1111010101));
-        let mut import1_oids = <Vec<Oid>>::new();
-        let mut import2_oids = <Vec<Oid>>::new();
-        let mut repodata_oids = <Vec<Oid>>::new();
+            None, Some(&tempdir.path().join("1")), Some(1111010101)).unwrap();
+        let mut import1_oids = <Vec<gix::ObjectId>>::new();
+        let mut import2_oids = <Vec<gix::ObjectId>>::new();
+        let mut repodata_oids = <Vec<gix::ObjectId>>::new();
 
         import1_oids.push(crate::test::append_commit_from_objects(
             &import1, Some(1111010110), Some("readme for import1"), vec![
             Blob("README", dedent!("
             this is import1
             ")),
-        ]).0);
+        ]).unwrap());
         import1_oids.push(crate::test::append_commit_from_objects(
             &import1, Some(1111010111), Some("adding import1"), vec![
             Blob("if1", dedent!("
@@ -904,17 +915,17 @@ mod tests {
             Blob("README", dedent!("
             The readme for import1.
             ")),
-        ]).0);
+        ]).unwrap());
 
         // import2
         let (_, import2) = crate::test::repo_init(
-            None, Some(&tempdir.path().join("2")), true, Some(1111020202));
+            None, Some(&tempdir.path().join("2")), Some(1111020202)).unwrap();
         import2_oids.push(crate::test::append_commit_from_objects(
             &import2, Some(1222020220), Some("readme for import2"), vec![
             Blob("README", dedent!("
             this is import2
             ")),
-        ]).0);
+        ]).unwrap());
         import2_oids.push(crate::test::append_commit_from_objects(
             &import2, Some(1222020221), Some("adding import2"), vec![
             Blob("if2", dedent!("
@@ -923,7 +934,7 @@ mod tests {
             Blob("README", dedent!("
             The readme for import2.
             ")),
-        ]).0);
+        ]).unwrap());
         import2_oids.push(crate::test::append_commit_from_objects(
             &import2, Some(1222020222), Some("adding import1 as an import"), vec![
             Commit("import1", &format!("{}", import1_oids[1])),
@@ -932,11 +943,11 @@ mod tests {
                    path = import1
                    url = http://models.example.com/w/import1
             "#)),
-        ]).0);
+        ]).unwrap());
 
         // repodata
         let (_, repodata) = crate::test::repo_init(
-            None, Some(&tempdir.path().join("3")), true, Some(1654321000));
+            None, Some(&tempdir.path().join("3")), Some(1654321000)).unwrap();
         repodata_oids.push(crate::test::append_commit_from_objects(
             &repodata, Some(1666666700), Some("Initial commit of repodata"), vec![
             Blob("file1", dedent!("
@@ -945,7 +956,7 @@ mod tests {
             Blob("README", dedent!("
             A simple readme file.
             ")),
-        ]).0);
+        ]).unwrap());
         repodata_oids.push(crate::test::append_commit_from_objects(
             &repodata, Some(1666666710), Some("adding import1"), vec![
             Blob(".gitmodules", dedent!(r#"
@@ -956,7 +967,7 @@ mod tests {
             Tree("ext", vec![
                 Commit("import1", &format!("{}", import1_oids[0])),
             ]),
-        ]).0);
+        ]).unwrap());
         repodata_oids.push(crate::test::append_commit_from_objects(
             &repodata, Some(1666666720), Some("adding some files"), vec![
             Tree("dir1", vec![
@@ -967,7 +978,7 @@ mod tests {
                     Blob("file_b", "file_b is new"),
                 ]),
             ]),
-        ]).0);
+        ]).unwrap());
         repodata_oids.push(crate::test::append_commit_from_objects(
             &repodata, Some(1666666730), Some("bumping import1"), vec![
             Tree("ext", vec![
@@ -980,7 +991,7 @@ mod tests {
             Blob("file2", dedent!("
             This is file2, added with import1 bump.
             ")),
-        ]).0);
+        ]).unwrap());
         repodata_oids.push(crate::test::append_commit_from_objects(
             &repodata, Some(1666666740), Some("adding import2"), vec![
             Blob(".gitmodules", dedent!(r#"
@@ -994,13 +1005,13 @@ mod tests {
             Tree("ext", vec![
                 Commit("import2", &format!("{}", import2_oids[0])),
             ]),
-        ]).0);
+        ]).unwrap());
         repodata_oids.push(crate::test::append_commit_from_objects(
             &repodata, Some(1666666750), Some("bumping import2"), vec![
             Tree("ext", vec![
                 Commit("import2", &format!("{}", import2_oids[1])),
             ]),
-        ]).0);
+        ]).unwrap());
         repodata_oids.push(crate::test::append_commit_from_objects(
             &repodata, Some(1666666760),
             Some("bumping import2, breaking import1"), vec![
@@ -1008,14 +1019,14 @@ mod tests {
                 Commit("import1", &format!("{}", import2_oids[1])),
                 Commit("import2", &format!("{}", import2_oids[2])),
             ]),
-        ]).0);
+        ]).unwrap());
         repodata_oids.push(crate::test::append_commit_from_objects(
             &repodata, Some(1666666770),
             Some("fixing import1"), vec![
             Tree("ext", vec![
                 Commit("import1", &format!("{}", import1_oids[1])),
             ]),
-        ]).0);
+        ]).unwrap());
         repodata_oids.push(crate::test::append_commit_from_objects(
             &repodata, Some(1666666780), Some("updating dir1"), vec![
             Tree("dir1", vec![
@@ -1024,7 +1035,7 @@ mod tests {
                     Blob("file_c", "file_c is new"),
                 ]),
             ]),
-        ]).0);
+        ]).unwrap());
 
         (
             tempdir,

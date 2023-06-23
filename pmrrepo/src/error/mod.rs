@@ -34,7 +34,7 @@ pub enum ContentError {
 
 #[derive(Debug, PartialEq, Error, Deserialize, Serialize)]
 pub enum ExecutionError {
-    #[error("workspace `{workspace_id}`: failed to synchronize with \n\
+    #[error("workspace `{workspace_id}`: failed to synchronize with \
              remote `{remote}`: {msg}")]
     Synchronize {
         workspace_id: i64,
