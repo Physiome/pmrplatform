@@ -452,31 +452,38 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         Ok(())
     }
 
-    // commit_id/path should be a pathinfo struct?
-    pub fn pathinfo(
-        &self,
+    fn get_commit(
+        &'a self,
         commit_id: Option<&'a str>,
-        path: Option<&'a str>,
-    ) -> Result<GitResult, PmrRepoError> {
+    ) -> Result<Commit<'a>, PmrRepoError> {
+        // TODO the model should have a field for the default target.
         // TODO the default value should be the default (main?) branch.
-        // TODO the sync procedure should fast forward of sort
-        // TODO the model should have a field for main branch
         let obj = self.repo.revparse_single(commit_id.unwrap_or("HEAD"))?;
-        let id = obj.id();
-
-        // TODO streamline this a bit.
         match obj.kind() {
             Some(kind) if kind == ObjectType::Commit => {
-                info!("Found {} {}", kind, id);
+                info!("Found {} {}", kind, obj.id());
             }
             Some(_) | None => return Err(PathError::NoSuchCommit {
                 workspace_id: self.workspace.id,
                 oid: commit_id.unwrap_or("HEAD?").into(),
             }.into())
         }
-        let commit = obj
-            .into_commit()
-            .expect(&format!("libgit2 said {:?} was a commit?", id));
+        match obj.into_commit() {
+            Ok(commit) => Ok(commit),
+            Err(obj) => Err(ExecutionError::Unexpected {
+                workspace_id: self.workspace.id,
+                msg: format!("libgit2 said oid {:?} was a commit?", obj.id()),
+            }.into()),
+        }
+    }
+
+    // commit_id/path should be a pathinfo struct?
+    pub fn pathinfo(
+        &self,
+        commit_id: Option<&'a str>,
+        path: Option<&'a str>,
+    ) -> Result<GitResult, PmrRepoError> {
+        let commit = self.get_commit(commit_id)?;
         let tree = commit.tree()?;
         let location: String;
         let location_commit: String;
@@ -592,23 +599,10 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         commit_id: Option<&str>,
         _path: Option<&'a str>,
     ) -> Result<ObjectInfo, PmrRepoError> {
-        // TODO the default value should be the default (main?) branch.
-        // TODO the model should have a field for main branch
-        let obj = self.repo.revparse_single(commit_id.unwrap_or("HEAD"))?;
-
-        // TODO streamline this a bit.
-        match obj.kind() {
-            Some(ObjectType::Commit) => {
-                info!("Found {} {}", obj.kind().unwrap().str(), obj.id());
-            },
-            Some(_) | None => return Err(PathError::NoSuchCommit {
-                workspace_id: self.workspace.id,
-                oid: commit_id.unwrap_or("HEAD?").to_string(),
-            }.into())
-        }
+        let commit = self.get_commit(commit_id)?;
         let mut revwalk = self.repo.revwalk()?;
         revwalk.set_sorting(git2::Sort::TIME)?;
-        revwalk.push(obj.id())?;
+        revwalk.push(commit.id())?;
 
         let log_entries = revwalk
             .filter_map(|id| {

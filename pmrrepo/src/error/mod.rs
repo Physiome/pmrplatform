@@ -41,6 +41,11 @@ pub enum ExecutionError {
         remote: String,
         msg: String,
     },
+    #[error("workspace `{workspace_id}`: unexpected error: {msg}")]
+    Unexpected {
+        workspace_id: i64,
+        msg: String,
+    }
 }
 
 #[derive(Debug, PartialEq, Error, Deserialize, Serialize)]
