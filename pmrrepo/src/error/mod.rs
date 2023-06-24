@@ -10,6 +10,8 @@ pub enum PmrRepoError {
     ContentError(#[from] ContentError),
     #[error("ExecutionError: {0}")]
     ExecutionError(#[from] ExecutionError),
+    #[error("GixError: {0}")]
+    GixError(#[from] GixError),
     #[error("Libgit2Error: {0}")]
     Libgit2Error(#[from] git2::Error),
     #[error("PathError: {0}")]
@@ -18,6 +20,16 @@ pub enum PmrRepoError {
     SqlxError(#[from] sqlx::Error),
     #[error("StdIoError: {0}")]
     StdIoError(#[from] std::io::Error),
+}
+
+#[derive(Debug, Error)]
+pub enum GixError {
+    #[error(transparent)]
+    Open(#[from] gix::open::Error),
+    #[error(transparent)]
+    ReferenceIter(#[from] gix::reference::iter::Error),
+    #[error(transparent)]
+    ReferenceIterInit(#[from] gix::reference::iter::init::Error),
 }
 
 #[derive(Debug, PartialEq, Error, Deserialize, Serialize)]
