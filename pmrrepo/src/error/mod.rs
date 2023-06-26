@@ -30,6 +30,14 @@ pub enum GixError {
     ReferenceIter(#[from] gix::reference::iter::Error),
     #[error(transparent)]
     ReferenceIterInit(#[from] gix::reference::iter::init::Error),
+    #[error(transparent)]
+    HashDecode(#[from] gix::hash::decode::Error),
+    #[error(transparent)]
+    ObjectDecode(#[from] gix::objs::decode::Error),
+    #[error(transparent)]
+    RevisionSpecParseSingle(#[from] gix::revision::spec::parse::single::Error),
+    #[error(transparent)]
+    OdbFindExisting(#[from] gix::odb::find::existing::Error<gix::odb::store::find::Error>),
 }
 
 #[derive(Debug, PartialEq, Error, Deserialize, Serialize)]

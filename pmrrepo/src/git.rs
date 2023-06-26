@@ -442,13 +442,9 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
     }
 
     pub async fn get_obj_by_spec(&self, spec: &str) -> Result<(), PmrRepoError> {
-        let git_root = &self.git_root;
-        let workspace = &self.workspace;
-        let repo_dir = git_root.join(workspace.id.to_string());
-        let repo = Repository::open_bare(repo_dir)?;
-        let obj = repo.revparse_single(spec)?;
+        let obj = self.repo.revparse_single(spec)?;
         info!("Found object {} {}", obj.kind().unwrap().str(), obj.id());
-        info!("{:?}", object_to_info(&repo, &obj));
+        info!("{:?}", object_to_info(&self.repo, &obj));
         Ok(())
     }
 
@@ -544,7 +540,6 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
                 (path, target.unwrap())
             },
         };
-        // info!("using git_object {} {}", git_object.kind().unwrap().str(), git_object.id());
         let git_result = GitResult {
             repo: &self.repo,
             commit: commit,

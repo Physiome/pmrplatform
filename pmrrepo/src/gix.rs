@@ -1,18 +1,23 @@
 use async_recursion::async_recursion;
 use futures::stream::StreamExt;
 use futures::stream::futures_unordered::FuturesUnordered;
-use std::{
-    io::Write,
-    ops::Deref,
-};
 use gix::{
+    Commit,
+    Object,
+    Repository,
+    ThreadSafeRepository,
+    Tree,
+    object::{
+        Kind,
+    },
     objs::{
+        BlobRef,
         CommitRef,
         ObjectRef,
+        TreeRef,
+        WriteTo,
     },
-    ThreadSafeRepository,
 };
-use std::path::{Path, PathBuf};
 use pmrmodel_base::{
     git::{
         TreeEntryInfo,
@@ -50,12 +55,25 @@ use pmrmodel::model::workspace_sync::{
 };
 use pmrmodel::model::db::workspace_tag::WorkspaceTagBackend;
 
-use crate::error::{
-    ContentError,
-    ExecutionError,
-    GixError,
-    PathError,
-    PmrRepoError,
+use std::{
+    io::Write,
+    ops::Deref,
+    path::{
+        Path,
+        PathBuf,
+    },
+    str::FromStr,
+};
+
+use crate::{
+    error::{
+        ContentError,
+        ExecutionError,
+        GixError,
+        PathError,
+        PmrRepoError,
+    },
+    util::is_binary,
 };
 
 pub struct PmrBackendW<'a, P: PmrBackend> {
@@ -95,6 +113,68 @@ impl WorkspaceGitResult<'_> {
         git_result: &'a GitResult<'a>,
     ) -> WorkspaceGitResult<'a> {
         WorkspaceGitResult(&workspace_record, git_result)
+    }
+}
+
+// These assume the blobs are all contained because the conversion to
+// the Ref equivalent currently drops information for gix, and to make
+// the internal usage consistent, the raw object is passed.
+fn blob_to_info(git_object: &Object, path: Option<&str>) -> ObjectInfo {
+    let blob = BlobRef::from_bytes(&git_object.data).unwrap();
+    ObjectInfo::FileInfo(FileInfo {
+        size: blob.size() as u64,
+        binary: is_binary(blob.data),
+        mime_type: path
+            .and_then(|path| mime_guess::from_path(path).first_raw())
+            .unwrap_or("application/octet-stream")
+            .to_string(),
+    })
+}
+
+fn tree_to_info(git_object: &Object) -> ObjectInfo {
+    let tree = TreeRef::from_bytes(&git_object.data).unwrap();
+    ObjectInfo::TreeInfo(
+        TreeInfo {
+            filecount: tree.entries.len() as u64,
+            entries: tree.entries.iter().map(|entry| TreeEntryInfo {
+                filemode: std::str::from_utf8(entry.mode.as_bytes()).unwrap().to_string(),
+                kind: format!("{}", entry.oid.kind()),
+                id: format!("{}", entry.oid),
+                name: format!("{}", entry.filename),
+            }).collect(),
+        }
+    )
+}
+
+fn commit_to_info(git_object: &Object) -> ObjectInfo {
+    let commit_id = git_object.id.to_string();
+    let commit = CommitRef::from_bytes(&git_object.data).unwrap();
+    ObjectInfo::CommitInfo(CommitInfo {
+        commit_id: commit_id,
+        author: format!("{:?}", commit.author()),
+        committer: format!("{:?}", commit.committer()),
+    })
+}
+
+fn object_to_info(
+    git_object: &Object,
+) -> Option<ObjectInfo> {
+    match git_object.kind {
+        Kind::Blob => {
+            Some(blob_to_info(
+                &git_object,
+                None,
+            ))
+        }
+        Kind::Tree => {
+            Some(tree_to_info(&git_object))
+        }
+        Kind::Commit => {
+            Some(commit_to_info(&git_object))
+        }
+        Kind::Tag => {
+            None
+        }
     }
 }
 
@@ -238,6 +318,43 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
 
         Ok(())
     }
+
+    pub async fn get_obj_by_spec(&self, spec: &str) -> Result<(), GixError> {
+        let repo = self.repo.to_thread_local();
+        let obj = repo.rev_parse_single(spec)?.object()?;
+        info!("Found object {} {}", obj.kind, obj.id);
+        info!("{:?}", object_to_info(&obj));
+        Ok(())
+    }
+
+    /*
+    fn get_commit(
+        &'a self,
+        commit_id: Option<&'a str>,
+    ) -> Result<CommitRef<'a>, PmrRepoError> {
+        // TODO the model should have a field for the default target.
+        // TODO the default value should be the default (main?) branch.
+        dbg!(self.repo.to_thread_local().find_object(
+            gix::hash::ObjectId::from_str(commit_id)));
+        todo!();
+        // match obj.kind() {
+        //     Some(kind) if kind == ObjectType::Commit => {
+        //         info!("Found {} {}", kind, obj.id());
+        //     }
+        //     Some(_) | None => return Err(PathError::NoSuchCommit {
+        //         workspace_id: self.workspace.id,
+        //         oid: commit_id.unwrap_or("HEAD?").into(),
+        //     }.into())
+        // }
+        // match obj.into_commit() {
+        //     Ok(commit) => Ok(commit),
+        //     Err(obj) => Err(ExecutionError::Unexpected {
+        //         workspace_id: self.workspace.id,
+        //         msg: format!("libgit2 said oid {:?} was a commit?", obj.id()),
+        //     }.into()),
+        // }
+    }
+    */
 
 }
 
