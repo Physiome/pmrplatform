@@ -86,11 +86,11 @@ pub struct PmrBackendWR<'a, P: PmrBackend> {
     backend: &'a P,
     git_root: PathBuf,
     pub workspace: &'a WorkspaceRecord,
-    pub repo: ThreadSafeRepository,
+    pub repo: Repository,
 }
 
 pub enum GitResultTarget<'a> {
-    Object(ObjectRef<'a>),
+    Object(Object<'a>),
     SubRepoPath {
         location: String,
         commit: String,
@@ -99,8 +99,8 @@ pub enum GitResultTarget<'a> {
 }
 
 pub struct GitResult<'a> {
-    pub repo: &'a ThreadSafeRepository,
-    pub commit: CommitRef<'a>,
+    pub repo: &'a Repository,
+    pub commit: Commit<'a>,
     pub path: &'a str,
     pub target: GitResultTarget<'a>,
 }
@@ -156,6 +156,77 @@ fn commit_to_info(git_object: &Object) -> ObjectInfo {
     })
 }
 
+impl From<&GitResult<'_>> for Option<PathObject> {
+    fn from(git_result: &GitResult) -> Self {
+        match &git_result.target {
+            GitResultTarget::Object(object) => match gitresult_to_info(
+                git_result,
+                object,
+            ) {
+                Some(ObjectInfo::FileInfo(file_info)) => Some(PathObject::FileInfo(file_info)),
+                Some(ObjectInfo::TreeInfo(tree_info)) => Some(PathObject::TreeInfo(tree_info)),
+                _ => None,
+            },
+            GitResultTarget::SubRepoPath { location, commit, path } => {
+                Some(PathObject::RemoteInfo(RemoteInfo {
+                    location: location.to_string(),
+                    commit: commit.to_string(),
+                    path: path.to_string(),
+                }))
+            },
+        }
+    }
+}
+
+impl From<&GitResult<'_>> for PathInfo {
+    fn from(git_result: &GitResult) -> Self {
+        PathInfo {
+            commit: CommitInfo {
+                commit_id: format!("{}", &git_result.commit.id()),
+                author: format!("{:?}", &git_result.commit.author()),
+                committer: format!("{:?}", &git_result.commit.committer()),
+            },
+            path: format!("{}", &git_result.path),
+            object: git_result.into(),
+        }
+    }
+}
+
+impl From<&WorkspaceGitResult<'_>> for WorkspacePathInfo {
+    fn from(
+        WorkspaceGitResult(
+            workspace,
+            git_result,
+        ): &WorkspaceGitResult<'_>
+    ) -> Self {
+        WorkspacePathInfo {
+            workspace_id: workspace.id,
+            description: workspace.description.clone(),
+            commit: CommitInfo {
+                commit_id: format!("{}", &git_result.commit.id()),
+                author: format!("{:?}", &git_result.commit.author()),
+                committer: format!("{:?}", &git_result.commit.committer()),
+            },
+            path: format!("{}", &git_result.path),
+            object: (*git_result).into(),
+        }
+    }
+}
+
+fn gitresult_to_info(git_result: &GitResult, git_object: &Object) -> Option<ObjectInfo> {
+    // TODO split off to a formatter version?
+    // alternatively, produce some structured data?
+    match git_object.kind {
+        Kind::Blob => {
+            Some(blob_to_info(
+                &git_object,
+                Some(git_result.path),
+            ))
+        },
+        _ => object_to_info(git_object),
+    }
+}
+
 fn object_to_info(
     git_object: &Object,
 ) -> Option<ObjectInfo> {
@@ -176,6 +247,78 @@ fn object_to_info(
             None
         }
     }
+}
+
+// TODO move to module for gix_support
+fn rev_parse_single<'a>(
+    repo: &'a Repository,
+    commit_id: &'a str,
+) -> Result<Object<'a>, GixError> {
+    Ok(repo.rev_parse_single(commit_id)?.object()?)
+}
+
+pub async fn stream_blob(
+    mut writer: impl Write,
+    blob: &Object<'_>,
+) -> std::result::Result<usize, std::io::Error> {
+    writer.write(&blob.data)
+}
+
+fn get_submodule_target<P: PmrBackend>(
+    pmrbackend: &PmrBackendWR<P>,
+    commit: &Commit,
+    path: &str,
+) -> Result<String, PmrRepoError> {
+    let blob = commit
+        .tree_id()
+        .map_err(|e| PmrRepoError::from(GixError::from(e)))?
+        .object()
+        .map_err(|e| PmrRepoError::from(GixError::from(e)))?
+        .try_into_tree()
+        .map_err(|e| PmrRepoError::from(GixError::from(e)))?
+        .lookup_entry_by_path(Path::new(".gitmodules"))
+        .map_err(|e| PmrRepoError::from(GixError::from(e)))?
+        .ok_or_else(|| PmrRepoError::from(PathError::NoSuchPath {
+            workspace_id: pmrbackend.workspace.id,
+            oid: commit.id.to_string(),
+            path: path.to_string(),
+        }))?
+        .id()
+        .object()
+        .map_err(|e| PmrRepoError::from(GixError::from(e)))?;
+    let config = gix::config::File::try_from(
+        std::str::from_utf8(&blob.data)
+        .map_err(
+            |e| PmrRepoError::from(ContentError::Invalid {
+                workspace_id: pmrbackend.workspace.id,
+                oid: commit.id().to_string(),
+                path: path.to_string(),
+                msg: format!("error parsing `.gitmodules`: {}", e),
+            })
+        )?
+    ).map_err(
+        |e| PmrRepoError::from(ContentError::Invalid {
+            workspace_id: pmrbackend.workspace.id,
+            oid: commit.id().to_string(),
+            path: path.to_string(),
+            msg: format!("error parsing `.gitmodules`: {}", e),
+        })
+    )?;
+    for rec in config.sections_and_ids() {
+        match rec.0.value("path") {
+            Some(rec_path) => {
+                if path == rec_path.into_owned() {
+                    return Ok(format!("{}", rec.0.value("url").unwrap()));
+                }
+            },
+            None => {},
+        }
+    }
+    Err(PathError::NotSubmodule {
+        workspace_id: pmrbackend.workspace.id,
+        oid: commit.id().to_string(),
+        path: path.to_string(),
+    }.into())
 }
 
 // If trait aliases <https://github.com/rust-lang/rust/issues/41517> are stabilized:
@@ -269,7 +412,8 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         let repo_dir = git_root.join(workspace.id.to_string());
         let repo = gix::open::Options::isolated()
             .open_path_as_is(true)
-            .open(repo_dir)?;
+            .open(repo_dir)?
+            .to_thread_local();
         Ok(Self {
             backend: &backend,
             git_root: git_root,
@@ -281,7 +425,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
     pub async fn index_tags(&self) -> Result<(), GixError> {
         let backend = self.backend;
         let workspace = &self.workspace;
-        self.repo.to_thread_local().references()?.tags()?.map(|reference| {
+        self.repo.references()?.tags()?.map(|reference| {
             match reference {
                 Ok(tag) => {
                     let target = tag.target().id().to_hex().to_string();
@@ -320,41 +464,142 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
     }
 
     pub async fn get_obj_by_spec(&self, spec: &str) -> Result<(), GixError> {
-        let repo = self.repo.to_thread_local();
-        let obj = repo.rev_parse_single(spec)?.object()?;
+        let obj = self.repo.rev_parse_single(spec)?.object()?;
         info!("Found object {} {}", obj.kind, obj.id);
         info!("{:?}", object_to_info(&obj));
         Ok(())
     }
 
-    /*
     fn get_commit(
         &'a self,
         commit_id: Option<&'a str>,
-    ) -> Result<CommitRef<'a>, PmrRepoError> {
-        // TODO the model should have a field for the default target.
-        // TODO the default value should be the default (main?) branch.
-        dbg!(self.repo.to_thread_local().find_object(
-            gix::hash::ObjectId::from_str(commit_id)));
-        todo!();
-        // match obj.kind() {
-        //     Some(kind) if kind == ObjectType::Commit => {
-        //         info!("Found {} {}", kind, obj.id());
-        //     }
-        //     Some(_) | None => return Err(PathError::NoSuchCommit {
-        //         workspace_id: self.workspace.id,
-        //         oid: commit_id.unwrap_or("HEAD?").into(),
-        //     }.into())
-        // }
-        // match obj.into_commit() {
-        //     Ok(commit) => Ok(commit),
-        //     Err(obj) => Err(ExecutionError::Unexpected {
-        //         workspace_id: self.workspace.id,
-        //         msg: format!("libgit2 said oid {:?} was a commit?", obj.id()),
-        //     }.into()),
-        // }
+    ) -> Result<Commit<'a>, PmrRepoError> {
+        let obj = rev_parse_single(&self.repo, &commit_id.unwrap_or("HEAD"))?;
+        match obj.kind {
+            kind if kind == Kind::Commit => {
+                info!("Found {} {}", kind, obj.id);
+            }
+            _ => return Err(PathError::NoSuchCommit {
+                workspace_id: self.workspace.id,
+                oid: commit_id.unwrap_or("HEAD?").into(),
+            }.into())
+        }
+        match obj.try_into_commit() {
+            Ok(commit) => Ok(commit),
+            Err(obj) => Err(ExecutionError::Unexpected {
+                workspace_id: self.workspace.id,
+                msg: format!("libgit2 said oid {:?} was a commit?", obj.id),
+            }.into()),
+        }
     }
-    */
+
+    // commit_id/path should be a pathinfo struct?
+    pub fn pathinfo(
+        &self,
+        commit_id: Option<&'a str>,
+        path: Option<&'a str>,
+    ) -> Result<GitResult, PmrRepoError> {
+        let commit = self.get_commit(commit_id)?;
+        // let location: String;
+        // let location_commit: String;
+        let tree = commit.tree_id()
+            .map_err(|e| PmrRepoError::from(GixError::from(e)))?
+            .object()
+            .map_err(|e| PmrRepoError::from(GixError::from(e)))?;
+
+        let (path, target) = match path {
+            Some("") | Some("/") | None => {
+                info!("No path provided; using root tree entry");
+                ("".as_ref(), GitResultTarget::Object(tree))
+            },
+            Some(s) => {
+                let path = s.strip_prefix('/').unwrap_or(&s);
+                let mut comps = Path::new(path)
+                    .components();
+                let mut curr_path = PathBuf::new();
+                let mut object = tree;
+
+                while let Some(component) = comps.next() {
+                    object = object
+                        .try_into_tree()
+                        .map_err(|e| PmrRepoError::from(GixError::from(e)))?
+                        .lookup_entry_by_path(Path::new(&component))
+                        .map_err(|e| PmrRepoError::from(GixError::from(e)))?
+                        .ok_or_else(
+                            || PmrRepoError::from(PathError::NoSuchPath {
+                                workspace_id: self.workspace.id,
+                                oid: commit.id.to_string(),
+                                path: path.to_string(),
+                            })
+                        )?
+                        .object()
+                        .map_err(|e| PmrRepoError::from(GixError::from(e)))?;
+                    curr_path.push(component);
+                    match object.kind {
+                        Kind::Tree => {
+                            info!("got {:?}", object);
+                        },
+                        Kind::Commit => {
+                            info!("object at {:?} a commit", object.id());
+                            let location = get_submodule_target(
+                                &self,
+                                &commit,
+                                curr_path.to_str().unwrap(),
+                            )?;
+                            let location_commit = object.id().to_string();
+                            let target = Some(GitResultTarget::SubRepoPath {
+                                location: location,
+                                commit: location_commit,
+                                path: comps.as_path().to_str().unwrap(),
+                            });
+                            break;
+                        }
+                        _ => {
+                            info!("path {:?} not a tree", &curr_path);
+                        }
+                    }
+                };
+                (path, GitResultTarget::Object(object))
+            },
+        };
+        let git_result = GitResult {
+            repo: &self.repo,
+            commit: commit,
+            path: path,
+            target: target,
+        };
+        Ok(git_result)
+    }
+
+    #[async_recursion(?Send)]
+    pub async fn stream_result_blob(
+        &self,
+        writer: impl Write + 'async_recursion,
+        git_result: &GitResult<'a>,
+    ) -> Result<usize, PmrRepoError> {
+        match &git_result.target {
+            GitResultTarget::Object(object) => match object.kind {
+                Kind::Blob => Ok(stream_blob(writer, object).await?),
+                _ => Err(ContentError::Invalid {
+                    workspace_id: self.workspace.id,
+                    oid: git_result.commit.id().to_string(),
+                    path: git_result.path.to_string(),
+                    msg: format!("expected to be a blob"),
+                }.into())
+            },
+            GitResultTarget::SubRepoPath { location, commit, path } => {
+                let workspace = WorkspaceBackend::get_workspace_by_url(
+                    self.backend, &location,
+                ).await?;
+                let pmrbackend = PmrBackendWR::new(
+                    self.backend, self.git_root.clone(), &workspace)?;
+                let git_result = pmrbackend.pathinfo(
+                    Some(commit), Some(path),
+                )?;
+                Ok(self.stream_result_blob(writer, &git_result).await?)
+            },
+        }
+    }
 
 }
 
@@ -366,7 +611,6 @@ mod tests {
     use mockall::mock;
     use mockall::predicate::*;
     use tempfile::TempDir;
-    use textwrap_macros::dedent;
 
     // use pmrmodel::backend::db::MockHasPool;
     use pmrmodel_base::workspace_tag::WorkspaceTagRecord;
@@ -567,5 +811,157 @@ mod tests {
         );
         assert_eq!(failed_sync.to_string(), err_msg);
     }
+
+    #[async_std::test]
+    async fn test_workspace_path_info_from_workspace_git_result() {
+        let (td_, repo) = crate::test::repo_init(None, None, None).unwrap();
+        crate::test::commit(&repo, vec![("some_file", "")]).unwrap();
+
+        let td = td_.unwrap();
+        let td_path = td.path().to_owned();
+        let url = td_path.to_str().unwrap();
+
+        let git_root = TempDir::new().unwrap();
+        let mut mock_backend = MockBackend::new();
+        mock_backend.expect_begin_sync()
+            .times(1)
+            .with(eq(10))
+            .returning(|_| Ok(10));
+        mock_backend.expect_complete_sync()
+            .times(1)
+            .with(eq(10), eq(WorkspaceSyncStatus::Completed))
+            .returning(|_, _| Ok(true));
+        assert!(git_sync_helper(&mock_backend, 10, url, &git_root).await.is_ok());
+
+        let workspace = WorkspaceRecord {
+            id: 10,
+            url: "http://example.com/10".to_string(),
+            description: Some("demo workspace 10".to_string())
+        };
+
+        let pmrbackend = PmrBackendWR::new(
+            &mock_backend,
+            git_root.path().to_path_buf(),
+            &workspace,
+        ).unwrap();
+
+        let result = pmrbackend.pathinfo(None, None).unwrap();
+        let pathinfo = <WorkspacePathInfo>::from(&WorkspaceGitResult::new(&pmrbackend.workspace, &result));
+        assert_eq!(pathinfo.path, "".to_string());
+        assert_eq!(pathinfo.description, Some("demo workspace 10".to_string()));
+    }
+
+    #[async_std::test]
+    async fn test_workspace_submodule_access() {
+        let (
+            git_root,
+            _, // (import1, import1_oids),
+            _, // (import2, import2_oids),
+            _, // (repodata, repodata_oids)
+        ) = crate::test::create_repodata();
+
+        // let import1_workspace = WorkspaceRecord {
+        //     id: 1,
+        //     url: "http://models.example.com/w/import1".to_string(),
+        //     description: Some("The import1 workspace".to_string())
+        // };
+        // let import2_workspace = WorkspaceRecord {
+        //     id: 2,
+        //     url: "http://models.example.com/w/import2".to_string(),
+        //     description: Some("The import2 workspace".to_string())
+        // };
+        let repodata_workspace = WorkspaceRecord {
+            id: 3,
+            url: "http://models.example.com/w/repodata".to_string(),
+            description: Some("The repodata workspace".to_string())
+        };
+
+        let mut mock_backend = MockBackend::new();
+        // used later.
+        // mock_backend.expect_get_workspace_by_url()
+        //     .times(1)
+        //     .with(eq("http://models.example.com/w/import2"))
+        //     .returning(|_| Ok(WorkspaceRecord {
+        //         id: 2,
+        //         url: "http://models.example.com/w/import2".to_string(),
+        //         description: Some("The import2 workspace".to_string())
+        //     }));
+        let pmrbackend = PmrBackendWR::new(
+            &mock_backend,
+            git_root.path().to_path_buf(),
+            &repodata_workspace,
+        ).unwrap();
+
+        // let result = pmrbackend.pathinfo(
+        //     Some("557ee3cb13fb421d2bd6897615ae95830eb427c8"),
+        //     Some("ext/import1/README"),
+        // ).unwrap();
+
+        // let pathinfo = <WorkspacePathInfo>::from(&WorkspaceGitResult::new(
+        //     &pmrbackend.workspace, &result));
+        // assert_eq!(
+        //     pathinfo.path,
+        //     "ext/import1/README".to_string());
+        // assert_eq!(
+        //     pathinfo.object,
+        //     Some(PathObject::RemoteInfo(RemoteInfo {
+        //         location: "http://models.example.com/w/import1"
+        //             .to_string(),
+        //         commit: "01b952d14a0a33d22a0aa465fe763e5d17b15d46"
+        //             .to_string(),
+        //         path: "README".to_string(),
+        //     })),
+        // );
+
+        // let result = pmrbackend.pathinfo(
+        //     Some("c4d735e5a305559c1cb0ce8de4c25ed5c3f4f263"),
+        //     Some("ext/import2/import1/if1"),
+        // ).unwrap();
+        // let pathinfo = <WorkspacePathInfo>::from(&WorkspaceGitResult::new(
+        //     &pmrbackend.workspace, &result));
+        // assert_eq!(
+        //     pathinfo.path,
+        //     "ext/import2/import1/if1".to_string());
+        // assert_eq!(
+        //     pathinfo.object,
+        //     Some(PathObject::RemoteInfo(RemoteInfo {
+        //         location: "http://models.example.com/w/import2"
+        //             .to_string(),
+        //         commit: "0ab8a26a0e85a033bea0388216667d83cc0dc1dd"
+        //             .to_string(),
+        //         path: "import1/if1".to_string(),
+        //     })),
+        // );
+
+        let mut buffer = <Vec<u8>>::new();
+        let readme_result = pmrbackend.pathinfo(
+            Some("557ee3cb13fb421d2bd6897615ae95830eb427c8"),
+            Some("README"),
+        ).unwrap();
+        assert_eq!(
+            pmrbackend.stream_result_blob(&mut buffer, &readme_result).await.unwrap(),
+            22,
+        );
+        assert_eq!(
+            std::str::from_utf8(&buffer).unwrap(),
+            "A simple readme file.\n",
+        );
+
+        // let mut buffer = <Vec<u8>>::new();
+        // let import2_result = pmrbackend.pathinfo(
+        //     Some("a4a04eed5e243e3019592579a7f6eb950399f9bf"),
+        //     Some("ext/import2/if2"),
+        // ).unwrap();
+        // assert_eq!(
+        //     pmrbackend.stream_result_blob(&mut buffer, &import2_result).await.unwrap(),
+        //     4,
+        // );
+        // assert_eq!(
+        //     std::str::from_utf8(&buffer).unwrap(),
+        //     "if2\n",
+        // );
+
+    }
+
 
 }

@@ -25,19 +25,23 @@ pub enum PmrRepoError {
 #[derive(Debug, Error)]
 pub enum GixError {
     #[error(transparent)]
+    HashDecode(#[from] gix::hash::decode::Error),
+    #[error(transparent)]
+    ObjectCommit(#[from] gix::object::commit::Error),
+    #[error(transparent)]
+    ObjectDecode(#[from] gix::objs::decode::Error),
+    #[error(transparent)]
+    ObjectTryInto(#[from] gix::object::try_into::Error),
+    #[error(transparent)]
+    OdbFindExisting(#[from] gix::odb::find::existing::Error<gix::odb::store::find::Error>),
+    #[error(transparent)]
     Open(#[from] gix::open::Error),
     #[error(transparent)]
     ReferenceIter(#[from] gix::reference::iter::Error),
     #[error(transparent)]
     ReferenceIterInit(#[from] gix::reference::iter::init::Error),
     #[error(transparent)]
-    HashDecode(#[from] gix::hash::decode::Error),
-    #[error(transparent)]
-    ObjectDecode(#[from] gix::objs::decode::Error),
-    #[error(transparent)]
     RevisionSpecParseSingle(#[from] gix::revision::spec::parse::single::Error),
-    #[error(transparent)]
-    OdbFindExisting(#[from] gix::odb::find::existing::Error<gix::odb::store::find::Error>),
 }
 
 #[derive(Debug, PartialEq, Error, Deserialize, Serialize)]
@@ -81,5 +85,12 @@ pub enum PathError {
     NoSuchCommit {
         workspace_id: i64,
         oid: String,
-    }
+    },
+    #[error("workspace `{workspace_id}` at commit `{oid}`: \
+             no such path {path}")]
+    NoSuchPath {
+        workspace_id: i64,
+        oid: String,
+        path: String,
+    },
 }
