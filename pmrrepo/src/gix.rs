@@ -16,6 +16,7 @@ use gix::{
         ObjectRef,
         TreeRef,
         WriteTo,
+        tree::EntryMode,
     },
 };
 use pmrmodel_base::{
@@ -514,13 +515,14 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
             },
             Some(s) => {
                 let path = s.strip_prefix('/').unwrap_or(&s);
-                let mut comps = Path::new(path)
-                    .components();
+                let mut comps = Path::new(path).components();
                 let mut curr_path = PathBuf::new();
-                let mut object = tree;
+                let mut object = Some(tree);
+                let mut target: Option<GitResultTarget> = None;
 
                 while let Some(component) = comps.next() {
-                    object = object
+                    let entry = object
+                        .expect("iteration has this set or look breaked")
                         .try_into_tree()
                         .map_err(|e| PmrRepoError::from(GixError::from(e)))?
                         .lookup_entry_by_path(Path::new(&component))
@@ -531,35 +533,40 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
                                 oid: commit.id.to_string(),
                                 path: path.to_string(),
                             })
-                        )?
-                        .object()
-                        .map_err(|e| PmrRepoError::from(GixError::from(e)))?;
+                        )?;
                     curr_path.push(component);
-                    match object.kind {
-                        Kind::Tree => {
-                            info!("got {:?}", object);
-                        },
-                        Kind::Commit => {
-                            info!("object at {:?} a commit", object.id());
+                    match entry.mode() {
+                        EntryMode::Commit => {
+                            info!("entry {:?} is a commit", entry.id());
                             let location = get_submodule_target(
                                 &self,
                                 &commit,
                                 curr_path.to_str().unwrap(),
                             )?;
-                            let location_commit = object.id().to_string();
-                            let target = Some(GitResultTarget::SubRepoPath {
+                            let location_commit = entry.id().to_string();
+                            target = Some(GitResultTarget::SubRepoPath {
                                 location: location,
                                 commit: location_commit,
                                 path: comps.as_path().to_str().unwrap(),
                             });
+                            object = None;
                             break;
                         }
-                        _ => {
-                            info!("path {:?} not a tree", &curr_path);
-                        }
+                        _ => ()
                     }
+                    let next_object = entry
+                        .object()
+                        .map_err(|e| PmrRepoError::from(GixError::from(e)))?;
+                    info!("got {} {:?}", next_object.kind, &next_object);
+                    object = Some(next_object);
                 };
-                (path, GitResultTarget::Object(object))
+                match object {
+                    Some(object) =>
+                        (path, GitResultTarget::Object(object)),
+                    None =>
+                        // Only way object is None is have target set.
+                        (path, target.expect("to be a SubRepoPath")),
+                }
             },
         };
         let git_result = GitResult {
@@ -878,60 +885,60 @@ mod tests {
 
         let mut mock_backend = MockBackend::new();
         // used later.
-        // mock_backend.expect_get_workspace_by_url()
-        //     .times(1)
-        //     .with(eq("http://models.example.com/w/import2"))
-        //     .returning(|_| Ok(WorkspaceRecord {
-        //         id: 2,
-        //         url: "http://models.example.com/w/import2".to_string(),
-        //         description: Some("The import2 workspace".to_string())
-        //     }));
+        mock_backend.expect_get_workspace_by_url()
+            .times(1)
+            .with(eq("http://models.example.com/w/import2"))
+            .returning(|_| Ok(WorkspaceRecord {
+                id: 2,
+                url: "http://models.example.com/w/import2".to_string(),
+                description: Some("The import2 workspace".to_string())
+            }));
         let pmrbackend = PmrBackendWR::new(
             &mock_backend,
             git_root.path().to_path_buf(),
             &repodata_workspace,
         ).unwrap();
 
-        // let result = pmrbackend.pathinfo(
-        //     Some("557ee3cb13fb421d2bd6897615ae95830eb427c8"),
-        //     Some("ext/import1/README"),
-        // ).unwrap();
+        let result = pmrbackend.pathinfo(
+            Some("557ee3cb13fb421d2bd6897615ae95830eb427c8"),
+            Some("ext/import1/README"),
+        ).unwrap();
 
-        // let pathinfo = <WorkspacePathInfo>::from(&WorkspaceGitResult::new(
-        //     &pmrbackend.workspace, &result));
-        // assert_eq!(
-        //     pathinfo.path,
-        //     "ext/import1/README".to_string());
-        // assert_eq!(
-        //     pathinfo.object,
-        //     Some(PathObject::RemoteInfo(RemoteInfo {
-        //         location: "http://models.example.com/w/import1"
-        //             .to_string(),
-        //         commit: "01b952d14a0a33d22a0aa465fe763e5d17b15d46"
-        //             .to_string(),
-        //         path: "README".to_string(),
-        //     })),
-        // );
+        let pathinfo = <WorkspacePathInfo>::from(&WorkspaceGitResult::new(
+            &pmrbackend.workspace, &result));
+        assert_eq!(
+            pathinfo.path,
+            "ext/import1/README".to_string());
+        assert_eq!(
+            pathinfo.object,
+            Some(PathObject::RemoteInfo(RemoteInfo {
+                location: "http://models.example.com/w/import1"
+                    .to_string(),
+                commit: "01b952d14a0a33d22a0aa465fe763e5d17b15d46"
+                    .to_string(),
+                path: "README".to_string(),
+            })),
+        );
 
-        // let result = pmrbackend.pathinfo(
-        //     Some("c4d735e5a305559c1cb0ce8de4c25ed5c3f4f263"),
-        //     Some("ext/import2/import1/if1"),
-        // ).unwrap();
-        // let pathinfo = <WorkspacePathInfo>::from(&WorkspaceGitResult::new(
-        //     &pmrbackend.workspace, &result));
-        // assert_eq!(
-        //     pathinfo.path,
-        //     "ext/import2/import1/if1".to_string());
-        // assert_eq!(
-        //     pathinfo.object,
-        //     Some(PathObject::RemoteInfo(RemoteInfo {
-        //         location: "http://models.example.com/w/import2"
-        //             .to_string(),
-        //         commit: "0ab8a26a0e85a033bea0388216667d83cc0dc1dd"
-        //             .to_string(),
-        //         path: "import1/if1".to_string(),
-        //     })),
-        // );
+        let result = pmrbackend.pathinfo(
+            Some("c4d735e5a305559c1cb0ce8de4c25ed5c3f4f263"),
+            Some("ext/import2/import1/if1"),
+        ).unwrap();
+        let pathinfo = <WorkspacePathInfo>::from(&WorkspaceGitResult::new(
+            &pmrbackend.workspace, &result));
+        assert_eq!(
+            pathinfo.path,
+            "ext/import2/import1/if1".to_string());
+        assert_eq!(
+            pathinfo.object,
+            Some(PathObject::RemoteInfo(RemoteInfo {
+                location: "http://models.example.com/w/import2"
+                    .to_string(),
+                commit: "0ab8a26a0e85a033bea0388216667d83cc0dc1dd"
+                    .to_string(),
+                path: "import1/if1".to_string(),
+            })),
+        );
 
         let mut buffer = <Vec<u8>>::new();
         let readme_result = pmrbackend.pathinfo(
@@ -947,19 +954,19 @@ mod tests {
             "A simple readme file.\n",
         );
 
-        // let mut buffer = <Vec<u8>>::new();
-        // let import2_result = pmrbackend.pathinfo(
-        //     Some("a4a04eed5e243e3019592579a7f6eb950399f9bf"),
-        //     Some("ext/import2/if2"),
-        // ).unwrap();
-        // assert_eq!(
-        //     pmrbackend.stream_result_blob(&mut buffer, &import2_result).await.unwrap(),
-        //     4,
-        // );
-        // assert_eq!(
-        //     std::str::from_utf8(&buffer).unwrap(),
-        //     "if2\n",
-        // );
+        let mut buffer = <Vec<u8>>::new();
+        let import2_result = pmrbackend.pathinfo(
+            Some("a4a04eed5e243e3019592579a7f6eb950399f9bf"),
+            Some("ext/import2/if2"),
+        ).unwrap();
+        assert_eq!(
+            pmrbackend.stream_result_blob(&mut buffer, &import2_result).await.unwrap(),
+            4,
+        );
+        assert_eq!(
+            std::str::from_utf8(&buffer).unwrap(),
+            "if2\n",
+        );
 
     }
 
