@@ -3,7 +3,6 @@ use std::{
     path::Path,
     str::FromStr,
 };
-use tempfile::TempDir;
 use gix::{
     Repository,
     config::tree::{
@@ -12,6 +11,8 @@ use gix::{
     },
     objs::tree,
 };
+use tempfile::TempDir;
+use textwrap_macros::dedent;
 
 pub enum GitObj<'a> {
     Blob(&'a str, &'a str),
@@ -174,6 +175,170 @@ pub fn commit(
         files.into_iter()
             .map(|(n, c)| crate::test::GitObj::Blob(n, c))
             .collect(),
+    )
+}
+
+pub fn create_repodata() -> (
+    TempDir,
+    (gix::Repository, Vec<gix::ObjectId>),
+    (gix::Repository, Vec<gix::ObjectId>),
+    (gix::Repository, Vec<gix::ObjectId>),
+) {
+    use crate::test::GitObj::{
+        Blob,
+        Commit,
+        Tree,
+    };
+
+    let tempdir = TempDir::new().unwrap();
+    // import1
+    let (_, import1) = crate::test::repo_init(
+        None, Some(&tempdir.path().join("1")), Some(1111010101)).unwrap();
+    let mut import1_oids = <Vec<gix::ObjectId>>::new();
+    let mut import2_oids = <Vec<gix::ObjectId>>::new();
+    let mut repodata_oids = <Vec<gix::ObjectId>>::new();
+
+    import1_oids.push(crate::test::append_commit_from_objects(
+        &import1, Some(1111010110), Some("readme for import1"), vec![
+        Blob("README", dedent!("
+        this is import1
+        ")),
+    ]).unwrap());
+    import1_oids.push(crate::test::append_commit_from_objects(
+        &import1, Some(1111010111), Some("adding import1"), vec![
+        Blob("if1", dedent!("
+        if1
+        ")),
+        Blob("README", dedent!("
+        The readme for import1.
+        ")),
+    ]).unwrap());
+
+    // import2
+    let (_, import2) = crate::test::repo_init(
+        None, Some(&tempdir.path().join("2")), Some(1111020202)).unwrap();
+    import2_oids.push(crate::test::append_commit_from_objects(
+        &import2, Some(1222020220), Some("readme for import2"), vec![
+        Blob("README", dedent!("
+        this is import2
+        ")),
+    ]).unwrap());
+    import2_oids.push(crate::test::append_commit_from_objects(
+        &import2, Some(1222020221), Some("adding import2"), vec![
+        Blob("if2", dedent!("
+        if2
+        ")),
+        Blob("README", dedent!("
+        The readme for import2.
+        ")),
+    ]).unwrap());
+    import2_oids.push(crate::test::append_commit_from_objects(
+        &import2, Some(1222020222), Some("adding import1 as an import"), vec![
+        Commit("import1", &format!("{}", import1_oids[1])),
+        Blob(".gitmodules", dedent!(r#"
+        [submodule "ext/import1"]
+               path = import1
+               url = http://models.example.com/w/import1
+        "#)),
+    ]).unwrap());
+
+    // repodata
+    let (_, repodata) = crate::test::repo_init(
+        None, Some(&tempdir.path().join("3")), Some(1654321000)).unwrap();
+    repodata_oids.push(crate::test::append_commit_from_objects(
+        &repodata, Some(1666666700), Some("Initial commit of repodata"), vec![
+        Blob("file1", dedent!("
+        This is file1, initial commit.
+        ")),
+        Blob("README", dedent!("
+        A simple readme file.
+        ")),
+    ]).unwrap());
+    repodata_oids.push(crate::test::append_commit_from_objects(
+        &repodata, Some(1666666710), Some("adding import1"), vec![
+        Blob(".gitmodules", dedent!(r#"
+        [submodule "ext/import1"]
+               path = ext/import1
+               url = http://models.example.com/w/import1
+        "#)),
+        Tree("ext", vec![
+            Commit("import1", &format!("{}", import1_oids[0])),
+        ]),
+    ]).unwrap());
+    repodata_oids.push(crate::test::append_commit_from_objects(
+        &repodata, Some(1666666720), Some("adding some files"), vec![
+        Tree("dir1", vec![
+            Blob("file1", "file1 is new"),
+            Blob("file2", "file2 is new"),
+            Tree("nested", vec![
+                Blob("file_a", "file_a is new"),
+                Blob("file_b", "file_b is new"),
+            ]),
+        ]),
+    ]).unwrap());
+    repodata_oids.push(crate::test::append_commit_from_objects(
+        &repodata, Some(1666666730), Some("bumping import1"), vec![
+        Tree("ext", vec![
+            Commit("import1", &format!("{}", import1_oids[1])),
+        ]),
+        Blob("file1", dedent!("
+        This is file1, initial commit.
+        This line added with import1 bump.
+        ")),
+        Blob("file2", dedent!("
+        This is file2, added with import1 bump.
+        ")),
+    ]).unwrap());
+    repodata_oids.push(crate::test::append_commit_from_objects(
+        &repodata, Some(1666666740), Some("adding import2"), vec![
+        Blob(".gitmodules", dedent!(r#"
+        [submodule "ext/import1"]
+               path = ext/import1
+               url = http://models.example.com/w/import1
+        [submodule "ext/import2"]
+               path = ext/import2
+               url = http://models.example.com/w/import2
+        "#)),
+        Tree("ext", vec![
+            Commit("import2", &format!("{}", import2_oids[0])),
+        ]),
+    ]).unwrap());
+    repodata_oids.push(crate::test::append_commit_from_objects(
+        &repodata, Some(1666666750), Some("bumping import2"), vec![
+        Tree("ext", vec![
+            Commit("import2", &format!("{}", import2_oids[1])),
+        ]),
+    ]).unwrap());
+    repodata_oids.push(crate::test::append_commit_from_objects(
+        &repodata, Some(1666666760),
+        Some("bumping import2, breaking import1"), vec![
+        Tree("ext", vec![
+            Commit("import1", &format!("{}", import2_oids[1])),
+            Commit("import2", &format!("{}", import2_oids[2])),
+        ]),
+    ]).unwrap());
+    repodata_oids.push(crate::test::append_commit_from_objects(
+        &repodata, Some(1666666770),
+        Some("fixing import1"), vec![
+        Tree("ext", vec![
+            Commit("import1", &format!("{}", import1_oids[1])),
+        ]),
+    ]).unwrap());
+    repodata_oids.push(crate::test::append_commit_from_objects(
+        &repodata, Some(1666666780), Some("updating dir1"), vec![
+        Tree("dir1", vec![
+            Blob("file2", "file2 is modified"),
+            Tree("nested", vec![
+                Blob("file_c", "file_c is new"),
+            ]),
+        ]),
+    ]).unwrap());
+
+    (
+        tempdir,
+        (import1, import1_oids),
+        (import2, import2_oids),
+        (repodata, repodata_oids),
     )
 }
 
