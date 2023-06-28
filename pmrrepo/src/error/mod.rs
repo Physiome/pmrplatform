@@ -42,6 +42,10 @@ pub enum GixError {
     ReferenceIterInit(#[from] gix::reference::iter::init::Error),
     #[error(transparent)]
     RevisionSpecParseSingle(#[from] gix::revision::spec::parse::single::Error),
+    #[error(transparent)]
+    RevisionWalk(#[from] gix::revision::walk::Error),
+    #[error(transparent)]
+    TrasverseCommitAncestors(#[from] gix::traverse::commit::ancestors::Error),
 }
 
 #[derive(Debug, PartialEq, Error, Deserialize, Serialize)]

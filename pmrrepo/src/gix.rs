@@ -18,6 +18,7 @@ use gix::{
         WriteTo,
         tree::EntryMode,
     },
+    traverse::commit::Sorting,
 };
 use pmrmodel_base::{
     git::{
@@ -657,6 +658,37 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
                 Ok(self.stream_result_blob(writer, &git_result).await?)
             },
         }
+    }
+
+    pub fn loginfo(
+        &self,
+        commit_id: Option<&str>,
+        _path: Option<&'a str>,
+    ) -> Result<ObjectInfo, PmrRepoError> {
+        let commit = self.get_commit(commit_id)?;
+        let log_entries = self.repo
+            .rev_walk([commit.id])
+            .sorting(Sorting::ByCommitTimeNewestFirst)
+            .all()
+            .map_err(|e| PmrRepoError::from(GixError::from(e)))?
+            .map(|info| {
+                let commit = info?.object()?;
+                Ok(LogEntryInfo {
+                    commit_id: format!("{}", commit.id()),
+                    author: format!("{:?}", commit.author()?),
+                    committer: format!("{:?}", commit.committer()?),
+                    // We are not going to bother with commit timestamps
+                    // that go beyond i64; while casting like this will
+                    // result in silently breaking stuff, revisit this
+                    // bit later when there is more finality in what gix
+                    // does.
+                    commit_timestamp: commit.time()?.seconds as i64,
+                })
+            })
+            .collect::<Result<Vec<_>, GixError>>()?;
+
+        let result = ObjectInfo::LogInfo(LogInfo { entries: log_entries });
+        Ok(result)
     }
 
 }
