@@ -5,15 +5,12 @@ use gix::{
     Commit,
     Object,
     Repository,
-    ThreadSafeRepository,
-    Tree,
     object::{
         Kind,
     },
     objs::{
         BlobRef,
         CommitRef,
-        ObjectRef,
         TreeRef,
         WriteTo,
         tree::EntryMode,
@@ -64,7 +61,6 @@ use std::{
         Path,
         PathBuf,
     },
-    str::FromStr,
 };
 
 use crate::{
