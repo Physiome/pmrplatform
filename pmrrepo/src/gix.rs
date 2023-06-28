@@ -120,7 +120,7 @@ impl WorkspaceGitResult<'_> {
 // These assume the blobs are all contained because the conversion to
 // the Ref equivalent currently drops information for gix, and to make
 // the internal usage consistent, the raw object is passed.
-fn blob_to_info(git_object: &Object, path: Option<&str>) -> ObjectInfo {
+fn obj_blob_to_info(git_object: &Object, path: Option<&str>) -> ObjectInfo {
     let blob = BlobRef::from_bytes(&git_object.data).unwrap();
     ObjectInfo::FileInfo(FileInfo {
         size: blob.size() as u64,
@@ -132,7 +132,7 @@ fn blob_to_info(git_object: &Object, path: Option<&str>) -> ObjectInfo {
     })
 }
 
-fn tree_to_info(git_object: &Object) -> ObjectInfo {
+fn obj_tree_to_info(git_object: &Object) -> ObjectInfo {
     let tree = TreeRef::from_bytes(&git_object.data).unwrap();
     ObjectInfo::TreeInfo(
         TreeInfo {
@@ -147,11 +147,21 @@ fn tree_to_info(git_object: &Object) -> ObjectInfo {
     )
 }
 
-fn commit_to_info(git_object: &Object) -> ObjectInfo {
+fn obj_commit_to_info(git_object: &Object) -> ObjectInfo {
     let commit_id = git_object.id.to_string();
     let commit = CommitRef::from_bytes(&git_object.data).unwrap();
     ObjectInfo::CommitInfo(CommitInfo {
         commit_id: commit_id,
+        author: format!("{:?}", commit.author()),
+        committer: format!("{:?}", commit.committer()),
+    })
+}
+
+// the annoyance of the three gix types not having a common trait...
+// practically duplicating the above.
+fn commit_to_info(commit: &Commit) -> ObjectInfo {
+    ObjectInfo::CommitInfo(CommitInfo {
+        commit_id: commit.id.to_string(),
         author: format!("{:?}", commit.author()),
         committer: format!("{:?}", commit.committer()),
     })
@@ -219,7 +229,7 @@ fn gitresult_to_info(git_result: &GitResult, git_object: &Object) -> Option<Obje
     // alternatively, produce some structured data?
     match git_object.kind {
         Kind::Blob => {
-            Some(blob_to_info(
+            Some(obj_blob_to_info(
                 &git_object,
                 Some(git_result.path),
             ))
@@ -233,19 +243,30 @@ fn object_to_info(
 ) -> Option<ObjectInfo> {
     match git_object.kind {
         Kind::Blob => {
-            Some(blob_to_info(
+            Some(obj_blob_to_info(
                 &git_object,
                 None,
             ))
         }
         Kind::Tree => {
-            Some(tree_to_info(&git_object))
+            Some(obj_tree_to_info(&git_object))
         }
         Kind::Commit => {
-            Some(commit_to_info(&git_object))
+            Some(obj_commit_to_info(&git_object))
         }
         Kind::Tag => {
             None
+        }
+    }
+}
+
+impl From<&GitResult<'_>> for Option<ObjectInfo> {
+    fn from(git_result: &GitResult) -> Self {
+        match &git_result.target {
+            GitResultTarget::Object(object) => {
+                object_to_info(&object)
+            }
+            _ => None
         }
     }
 }
@@ -256,6 +277,39 @@ fn rev_parse_single<'a>(
     commit_id: &'a str,
 ) -> Result<Object<'a>, GixError> {
     Ok(repo.rev_parse_single(commit_id)?.object()?)
+}
+
+pub fn stream_git_result_default(mut writer: impl Write, git_result: &GitResult) -> std::result::Result<usize, std::io::Error> {
+    // TODO split off to a formatter version?
+    // alternatively, produce some structured data?
+    writer.write(format!("
+        have repo at {:?}
+        have commit {:?}
+        have commit_object {:?}
+        using repopath {:?}
+        have git_object {:?}
+        have path_info {:?}
+        \n",
+        git_result.repo.path(),
+        &git_result.commit.id(),
+        commit_to_info(&git_result.commit),
+        git_result.path,
+        <Option<ObjectInfo>>::from(git_result),
+        <PathInfo>::from(git_result),
+    ).as_bytes())
+}
+
+pub fn stream_git_result_as_json(
+    writer: impl Write,
+    git_result: &GitResult,
+) -> Result<(), serde_json::Error> {
+    // TODO how to generalize this to deal with a common "theme" of JSON outputs?
+    // currently, this is directly coupled to GitResult, but perhaps there needs
+    // to be some trait that provide the output desired?
+    // Also, need to consider how to provide a more generic JSON-LD builder framework
+    // of sort?  Need to build context and what not...
+    // generalize a UI based on that schema/grammar?
+    serde_json::to_writer(writer, &<PathInfo>::from(git_result))
 }
 
 pub async fn stream_blob(
@@ -501,8 +555,6 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         path: Option<&'a str>,
     ) -> Result<GitResult, PmrRepoError> {
         let commit = self.get_commit(commit_id)?;
-        // let location: String;
-        // let location_commit: String;
         let tree = commit.tree_id()
             .map_err(|e| PmrRepoError::from(GixError::from(e)))?
             .object()
@@ -543,10 +595,9 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
                                 &commit,
                                 curr_path.to_str().unwrap(),
                             )?;
-                            let location_commit = entry.id().to_string();
                             target = Some(GitResultTarget::SubRepoPath {
                                 location: location,
-                                commit: location_commit,
+                                commit: entry.id().to_string(),
                                 path: comps.as_path().to_str().unwrap(),
                             });
                             object = None;
