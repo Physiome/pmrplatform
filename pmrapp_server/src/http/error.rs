@@ -22,6 +22,8 @@ pub enum Error {
     #[error("500 Internal Server Error")]
     Sqlx(#[from] sqlx::Error),
     #[error("500 Internal Server Error")]
+    GixError(#[from] pmrrepo::error::GixError),
+    #[error("500 Internal Server Error")]
     PmrRepoError(#[from] pmrrepo::error::PmrRepoError),
 }
 

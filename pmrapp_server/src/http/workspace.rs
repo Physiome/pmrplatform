@@ -9,7 +9,7 @@ use axum::{
 use pmrmodel::model::db::workspace::WorkspaceBackend;
 use pmrmodel_base::git::PathObject;
 use pmrrepo::git::{
-    ObjectType,
+    Kind,
     GitResultTarget,
     PmrBackendWR,
 };
@@ -24,7 +24,6 @@ use crate::http::{
     Error,
     Html,
     page,
-    Result,
 };
 use pmrapp_client::App;
 use pmrapp_client::sauron::Render;
@@ -131,13 +130,13 @@ async fn raw_workspace_pathinfo_workspace_id_commit_id_path(
             // Ok(blob)
 
             match &result.target {
-                GitResultTarget::Object(object) => match object.kind() {
-                    Some(ObjectType::Blob) => {
+                GitResultTarget::Object(object) => match object.kind {
+                    Kind::Blob => {
                         let path_object = <Option<PathObject>>::from(&result);
-                        match (path_object, object.as_blob()) {
-                            (Some(PathObject::FileInfo(info)), Some(blob)) => {
+                        match (path_object, object.kind) {
+                            (Some(PathObject::FileInfo(info)), Kind::Blob) => {
                                 // possible to avoid copying these bytes?
-                                match (&mut buffer).write(blob.content()) {
+                                match (&mut buffer).write(&object.data) {
                                     Ok(_) => Ok((
                                         [(header::CONTENT_TYPE, info.mime_type)],
                                         buffer
@@ -151,7 +150,7 @@ async fn raw_workspace_pathinfo_workspace_id_commit_id_path(
                             }
                         }
                     },
-                    Some(_) | None => {
+                    _ => {
                         log::info!("target is not a git blob");
                         Err(Error::NotFound)
                     },

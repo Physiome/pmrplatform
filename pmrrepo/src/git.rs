@@ -1,9 +1,20 @@
 use async_recursion::async_recursion;
 use futures::stream::StreamExt;
 use futures::stream::futures_unordered::FuturesUnordered;
-use std::io::Write;
-pub use git2::{Repository, Blob, Commit, Object, ObjectType, Tree};
-use std::path::{Path, PathBuf};
+use gix::{
+    Commit,
+    Object,
+    Repository,
+    objs::{
+        BlobRef,
+        CommitRef,
+        TreeRef,
+        WriteTo,
+        tree::EntryMode,
+    },
+    traverse::commit::Sorting,
+};
+pub use gix::object::Kind;
 use pmrmodel_base::{
     git::{
         TreeEntryInfo,
@@ -41,12 +52,28 @@ use pmrmodel::model::workspace_sync::{
 };
 use pmrmodel::model::db::workspace_tag::WorkspaceTagBackend;
 
-use crate::error::{
-    ContentError,
-    ExecutionError,
-    PathError,
-    PmrRepoError,
+use std::{
+    io::Write,
+    ops::Deref,
+    path::{
+        Path,
+        PathBuf,
+    },
 };
+
+use crate::{
+    error::{
+        ContentError,
+        ExecutionError,
+        GixError,
+        PathError,
+        PmrRepoError,
+    },
+    util::is_binary,
+};
+
+mod util;
+use util::*;
 
 pub struct PmrBackendW<'a, P: PmrBackend> {
     backend: &'a P,
@@ -82,16 +109,20 @@ pub struct WorkspaceGitResult<'a>(&'a WorkspaceRecord, &'a GitResult<'a>);
 impl WorkspaceGitResult<'_> {
     pub fn new<'a>(
         workspace_record: &'a WorkspaceRecord,
-        git_result: &'a GitResult,
+        git_result: &'a GitResult<'a>,
     ) -> WorkspaceGitResult<'a> {
         WorkspaceGitResult(&workspace_record, git_result)
     }
 }
 
-fn blob_to_info(blob: &Blob, path: Option<&str>) -> ObjectInfo {
+// These assume the blobs are all contained because the conversion to
+// the Ref equivalent currently drops information for gix, and to make
+// the internal usage consistent, the raw object is passed.
+fn obj_blob_to_info(git_object: &Object, path: Option<&str>) -> ObjectInfo {
+    let blob = BlobRef::from_bytes(&git_object.data).unwrap();
     ObjectInfo::FileInfo(FileInfo {
         size: blob.size() as u64,
-        binary: blob.is_binary(),
+        binary: is_binary(blob.data),
         mime_type: path
             .and_then(|path| mime_guess::from_path(path).first_raw())
             .unwrap_or("application/octet-stream")
@@ -99,25 +130,41 @@ fn blob_to_info(blob: &Blob, path: Option<&str>) -> ObjectInfo {
     })
 }
 
-fn tree_to_info(_repo: &Repository, tree: &Tree) -> ObjectInfo {
+fn obj_tree_to_info(git_object: &Object) -> ObjectInfo {
+    let tree = TreeRef::from_bytes(&git_object.data).unwrap();
     ObjectInfo::TreeInfo(
         TreeInfo {
-            filecount: tree.len() as u64,
-            entries: tree.iter().map(|entry| TreeEntryInfo {
-                filemode: format!("{:06o}", entry.filemode()),
-                kind: entry.kind().unwrap().str().to_string(),
-                id: format!("{}", entry.id()),
-                name: entry.name().unwrap().to_string(),
+            filecount: tree.entries.len() as u64,
+            entries: tree.entries.iter().map(|entry| TreeEntryInfo {
+                filemode: std::str::from_utf8(entry.mode.as_bytes()).unwrap().to_string(),
+                kind: format!("{}", entry.oid.kind()),
+                id: format!("{}", entry.oid),
+                name: format!("{}", entry.filename),
             }).collect(),
         }
     )
 }
 
-fn commit_to_info(commit: &Commit) -> ObjectInfo {
+fn obj_commit_to_info(git_object: &Object) -> ObjectInfo {
+    let commit_id = git_object.id.to_string();
+    let commit_ref = CommitRef::from_bytes(&git_object.data)
+        .expect("should have been verified as a well-formed commit");
     ObjectInfo::CommitInfo(CommitInfo {
-        commit_id: format!("{}", commit.id()),
-        author: format!("{}", commit.author()),
-        committer: format!("{}", commit.committer()),
+        commit_id: commit_id,
+        author: format_signature_ref(&commit_ref.author()),
+        committer: format_signature_ref(&commit_ref.committer()),
+    })
+}
+
+// the annoyance of the three gix types not having a common trait...
+// practically duplicating the above.
+fn commit_to_info(commit: &Commit) -> ObjectInfo {
+    let commit_ref = CommitRef::from_bytes(&commit.data)
+        .expect("should have been verified as a well-formed commit");
+    ObjectInfo::CommitInfo(CommitInfo {
+        commit_id: commit.id.to_string(),
+        author: format_signature_ref(&commit_ref.author()),
+        committer: format_signature_ref(&commit_ref.committer()),
     })
 }
 
@@ -145,11 +192,13 @@ impl From<&GitResult<'_>> for Option<PathObject> {
 
 impl From<&GitResult<'_>> for PathInfo {
     fn from(git_result: &GitResult) -> Self {
+        let commit_ref = CommitRef::from_bytes(&git_result.commit.data)
+            .expect("should have been verified as a well-formed commit");
         PathInfo {
             commit: CommitInfo {
                 commit_id: format!("{}", &git_result.commit.id()),
-                author: format!("{}", &git_result.commit.author()),
-                committer: format!("{}", &git_result.commit.committer()),
+                author: format_signature_ref(&commit_ref.author()),
+                committer: format_signature_ref(&commit_ref.committer()),
             },
             path: format!("{}", &git_result.path),
             object: git_result.into(),
@@ -169,8 +218,8 @@ impl From<&WorkspaceGitResult<'_>> for WorkspacePathInfo {
             description: workspace.description.clone(),
             commit: CommitInfo {
                 commit_id: format!("{}", &git_result.commit.id()),
-                author: format!("{}", &git_result.commit.author()),
-                committer: format!("{}", &git_result.commit.committer()),
+                author: format!("{:?}", &git_result.commit.author()),
+                committer: format!("{:?}", &git_result.commit.committer()),
             },
             path: format!("{}", &git_result.path),
             object: (*git_result).into(),
@@ -181,37 +230,34 @@ impl From<&WorkspaceGitResult<'_>> for WorkspacePathInfo {
 fn gitresult_to_info(git_result: &GitResult, git_object: &Object) -> Option<ObjectInfo> {
     // TODO split off to a formatter version?
     // alternatively, produce some structured data?
-    match git_object.kind() {
-        Some(ObjectType::Blob) => {
-            Some(blob_to_info(
-                git_object.as_blob().unwrap(),
+    match git_object.kind {
+        Kind::Blob => {
+            Some(obj_blob_to_info(
+                &git_object,
                 Some(git_result.path),
             ))
         },
-        _ => object_to_info(&git_result.repo, git_object),
+        _ => object_to_info(git_object),
     }
 }
 
-fn object_to_info(repo: &Repository, git_object: &Object) -> Option<ObjectInfo> {
-    // TODO split off to a formatter version?
-    // alternatively, produce some structured data?
-    match git_object.kind() {
-        Some(ObjectType::Blob) => {
-            Some(blob_to_info(
-                git_object.as_blob().unwrap(),
+fn object_to_info(
+    git_object: &Object,
+) -> Option<ObjectInfo> {
+    match git_object.kind {
+        Kind::Blob => {
+            Some(obj_blob_to_info(
+                &git_object,
                 None,
             ))
         }
-        Some(ObjectType::Tree) => {
-            Some(tree_to_info(&repo, git_object.as_tree().unwrap()))
+        Kind::Tree => {
+            Some(obj_tree_to_info(&git_object))
         }
-        Some(ObjectType::Commit) => {
-            Some(commit_to_info(git_object.as_commit().unwrap()))
+        Kind::Commit => {
+            Some(obj_commit_to_info(&git_object))
         }
-        Some(ObjectType::Tag) => {
-            None
-        }
-        Some(ObjectType::Any) | None => {
+        Kind::Tag => {
             None
         }
     }
@@ -221,7 +267,7 @@ impl From<&GitResult<'_>> for Option<ObjectInfo> {
     fn from(git_result: &GitResult) -> Self {
         match &git_result.target {
             GitResultTarget::Object(object) => {
-                object_to_info(&git_result.repo, &object)
+                object_to_info(&object)
             }
             _ => None
         }
@@ -261,8 +307,11 @@ pub fn stream_git_result_as_json(
     serde_json::to_writer(writer, &<PathInfo>::from(git_result))
 }
 
-pub async fn stream_blob(mut writer: impl Write, blob: &Blob<'_>) -> std::result::Result<usize, std::io::Error> {
-    writer.write(blob.content())
+pub async fn stream_blob(
+    mut writer: impl Write,
+    blob: &Object<'_>,
+) -> std::result::Result<usize, std::io::Error> {
+    writer.write(&blob.data)
 }
 
 fn get_submodule_target<P: PmrBackend>(
@@ -270,37 +319,41 @@ fn get_submodule_target<P: PmrBackend>(
     commit: &Commit,
     path: &str,
 ) -> Result<String, PmrRepoError> {
-    let obj = commit
-        .tree()?
-        .get_path(Path::new(".gitmodules"))?
-        .to_object(&pmrbackend.repo)?;
-    let blob = match std::str::from_utf8(
-        obj.as_blob()
-        .ok_or(PmrRepoError::ContentError(ContentError::Invalid {
+    let blob = commit
+        .tree_id()
+        .map_err(|e| PmrRepoError::from(GixError::from(e)))?
+        .object()
+        .map_err(|e| PmrRepoError::from(GixError::from(e)))?
+        .try_into_tree()
+        .map_err(|e| PmrRepoError::from(GixError::from(e)))?
+        .lookup_entry_by_path(Path::new(".gitmodules"))
+        .map_err(|e| PmrRepoError::from(GixError::from(e)))?
+        .ok_or_else(|| PmrRepoError::from(PathError::NoSuchPath {
             workspace_id: pmrbackend.workspace.id,
-            oid: commit.id().to_string(),
+            oid: commit.id.to_string(),
             path: path.to_string(),
-            msg: format!("expected to be a blob"),
         }))?
-        .content()
-    ) {
-        Ok(blob) => blob,
-        Err(e) => return Err(ContentError::Invalid {
+        .id()
+        .object()
+        .map_err(|e| PmrRepoError::from(GixError::from(e)))?;
+    let config = gix::config::File::try_from(
+        std::str::from_utf8(&blob.data)
+        .map_err(
+            |e| PmrRepoError::from(ContentError::Invalid {
+                workspace_id: pmrbackend.workspace.id,
+                oid: commit.id().to_string(),
+                path: path.to_string(),
+                msg: format!("error parsing `.gitmodules`: {}", e),
+            })
+        )?
+    ).map_err(
+        |e| PmrRepoError::from(ContentError::Invalid {
             workspace_id: pmrbackend.workspace.id,
             oid: commit.id().to_string(),
             path: path.to_string(),
             msg: format!("error parsing `.gitmodules`: {}", e),
-        }.into())
-    };
-    let config = match gix::config::File::try_from(blob) {
-        Ok(config) => config,
-        Err(e) => return Err(ContentError::Invalid {
-            workspace_id: pmrbackend.workspace.id,
-            oid: commit.id().to_string(),
-            path: path.to_string(),
-            msg: format!("error parsing `.gitmodules`: {}", e),
-        }.into())
-    };
+        })
+    )?;
     for rec in config.sections_and_ids() {
         match rec.0.value("path") {
             Some(rec_path) => {
@@ -343,8 +396,9 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendW<'a, P> {
     }
 
     pub async fn git_sync_workspace(self) -> Result<PmrBackendWR<'a, P>, PmrRepoError> {
+        // using libgit2 as mature protocol support is desired.
         let repo_dir = self.git_root.join(self.workspace.id.to_string());
-        let repo_check = Repository::open_bare(&repo_dir);
+        let repo_check = git2::Repository::open_bare(&repo_dir);
 
         info!("Syncing local {:?} with remote <{}>...", repo_dir, &self.workspace.url);
         let sync_id = WorkspaceSyncBackend::begin_sync(self.backend, self.workspace.id).await?;
@@ -404,9 +458,12 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         backend: &'a P,
         git_root: PathBuf,
         workspace: &'a WorkspaceRecord,
-    ) -> Result<Self, PmrRepoError> {
+    ) -> Result<Self, GixError> {
         let repo_dir = git_root.join(workspace.id.to_string());
-        let repo = Repository::open_bare(repo_dir)?;
+        let repo = gix::open::Options::isolated()
+            .open_path_as_is(true)
+            .open(repo_dir)?
+            .to_thread_local();
         Ok(Self {
             backend: &backend,
             git_root: git_root,
@@ -415,36 +472,51 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         })
     }
 
-    pub async fn index_tags(&self) -> Result<(), PmrRepoError> {
+    pub async fn index_tags(&self) -> Result<(), GixError> {
         let backend = self.backend;
         let workspace = &self.workspace;
-
-        // collect all the tags for processing later
-        let mut tags = Vec::new();
-        self.repo.tag_foreach(|oid, name| {
-            match String::from_utf8(name.into()) {
-                // swapped position for next part.
-                Ok(tag_name) => tags.push((tag_name, format!("{}", oid))),
-                // simply omit tags not encoded for utf8
-                Err(_) => warn!("a tag for commit_id {} omitted due to invalid utf8 encoding", oid),
+        self.repo.references()?.tags()?.map(|reference| {
+            match reference {
+                Ok(tag) => {
+                    let target = tag.target().id().to_hex().to_string();
+                    match std::str::from_utf8(tag.name().as_bstr().deref()) {
+                        Ok(s) => Some((s.to_string(), target)),
+                        Err(_) => {
+                            warn!("\
+                            a tag for commit_id {} omitted due to \
+                            invalid utf8 encoding\
+                            ", target
+                            );
+                            None
+                        }
+                    }
+                }
+                Err(e) => {
+                    warn!("failed to decode a tag: {}", e);
+                    None
+                }
             }
-            true
-        })?;
-
-        tags.iter().map(|(name, oid)| async move {
-            match WorkspaceTagBackend::index_workspace_tag(backend, workspace.id, &name, &oid).await {
-                Ok(_) => info!("indexed tag: {}", name),
-                Err(e) => warn!("tagging error: {:?}", e),
-            }
-        }).collect::<FuturesUnordered<_>>().collect::<Vec<_>>().await;
+        }).filter_map(|x| x)
+            .map(|(name, oid)| async move {
+                match WorkspaceTagBackend::index_workspace_tag(
+                    backend,
+                    workspace.id,
+                    &name,
+                    &oid,
+                ).await {
+                    Ok(_) => info!("indexed tag: {}", name),
+                    Err(e) => warn!("tagging error: {:?}", e),
+                }
+            })
+            .collect::<FuturesUnordered<_>>().collect::<Vec<_>>().await;
 
         Ok(())
     }
 
-    pub async fn get_obj_by_spec(&self, spec: &str) -> Result<(), PmrRepoError> {
-        let obj = self.repo.revparse_single(spec)?;
-        info!("Found object {} {}", obj.kind().unwrap().str(), obj.id());
-        info!("{:?}", object_to_info(&self.repo, &obj));
+    pub async fn get_obj_by_spec(&self, spec: &str) -> Result<(), GixError> {
+        let obj = self.repo.rev_parse_single(spec)?.object()?;
+        info!("Found object {} {}", obj.kind, obj.id);
+        info!("{:?}", object_to_info(&obj));
         Ok(())
     }
 
@@ -452,23 +524,21 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         &'a self,
         commit_id: Option<&'a str>,
     ) -> Result<Commit<'a>, PmrRepoError> {
-        // TODO the model should have a field for the default target.
-        // TODO the default value should be the default (main?) branch.
-        let obj = self.repo.revparse_single(commit_id.unwrap_or("HEAD"))?;
-        match obj.kind() {
-            Some(kind) if kind == ObjectType::Commit => {
-                info!("Found {} {}", kind, obj.id());
+        let obj = rev_parse_single(&self.repo, &commit_id.unwrap_or("HEAD"))?;
+        match obj.kind {
+            kind if kind == Kind::Commit => {
+                info!("Found {} {}", kind, obj.id);
             }
-            Some(_) | None => return Err(PathError::NoSuchCommit {
+            _ => return Err(PathError::NoSuchCommit {
                 workspace_id: self.workspace.id,
                 oid: commit_id.unwrap_or("HEAD?").into(),
             }.into())
         }
-        match obj.into_commit() {
+        match obj.try_into_commit() {
             Ok(commit) => Ok(commit),
             Err(obj) => Err(ExecutionError::Unexpected {
                 workspace_id: self.workspace.id,
-                msg: format!("libgit2 said oid {:?} was a commit?", obj.id()),
+                msg: format!("gix said oid {:?} was a commit?", obj.id),
             }.into()),
         }
     }
@@ -480,64 +550,69 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         path: Option<&'a str>,
     ) -> Result<GitResult, PmrRepoError> {
         let commit = self.get_commit(commit_id)?;
-        let tree = commit.tree()?;
-        let location: String;
-        let location_commit: String;
-        info!("Found tree {}", tree.id());
+        let tree = commit.tree_id()
+            .map_err(|e| PmrRepoError::from(GixError::from(e)))?
+            .object()
+            .map_err(|e| PmrRepoError::from(GixError::from(e)))?;
 
         let (path, target) = match path {
             Some("") | Some("/") | None => {
                 info!("No path provided; using root tree entry");
-                ("".as_ref(), GitResultTarget::Object(tree.into_object()))
+                ("".as_ref(), GitResultTarget::Object(tree))
             },
             Some(s) => {
                 let path = s.strip_prefix('/').unwrap_or(&s);
-
-                let mut curr_tree = tree;
+                let mut comps = Path::new(path).components();
                 let mut curr_path = PathBuf::new();
+                let mut object = Some(tree);
                 let mut target: Option<GitResultTarget> = None;
 
-                let mut comps = Path::new(path).components();
-
                 while let Some(component) = comps.next() {
-                    let entry = curr_tree.get_path(Path::new(&component))?;
+                    let entry = object
+                        .expect("iteration has this set or look breaked")
+                        .try_into_tree()
+                        .map_err(|e| PmrRepoError::from(GixError::from(e)))?
+                        .lookup_entry_by_path(Path::new(&component))
+                        .map_err(|e| PmrRepoError::from(GixError::from(e)))?
+                        .ok_or_else(
+                            || PmrRepoError::from(PathError::NoSuchPath {
+                                workspace_id: self.workspace.id,
+                                oid: commit.id.to_string(),
+                                path: path.to_string(),
+                            })
+                        )?;
                     curr_path.push(component);
-                    match entry.kind() {
-                        Some(ObjectType::Tree) => {
-                            curr_tree = entry
-                                .to_object(&self.repo)?
-                                .into_tree()
-                                .unwrap();
-                            info!("got {:?}", curr_tree);
-                        },
-                        Some(ObjectType::Commit) => {
-                            info!("entry at {:?} a commit", entry.id());
-                            location = get_submodule_target(
+                    match entry.mode() {
+                        EntryMode::Commit => {
+                            info!("entry {:?} is a commit", entry.id());
+                            let location = get_submodule_target(
                                 &self,
                                 &commit,
                                 curr_path.to_str().unwrap(),
                             )?;
-                            location_commit = entry.id().to_string();
                             target = Some(GitResultTarget::SubRepoPath {
                                 location: location,
-                                commit: location_commit,
+                                commit: entry.id().to_string(),
                                 path: comps.as_path().to_str().unwrap(),
                             });
+                            object = None;
                             break;
                         }
-                        _ => {
-                            info!("path {:?} not a tree", &curr_path);
-                        }
+                        _ => ()
                     }
-                    target = match entry.to_object(&self.repo) {
-                        Ok(git_object) => Some(GitResultTarget::Object(git_object)),
-                        Err(e) => {
-                            info!("Will error later due to {}", e);
-                            None
-                        }
-                    }
+                    let next_object = entry
+                        .object()
+                        .map_err(|e| PmrRepoError::from(GixError::from(e)))?;
+                    info!("got {} {:?}", next_object.kind, &next_object);
+                    object = Some(next_object);
                 };
-                (path, target.unwrap())
+                match object {
+                    Some(object) =>
+                        (path, GitResultTarget::Object(object)),
+                    None =>
+                        // Only way object is None is have target set.
+                        (path, target.expect("to be a SubRepoPath")),
+                }
             },
         };
         let git_result = GitResult {
@@ -556,19 +631,9 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         git_result: &GitResult<'a>,
     ) -> Result<usize, PmrRepoError> {
         match &git_result.target {
-            GitResultTarget::Object(object) => match object.kind() {
-                Some(ObjectType::Blob) => {
-                    match object.as_blob() {
-                        Some(blob) => Ok(stream_blob(writer, blob).await?),
-                        None => Err(ContentError::Invalid {
-                            workspace_id: self.workspace.id,
-                            oid: git_result.commit.id().to_string(),
-                            path: git_result.path.to_string(),
-                            msg: format!("expected to be a blob"),
-                        }.into())
-                    }
-                }
-                Some(_) | None => Err(ContentError::Invalid {
+            GitResultTarget::Object(object) => match object.kind {
+                Kind::Blob => Ok(stream_blob(writer, object).await?),
+                _ => Err(ContentError::Invalid {
                     workspace_id: self.workspace.id,
                     oid: git_result.commit.id().to_string(),
                     path: git_result.path.to_string(),
@@ -595,32 +660,27 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         _path: Option<&'a str>,
     ) -> Result<LogInfo, PmrRepoError> {
         let commit = self.get_commit(commit_id)?;
-        let mut revwalk = self.repo.revwalk()?;
-        revwalk.set_sorting(git2::Sort::TIME)?;
-        revwalk.push(commit.id())?;
-
-        let log_entries = revwalk
-            .filter_map(|id| {
-                let id = match id {
-                    Ok(t) => t,
-                    // Err(e) => return Some(Err(e)),
-                    Err(_) => return None,
-                };
-                let commit = match self.repo.find_commit(id) {
-                    Ok(t) => t,
-                    // Err(e) => return Some(Err(e)),
-                    Err(_) => return None,
-                };
-                // Some(Ok(LogEntryInfo {
-                Some(LogEntryInfo {
+        let log_entries = self.repo
+            .rev_walk([commit.id])
+            .sorting(Sorting::ByCommitTimeNewestFirst)
+            .all()
+            .map_err(|e| PmrRepoError::from(GixError::from(e)))?
+            .map(|info| {
+                let commit = info?.object()?;
+                let committer = commit.committer()?;
+                Ok(LogEntryInfo {
                     commit_id: format!("{}", commit.id()),
-                    author: format!("{}", commit.author()),
-                    committer: format!("{}", commit.committer()),
-                    commit_timestamp: commit.time().seconds(),
+                    author: format_signature_ref(&commit.author()?),
+                    committer: format_signature_ref(&committer),
+                    // We are not going to bother with commit timestamps
+                    // that go beyond i64; while casting like this will
+                    // result in silently breaking stuff, revisit this
+                    // bit later when there is more finality in what gix
+                    // does.
+                    commit_timestamp: committer.time.seconds as i64,
                 })
-                // }))
             })
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>, GixError>>()?;
 
         Ok(LogInfo { entries: log_entries })
     }
@@ -703,7 +763,8 @@ mod tests {
     async fn test_git_sync_workspace_with_index_tag() {
         let (td_, _) = crate::test::repo_init(None, None, None).unwrap();
         let td = td_.as_ref().unwrap();
-        let repo = Repository::open_bare(td).unwrap();
+        // TODO use gix to tag?
+        let repo = git2::Repository::open_bare(td).unwrap();
         let id = repo.head().unwrap().target().unwrap();
         let obj = repo.find_object(id, None).unwrap();
         repo.tag_lightweight("new_tag", &obj, false).unwrap();

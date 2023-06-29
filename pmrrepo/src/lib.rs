@@ -1,6 +1,5 @@
 pub mod error;
 pub mod git;
-pub mod gix;
 mod util;
 
 #[macro_use]
