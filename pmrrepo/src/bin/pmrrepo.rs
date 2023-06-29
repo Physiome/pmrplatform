@@ -204,7 +204,7 @@ async fn main(args: Args) -> anyhow::Result<()> {
         Some(Command::Log { workspace_id, commit_id }) => {
             let workspace = WorkspaceBackend::get_workspace_by_id(&backend, workspace_id).await?;
             let pmrbackend = PmrBackendWR::new(&backend, git_root, &workspace)?;
-            let logs = pmrbackend.loginfo(commit_id.as_deref(), None)?;
+            let logs = pmrbackend.loginfo(commit_id.as_deref(), None, None)?;
             if args.json {
                 // stream_git_result_as_json(io::stdout(), &logs)?;
                 let writer = io::stdout();

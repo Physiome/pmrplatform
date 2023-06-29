@@ -656,13 +656,19 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
     pub fn loginfo(
         &self,
         commit_id: Option<&str>,
-        _path: Option<&'a str>,
+        path: Option<&'a str>,
+        count: Option<usize>,
     ) -> Result<LogInfo, PmrRepoError> {
         let commit = self.get_commit(commit_id)?;
-        let log_entries = self.repo
+        let mut filter = PathFilter::new(&self.repo, path);
+        let log_entry_iter = self.repo
             .rev_walk([commit.id])
             .sorting(Sorting::ByCommitTimeNewestFirst)
             .all().map_err(GixError::from)?
+            .filter(|info| info.as_ref()
+                .map(|info| filter.check(info))
+                .unwrap_or(true)
+            )
             .map(|info| {
                 let commit = info?.object()?;
                 let commit_ref = CommitRef::from_bytes(&commit.data)?;
@@ -679,8 +685,15 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
                     commit_timestamp: committer.time.seconds as i64,
                     message: commit_ref.message.to_string(),
                 })
-            })
-            .collect::<Result<Vec<_>, GixError>>()?;
+            });
+
+        let log_entries = match count {
+            Some(count) => log_entry_iter
+                .take(count)
+                .collect::<Result<Vec<_>, GixError>>()?,
+            None => log_entry_iter
+                .collect::<Result<Vec<_>, GixError>>()?,
+        };
 
         Ok(LogInfo { entries: log_entries })
     }
@@ -1047,8 +1060,8 @@ mod tests {
 
     }
 
-    #[async_std::test]
-    async fn test_workspace_loginfo() {
+    #[test]
+    fn test_workspace_loginfo() -> anyhow::Result<()> {
         let (
             git_root,
             _, // (import1, import1_oids),
@@ -1066,7 +1079,7 @@ mod tests {
             git_root.path().to_path_buf(),
             &repodata_workspace,
         ).unwrap();
-        let logs = pmrbackend.loginfo(None, None).unwrap();
+        let logs = pmrbackend.loginfo(None, None, None).unwrap();
         assert_eq!(
             repodata_oids.iter()
                 .map(|x| x.to_string())
@@ -1150,7 +1163,81 @@ mod tests {
               "message": "initial commit"
             }
           ]
-        }"#).unwrap())
+        }"#)?);
+
+        // for a specific path
+        assert_eq!(
+            [
+                "27be7efbe5fcccda5ee6ca00ef96834f592139a5",
+                "9f02f69509110e7235e4bb9f50e235a246ae9f5c",
+            ],
+            pmrbackend
+                .loginfo(None, Some("file1"), None)?
+                .entries.iter()
+                .map(|x| x.commit_id.to_string())
+                .collect::<Vec<_>>()
+                .as_ref(),
+        );
+        assert_eq!(
+            [
+                "c4d735e5a305559c1cb0ce8de4c25ed5c3f4f263",
+                "a4a04eed5e243e3019592579a7f6eb950399f9bf",
+                "27be7efbe5fcccda5ee6ca00ef96834f592139a5",
+                "557ee3cb13fb421d2bd6897615ae95830eb427c8",
+            ],
+            pmrbackend
+                .loginfo(None, Some("ext/import1"), None)?
+                .entries.iter()
+                .map(|x| x.commit_id.to_string())
+                .collect::<Vec<_>>()
+                .as_ref(),
+        );
+        assert_eq!(
+            0,
+            pmrbackend
+                .loginfo(None, Some("no/such/path"), None)?
+                .entries.iter()
+                .map(|x| x.commit_id.to_string())
+                .collect::<Vec<_>>()
+                .len(),
+        );
+
+        // from both a path and commit
+        assert_eq!(
+            [
+                "27be7efbe5fcccda5ee6ca00ef96834f592139a5",
+                "557ee3cb13fb421d2bd6897615ae95830eb427c8",
+            ],
+            pmrbackend
+                .loginfo(
+                    Some("502b18ac456c8e475f731cbfe568fd6eb1177327"),
+                    Some("ext/import1"),
+                    None,
+                )?
+                .entries.iter()
+                .map(|x| x.commit_id.to_string())
+                .collect::<Vec<_>>()
+                .as_ref(),
+        );
+
+        // from both a path and commit and count
+        assert_eq!(
+            [
+                "27be7efbe5fcccda5ee6ca00ef96834f592139a5",
+            ],
+            pmrbackend
+                .loginfo(
+                    Some("502b18ac456c8e475f731cbfe568fd6eb1177327"),
+                    Some("ext/import1"),
+                    Some(1),
+                )?
+                .entries.iter()
+                .map(|x| x.commit_id.to_string())
+                .collect::<Vec<_>>()
+                .as_ref(),
+        );
+
+        Ok(())
     }
 
 }
