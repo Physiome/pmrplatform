@@ -320,22 +320,18 @@ fn get_submodule_target<P: PmrBackend>(
     path: &str,
 ) -> Result<String, PmrRepoError> {
     let blob = commit
-        .tree_id()
-        .map_err(|e| PmrRepoError::from(GixError::from(e)))?
-        .object()
-        .map_err(|e| PmrRepoError::from(GixError::from(e)))?
-        .try_into_tree()
-        .map_err(|e| PmrRepoError::from(GixError::from(e)))?
-        .lookup_entry_by_path(Path::new(".gitmodules"))
-        .map_err(|e| PmrRepoError::from(GixError::from(e)))?
+        .tree_id().map_err(GixError::from)?
+        .object().map_err(GixError::from)?
+        .try_into_tree().map_err(GixError::from)?
+        .lookup_entry_by_path(
+            Path::new(".gitmodules")).map_err(GixError::from)?
         .ok_or_else(|| PmrRepoError::from(PathError::NoSuchPath {
             workspace_id: pmrbackend.workspace.id,
             oid: commit.id.to_string(),
             path: path.to_string(),
         }))?
         .id()
-        .object()
-        .map_err(|e| PmrRepoError::from(GixError::from(e)))?;
+        .object().map_err(GixError::from)?;
     let config = gix::config::File::try_from(
         std::str::from_utf8(&blob.data)
         .map_err(
@@ -550,10 +546,9 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         path: Option<&'a str>,
     ) -> Result<GitResult, PmrRepoError> {
         let commit = self.get_commit(commit_id)?;
-        let tree = commit.tree_id()
-            .map_err(|e| PmrRepoError::from(GixError::from(e)))?
-            .object()
-            .map_err(|e| PmrRepoError::from(GixError::from(e)))?;
+        let tree = commit
+            .tree_id().map_err(GixError::from)?
+            .object().map_err(GixError::from)?;
 
         let (path, target) = match path {
             Some("") | Some("/") | None => {
@@ -570,10 +565,10 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
                 while let Some(component) = comps.next() {
                     let entry = object
                         .expect("iteration has this set or look breaked")
-                        .try_into_tree()
-                        .map_err(|e| PmrRepoError::from(GixError::from(e)))?
-                        .lookup_entry_by_path(Path::new(&component))
-                        .map_err(|e| PmrRepoError::from(GixError::from(e)))?
+                        .try_into_tree().map_err(GixError::from)?
+                        .lookup_entry_by_path(
+                            Path::new(&component)
+                        ).map_err(GixError::from)?
                         .ok_or_else(
                             || PmrRepoError::from(PathError::NoSuchPath {
                                 workspace_id: self.workspace.id,
@@ -601,8 +596,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
                         _ => ()
                     }
                     let next_object = entry
-                        .object()
-                        .map_err(|e| PmrRepoError::from(GixError::from(e)))?;
+                        .object().map_err(GixError::from)?;
                     info!("got {} {:?}", next_object.kind, &next_object);
                     object = Some(next_object);
                 };
@@ -663,8 +657,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         let log_entries = self.repo
             .rev_walk([commit.id])
             .sorting(Sorting::ByCommitTimeNewestFirst)
-            .all()
-            .map_err(|e| PmrRepoError::from(GixError::from(e)))?
+            .all().map_err(GixError::from)?
             .map(|info| {
                 let commit = info?.object()?;
                 let committer = commit.committer()?;
