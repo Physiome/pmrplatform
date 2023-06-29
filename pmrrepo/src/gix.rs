@@ -540,7 +540,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
             Ok(commit) => Ok(commit),
             Err(obj) => Err(ExecutionError::Unexpected {
                 workspace_id: self.workspace.id,
-                msg: format!("libgit2 said oid {:?} was a commit?", obj.id),
+                msg: format!("gix said oid {:?} was a commit?", obj.id),
             }.into()),
         }
     }
