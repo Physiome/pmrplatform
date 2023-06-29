@@ -593,7 +593,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         &self,
         commit_id: Option<&str>,
         _path: Option<&'a str>,
-    ) -> Result<ObjectInfo, PmrRepoError> {
+    ) -> Result<LogInfo, PmrRepoError> {
         let commit = self.get_commit(commit_id)?;
         let mut revwalk = self.repo.revwalk()?;
         revwalk.set_sorting(git2::Sort::TIME)?;
@@ -622,8 +622,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
             })
             .collect::<Vec<_>>();
 
-        let result = ObjectInfo::LogInfo(LogInfo { entries: log_entries });
-        Ok(result)
+        Ok(LogInfo { entries: log_entries })
     }
 
 }
@@ -985,6 +984,30 @@ mod tests {
             "if2\n",
         );
 
+    }
+
+    #[async_std::test]
+    async fn test_workspace_loginfo() {
+        let (
+            git_root,
+            _, // (import1, import1_oids),
+            _, // (import2, import2_oids),
+            _, // (_, repodata_oids),
+        ) = crate::test::create_repodata();
+        let repodata_workspace = WorkspaceRecord {
+            id: 3,
+            url: "http://models.example.com/w/repodata".to_string(),
+            description: Some("The repodata workspace".to_string())
+        };
+        let mock_backend = MockBackend::new();
+        let pmrbackend = PmrBackendWR::new(
+            &mock_backend,
+            git_root.path().to_path_buf(),
+            &repodata_workspace,
+        ).unwrap();
+
+        let logs = pmrbackend.loginfo(None, None).unwrap();
+        assert_eq!(logs.entries.len(), 10)
     }
 
 }

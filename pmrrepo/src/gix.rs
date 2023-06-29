@@ -74,6 +74,9 @@ use crate::{
     util::is_binary,
 };
 
+mod util;
+use util::*;
+
 pub struct PmrBackendW<'a, P: PmrBackend> {
     backend: &'a P,
     git_root: PathBuf,
@@ -146,21 +149,24 @@ fn obj_tree_to_info(git_object: &Object) -> ObjectInfo {
 
 fn obj_commit_to_info(git_object: &Object) -> ObjectInfo {
     let commit_id = git_object.id.to_string();
-    let commit = CommitRef::from_bytes(&git_object.data).unwrap();
+    let commit_ref = CommitRef::from_bytes(&git_object.data)
+        .expect("should have been verified as a well-formed commit");
     ObjectInfo::CommitInfo(CommitInfo {
         commit_id: commit_id,
-        author: format!("{:?}", commit.author()),
-        committer: format!("{:?}", commit.committer()),
+        author: format_signature_ref(&commit_ref.author()),
+        committer: format_signature_ref(&commit_ref.committer()),
     })
 }
 
 // the annoyance of the three gix types not having a common trait...
 // practically duplicating the above.
 fn commit_to_info(commit: &Commit) -> ObjectInfo {
+    let commit_ref = CommitRef::from_bytes(&commit.data)
+        .expect("should have been verified as a well-formed commit");
     ObjectInfo::CommitInfo(CommitInfo {
         commit_id: commit.id.to_string(),
-        author: format!("{:?}", commit.author()),
-        committer: format!("{:?}", commit.committer()),
+        author: format_signature_ref(&commit_ref.author()),
+        committer: format_signature_ref(&commit_ref.committer()),
     })
 }
 
@@ -188,11 +194,13 @@ impl From<&GitResult<'_>> for Option<PathObject> {
 
 impl From<&GitResult<'_>> for PathInfo {
     fn from(git_result: &GitResult) -> Self {
+        let commit_ref = CommitRef::from_bytes(&git_result.commit.data)
+            .expect("should have been verified as a well-formed commit");
         PathInfo {
             commit: CommitInfo {
                 commit_id: format!("{}", &git_result.commit.id()),
-                author: format!("{:?}", &git_result.commit.author()),
-                committer: format!("{:?}", &git_result.commit.committer()),
+                author: format_signature_ref(&commit_ref.author()),
+                committer: format_signature_ref(&commit_ref.committer()),
             },
             path: format!("{}", &git_result.path),
             object: git_result.into(),
@@ -266,14 +274,6 @@ impl From<&GitResult<'_>> for Option<ObjectInfo> {
             _ => None
         }
     }
-}
-
-// TODO move to module for gix_support
-fn rev_parse_single<'a>(
-    repo: &'a Repository,
-    commit_id: &'a str,
-) -> Result<Object<'a>, GixError> {
-    Ok(repo.rev_parse_single(commit_id)?.object()?)
 }
 
 pub fn stream_git_result_default(mut writer: impl Write, git_result: &GitResult) -> std::result::Result<usize, std::io::Error> {
@@ -660,7 +660,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         &self,
         commit_id: Option<&str>,
         _path: Option<&'a str>,
-    ) -> Result<ObjectInfo, PmrRepoError> {
+    ) -> Result<LogInfo, PmrRepoError> {
         let commit = self.get_commit(commit_id)?;
         let log_entries = self.repo
             .rev_walk([commit.id])
@@ -669,22 +669,22 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
             .map_err(|e| PmrRepoError::from(GixError::from(e)))?
             .map(|info| {
                 let commit = info?.object()?;
+                let committer = commit.committer()?;
                 Ok(LogEntryInfo {
                     commit_id: format!("{}", commit.id()),
-                    author: format!("{:?}", commit.author()?),
-                    committer: format!("{:?}", commit.committer()?),
+                    author: format_signature_ref(&commit.author()?),
+                    committer: format_signature_ref(&committer),
                     // We are not going to bother with commit timestamps
                     // that go beyond i64; while casting like this will
                     // result in silently breaking stuff, revisit this
                     // bit later when there is more finality in what gix
                     // does.
-                    commit_timestamp: commit.time()?.seconds as i64,
+                    commit_timestamp: committer.time.seconds as i64,
                 })
             })
             .collect::<Result<Vec<_>, GixError>>()?;
 
-        let result = ObjectInfo::LogInfo(LogInfo { entries: log_entries });
-        Ok(result)
+        Ok(LogInfo { entries: log_entries })
     }
 
 }
@@ -1049,5 +1049,28 @@ mod tests {
 
     }
 
+    #[async_std::test]
+    async fn test_workspace_loginfo() {
+        let (
+            git_root,
+            _, // (import1, import1_oids),
+            _, // (import2, import2_oids),
+            _, // (_, repodata_oids),
+        ) = crate::test::create_repodata();
+        let repodata_workspace = WorkspaceRecord {
+            id: 3,
+            url: "http://models.example.com/w/repodata".to_string(),
+            description: Some("The repodata workspace".to_string())
+        };
+        let mock_backend = MockBackend::new();
+        let pmrbackend = PmrBackendWR::new(
+            &mock_backend,
+            git_root.path().to_path_buf(),
+            &repodata_workspace,
+        ).unwrap();
+
+        let logs = pmrbackend.loginfo(None, None).unwrap();
+        assert_eq!(logs.entries.len(), 10)
+    }
 
 }
