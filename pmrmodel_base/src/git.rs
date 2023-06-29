@@ -14,6 +14,7 @@ pub struct LogEntryInfo {
     pub author: String,
     pub committer: String,
     pub commit_timestamp: i64,
+    pub message: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

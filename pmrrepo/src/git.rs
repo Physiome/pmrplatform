@@ -146,26 +146,31 @@ fn obj_tree_to_info(git_object: &Object) -> ObjectInfo {
 }
 
 fn obj_commit_to_info(git_object: &Object) -> ObjectInfo {
-    let commit_id = git_object.id.to_string();
-    let commit_ref = CommitRef::from_bytes(&git_object.data)
-        .expect("should have been verified as a well-formed commit");
-    ObjectInfo::CommitInfo(CommitInfo {
-        commit_id: commit_id,
-        author: format_signature_ref(&commit_ref.author()),
-        committer: format_signature_ref(&commit_ref.committer()),
-    })
+    ObjectInfo::CommitInfo(commitref_id_to_commitinfo(
+        git_object.id.to_string(),
+        CommitRef::from_bytes(&git_object.data)
+            .expect("should have been verified as a well-formed commit"),
+    ))
 }
 
-// the annoyance of the three gix types not having a common trait...
 // practically duplicating the above.
 fn commit_to_info(commit: &Commit) -> ObjectInfo {
-    let commit_ref = CommitRef::from_bytes(&commit.data)
-        .expect("should have been verified as a well-formed commit");
-    ObjectInfo::CommitInfo(CommitInfo {
-        commit_id: commit.id.to_string(),
-        author: format_signature_ref(&commit_ref.author()),
-        committer: format_signature_ref(&commit_ref.committer()),
-    })
+    ObjectInfo::CommitInfo(commitref_id_to_commitinfo(
+        commit.id.to_string(),
+        CommitRef::from_bytes(&commit.data)
+            .expect("should have been verified as a well-formed commit"),
+    ))
+}
+
+fn commitref_id_to_commitinfo(
+    commit_id: String,
+    commit: CommitRef,
+) -> CommitInfo {
+    CommitInfo {
+        commit_id: commit_id,
+        author: format_signature_ref(&commit.author()),
+        committer: format_signature_ref(&commit.committer()),
+    }
 }
 
 impl From<&GitResult<'_>> for Option<PathObject> {
@@ -195,11 +200,10 @@ impl From<&GitResult<'_>> for PathInfo {
         let commit_ref = CommitRef::from_bytes(&git_result.commit.data)
             .expect("should have been verified as a well-formed commit");
         PathInfo {
-            commit: CommitInfo {
-                commit_id: format!("{}", &git_result.commit.id()),
-                author: format_signature_ref(&commit_ref.author()),
-                committer: format_signature_ref(&commit_ref.committer()),
-            },
+            commit: commitref_id_to_commitinfo(
+                git_result.commit.id().to_string(),
+                commit_ref,
+            ),
             path: format!("{}", &git_result.path),
             object: git_result.into(),
         }
@@ -213,14 +217,15 @@ impl From<&WorkspaceGitResult<'_>> for WorkspacePathInfo {
             git_result,
         ): &WorkspaceGitResult<'_>
     ) -> Self {
+        let commit_ref = CommitRef::from_bytes(&git_result.commit.data)
+            .expect("should have been verified as a well-formed commit");
         WorkspacePathInfo {
             workspace_id: workspace.id,
             description: workspace.description.clone(),
-            commit: CommitInfo {
-                commit_id: format!("{}", &git_result.commit.id()),
-                author: format!("{:?}", &git_result.commit.author()),
-                committer: format!("{:?}", &git_result.commit.committer()),
-            },
+            commit: commitref_id_to_commitinfo(
+                git_result.commit.id().to_string(),
+                commit_ref,
+            ),
             path: format!("{}", &git_result.path),
             object: (*git_result).into(),
         }
@@ -660,10 +665,11 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
             .all().map_err(GixError::from)?
             .map(|info| {
                 let commit = info?.object()?;
-                let committer = commit.committer()?;
+                let commit_ref = CommitRef::from_bytes(&commit.data)?;
+                let committer = commit_ref.committer;
                 Ok(LogEntryInfo {
                     commit_id: format!("{}", commit.id()),
-                    author: format_signature_ref(&commit.author()?),
+                    author: format_signature_ref(&commit_ref.author),
                     committer: format_signature_ref(&committer),
                     // We are not going to bother with commit timestamps
                     // that go beyond i64; while casting like this will
@@ -671,6 +677,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
                     // bit later when there is more finality in what gix
                     // does.
                     commit_timestamp: committer.time.seconds as i64,
+                    message: commit_ref.message.to_string(),
                 })
             })
             .collect::<Result<Vec<_>, GixError>>()?;
@@ -1046,7 +1053,7 @@ mod tests {
             git_root,
             _, // (import1, import1_oids),
             _, // (import2, import2_oids),
-            _, // (_, repodata_oids),
+            (_, repodata_oids),
         ) = crate::test::create_repodata();
         let repodata_workspace = WorkspaceRecord {
             id: 3,
@@ -1059,9 +1066,91 @@ mod tests {
             git_root.path().to_path_buf(),
             &repodata_workspace,
         ).unwrap();
-
         let logs = pmrbackend.loginfo(None, None).unwrap();
-        assert_eq!(logs.entries.len(), 10)
+        assert_eq!(
+            repodata_oids.iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>(),
+            logs.entries.iter()
+                .map(|x| x.commit_id.clone())
+                .rev()
+                .skip(1)  // skip the initial commit
+                .collect::<Vec<_>>(),
+        );
+        assert_eq!(logs, serde_json::from_str(r#"{
+          "entries": [
+            {
+              "commit_id": "8ae6e9af37c8bd78614545d0ab807348fc46dcab",
+              "author": "user <user@example.com>",
+              "committer": "user <user@example.com>",
+              "commit_timestamp": 1666666780,
+              "message": "updating dir1"
+            },
+            {
+              "commit_id": "c4d735e5a305559c1cb0ce8de4c25ed5c3f4f263",
+              "author": "user <user@example.com>",
+              "committer": "user <user@example.com>",
+              "commit_timestamp": 1666666770,
+              "message": "fixing import1"
+            },
+            {
+              "commit_id": "a4a04eed5e243e3019592579a7f6eb950399f9bf",
+              "author": "user <user@example.com>",
+              "committer": "user <user@example.com>",
+              "commit_timestamp": 1666666760,
+              "message": "bumping import2, breaking import1"
+            },
+            {
+              "commit_id": "502b18ac456c8e475f731cbfe568fd6eb1177327",
+              "author": "user <user@example.com>",
+              "committer": "user <user@example.com>",
+              "commit_timestamp": 1666666750,
+              "message": "bumping import2"
+            },
+            {
+              "commit_id": "965ccc1276832489c69b680b49874a6e1dc1743b",
+              "author": "user <user@example.com>",
+              "committer": "user <user@example.com>",
+              "commit_timestamp": 1666666740,
+              "message": "adding import2"
+            },
+            {
+              "commit_id": "27be7efbe5fcccda5ee6ca00ef96834f592139a5",
+              "author": "user <user@example.com>",
+              "committer": "user <user@example.com>",
+              "commit_timestamp": 1666666730,
+              "message": "bumping import1"
+            },
+            {
+              "commit_id": "e931905807563cb5353958e865d72fed12dccd4f",
+              "author": "user <user@example.com>",
+              "committer": "user <user@example.com>",
+              "commit_timestamp": 1666666720,
+              "message": "adding some files"
+            },
+            {
+              "commit_id": "557ee3cb13fb421d2bd6897615ae95830eb427c8",
+              "author": "user <user@example.com>",
+              "committer": "user <user@example.com>",
+              "commit_timestamp": 1666666710,
+              "message": "adding import1"
+            },
+            {
+              "commit_id": "9f02f69509110e7235e4bb9f50e235a246ae9f5c",
+              "author": "user <user@example.com>",
+              "committer": "user <user@example.com>",
+              "commit_timestamp": 1666666700,
+              "message": "Initial commit of repodata"
+            },
+            {
+              "commit_id": "e55a6e1058fe4caf81e5cdfe806a3f86e1b94fb2",
+              "author": "user <user@example.com>",
+              "committer": "user <user@example.com>",
+              "commit_timestamp": 1654321000,
+              "message": "initial commit"
+            }
+          ]
+        }"#).unwrap())
     }
 
 }
