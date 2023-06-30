@@ -681,12 +681,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
                     commit_id: format!("{}", commit.id()),
                     author: format_signature_ref(&commit_ref.author),
                     committer: format_signature_ref(&committer),
-                    // We are not going to bother with commit timestamps
-                    // that go beyond i64; while casting like this will
-                    // result in silently breaking stuff, revisit this
-                    // bit later when there is more finality in what gix
-                    // does.
-                    commit_timestamp: committer.time.seconds as i64,
+                    commit_timestamp: committer.time.seconds,
                     message: commit_ref.message.to_string(),
                 })
             });
