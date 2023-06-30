@@ -49,12 +49,11 @@ impl<'a> PathFilter<'a> {
                 // path does not exist in the commit).
                 !info.parent_ids
                     .iter()
-                    .map(|id| self.repo
+                    .all(|id| self.repo
                         .rev_parse_single(
                             format!("{}:{}", id, path).as_str()
                         ).ok() == oid
                     )
-                    .all(|x| x)
             })
             .unwrap_or(true)
     }

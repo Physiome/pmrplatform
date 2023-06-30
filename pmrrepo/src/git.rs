@@ -476,28 +476,31 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
     pub async fn index_tags(&self) -> Result<(), GixError> {
         let backend = self.backend;
         let workspace = &self.workspace;
-        self.repo.references()?.tags()?.map(|reference| {
-            match reference {
-                Ok(tag) => {
-                    let target = tag.target().id().to_hex().to_string();
-                    match std::str::from_utf8(tag.name().as_bstr().deref()) {
-                        Ok(s) => Some((s.to_string(), target)),
-                        Err(_) => {
-                            warn!("\
-                            a tag for commit_id {} omitted due to \
-                            invalid utf8 encoding\
-                            ", target
-                            );
-                            None
+        self.repo.references()?.tags()?
+            .filter_map(|reference| {
+                match reference {
+                    Ok(tag) => {
+                        let target = tag.target().id().to_hex().to_string();
+                        match std::str::from_utf8(
+                            tag.name().as_bstr().deref()
+                        ) {
+                            Ok(s) => Some((s.to_string(), target)),
+                            Err(_) => {
+                                warn!("\
+                                a tag for commit_id {} omitted due to \
+                                invalid utf8 encoding\
+                                ", target
+                                );
+                                None
+                            }
                         }
                     }
+                    Err(e) => {
+                        warn!("failed to decode a tag: {}", e);
+                        None
+                    }
                 }
-                Err(e) => {
-                    warn!("failed to decode a tag: {}", e);
-                    None
-                }
-            }
-        }).filter_map(|x| x)
+            })
             .map(|(name, oid)| async move {
                 match WorkspaceTagBackend::index_workspace_tag(
                     backend,
