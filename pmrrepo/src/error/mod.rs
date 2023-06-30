@@ -45,7 +45,9 @@ pub enum GixError {
     #[error(transparent)]
     RevisionWalk(#[from] gix::revision::walk::Error),
     #[error(transparent)]
-    TrasverseCommitAncestors(#[from] gix::traverse::commit::ancestors::Error),
+    TraverseCommitAncestors(#[from] gix::traverse::commit::ancestors::Error),
+    #[error(transparent)]
+    TraverseTreeBreadthfirst(#[from] gix::traverse::tree::breadthfirst::Error),
 }
 
 #[derive(Debug, PartialEq, Error, Deserialize, Serialize)]

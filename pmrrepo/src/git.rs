@@ -13,6 +13,7 @@ use gix::{
         tree::EntryMode,
     },
     traverse::commit::Sorting,
+    traverse::tree::Recorder,
 };
 pub use gix::object::Kind;
 use pmrmodel_base::{
@@ -701,6 +702,26 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
         Ok(LogInfo { entries: log_entries })
     }
 
+    pub fn files(
+        &self,
+        commit_id: Option<&str>,
+    ) -> Result<Vec<String>, PmrRepoError> {
+        let commit = self.get_commit(commit_id)?;
+        let tree = commit.tree().map_err(GixError::from)?;
+        let mut recorder = Recorder::default();
+        tree.traverse()
+            .breadthfirst(&mut recorder).map_err(GixError::from)?;
+        let mut results = recorder.records.iter()
+            .filter(|entry| entry.mode != EntryMode::Tree)
+            .filter_map(
+                |entry| std::str::from_utf8(entry.filepath.as_ref()).ok()
+            )
+            .map(|x| x.to_string())
+            .collect::<Vec<_>>();
+        results.sort();
+        Ok(results)
+    }
+
 }
 
 #[cfg(test)]
@@ -1238,6 +1259,54 @@ mod tests {
                 .map(|x| x.commit_id.to_string())
                 .collect::<Vec<_>>()
                 .as_ref(),
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_workspace_files() -> anyhow::Result<()> {
+        let (
+            git_root,
+            _, // (import1, import1_oids),
+            _, // (import2, import2_oids),
+            _, // (repodata, repodata_oids)
+        ) = crate::test::create_repodata();
+        let repodata_workspace = WorkspaceRecord {
+            id: 3,
+            url: "http://models.example.com/w/repodata".to_string(),
+            description: Some("The repodata workspace".to_string())
+        };
+        let mock_backend = MockBackend::new();
+        let pmrbackend = PmrBackendWR::new(
+            &mock_backend,
+            git_root.path().to_path_buf(),
+            &repodata_workspace,
+        )?;
+
+        assert_eq!(
+            pmrbackend.files(None)?,
+            [
+                ".gitmodules",
+                "README",
+                "dir1/file1",
+                "dir1/file2",
+                "dir1/nested/file_a",
+                "dir1/nested/file_b",
+                "dir1/nested/file_c",
+                "ext/import1",
+                "ext/import2",
+                "file1",
+                "file2",
+            ]
+        );
+        assert_eq!(
+            pmrbackend.files(
+                Some("9f02f69509110e7235e4bb9f50e235a246ae9f5c"))?,
+            [
+                "README",
+                "file1",
+            ]
         );
 
         Ok(())
