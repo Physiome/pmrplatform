@@ -1,0 +1,11 @@
+[package]
+name = "pmrctrl"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pmrrepo = "0.1"
+pmrtqs = "0.1"
+
+[dev-dependencies]
+tempfile = "3.1.0"
