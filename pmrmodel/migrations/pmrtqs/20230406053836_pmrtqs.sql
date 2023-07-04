@@ -22,6 +22,7 @@
 
 CREATE TABLE IF NOT EXISTS task (
     id INTEGER PRIMARY KEY NOT NULL,
+    task_template_id NOT NULL,
     bin_path TEXT NOT NULL,
     pid INTEGER,
     created_ts INTEGER NOT NULL,
@@ -29,12 +30,13 @@ CREATE TABLE IF NOT EXISTS task (
     stop_ts INTEGER,
     exit_status INTEGER,
     -- `basedir` will contain source, build and image directory
-    basedir TEXT NOT NULL
+    basedir TEXT NOT NULL,
     -- One thing to note is that multiple tasks may reference the same
     -- basedir, one way this can happen is where basedir references the
     -- corresponding workspace/exposure directory where the generated
     -- artefacts are needed, and that a rebuild is required.  This will
     -- likely need to be revisited later (e.g. have an install dir too?)
+    FOREIGN KEY(task_template_id) REFERENCES task_template(id)
 );
 
 CREATE INDEX task__pid ON task(pid);

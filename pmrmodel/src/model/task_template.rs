@@ -54,6 +54,7 @@ impl<'a> TaskArgBuilder<'a> {
 impl<'a> TaskBuilder<'a> {
     fn to_task(self) -> Task {
         Task {
+            task_template_id: self.task_template.id,
             bin_path: self.task_template.bin_path.clone(),
             basedir: "".into(),  // TODO, determine what actualy goes there
             args: Some(self.arg_builders.collect::<Vec<_>>().into()),
@@ -1219,6 +1220,7 @@ mod test {
 
         assert_eq!(6, task.args.unwrap().len());
         assert_eq!(task.bin_path, task_template.bin_path);
+        assert_eq!(task.task_template_id, task_template.id);
     }
 
 }

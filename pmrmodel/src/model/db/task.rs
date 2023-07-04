@@ -34,12 +34,14 @@ async fn adds_task_sqlite(
     result.id = sqlx::query!(
         "
 INSERT INTO task (
+    task_template_id,
     bin_path,
     created_ts,
     basedir
 )
-VALUES ( ?1, ?2, ?3 )\
+VALUES ( ?1, ?2, ?3, ?4 )\
         ",
+        task.task_template_id,
         task.bin_path,
         created_ts,
         task.basedir,
@@ -117,7 +119,10 @@ mod tests {
         Profile,
         SqliteBackend,
     };
-    use crate::model::db::task::TaskBackend;
+    use crate::model::db::{
+        task::TaskBackend,
+        task_template::TaskTemplateBackend,
+    };
 
     #[async_std::test]
     async fn test_adds_task() {
@@ -128,7 +133,17 @@ mod tests {
             .await
             .unwrap();
 
+        let id = TaskTemplateBackend::add_task_template(
+            &backend, "/bin/true", "1.0.0", &[],
+        ).await
+            .unwrap();
+
+        // note that no arguments were added to the task template, but
+        // arguments are injected here - the model API should be used to
+        // create the following normally so validation should have done
+        // there.
         let task = Task {
+            task_template_id: id,
             bin_path: "/bin/demo".into(),
             basedir: "/tmp".into(),
             args: Some(["--format=test", "-t", "standard" ].iter()

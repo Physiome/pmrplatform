@@ -310,6 +310,16 @@
     },
     "query": "\n    SELECT id, workspace_id, start, end, status\n    FROM workspace_sync\n    WHERE workspace_id = ?1\n            "
   },
+  "92ddedcd8ff0eae7855fdb60c57641a9d0f14b14ee36faf18c74ce2661c38272": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 4
+      }
+    },
+    "query": "\nINSERT INTO task (\n    task_template_id,\n    bin_path,\n    created_ts,\n    basedir\n)\nVALUES ( ?1, ?2, ?3, ?4 )"
+  },
   "96176ab4d312f2dff1925d25f2976bf1252996bcd2af8bb57aca04796213edc8": {
     "describe": {
       "columns": [],
@@ -575,16 +585,6 @@
       }
     },
     "query": "\nINSERT INTO task_template_arg (\n    task_template_id,\n    flag,\n    flag_joined,\n    prompt,\n    'default',\n    choice_fixed,\n    choice_source\n)\nVALUES ( ?1, ?2, ?3, ?4, ?5, ?6, ?7 )\n        "
-  },
-  "d94258590be1e9430c0f975b0ed61a9d8fd5a3529e6d6556dfae74dcb6e14888": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Right": 3
-      }
-    },
-    "query": "\nINSERT INTO task (\n    bin_path,\n    created_ts,\n    basedir\n)\nVALUES ( ?1, ?2, ?3 )"
   },
   "f31a19e9050af00f8cda7c4d7c6288e0f5eb37d5dd7dc38708cdd7385a4b8172": {
     "describe": {
