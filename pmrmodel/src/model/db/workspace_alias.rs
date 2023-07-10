@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use chrono::Utc;
-use std::fmt;
+use pmrmodel_base::workspace::WorkspaceAlias;
 
 use crate::backend::db::SqliteBackend;
 
@@ -14,25 +14,7 @@ pub trait WorkspaceAliasBackend {
     async fn get_aliases(
         &self,
         workspace_id: i64,
-    ) -> Result<Vec<WorkspaceAliasRecord>, sqlx::Error>;
-}
-
-pub struct WorkspaceAliasRecord {
-    pub id: i64,
-    pub workspace_id: i64,
-    pub alias: String,
-    pub created: i64,
-}
-
-impl std::fmt::Display for WorkspaceAliasRecord {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} - {}",
-            &self.workspace_id,
-            &self.alias,
-        )
-    }
+    ) -> Result<Vec<WorkspaceAlias>, sqlx::Error>;
 }
 
 #[async_trait]
@@ -46,7 +28,7 @@ impl WorkspaceAliasBackend for SqliteBackend {
         let ts = Utc::now().timestamp();
         let id = sqlx::query!(
             r#"
-    INSERT INTO workspace_alias ( workspace_id, alias, created )
+    INSERT INTO workspace_alias ( workspace_id, alias, created_ts )
     VALUES ( ?1, ?2, ?3 )
     ON CONFLICT (workspace_id, alias) DO NOTHING
             "#,
@@ -64,12 +46,12 @@ impl WorkspaceAliasBackend for SqliteBackend {
     async fn get_aliases(
         &self,
         workspace_id: i64,
-    ) -> Result<Vec<WorkspaceAliasRecord>, sqlx::Error> {
-        let recs = sqlx::query_as!(WorkspaceAliasRecord,
+    ) -> Result<Vec<WorkspaceAlias>, sqlx::Error> {
+        let recs = sqlx::query_as!(WorkspaceAlias,
             r#"
-    SELECT id, workspace_id, alias, created
-    FROM workspace_alias
-    WHERE workspace_id = ?1
+SELECT id, workspace_id, alias, created_ts
+FROM workspace_alias
+WHERE workspace_id = ?1
             "#,
             workspace_id,
         )

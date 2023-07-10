@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use chrono::Utc;
-use pmrmodel_base::workspace_sync::{
-    WorkspaceSyncRecord,
+use pmrmodel_base::workspace::{
+    WorkspaceSync,
     WorkspaceSyncStatus,
 };
 
@@ -21,7 +21,7 @@ pub trait WorkspaceSyncBackend {
     async fn get_workspaces_sync_records(
         &self,
         workspace_id: i64,
-    ) -> Result<Vec<WorkspaceSyncRecord>, sqlx::Error>;
+    ) -> Result<Vec<WorkspaceSync>, sqlx::Error>;
 }
 
 #[async_trait]
@@ -76,12 +76,12 @@ impl WorkspaceSyncBackend for SqliteBackend {
     async fn get_workspaces_sync_records(
         &self,
         workspace_id: i64,
-    ) -> Result<Vec<WorkspaceSyncRecord>, sqlx::Error> {
-        let recs = sqlx::query_as!(WorkspaceSyncRecord,
+    ) -> Result<Vec<WorkspaceSync>, sqlx::Error> {
+        let recs = sqlx::query_as!(WorkspaceSync,
             r#"
-    SELECT id, workspace_id, start, end, status
-    FROM workspace_sync
-    WHERE workspace_id = ?1
+SELECT id, workspace_id, start, end, status
+FROM workspace_sync
+WHERE workspace_id = ?1
             "#,
             workspace_id,
         )

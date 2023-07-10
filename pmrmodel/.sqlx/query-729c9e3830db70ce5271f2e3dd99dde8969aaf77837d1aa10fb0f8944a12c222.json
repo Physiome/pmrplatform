@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n    SELECT id, workspace_id, start, end, status\n    FROM workspace_sync\n    WHERE workspace_id = ?1\n            ",
+  "query": "\nSELECT id, workspace_id, alias, created_ts\nFROM workspace_alias\nWHERE workspace_id = ?1\n            ",
   "describe": {
     "columns": [
       {
@@ -14,18 +14,13 @@
         "type_info": "Int64"
       },
       {
-        "name": "start",
+        "name": "alias",
         "ordinal": 2,
-        "type_info": "Int64"
+        "type_info": "Text"
       },
       {
-        "name": "end",
+        "name": "created_ts",
         "ordinal": 3,
-        "type_info": "Int64"
-      },
-      {
-        "name": "status",
-        "ordinal": 4,
         "type_info": "Int64"
       }
     ],
@@ -36,9 +31,8 @@
       false,
       false,
       false,
-      true,
       false
     ]
   },
-  "hash": "7604f14fa8bb2475d2eaa3169ac64f027ed277385543bd17ed7769ab60f2d8a7"
+  "hash": "729c9e3830db70ce5271f2e3dd99dde8969aaf77837d1aa10fb0f8944a12c222"
 }

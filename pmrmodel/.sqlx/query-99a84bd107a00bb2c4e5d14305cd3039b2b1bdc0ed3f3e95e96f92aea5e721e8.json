@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "\nSELECT\n    id,\n    url,\n    superceded_by_id,\n    description,\n    long_description,\n    created_ts\nFROM\n    workspace\nWHERE\n    id = ?1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "url",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "superceded_by_id",
+        "ordinal": 2,
+        "type_info": "Int64"
+      },
+      {
+        "name": "description",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "long_description",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_ts",
+        "ordinal": 5,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "99a84bd107a00bb2c4e5d14305cd3039b2b1bdc0ed3f3e95e96f92aea5e721e8"
+}

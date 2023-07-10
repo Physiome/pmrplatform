@@ -31,9 +31,7 @@ use pmrmodel_base::{
         PathInfo,
     },
     workspace::{
-        WorkspaceRecord,
-    },
-    workspace_sync::{
+        Workspace,
         WorkspaceSyncStatus,
     },
     merged::{
@@ -79,13 +77,13 @@ use util::*;
 pub struct PmrBackendW<'a, P: PmrBackend> {
     backend: &'a P,
     git_root: PathBuf,
-    pub workspace: &'a WorkspaceRecord,
+    pub workspace: &'a Workspace,
 }
 
 pub struct PmrBackendWR<'a, P: PmrBackend> {
     backend: &'a P,
     git_root: PathBuf,
-    pub workspace: &'a WorkspaceRecord,
+    pub workspace: &'a Workspace,
     pub repo: Repository,
 }
 
@@ -105,14 +103,14 @@ pub struct GitResult<'a> {
     pub target: GitResultTarget<'a>,
 }
 
-pub struct WorkspaceGitResult<'a>(&'a WorkspaceRecord, &'a GitResult<'a>);
+pub struct WorkspaceGitResult<'a>(&'a Workspace, &'a GitResult<'a>);
 
 impl WorkspaceGitResult<'_> {
     pub fn new<'a>(
-        workspace_record: &'a WorkspaceRecord,
+        workspace: &'a Workspace,
         git_result: &'a GitResult<'a>,
     ) -> WorkspaceGitResult<'a> {
-        WorkspaceGitResult(&workspace_record, git_result)
+        WorkspaceGitResult(&workspace, git_result)
     }
 }
 
@@ -388,7 +386,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendW<'a, P> {
     pub fn new(
         backend: &'a P,
         git_root: PathBuf,
-        workspace: &'a WorkspaceRecord,
+        workspace: &'a Workspace,
     ) -> Self {
         Self {
             backend: &backend,
@@ -459,7 +457,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
     pub fn new(
         backend: &'a P,
         git_root: PathBuf,
-        workspace: &'a WorkspaceRecord,
+        workspace: &'a Workspace,
     ) -> Result<Self, GixError> {
         let repo_dir = git_root.join(workspace.id.to_string());
         let repo = gix::open::Options::isolated()
@@ -729,8 +727,10 @@ mod tests {
     use tempfile::TempDir;
 
     // use pmrmodel::backend::db::MockHasPool;
-    use pmrmodel_base::workspace_tag::WorkspaceTagRecord;
-    use pmrmodel_base::workspace_sync::WorkspaceSyncRecord;
+    use pmrmodel_base::workspace::{
+        WorkspaceSync,
+        WorkspaceTag,
+    };
     use pmrmodel::backend::db::PmrBackend;
 
     mock! {
@@ -740,7 +740,7 @@ mod tests {
         #[async_trait]
         impl WorkspaceTagBackend for Backend {
             async fn index_workspace_tag(&self, workspace_id: i64, name: &str, commit_id: &str) -> Result<i64, sqlx::Error>;
-            async fn get_workspace_tags(&self, workspace_id: i64) -> Result<Vec<WorkspaceTagRecord>, sqlx::Error>;
+            async fn get_workspace_tags(&self, workspace_id: i64) -> Result<Vec<WorkspaceTag>, sqlx::Error>;
         }
 
         #[async_trait]
@@ -751,16 +751,16 @@ mod tests {
             async fn update_workspace(
                 &self, id: i64, description: &str, long_description: &str
             ) -> Result<bool, sqlx::Error>;
-            async fn list_workspaces(&self) -> Result<Vec<WorkspaceRecord>, sqlx::Error>;
-            async fn get_workspace_by_id(&self, id: i64) -> Result<WorkspaceRecord, sqlx::Error>;
-            async fn get_workspace_by_url(&self, url: &str) -> Result<WorkspaceRecord, sqlx::Error>;
+            async fn list_workspaces(&self) -> Result<Vec<Workspace>, sqlx::Error>;
+            async fn get_workspace_by_id(&self, id: i64) -> Result<Workspace, sqlx::Error>;
+            async fn get_workspace_by_url(&self, url: &str) -> Result<Workspace, sqlx::Error>;
         }
 
         #[async_trait]
         impl WorkspaceSyncBackend for Backend {
             async fn begin_sync(&self, workspace_id: i64) -> Result<i64, sqlx::Error>;
             async fn complete_sync(&self, id: i64, status: WorkspaceSyncStatus) -> Result<bool, sqlx::Error>;
-            async fn get_workspaces_sync_records(&self, workspace_id: i64) -> Result<Vec<WorkspaceSyncRecord>, sqlx::Error>;
+            async fn get_workspaces_sync_records(&self, workspace_id: i64) -> Result<Vec<WorkspaceSync>, sqlx::Error>;
         }
     }
 
@@ -768,7 +768,14 @@ mod tests {
     async fn git_sync_helper(
         mock_backend: &MockBackend, id: i64, url: &str, git_root: &TempDir
     ) -> Result<(), PmrRepoError> {
-        let workspace = WorkspaceRecord { id: id, url: url.to_string(), description: None };
+        let workspace = Workspace {
+            id: id,
+            superceded_by_id: None,
+            url: url.to_string(),
+            description: None,
+            long_description: None,
+            created_ts: 1234567890,
+        };
         let pmrbackend = PmrBackendW::new(mock_backend, git_root.path().to_owned().to_path_buf(), &workspace);
         pmrbackend.git_sync_workspace().await?;
         Ok(())
@@ -949,10 +956,13 @@ mod tests {
             .returning(|_, _| Ok(true));
         assert!(git_sync_helper(&mock_backend, 10, url, &git_root).await.is_ok());
 
-        let workspace = WorkspaceRecord {
+        let workspace = Workspace {
             id: 10,
             url: "http://example.com/10".to_string(),
-            description: Some("demo workspace 10".to_string())
+            superceded_by_id: None,
+            description: Some("demo workspace 10".to_string()),
+            long_description: None,
+            created_ts: 1234567890,
         };
 
         let pmrbackend = PmrBackendWR::new(
@@ -976,20 +986,23 @@ mod tests {
             _, // (repodata, repodata_oids)
         ) = crate::test::create_repodata();
 
-        // let import1_workspace = WorkspaceRecord {
+        // let import1_workspace = Workspace {
         //     id: 1,
         //     url: "http://models.example.com/w/import1".to_string(),
         //     description: Some("The import1 workspace".to_string())
         // };
-        // let import2_workspace = WorkspaceRecord {
+        // let import2_workspace = Workspace {
         //     id: 2,
         //     url: "http://models.example.com/w/import2".to_string(),
         //     description: Some("The import2 workspace".to_string())
         // };
-        let repodata_workspace = WorkspaceRecord {
+        let repodata_workspace = Workspace {
             id: 3,
             url: "http://models.example.com/w/repodata".to_string(),
-            description: Some("The repodata workspace".to_string())
+            description: Some("The repodata workspace".to_string()),
+            superceded_by_id: None,
+            long_description: None,
+            created_ts: 1234567890,
         };
 
         let mut mock_backend = MockBackend::new();
@@ -997,10 +1010,13 @@ mod tests {
         mock_backend.expect_get_workspace_by_url()
             .times(1)
             .with(eq("http://models.example.com/w/import2"))
-            .returning(|_| Ok(WorkspaceRecord {
+            .returning(|_| Ok(Workspace {
                 id: 2,
                 url: "http://models.example.com/w/import2".to_string(),
-                description: Some("The import2 workspace".to_string())
+                description: Some("The import2 workspace".to_string()),
+                superceded_by_id: None,
+                long_description: None,
+                created_ts: 1234567890,
             }));
         let pmrbackend = PmrBackendWR::new(
             &mock_backend,
@@ -1087,10 +1103,13 @@ mod tests {
             _, // (import2, import2_oids),
             (_, repodata_oids),
         ) = crate::test::create_repodata();
-        let repodata_workspace = WorkspaceRecord {
+        let repodata_workspace = Workspace {
             id: 3,
             url: "http://models.example.com/w/repodata".to_string(),
-            description: Some("The repodata workspace".to_string())
+            description: Some("The repodata workspace".to_string()),
+            superceded_by_id: None,
+            long_description: None,
+            created_ts: 1234567890,
         };
         let mock_backend = MockBackend::new();
         let pmrbackend = PmrBackendWR::new(
@@ -1267,10 +1286,13 @@ mod tests {
             _, // (import2, import2_oids),
             _, // (repodata, repodata_oids)
         ) = crate::test::create_repodata();
-        let repodata_workspace = WorkspaceRecord {
+        let repodata_workspace = Workspace {
             id: 3,
             url: "http://models.example.com/w/repodata".to_string(),
-            description: Some("The repodata workspace".to_string())
+            description: Some("The repodata workspace".to_string()),
+            superceded_by_id: None,
+            long_description: None,
+            created_ts: 1234567890,
         };
         let mock_backend = MockBackend::new();
         let pmrbackend = PmrBackendWR::new(

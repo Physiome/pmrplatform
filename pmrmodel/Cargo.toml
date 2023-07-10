@@ -20,5 +20,6 @@ sqlx = { version = "0.7.0", features = [ "runtime-async-std-native-tls", "sqlite
 thiserror = "1.0"
 
 [dev-dependencies]
+anyhow = "1.0.0"
 mockall = "0.10.2"
 tempfile = "3.1.0"

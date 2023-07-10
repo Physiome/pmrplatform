@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use pmrmodel_base::workspace_tag::WorkspaceTagRecord;
+use pmrmodel_base::workspace::WorkspaceTag;
 
 use crate::backend::db::SqliteBackend;
 
@@ -14,7 +14,7 @@ pub trait WorkspaceTagBackend {
     async fn get_workspace_tags(
         &self,
         workspace_id: i64,
-    ) -> Result<Vec<WorkspaceTagRecord>, sqlx::Error>;
+    ) -> Result<Vec<WorkspaceTag>, sqlx::Error>;
 }
 
 #[async_trait]
@@ -47,8 +47,8 @@ impl WorkspaceTagBackend for SqliteBackend {
     async fn get_workspace_tags(
         &self,
         workspace_id: i64,
-    ) -> Result<Vec<WorkspaceTagRecord>, sqlx::Error> {
-        let recs = sqlx::query_as!(WorkspaceTagRecord,
+    ) -> Result<Vec<WorkspaceTag>, sqlx::Error> {
+        let recs = sqlx::query_as!(WorkspaceTag,
             r#"
     SELECT id, workspace_id, name, commit_id
     FROM workspace_tag

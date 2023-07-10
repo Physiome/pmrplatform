@@ -10,7 +10,7 @@ use pmrrepo::git::{
     PmrBackendWR,
 };
 use pmrmodel_base::merged::WorkspacePathInfo;
-use pmrmodel_base::workspace::WorkspaceRecords;
+use pmrmodel_base::workspace::Workspaces;
 use std::path::PathBuf;
 
 use pmrapp_client::model::JsonWorkspaceRecord;
@@ -33,9 +33,9 @@ pub fn router() -> Router {
             get(api_workspace_pathinfo_workspace_id_commit_id_path))
 }
 
-pub async fn api_workspace(ctx: Extension<AppContext>) -> Result<Json<WorkspaceRecords>> {
+pub async fn api_workspace(ctx: Extension<AppContext>) -> Result<Json<Workspaces>> {
     let records = WorkspaceBackend::list_workspaces(&ctx.backend).await?;
-    Ok(Json(WorkspaceRecords { workspaces: records }))
+    Ok(Json(Workspaces { workspaces: records }))
 }
 
 pub async fn api_workspace_top(

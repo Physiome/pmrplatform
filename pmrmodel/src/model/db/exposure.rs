@@ -1,5 +1,8 @@
 use async_trait::async_trait;
+#[cfg(not(test))]
 use chrono::Utc;
+#[cfg(test)]
+use crate::test::Utc;
 use pmrmodel_base::exposure::{
     Exposure,
     Exposures,
@@ -162,4 +165,53 @@ impl ExposureBackend for SqliteBackend {
             id,
         ).await
     }
+}
+
+#[cfg(test)]
+pub(crate) mod testing {
+    use pmrmodel_base::exposure::Exposure;
+    use crate::backend::db::{
+        Profile,
+        SqliteBackend,
+    };
+    use crate::model::db::exposure::ExposureBackend;
+    use crate::model::db::workspace::testing::make_example_workspace;
+
+    pub(crate) async fn make_example_exposure(
+        backend: &dyn ExposureBackend,
+        workspace_id: i64,
+    ) -> anyhow::Result<i64> {
+        Ok(backend.add_exposure(
+            workspace_id,
+            None,
+            "abcdef".into(),
+            None,
+        ).await?)
+    }
+
+    #[async_std::test]
+    async fn test_basic() -> anyhow::Result<()> {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await?
+            .run_migration_profile(Profile::Pmrapp)
+            .await?;
+
+        let workspace_id = make_example_workspace(&backend).await?;
+        let id = make_example_exposure(&backend, workspace_id).await?;
+        let exposure = ExposureBackend::get_exposure_by_id(
+            &backend, id
+        ).await?;
+        assert_eq!(exposure, Exposure {
+            id: 1,
+            workspace_id: 1,
+            workspace_tag_id: None,
+            commit_id: "abcdef".into(),
+            created_ts: 1234567890,
+            root_exposure_file_id: None,
+            files: None,
+            // files: Some([].to_vec().into()),
+        });
+        Ok(())
+    }
+
 }

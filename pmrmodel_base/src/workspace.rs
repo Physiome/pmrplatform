@@ -1,33 +1,120 @@
+use enum_primitive::FromPrimitive;
 use serde::{Deserialize, Serialize};
-use std::fmt::{
-    Display,
-    Formatter,
-    Result,
-};
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct WorkspaceRecord {
+pub struct Workspace {
     pub id: i64,
     pub url: String,
+    pub superceded_by_id: Option<i64>,
     pub description: Option<String>,
+    pub long_description: Option<String>,
+    pub created_ts: i64,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct WorkspaceRecords {
-    pub workspaces: Vec<WorkspaceRecord>
+pub struct Workspaces {
+    pub workspaces: Vec<Workspace>
 }
 
-impl Display for WorkspaceRecord {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(
-            f,
-            "{} - {} - {}",
-            self.id,
-            &self.url,
-            match &self.description {
-                Some(v) => v,
-                None => "<empty>",
-            },
-        )
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct WorkspaceAlias {
+    pub id: i64,
+    pub workspace_id: i64,
+    pub alias: String,
+    pub created_ts: i64,
+}
+
+enum_from_primitive! {
+#[derive(Debug, PartialEq)]
+pub enum WorkspaceSyncStatus {
+    Completed,
+    Running,
+    Error,
+    Unknown = -1,
+}
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct WorkspaceSync {
+    pub id: i64,
+    pub workspace_id: i64,
+    pub start: i64,
+    pub end: Option<i64>,
+    pub status: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct WorkspaceTag {
+    pub id: i64,
+    pub workspace_id: i64,
+    pub name: String,
+    pub commit_id: String,
+}
+
+mod display {
+    use chrono::{LocalResult, TimeZone, Utc};
+    use std::fmt::{
+        Display,
+        Formatter,
+        Result,
+    };
+    use crate::workspace::*;
+
+    impl Display for Workspace {
+        fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+            write!(
+                f,
+                "{} - {} - {}",
+                self.id,
+                &self.url,
+                match &self.description {
+                    Some(v) => v,
+                    None => "<empty>",
+                },
+            )
+        }
+    }
+
+    impl Display for WorkspaceAlias {
+        fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+            write!(
+                f,
+                "{} - {}",
+                &self.workspace_id,
+                &self.alias,
+            )
+        }
+    }
+
+    impl Display for WorkspaceSync {
+        fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+            write!(
+                f,
+                "{} - {} - {:?}",
+                match Utc.timestamp_opt(self.start, 0) {
+                    LocalResult::Single(v) => v.to_rfc3339(),
+                    _ => "<invalid>".to_string(),
+                },
+                match self.end {
+                    Some(v) => match Utc.timestamp_opt(v, 0) {
+                        LocalResult::Single(v) => v.to_rfc3339(),
+                        _ => "<invalid>".to_string(),
+                    },
+                    None => "<nil>".to_string(),
+                },
+                WorkspaceSyncStatus::from_i64(self.status).unwrap_or(WorkspaceSyncStatus::Unknown),
+            )
+        }
+    }
+
+    impl Display for WorkspaceTag {
+        fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+            write!(
+                f,
+                "{} - {}",
+                &self.commit_id,
+                &self.name,
+            )
+        }
     }
 }

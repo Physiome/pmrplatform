@@ -1,4 +1,4 @@
-use pmrmodel_base::workspace_sync::WorkspaceSyncStatus;
+use pmrmodel_base::workspace::WorkspaceSyncStatus;
 
 use crate::model::db::workspace_sync::WorkspaceSyncBackend;
 

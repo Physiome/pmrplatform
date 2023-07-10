@@ -1,6 +1,9 @@
 use async_trait::async_trait;
+#[cfg(not(test))]
 use chrono::Utc;
-use pmrmodel_base::workspace::WorkspaceRecord;
+#[cfg(test)]
+use crate::test::Utc;
+use pmrmodel_base::workspace::Workspace;
 
 use crate::backend::db::SqliteBackend;
 
@@ -20,15 +23,15 @@ pub trait WorkspaceBackend {
     ) -> Result<bool, sqlx::Error>;
     async fn list_workspaces(
         &self,
-    ) -> Result<Vec<WorkspaceRecord>, sqlx::Error>;
+    ) -> Result<Vec<Workspace>, sqlx::Error>;
     async fn get_workspace_by_id(
         &self,
         id: i64,
-    ) -> Result<WorkspaceRecord, sqlx::Error>;
+    ) -> Result<Workspace, sqlx::Error>;
     async fn get_workspace_by_url(
         &self,
         url: &str,
-    ) -> Result<WorkspaceRecord, sqlx::Error>;
+    ) -> Result<Workspace, sqlx::Error>;
 }
 
 #[async_trait]
@@ -43,10 +46,17 @@ impl WorkspaceBackend for SqliteBackend {
 
         let id = sqlx::query!(
             r#"
-INSERT INTO workspace ( url, description, long_description, created )
-VALUES ( ?1, ?2, ?3, ?4 )
+INSERT INTO workspace (
+    url,
+    superceded_by_id,
+    description,
+    long_description,
+    created_ts
+)
+VALUES ( ?1, ?2, ?3, ?4, ?5 )
             "#,
             url,
+            None::<i64>,
             description,
             long_description,
             ts,
@@ -83,12 +93,20 @@ WHERE id = ?3
 
     async fn list_workspaces(
         &self,
-    ) -> Result<Vec<WorkspaceRecord>, sqlx::Error> {
-        let recs = sqlx::query_as!(WorkspaceRecord,
+    ) -> Result<Vec<Workspace>, sqlx::Error> {
+        let recs = sqlx::query_as!(Workspace,
             r#"
-SELECT id, url, description
-FROM workspace
-ORDER BY id
+SELECT
+    id,
+    url,
+    superceded_by_id,
+    description,
+    long_description,
+    created_ts
+FROM
+    workspace
+ORDER BY
+    id
             "#
         )
         .fetch_all(&*self.pool)
@@ -99,13 +117,21 @@ ORDER BY id
     async fn get_workspace_by_id(
         &self,
         id: i64,
-    ) -> Result<WorkspaceRecord, sqlx::Error> {
+    ) -> Result<Workspace, sqlx::Error> {
         // ignoring superceded_by_id for now?
-        let rec = sqlx::query_as!(WorkspaceRecord,
+        let rec = sqlx::query_as!(Workspace,
             r#"
-SELECT id, url, description
-FROM workspace
-WHERE id = ?1
+SELECT
+    id,
+    url,
+    superceded_by_id,
+    description,
+    long_description,
+    created_ts
+FROM
+    workspace
+WHERE
+    id = ?1
             "#,
             id,
         )
@@ -118,13 +144,20 @@ WHERE id = ?1
     async fn get_workspace_by_url(
         &self,
         url: &str,
-    ) -> Result<WorkspaceRecord, sqlx::Error> {
-        // ignoring superceded_by_id for now?
-        let rec = sqlx::query_as!(WorkspaceRecord,
+    ) -> Result<Workspace, sqlx::Error> {
+        let rec = sqlx::query_as!(Workspace,
             r#"
-SELECT id, url, description
-FROM workspace
-WHERE url = ?1
+SELECT
+    id,
+    url,
+    superceded_by_id,
+    description,
+    long_description,
+    created_ts
+FROM
+    workspace
+WHERE
+    url = ?1
             "#,
             url,
         )
@@ -132,4 +165,47 @@ WHERE url = ?1
         .await?;
         Ok(rec)
     }
+}
+
+#[cfg(test)]
+pub(crate) mod testing {
+    use pmrmodel_base::workspace::Workspace;
+    use crate::backend::db::{
+        Profile,
+        SqliteBackend,
+    };
+    use crate::model::db::workspace::WorkspaceBackend;
+
+    pub(crate) async fn make_example_workspace(
+        backend: &dyn WorkspaceBackend,
+    ) -> anyhow::Result<i64> {
+        Ok(backend.add_workspace(
+            "https://models.example.com".into(),
+            "".into(),
+            "".into(),
+        ).await?)
+    }
+
+    #[async_std::test]
+    async fn test_basic() -> anyhow::Result<()> {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await?
+            .run_migration_profile(Profile::Pmrapp)
+            .await?;
+        let id = make_example_workspace(&backend)
+            .await?;
+        let workspace = WorkspaceBackend::get_workspace_by_id(
+            &backend, id
+        ).await?;
+        assert_eq!(workspace, Workspace {
+            id: 1,
+            url: "https://models.example.com".into(),
+            superceded_by_id: None,
+            created_ts: 1234567890,
+            description: Some("".into()),
+            long_description: Some("".into()),
+        });
+        Ok(())
+    }
+
 }

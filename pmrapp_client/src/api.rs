@@ -1,6 +1,6 @@
 use pmrmodel_base::workspace::{
-    WorkspaceRecords,
-    // WorkspaceRecord,
+    Workspaces,
+    // Workspace,
 };
 use pmrmodel_base::merged::WorkspacePathInfo;
 use crate::model::JsonWorkspaceRecord;
@@ -14,9 +14,9 @@ pub async fn request_get_json<T: serde::de::DeserializeOwned>(
     Ok(response.json::<T>().await?)
 }
 
-pub async fn get_workspace_listing() -> Result<WorkspaceRecords, ServerError> {
+pub async fn get_workspace_listing() -> Result<Workspaces, ServerError> {
     let url = format!("{}/api/workspace/", sauron::window().location().origin().expect("must have location"));
-    Ok(request_get_json::<WorkspaceRecords>(&url).await?)
+    Ok(request_get_json::<Workspaces>(&url).await?)
 }
 
 pub async fn get_workspace_top(workspace_id: &i64) -> Result<JsonWorkspaceRecord, ServerError> {

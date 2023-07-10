@@ -1,7 +1,7 @@
 use pmrmodel_base::{
     workspace::{
-        WorkspaceRecords,
-        // WorkspaceRecord,
+        Workspaces,
+        // Workspace,
     },
     git::PathInfo,
     merged::WorkspacePathInfo,
@@ -251,9 +251,9 @@ impl App {
         }
     }
 
-    pub fn with_workspace_listing(workspace_listing: WorkspaceRecords) -> Self {
+    pub fn with_workspace_listing(workspaces: Workspaces) -> Self {
         Self {
-            content: FetchStatus::Complete(Content::from(workspace_listing)),
+            content: FetchStatus::Complete(Content::from(workspaces)),
             is_loading: false,
             resource: Resource::WorkspaceListing,
         }
@@ -297,9 +297,9 @@ impl App {
         Cmd::new(move|program| {
             let async_fetch = |program:Program<Self,Msg>| async move{
                 match api::get_workspace_listing().await {
-                    Ok(workspace_records) => {
+                    Ok(workspaces) => {
                         program.dispatch(Msg::ReceivedContent(resource, Content::from(
-                            workspace_records,
+                            workspaces,
                         )));
                     }
                     Err(e) => {
@@ -369,9 +369,9 @@ impl App {
                     &commit_id,
                     Some(&path),
                 ).await {
-                    Ok(workspace_records) => {
+                    Ok(workspaces) => {
                         program.dispatch(Msg::ReceivedContent(resource, Content::from(
-                            workspace_records,
+                            workspaces,
                         )));
                     }
                     Err(e) => {

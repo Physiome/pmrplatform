@@ -1,12 +1,12 @@
 use pmrmodel_base::workspace::{
-    WorkspaceRecord,
-    WorkspaceRecords,
+    Workspace,
+    Workspaces,
 };
 use std::io::Write;
 
 pub fn stream_workspace_records_default(
     mut writer: impl Write,
-    records: Vec<WorkspaceRecord>,
+    records: Vec<Workspace>,
 ) -> std::result::Result<usize, std::io::Error> {
     let mut result: usize = 0;
     result += writer.write(b"id - url - description\n")?;
@@ -18,7 +18,7 @@ pub fn stream_workspace_records_default(
 
 pub fn stream_workspace_records_as_json(
     writer: impl Write,
-    records: Vec<WorkspaceRecord>,
+    records: Vec<Workspace>,
 ) -> Result<(), serde_json::Error> {
-    serde_json::to_writer(writer, &WorkspaceRecords { workspaces: records })
+    serde_json::to_writer(writer, &Workspaces { workspaces: records })
 }

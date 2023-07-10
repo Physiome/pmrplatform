@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use pmrmodel_base::{
     workspace::{
-        WorkspaceRecords,
-        WorkspaceRecord,
+        Workspaces,
+        Workspace,
     },
     git::{
         PathInfo,
@@ -26,7 +26,7 @@ use crate::app::Msg;
 )]
 pub enum Content {
     Homepage,
-    WorkspaceListing(WorkspaceRecords),
+    WorkspaceListing(Workspaces),
     WorkspaceTop(JsonWorkspaceRecord, Option<WorkspacePathInfo>),
     WorkspacePathInfo(WorkspacePathInfo),
 }
@@ -62,28 +62,28 @@ impl Content {
                     </div>
                 }
             }
-            Content::WorkspaceListing(records) => {
+            Content::WorkspaceListing(entries) => {
                 node! {
                     <div class="main">
                         <h1>"Workspace Listing"</h1>
                         <div class="workspace-listing">
                         {
-                            for record in &records.workspaces {
-                                self.show_workspace_record_row(record)
+                            for workspace in &entries.workspaces {
+                                self.show_workspace(workspace)
                             }
                         }
                         </div>
                     </div>
                 }
             },
-            Content::WorkspaceTop(workspace_record, wks_path_info) => {
+            Content::WorkspaceTop(entry, wks_path_info) => {
                 node! {
                     <div class="main">
-                        <h1>{ text!("{}", &workspace_record.workspace.description.as_ref().unwrap_or(
-                            &format!("Workspace {}", &workspace_record.workspace.id))) }</h1>
+                        <h1>{ text!("{}", &entry.workspace.description.as_ref().unwrap_or(
+                            &format!("Workspace {}", &entry.workspace.id))) }</h1>
                         <dl>
                             <dt>"Git Repository URI"</dt>
-                            <dd>{ text!("{}", &workspace_record.workspace.url) }</dd>
+                            <dd>{ text!("{}", &entry.workspace.url) }</dd>
                         </dl>
                         <div class="workspace-pathinfo">
                         {
@@ -165,8 +165,8 @@ impl Content {
         }
     }
 
-    fn show_workspace_record_row(&self, workspace_record: &WorkspaceRecord) -> Node<app::Msg> {
-        let workspace_id = workspace_record.id;
+    fn show_workspace(&self, workspace: &Workspace) -> Node<app::Msg> {
+        let workspace_id = workspace.id;
         node! {
             <div>
                 <div><a
@@ -178,8 +178,8 @@ impl Content {
                     }
                 >{ text!("Workspace: {}", workspace_id) }
                 </a></div>
-                <div>{ text!("{}", workspace_record.url) }</div>
-                <div>{ text!("{}", workspace_record.description.as_ref().unwrap_or(&"".to_string())) }</div>
+                <div>{ text!("{}", workspace.url) }</div>
+                <div>{ text!("{}", workspace.description.as_ref().unwrap_or(&"".to_string())) }</div>
             </div>
         }
     }

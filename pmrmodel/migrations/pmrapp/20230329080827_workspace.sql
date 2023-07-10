@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS workspace (
     superceded_by_id INTEGER,  -- if superceded?
     description TEXT,
     long_description TEXT,
-    created INTEGER NOT NULL
+    created_ts INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS workspace_sync (
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS workspace_alias (
     id INTEGER PRIMARY KEY NOT NULL,
     workspace_id INTEGER NOT NULL,
     alias TEXT NOT NULL UNIQUE,
-    created INTEGER NOT NULL,
+    created_ts INTEGER NOT NULL,
     FOREIGN KEY(workspace_id) REFERENCES workspace(id)
 );
 
