@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nINSERT INTO task_template_arg (\n    task_template_id,\n    flag,\n    flag_joined,\n    prompt,\n    'default',\n    choice_fixed,\n    choice_source\n)\nVALUES ( ?1, ?2, ?3, ?4, ?5, ?6, ?7 )\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "cc8aa5dac74e39ce721737f6233d1d629cc29567cea6721d55e66864dbd10c8e"
+}

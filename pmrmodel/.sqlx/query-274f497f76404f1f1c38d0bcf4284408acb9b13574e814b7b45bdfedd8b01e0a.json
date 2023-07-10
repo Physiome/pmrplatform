@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "\n    SELECT id, workspace_id, alias, created\n    FROM workspace_alias\n    WHERE workspace_id = ?1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "workspace_id",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "alias",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "created",
+        "ordinal": 3,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "274f497f76404f1f1c38d0bcf4284408acb9b13574e814b7b45bdfedd8b01e0a"
+}

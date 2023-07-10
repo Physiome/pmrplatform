@@ -217,7 +217,7 @@ WHERE
 "#,
         id,
     )
-    .fetch_optional(&mut tx)
+    .fetch_optional(&mut *tx)
     .await?;
     tx.commit().await?;
     Ok(rec)
@@ -347,17 +347,17 @@ WHERE
         id,
     )
     .map(|row| TaskTemplateArg {
-        id: row.id.unwrap_or(0),
-        task_template_id: row.task_template_id.unwrap_or(0),
+        id: row.id,
+        task_template_id: row.task_template_id,
         flag: row.flag,
-        flag_joined: row.flag_joined.unwrap_or(false),
+        flag_joined: row.flag_joined,
         prompt: row.prompt,
         default: row.default,
-        choice_fixed: row.choice_fixed.unwrap_or(false),
+        choice_fixed: row.choice_fixed,
         choice_source: row.choice_source,
         choices: None,
     })
-    .fetch_optional(&mut tx)
+    .fetch_optional(&mut *tx)
     .await?;
     tx.commit().await?;
     Ok(rec)

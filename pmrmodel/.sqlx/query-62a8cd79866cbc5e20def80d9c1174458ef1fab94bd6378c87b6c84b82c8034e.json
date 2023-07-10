@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n    INSERT INTO workspace_tag ( workspace_id, name, commit_id )\n    VALUES ( ?1, ?2, ?3 )\n    ON CONFLICT (workspace_id, name, commit_id) DO NOTHING\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "62a8cd79866cbc5e20def80d9c1174458ef1fab94bd6378c87b6c84b82c8034e"
+}

@@ -16,7 +16,7 @@ parking_lot = "0.12"
 pmrmodel_base = { version = "0.1", features = ["sqlx"] }
 serde = "1.0.59"
 serde_json = "1.0.59"
-sqlx = { version = "0.6.2", features = [ "runtime-async-std-native-tls", "sqlite", "offline" ] }
+sqlx = { version = "0.7.0", features = [ "runtime-async-std-native-tls", "sqlite" ] }
 thiserror = "1.0"
 
 [dev-dependencies]

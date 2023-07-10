@@ -45,7 +45,7 @@ VALUES ( ?1, ?2, ?3, ?4 )\
         task.bin_path,
         created_ts,
         task.basedir,
-    ).execute(&mut tx)
+    ).execute(&mut *tx)
         .await?
         .last_insert_rowid();
 
@@ -73,7 +73,7 @@ VALUES ( ?1, ?2 )\
                         ",
                         result.id,
                         arg.arg,
-                    ).execute(&mut tx)
+                    ).execute(&mut *tx)
                     .await?
                     .last_insert_rowid();
                 results.push(TaskArg {

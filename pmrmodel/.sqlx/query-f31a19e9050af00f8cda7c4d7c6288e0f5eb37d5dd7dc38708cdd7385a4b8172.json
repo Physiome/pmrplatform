@@ -1,0 +1,62 @@
+{
+  "db_name": "SQLite",
+  "query": "\nSELECT\n    id,\n    task_template_id,\n    flag,\n    flag_joined,\n    prompt,\n    \"default\",\n    choice_fixed,\n    choice_source\nFROM\n    task_template_arg\nWHERE\n    id = ?1\n",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "task_template_id",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "flag",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "flag_joined",
+        "ordinal": 3,
+        "type_info": "Bool"
+      },
+      {
+        "name": "prompt",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "default",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "choice_fixed",
+        "ordinal": 6,
+        "type_info": "Bool"
+      },
+      {
+        "name": "choice_source",
+        "ordinal": 7,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "f31a19e9050af00f8cda7c4d7c6288e0f5eb37d5dd7dc38708cdd7385a4b8172"
+}

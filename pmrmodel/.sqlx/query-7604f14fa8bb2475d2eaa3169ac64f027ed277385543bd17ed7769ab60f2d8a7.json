@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "\n    SELECT id, workspace_id, start, end, status\n    FROM workspace_sync\n    WHERE workspace_id = ?1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "workspace_id",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "start",
+        "ordinal": 2,
+        "type_info": "Int64"
+      },
+      {
+        "name": "end",
+        "ordinal": 3,
+        "type_info": "Int64"
+      },
+      {
+        "name": "status",
+        "ordinal": 4,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "7604f14fa8bb2475d2eaa3169ac64f027ed277385543bd17ed7769ab60f2d8a7"
+}
