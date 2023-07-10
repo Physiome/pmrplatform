@@ -1,9 +1,9 @@
 CREATE TABLE IF NOT EXISTS exposure (
     id INTEGER PRIMARY KEY NOT NULL,
     workspace_id INTEGER NOT NULL,
-    workspace_tag_id INTEGER NOT NULL,
+    workspace_tag_id INTEGER,
     commit_id TEXT NOT NULL,  -- this is actually duplicate with tag
-    created INTEGER NOT NULL,
+    created_ts INTEGER NOT NULL,
     root_exposure_file_id INTEGER,  -- TODO figure out how to do this link to the exposure_file table.
     FOREIGN KEY(workspace_id) REFERENCES workspace(id),
     FOREIGN KEY(workspace_tag_id) REFERENCES workspace_tag(id)
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS exposure_file_view (
 CREATE UNIQUE INDEX IF NOT EXISTS exposure_file_view__exposure_file_id_view_key ON exposure_file_view(exposure_file_id, view_key);
 
 -- each file view can have multiple tasks
-CREATE TABLE IF NOT EXISTS exposure_file_view_tasks (
+CREATE TABLE IF NOT EXISTS exposure_file_view_task (
     id INTEGER PRIMARY KEY NOT NULL,
     exposure_file_view_id INTEGER NOT NULL,
     task_id INTEGER,
