@@ -16,10 +16,12 @@ use pmrmodel::model::workspace::{
     stream_workspace_records_default,
     stream_workspace_records_as_json,
 };
-use pmrmodel::model::db::workspace::WorkspaceBackend;
-use pmrmodel::model::db::workspace_alias::WorkspaceAliasBackend;
-use pmrmodel::model::db::workspace_sync::WorkspaceSyncBackend;
-use pmrmodel::model::db::workspace_tag::WorkspaceTagBackend;
+use pmrmodel::model::db::workspace::{
+    WorkspaceBackend,
+    WorkspaceAliasBackend,
+    WorkspaceSyncBackend,
+    WorkspaceTagBackend,
+};
 
 use pmrrepo::git::{
     PmrBackendW,

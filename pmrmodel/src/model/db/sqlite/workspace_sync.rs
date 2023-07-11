@@ -5,24 +5,10 @@ use pmrmodel_base::workspace::{
     WorkspaceSyncStatus,
 };
 
-use crate::backend::db::SqliteBackend;
-
-#[async_trait]
-pub trait WorkspaceSyncBackend {
-    async fn begin_sync(
-        &self,
-        workspace_id: i64,
-    ) -> Result<i64, sqlx::Error>;
-    async fn complete_sync(
-        &self,
-        id: i64,
-        status: WorkspaceSyncStatus,
-    ) -> Result<bool, sqlx::Error>;
-    async fn get_workspaces_sync_records(
-        &self,
-        workspace_id: i64,
-    ) -> Result<Vec<WorkspaceSync>, sqlx::Error>;
-}
+use crate::{
+    backend::db::SqliteBackend,
+    model::db::workspace::WorkspaceSyncBackend,
+};
 
 #[async_trait]
 impl WorkspaceSyncBackend for SqliteBackend {

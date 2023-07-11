@@ -42,14 +42,12 @@ use pmrmodel_base::{
 use pmrmodel::backend::db::PmrBackend;
 use pmrmodel::model::db::workspace::{
     WorkspaceBackend,
-};
-use pmrmodel::model::db::workspace_sync::{
     WorkspaceSyncBackend,
+    WorkspaceTagBackend,
 };
 use pmrmodel::model::workspace_sync::{
     fail_sync,
 };
-use pmrmodel::model::db::workspace_tag::WorkspaceTagBackend;
 
 use std::{
     io::Write,

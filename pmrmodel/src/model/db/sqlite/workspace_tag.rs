@@ -1,21 +1,10 @@
 use async_trait::async_trait;
 use pmrmodel_base::workspace::WorkspaceTag;
 
-use crate::backend::db::SqliteBackend;
-
-#[async_trait]
-pub trait WorkspaceTagBackend {
-    async fn index_workspace_tag(
-        &self,
-        workspace_id: i64,
-        name: &str,
-        commit_id: &str,
-    ) -> Result<i64, sqlx::Error>;
-    async fn get_workspace_tags(
-        &self,
-        workspace_id: i64,
-    ) -> Result<Vec<WorkspaceTag>, sqlx::Error>;
-}
+use crate::{
+    backend::db::SqliteBackend,
+    model::db::workspace::WorkspaceTagBackend,
+};
 
 #[async_trait]
 impl WorkspaceTagBackend for SqliteBackend {
