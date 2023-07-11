@@ -124,16 +124,19 @@ async fn main(args: Args) -> anyhow::Result<()> {
         .await?
         .run_migration_profile(Profile::Pmrapp)
         .await?;
+    let wb: &dyn WorkspaceBackend = &backend;
+    let wsb: &dyn WorkspaceSyncBackend = &backend;
+    let wtb: &dyn WorkspaceTagBackend = &backend;
 
     match args.cmd {
         Some(Command::Register { url, description, long_description }) => {
             println!("Registering workspace with url '{}'...", &url);
-            let workspace_id = WorkspaceBackend::add_workspace(&backend, &url, &description, &long_description).await?;
+            let workspace_id = wb.add_workspace(&url, &description, &long_description).await?;
             println!("Registered workspace with id {}", workspace_id);
         }
         Some(Command::Update { workspace_id, description, long_description }) => {
             println!("Updating workspace with id {}...", workspace_id);
-            if WorkspaceBackend::update_workspace(&backend, workspace_id, &description, &long_description).await? {
+            if wb.update_workspace(workspace_id, &description, &long_description).await? {
                 println!("Updated workspace id {}", workspace_id);
             }
             else {
@@ -143,7 +146,7 @@ async fn main(args: Args) -> anyhow::Result<()> {
         Some(Command::Sync { workspace_id, log }) => {
             if log {
                 println!("Listing of sync logs for workspace with id {}", workspace_id);
-                let recs = WorkspaceSyncBackend::get_workspaces_sync_records(&backend, workspace_id).await?;
+                let recs = wsb.get_workspaces_sync_records(workspace_id).await?;
                 println!("start - end - status");
                 for rec in recs {
                     println!("{}", rec);
@@ -151,7 +154,7 @@ async fn main(args: Args) -> anyhow::Result<()> {
             }
             else {
                 println!("Syncing commits for workspace with id {}...", workspace_id);
-                let workspace = WorkspaceBackend::get_workspace_by_id(&backend, workspace_id).await?;
+                let workspace = wb.get_workspace_by_id(workspace_id).await?;
                 let pmrbackend = PmrBackendW::new(&backend, git_root, &workspace);
                 pmrbackend.git_sync_workspace().await?;
             }
@@ -159,13 +162,13 @@ async fn main(args: Args) -> anyhow::Result<()> {
         Some(Command::Tags { workspace_id, index }) => {
             if index {
                 println!("Indexing tags for workspace with id {}...", workspace_id);
-                let workspace = WorkspaceBackend::get_workspace_by_id(&backend, workspace_id).await?;
+                let workspace = wb.get_workspace_by_id(workspace_id).await?;
                 let pmrbackend = PmrBackendWR::new(&backend, git_root, &workspace)?;
                 pmrbackend.index_tags().await?;
             }
             else {
                 println!("Listing of indexed tags workspace with id {}", workspace_id);
-                let recs = WorkspaceTagBackend::get_workspace_tags(&backend, workspace_id).await?;
+                let recs = wtb.get_workspace_tags(workspace_id).await?;
                 println!("commit_id - tag");
                 for rec in recs {
                     println!("{}", rec);
@@ -173,12 +176,12 @@ async fn main(args: Args) -> anyhow::Result<()> {
             }
         }
         Some(Command::Blob { workspace_id, obj_id }) => {
-            let workspace = WorkspaceBackend::get_workspace_by_id(&backend, workspace_id).await?;
+            let workspace = wb.get_workspace_by_id(workspace_id).await?;
             let pmrbackend = PmrBackendWR::new(&backend, git_root, &workspace)?;
             pmrbackend.get_obj_by_spec(&obj_id).await?;
         }
         Some(Command::Info { workspace_id, commit_id, path, raw }) => {
-            let workspace = WorkspaceBackend::get_workspace_by_id(&backend, workspace_id).await?;
+            let workspace = wb.get_workspace_by_id(workspace_id).await?;
             let pmrbackend = PmrBackendWR::new(&backend, git_root, &workspace)?;
             if raw {
                 let git_result = pmrbackend.pathinfo(
@@ -202,7 +205,7 @@ async fn main(args: Args) -> anyhow::Result<()> {
             }
         }
         Some(Command::Log { workspace_id, commit_id }) => {
-            let workspace = WorkspaceBackend::get_workspace_by_id(&backend, workspace_id).await?;
+            let workspace = wb.get_workspace_by_id(workspace_id).await?;
             let pmrbackend = PmrBackendWR::new(&backend, git_root, &workspace)?;
             let logs = pmrbackend.loginfo(commit_id.as_deref(), None, None)?;
             if args.json {
@@ -217,8 +220,9 @@ async fn main(args: Args) -> anyhow::Result<()> {
             }
         }
         Some(Command::Alias { workspace_id, alias }) => {
+            let wab: &dyn WorkspaceAliasBackend = &backend;
             if alias.is_none() {
-                let aliases = WorkspaceAliasBackend::get_aliases(&backend, workspace_id).await?;
+                let aliases = wab.get_aliases(workspace_id).await?;
                 println!("Printing list of all aliases");
                 for rec in aliases {
                     println!("{}", rec);
@@ -226,18 +230,18 @@ async fn main(args: Args) -> anyhow::Result<()> {
             }
             else {
                 let alias = alias.unwrap();
-                WorkspaceAliasBackend::add_alias(&backend, workspace_id, &alias).await?;
+                wab.add_alias(workspace_id, &alias).await?;
                 println!("setting alias to {}", alias);
             }
         }
         None => {
-            let recs = WorkspaceBackend::list_workspaces(&backend).await?;
+            let workspaces = wb.list_workspaces().await?;
             if args.json {
-                stream_workspace_records_as_json(io::stdout(), recs)?;
+                stream_workspace_records_as_json(io::stdout(), &workspaces)?;
             }
             else {
                 println!("Printing list of all workspaces");
-                stream_workspace_records_default(io::stdout(), recs)?;
+                stream_workspace_records_default(io::stdout(), &workspaces)?;
             }
         }
     }

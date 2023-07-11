@@ -34,8 +34,8 @@ pub fn router() -> Router {
 }
 
 pub async fn api_workspace(ctx: Extension<AppContext>) -> Result<Json<Workspaces>> {
-    let records = WorkspaceBackend::list_workspaces(&ctx.backend).await?;
-    Ok(Json(Workspaces { workspaces: records }))
+    let workspaces = WorkspaceBackend::list_workspaces(&ctx.backend).await?;
+    Ok(Json(workspaces))
 }
 
 pub async fn api_workspace_top(

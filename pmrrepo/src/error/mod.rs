@@ -60,6 +60,12 @@ pub enum ContentError {
         path: String,
         msg: String,
     },
+    #[error("workspace `{workspace_id}` references a repository at `{url}` \n\
+             but it is not currently registered as a workspace")]
+    NoWorkspaceForUrl {
+        workspace_id: i64,
+        url: String,
+    },
 }
 
 #[derive(Debug, PartialEq, Error, Deserialize, Serialize)]

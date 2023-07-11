@@ -642,11 +642,19 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
                 }.into())
             },
             GitResultTarget::SubRepoPath { location, commit, path } => {
-                let workspace = WorkspaceBackend::get_workspace_by_url(
+                let workspaces = WorkspaceBackend::list_workspace_by_url(
                     self.backend, &location,
                 ).await?;
+                if workspaces.len() == 0 {
+                    return Err(ContentError::NoWorkspaceForUrl{
+                        workspace_id: self.workspace.id,
+                        url: location.to_string(),
+                    }.into())
+                }
+                // TODO need to derive this for this specific workspace
+                // for now, just use the first result.
                 let pmrbackend = PmrBackendWR::new(
-                    self.backend, self.git_root.clone(), &workspace)?;
+                    self.backend, self.git_root.clone(), &workspaces[0])?;
                 let git_result = pmrbackend.pathinfo(
                     Some(commit), Some(path),
                 )?;
@@ -728,6 +736,7 @@ mod tests {
 
     // use pmrmodel::backend::db::MockHasPool;
     use pmrmodel_base::workspace::{
+        Workspaces,
         WorkspaceSync,
         WorkspaceTag,
     };
@@ -751,9 +760,9 @@ mod tests {
             async fn update_workspace(
                 &self, id: i64, description: &str, long_description: &str
             ) -> Result<bool, sqlx::Error>;
-            async fn list_workspaces(&self) -> Result<Vec<Workspace>, sqlx::Error>;
+            async fn list_workspaces(&self) -> Result<Workspaces, sqlx::Error>;
             async fn get_workspace_by_id(&self, id: i64) -> Result<Workspace, sqlx::Error>;
-            async fn get_workspace_by_url(&self, url: &str) -> Result<Workspace, sqlx::Error>;
+            async fn list_workspace_by_url(&self, url: &str) -> Result<Workspaces, sqlx::Error>;
         }
 
         #[async_trait]
@@ -1007,17 +1016,17 @@ mod tests {
 
         let mut mock_backend = MockBackend::new();
         // used later.
-        mock_backend.expect_get_workspace_by_url()
+        mock_backend.expect_list_workspace_by_url()
             .times(1)
             .with(eq("http://models.example.com/w/import2"))
-            .returning(|_| Ok(Workspace {
+            .returning(|_| Ok([Workspace {
                 id: 2,
                 url: "http://models.example.com/w/import2".to_string(),
                 description: Some("The import2 workspace".to_string()),
                 superceded_by_id: None,
                 long_description: None,
                 created_ts: 1234567890,
-            }));
+            }].into()));
         let pmrbackend = PmrBackendWR::new(
             &mock_backend,
             git_root.path().to_path_buf(),

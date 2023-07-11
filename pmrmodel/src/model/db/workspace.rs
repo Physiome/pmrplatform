@@ -3,7 +3,10 @@ use async_trait::async_trait;
 use chrono::Utc;
 #[cfg(test)]
 use crate::test::Utc;
-use pmrmodel_base::workspace::Workspace;
+use pmrmodel_base::workspace::{
+    Workspace,
+    Workspaces,
+};
 
 use crate::backend::db::SqliteBackend;
 
@@ -21,17 +24,17 @@ pub trait WorkspaceBackend {
         description: &str,
         long_description: &str,
     ) -> Result<bool, sqlx::Error>;
-    async fn list_workspaces(
-        &self,
-    ) -> Result<Vec<Workspace>, sqlx::Error>;
     async fn get_workspace_by_id(
         &self,
         id: i64,
     ) -> Result<Workspace, sqlx::Error>;
-    async fn get_workspace_by_url(
+    async fn list_workspaces(
+        &self,
+    ) -> Result<Workspaces, sqlx::Error>;
+    async fn list_workspace_by_url(
         &self,
         url: &str,
-    ) -> Result<Workspace, sqlx::Error>;
+    ) -> Result<Workspaces, sqlx::Error>;
 }
 
 #[async_trait]
@@ -93,7 +96,7 @@ WHERE id = ?3
 
     async fn list_workspaces(
         &self,
-    ) -> Result<Vec<Workspace>, sqlx::Error> {
+    ) -> Result<Workspaces, sqlx::Error> {
         let recs = sqlx::query_as!(Workspace,
             r#"
 SELECT
@@ -111,7 +114,7 @@ ORDER BY
         )
         .fetch_all(&*self.pool)
         .await?;
-        Ok(recs)
+        Ok(recs.into())
     }
 
     async fn get_workspace_by_id(
@@ -140,11 +143,10 @@ WHERE
         Ok(rec)
     }
 
-    // XXX this assumes url is unique
-    async fn get_workspace_by_url(
+    async fn list_workspace_by_url(
         &self,
         url: &str,
-    ) -> Result<Workspace, sqlx::Error> {
+    ) -> Result<Workspaces, sqlx::Error> {
         let rec = sqlx::query_as!(Workspace,
             r#"
 SELECT
@@ -161,9 +163,9 @@ WHERE
             "#,
             url,
         )
-        .fetch_one(&*self.pool)
+        .fetch_all(&*self.pool)
         .await?;
-        Ok(rec)
+        Ok(rec.into())
     }
 }
 
@@ -209,7 +211,7 @@ pub(crate) mod testing {
     }
 
     #[async_std::test]
-    async fn test_get_by_url() -> anyhow::Result<()> {
+    async fn test_list_by_url() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
             .run_migration_profile(Profile::Pmrapp)
@@ -218,10 +220,9 @@ pub(crate) mod testing {
         make_example_workspace(&backend).await?;
         make_example_workspace(&backend).await?;
         let wb: &dyn WorkspaceBackend = &backend;
-        let workspace = wb.get_workspace_by_url("https://models.example.com")
+        let workspaces = wb.list_workspace_by_url("https://models.example.com")
             .await?;
-        assert_eq!(workspace.url, "https://models.example.com".to_string());
-        // can't deterministically decide on which id gets returned.
+        assert_eq!(workspaces.len(), 2);
         Ok(())
     }
 

@@ -62,13 +62,13 @@ impl Content {
                     </div>
                 }
             }
-            Content::WorkspaceListing(entries) => {
+            Content::WorkspaceListing(workspaces) => {
                 node! {
                     <div class="main">
                         <h1>"Workspace Listing"</h1>
                         <div class="workspace-listing">
                         {
-                            for workspace in &entries.workspaces {
+                            for workspace in workspaces.iter() {
                                 self.show_workspace(workspace)
                             }
                         }
