@@ -214,4 +214,27 @@ pub(crate) mod testing {
         Ok(())
     }
 
+    #[async_std::test]
+    async fn test_get_exposure_workspace() -> anyhow::Result<()> {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await?
+            .run_migration_profile(Profile::Pmrapp)
+            .await?;
+
+        let w1 = make_example_workspace(&backend).await?;
+        let w2 = make_example_workspace(&backend).await?;
+        make_example_exposure(&backend, w1).await?;
+        make_example_exposure(&backend, w1).await?;
+        make_example_exposure(&backend, w2).await?;
+        make_example_exposure(&backend, w2).await?;
+        make_example_exposure(&backend, w2).await?;
+        make_example_exposure(&backend, w2).await?;
+
+        let eb: &dyn ExposureBackend = &backend;
+        assert_eq!(2, eb.list_exposures_for_workspace(w1).await?.len());
+        assert_eq!(4, eb.list_exposures_for_workspace(w2).await?.len());
+
+        Ok(())
+    }
+
 }

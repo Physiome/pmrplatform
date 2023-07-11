@@ -194,16 +194,71 @@ pub(crate) mod testing {
             .await?;
         let id = make_example_workspace(&backend)
             .await?;
-        let workspace = WorkspaceBackend::get_workspace_by_id(
-            &backend, id
-        ).await?;
-        assert_eq!(workspace, Workspace {
+        let wb: &dyn WorkspaceBackend = &backend;
+        let workspace = wb.get_workspace_by_id(id).await?;
+        let answer = Workspace {
             id: 1,
             url: "https://models.example.com".into(),
             superceded_by_id: None,
             created_ts: 1234567890,
             description: Some("".into()),
             long_description: Some("".into()),
+        };
+        assert_eq!(workspace, answer);
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn test_get_by_url() -> anyhow::Result<()> {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await?
+            .run_migration_profile(Profile::Pmrapp)
+            .await?;
+        // note this makes _two_ workspaces with the same url
+        make_example_workspace(&backend).await?;
+        make_example_workspace(&backend).await?;
+        let wb: &dyn WorkspaceBackend = &backend;
+        let workspace = wb.get_workspace_by_url("https://models.example.com")
+            .await?;
+        assert_eq!(workspace.url, "https://models.example.com".to_string());
+        // can't deterministically decide on which id gets returned.
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn test_listing() -> anyhow::Result<()> {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await?
+            .run_migration_profile(Profile::Pmrapp)
+            .await?;
+        let wb: &dyn WorkspaceBackend = &backend;
+        make_example_workspace(wb).await?;
+        make_example_workspace(wb).await?;
+        make_example_workspace(wb).await?;
+        assert_eq!(wb.list_workspaces().await?.len(), 3);
+
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn test_update() -> anyhow::Result<()> {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await?
+            .run_migration_profile(Profile::Pmrapp)
+            .await?;
+        let id = make_example_workspace(&backend)
+            .await?;
+        let wb: &dyn WorkspaceBackend = &backend;
+        assert!(wb.update_workspace(id, "title", "description").await?);
+
+        let workspace = wb.get_workspace_by_id(id).await?;
+        assert_eq!(workspace, Workspace {
+            id: 1,
+            url: "https://models.example.com".into(),
+            superceded_by_id: None,
+            created_ts: 1234567890,
+            description: Some("title".into()),
+            long_description: Some("description".into()),
         });
         Ok(())
     }
