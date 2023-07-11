@@ -1,4 +1,4 @@
-use enum_primitive::FromPrimitive;
+use num_enum::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -24,14 +24,14 @@ pub struct WorkspaceAlias {
     pub created_ts: i64,
 }
 
-enum_from_primitive! {
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, FromPrimitive)]
+#[repr(i64)]
 pub enum WorkspaceSyncStatus {
     Completed,
     Running,
     Error,
+    #[num_enum(default)]
     Unknown = -1,
-}
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -102,7 +102,7 @@ mod display {
                     },
                     None => "<nil>".to_string(),
                 },
-                WorkspaceSyncStatus::from_i64(self.status).unwrap_or(WorkspaceSyncStatus::Unknown),
+                WorkspaceSyncStatus::from(self.status),
             )
         }
     }
