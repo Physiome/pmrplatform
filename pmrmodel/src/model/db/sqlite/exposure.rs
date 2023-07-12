@@ -8,10 +8,6 @@ use pmrmodel_base::{
     exposure::{
         Exposure,
         Exposures,
-        // ExposureFile,
-        // ExposureFiles,
-        // ExposureFileView,
-        // ExposureFileViews,
         traits::ExposureBackend,
     },
 };
@@ -25,7 +21,7 @@ async fn insert_exposure_sqlite(
     workspace_id: i64,
     workspace_tag_id: Option<i64>,
     commit_id: &str,
-    root_exposure_file_id: Option<i64>,
+    default_file_id: Option<i64>,
 ) -> Result<i64, BackendError> {
     let created_ts = Utc::now().timestamp();
     let id = sqlx::query!(
@@ -35,7 +31,7 @@ INSERT INTO exposure (
     workspace_tag_id,
     commit_id,
     created_ts,
-    root_exposure_file_id
+    default_file_id
 )
 VALUES ( ?1, ?2, ?3, ?4, ?5 )
         "#,
@@ -43,7 +39,7 @@ VALUES ( ?1, ?2, ?3, ?4, ?5 )
         workspace_tag_id,
         commit_id,
         created_ts,
-        root_exposure_file_id,
+        default_file_id,
     )
     .execute(&*sqlite.pool)
     .await?
@@ -62,7 +58,7 @@ SELECT
     workspace_tag_id,
     commit_id,
     created_ts,
-    root_exposure_file_id
+    default_file_id
 FROM exposure
 WHERE id = ?1
 "#,
@@ -74,7 +70,7 @@ WHERE id = ?1
         workspace_tag_id: row.workspace_tag_id,
         commit_id: row.commit_id,
         created_ts: row.created_ts,
-        root_exposure_file_id: row.root_exposure_file_id,
+        default_file_id: row.default_file_id,
         // TODO map to files.
         files: None,
     })
@@ -94,7 +90,7 @@ SELECT
     workspace_tag_id,
     commit_id,
     created_ts,
-    root_exposure_file_id
+    default_file_id
 FROM exposure
 WHERE workspace_id = ?1
 "#,
@@ -106,7 +102,7 @@ WHERE workspace_id = ?1
         workspace_tag_id: row.workspace_tag_id,
         commit_id: row.commit_id,
         created_ts: row.created_ts,
-        root_exposure_file_id: row.root_exposure_file_id,
+        default_file_id: row.default_file_id,
         // won't have files.
         files: None,
     })
@@ -122,14 +118,14 @@ impl ExposureBackend for SqliteBackend {
         workspace_id: i64,
         workspace_tag_id: Option<i64>,
         commit_id: &str,
-        root_exposure_file_id: Option<i64>,
+        default_file_id: Option<i64>,
     ) -> Result<i64, BackendError>{
         insert_exposure_sqlite(
             &self,
             workspace_id,
             workspace_tag_id,
             commit_id,
-            root_exposure_file_id,
+            default_file_id,
         ).await
     }
 
@@ -194,7 +190,7 @@ pub(crate) mod testing {
             workspace_tag_id: None,
             commit_id: "abcdef".into(),
             created_ts: 1234567890,
-            root_exposure_file_id: None,
+            default_file_id: None,
             files: None,
             // files: Some([].to_vec().into()),
         });

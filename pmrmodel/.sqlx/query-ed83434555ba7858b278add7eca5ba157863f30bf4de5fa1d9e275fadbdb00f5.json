@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\nSELECT\n    id,\n    workspace_id,\n    workspace_tag_id,\n    commit_id,\n    created_ts,\n    root_exposure_file_id\nFROM exposure\nWHERE id = ?1\n",
+  "query": "\nSELECT\n    id,\n    workspace_id,\n    workspace_tag_id,\n    commit_id,\n    created_ts,\n    default_file_id\nFROM exposure\nWHERE workspace_id = ?1\n",
   "describe": {
     "columns": [
       {
@@ -29,7 +29,7 @@
         "type_info": "Int64"
       },
       {
-        "name": "root_exposure_file_id",
+        "name": "default_file_id",
         "ordinal": 5,
         "type_info": "Int64"
       }
@@ -46,5 +46,5 @@
       true
     ]
   },
-  "hash": "8c3eef3fb9b5f4dfdae02f191afb3414427db397865d1ac01d6cca071f2e4fb1"
+  "hash": "ed83434555ba7858b278add7eca5ba157863f30bf4de5fa1d9e275fadbdb00f5"
 }

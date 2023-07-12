@@ -4,9 +4,10 @@ CREATE TABLE IF NOT EXISTS exposure (
     workspace_tag_id INTEGER,
     commit_id TEXT NOT NULL,  -- this is actually duplicate with tag
     created_ts INTEGER NOT NULL,
-    root_exposure_file_id INTEGER,  -- TODO figure out how to do this link to the exposure_file table.
+    default_file_id INTEGER,
     FOREIGN KEY(workspace_id) REFERENCES workspace(id),
-    FOREIGN KEY(workspace_tag_id) REFERENCES workspace_tag(id)
+    FOREIGN KEY(workspace_tag_id) REFERENCES workspace_tag(id),
+    FOREIGN KEY(default_file_id) REFERENCES exposure_file(id)
 );
 
 CREATE INDEX IF NOT EXISTS exposure__workspace_id ON exposure(workspace_id);
@@ -17,8 +18,9 @@ CREATE TABLE IF NOT EXISTS exposure_file (
     id INTEGER PRIMARY KEY NOT NULL,
     exposure_id INTEGER NOT NULL,
     workspace_file_path TEXT NOT NULL,
-    default_view TEXT,
-    FOREIGN KEY(exposure_id) REFERENCES exposure(id)
+    default_view_id INTEGER,
+    FOREIGN KEY(exposure_id) REFERENCES exposure(id),
+    FOREIGN KEY(default_view_id) REFERENCES exposure_file_view(id)
 );
 
 CREATE INDEX IF NOT EXISTS exposure_file__exposure_id ON exposure_file(exposure_id);

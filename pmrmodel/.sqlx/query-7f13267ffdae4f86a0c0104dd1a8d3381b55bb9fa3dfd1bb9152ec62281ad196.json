@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nINSERT INTO exposure_file_view (\n    exposure_file_id,\n    view_key\n)\nVALUES ( ?1, ?2 )\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "7f13267ffdae4f86a0c0104dd1a8d3381b55bb9fa3dfd1bb9152ec62281ad196"
+}

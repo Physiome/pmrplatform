@@ -7,7 +7,7 @@ pub struct Exposure {
     pub workspace_tag_id: Option<i64>,
     pub commit_id: String,
     pub created_ts: i64,
-    pub root_exposure_file_id: Option<i64>,
+    pub default_file_id: Option<i64>,
 
     // derived fields
     pub files: Option<ExposureFiles>,
@@ -21,7 +21,7 @@ pub struct ExposureFile {
     pub id: i64,
     pub exposure_id: i64,
     pub workspace_file_path: String,
-    pub default_view: Option<String>,
+    pub default_view_id: Option<i64>,
 
     // derived fields
     pub views: Option<ExposureFileViews>,

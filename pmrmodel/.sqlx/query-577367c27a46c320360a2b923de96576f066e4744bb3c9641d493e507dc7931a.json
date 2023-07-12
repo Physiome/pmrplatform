@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\nSELECT\n    id,\n    exposure_file_id,\n    view_key\nFROM exposure_file_view\nWHERE id = ?1\n",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "exposure_file_id",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "view_key",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "577367c27a46c320360a2b923de96576f066e4744bb3c9641d493e507dc7931a"
+}

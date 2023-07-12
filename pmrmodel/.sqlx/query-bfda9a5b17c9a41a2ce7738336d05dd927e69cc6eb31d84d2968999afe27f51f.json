@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "\nSELECT\n    id,\n    exposure_id,\n    workspace_file_path,\n    default_view_id\nFROM exposure_file\nWHERE exposure_id = ?1\n",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "exposure_id",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "workspace_file_path",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "default_view_id",
+        "ordinal": 3,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "bfda9a5b17c9a41a2ce7738336d05dd927e69cc6eb31d84d2968999afe27f51f"
+}

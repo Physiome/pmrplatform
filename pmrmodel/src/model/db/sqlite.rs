@@ -1,4 +1,6 @@
 mod exposure;
+mod exposure_file;
+mod exposure_file_view;
 
 mod workspace;
 mod workspace_alias;
