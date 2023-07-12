@@ -6,7 +6,6 @@ use sqlx::{
     Row,
 };
 use std::collections::HashMap;
-use std::ops::{Deref, DerefMut};
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct TaskTemplate {
@@ -60,35 +59,9 @@ pub struct TaskTemplateArg {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct TaskTemplateArgs(Vec<TaskTemplateArg>);
 
-impl From<Vec<TaskTemplateArg>> for TaskTemplateArgs {
-    fn from(args: Vec<TaskTemplateArg>) -> Self {
-        Self(args)
-    }
-}
-
-impl<const N: usize> From<[TaskTemplateArg; N]> for TaskTemplateArgs {
-    fn from(args: [TaskTemplateArg; N]) -> Self {
-        Self(args.into())
-    }
-}
-
-impl Deref for TaskTemplateArgs {
-    type Target = Vec<TaskTemplateArg>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for TaskTemplateArgs {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
 /*
-Choice can be null to _allow_ the above argument to be null to allow a null argument,
-likewise for empty-string for the disambiguation.
+Choice can be null to _allow_ the above argument to be null to allow a
+null argument, likewise for empty-string for the disambiguation.
 */
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -106,176 +79,10 @@ pub struct TaskTemplateArgChoice {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct TaskTemplateArgChoices(Vec<TaskTemplateArgChoice>);
 
-impl From<Vec<TaskTemplateArgChoice>> for TaskTemplateArgChoices {
-    fn from(choices: Vec<TaskTemplateArgChoice>) -> Self {
-        Self(choices)
-    }
-}
-
-impl<const N: usize> From<[TaskTemplateArgChoice; N]> for TaskTemplateArgChoices {
-    fn from(choices: [TaskTemplateArgChoice; N]) -> Self {
-        Self(choices.into())
-    }
-}
-
-impl Deref for TaskTemplateArgChoices {
-    type Target = Vec<TaskTemplateArgChoice>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for TaskTemplateArgChoices {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
 // What an owned version might have looked like
 // pub struct MapToArg(HashMap<String, Option<String>>);
 pub struct MapToArgRef<'a>(HashMap<&'a str, Option<&'a str>>);
 
-impl<'a> From<HashMap<&'a str, Option<&'a str>>> for MapToArgRef<'a> {
-    fn from(value: HashMap<&'a str, Option<&'a str>>) -> Self {
-        Self(value)
-    }
-}
-
-impl<'a> Deref for MapToArgRef<'a> {
-    type Target = HashMap<&'a str, Option<&'a str>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<'a> From<&'a TaskTemplateArgChoices> for MapToArgRef<'a> {
-    fn from(value: &'a TaskTemplateArgChoices) -> Self {
-        value.iter()
-            .map(|c| (c.label.as_ref(), c.to_arg.as_deref()))
-            .collect::<HashMap<&'_ str, Option<&'_ str>>>()
-            .into()
-    }
-}
-
-impl<'a> From<&'a Vec<String>> for MapToArgRef<'a> {
-    fn from(value: &'a Vec<String>) -> Self {
-        value.iter()
-            .map(|s| (s.as_ref(), Some(s.as_ref())))
-            .collect::<HashMap<&'_ str, Option<&'_ str>>>()
-            .into()
-    }
-}
-
-impl<'a> From<&Vec<&'a str>> for MapToArgRef<'a> {
-    fn from(value: &Vec<&'a str>) -> Self {
-        value.iter()
-            .map(|s| (*s, Some(*s)))
-            .collect::<HashMap<&'_ str, Option<&'_ str>>>()
-            .into()
-    }
-}
-
-impl<'a, const N: usize> From<[&'a str; N]> for MapToArgRef<'a> {
-    fn from(value: [&'a str; N]) -> Self {
-        value.iter()
-            .map(|s| (*s, Some(*s)))
-            .collect::<HashMap<&'_ str, Option<&'_ str>>>()
-            .into()
-    }
-}
-
 #[cfg(feature = "display")]
-mod display {
-    use std::fmt::{
-        Display,
-        Formatter,
-        Result,
-    };
-    use crate::task_template::*;
-
-    impl Display for TaskTemplate {
-        fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-            write!(
-                f,
-                "\
-                TaskTemplate {{ id: {}, version_id: {:?}, ... }}\n\
-                {}{}{}\
-                ",
-                self.id,
-                &self.version_id,
-                &self.bin_path,
-                &(match &self.args {
-                    Some(args) => format!("{}", args.iter().fold(
-                        String::new(), |acc, arg| acc + " " + &arg.to_string())),
-                    None => "?arguments missing?".to_string(),
-                }),
-                if self.final_task_template_arg_id.is_some() {
-                    ""
-                }
-                else {
-                    " ?not finalized?"
-                },
-            )
-        }
-    }
-
-    impl Display for TaskTemplateArg {
-        fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-            match (
-                &self.flag, self.flag_joined,
-                match (
-                    &self.prompt,
-                    &self.default,
-                    self.choice_fixed,
-                    &self.choice_source.as_deref(),
-                ) {
-                    (None, None, _, _) => None,
-                    (None, Some(default), _, _) =>
-                        Some(format!(">?{:?}?<", &default)),
-                    (Some(prompt), None, false, _) =>
-                        Some(format!("<{}>", &prompt)),
-                    (Some(prompt), Some(default), false, _) =>
-                        Some(format!("[<{}>;default={:?}]",
-                            &prompt, &default)),
-                    (Some(prompt), None, true, None) =>
-                        Some(format!("<{};choices={{...}}>", &prompt)),
-                    (Some(prompt), Some(default), true, None) =>
-                        Some(format!("[<{}>;default={:?};choices={{...}}]",
-                            &prompt, &default)),
-                    (Some(prompt), None, true, Some("")) =>
-                        Some(format!("<{};choices={{...}}>", &prompt)),
-                    (Some(prompt), None, true, Some(source)) =>
-                        Some(format!("<{};choices={{source:'{}'}}>",
-                            &prompt, &source)),
-                    (Some(prompt), Some(default), true, Some("")) =>
-                        Some(format!("[<{}>;default={:?};choices={{...}}]",
-                            &prompt, &default)),
-                    (Some(prompt), Some(default), true, Some(source)) =>
-                        Some(format!("<<{}>;default={:?};choices={{source:'{}'}}>",
-                            &prompt, &default, &source)),
-                }
-            ) {
-                (None, _, None) => write!(f, ""),
-                (Some(flag), _, None) => write!(f, "{}", flag),
-                (None, _, Some(arg)) => write!(f, "{}", arg),
-                (Some(flag), false, Some(arg)) => write!(f, "{} {}", flag, arg),
-                (Some(flag), true, Some(arg)) => write!(f, "{}{}", flag, arg),
-            }
-        }
-    }
-
-    impl Display for TaskTemplateArgChoice {
-        fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-            write!(
-                f,
-                "{} => {}",
-                match self.to_arg.as_deref() {
-                    Some(s) => format!("{:?}", s),
-                    None => "<OMITTED>".into(),
-                },
-                &self.label,)
-        }
-    }
-}
+mod display;
+mod impls;
