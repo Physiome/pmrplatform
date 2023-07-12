@@ -6,7 +6,8 @@ authors = ["Tommy Yu <tommy.yu@auckland.ac.nz>"]
 edition = "2021"
 
 [dependencies]
-chrono = "0.4"
+async-trait = "0.1.50"
+chrono = { version = "0.4", optional = true }
 num_enum = "0.6.1"
 serde = { version = "1.0.59", features = ["serde_derive"] }
 serde_json = "1.0.59"
@@ -14,5 +15,6 @@ sqlx = { version = "0.7.0", features = [], optional = true }
 
 [features]
 sqlx = ["dep:sqlx"]
+display = ["dep:chrono"]
 
 [lib]

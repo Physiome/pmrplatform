@@ -1,11 +1,5 @@
 use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
-#[cfg(feature = "display")]
-use std::fmt::{
-    Display,
-    Formatter,
-    Result,
-};
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Exposure {
@@ -52,20 +46,6 @@ pub struct ExposureFileViewTask {
     pub id: i64,
     pub exposure_file_view_id: i64,
     pub task_id: i64,
-}
-
-#[cfg(feature = "display")]
-impl Display for Exposure {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(
-            f,
-            "{} - {} - {} - {}",
-            self.id,
-            self.workspace_id,
-            self.workspace_tag_id,
-            &self.commit_id,
-        )
-    }
 }
 
 impl From<Vec<Exposure>> for Exposures {
@@ -143,5 +123,30 @@ impl Deref for ExposureFileViews {
 impl DerefMut for ExposureFileViews {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+#[cfg(feature = "display")]
+mod display {
+    use std::fmt::{
+        Display,
+        Formatter,
+        Result,
+    };
+    use crate::exposure::*;
+
+    impl Display for Exposure {
+        fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+            write!(
+                f,
+                "{} - {} - {} - {}",
+                self.id,
+                self.workspace_id,
+                self.workspace_tag_id
+                    .map(|x| x.to_string())
+                    .unwrap_or("<unset>".to_string()),
+                &self.commit_id,
+            )
+        }
     }
 }

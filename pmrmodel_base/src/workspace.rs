@@ -83,6 +83,7 @@ mod impls {
     }
 }
 
+#[cfg(feature = "display")]
 mod display {
     use chrono::{LocalResult, TimeZone, Utc};
     use std::fmt::{
