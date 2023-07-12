@@ -20,7 +20,7 @@ use crate::{
     backend::db::SqliteBackend,
 };
 
-async fn add_exposure_sqlite(
+async fn insert_exposure_sqlite(
     sqlite: &SqliteBackend,
     workspace_id: i64,
     workspace_tag_id: Option<i64>,
@@ -117,14 +117,14 @@ WHERE workspace_id = ?1
 
 #[async_trait]
 impl ExposureBackend for SqliteBackend {
-    async fn add_exposure(
+    async fn insert(
         &self,
         workspace_id: i64,
         workspace_tag_id: Option<i64>,
         commit_id: String,
         root_exposure_file_id: Option<i64>,
     ) -> Result<i64, BackendError>{
-        add_exposure_sqlite(
+        insert_exposure_sqlite(
             &self,
             workspace_id,
             workspace_tag_id,
@@ -133,7 +133,7 @@ impl ExposureBackend for SqliteBackend {
         ).await
     }
 
-    async fn list_exposures_for_workspace(
+    async fn list_for_workspace(
         &self,
         workspace_id: i64,
     ) -> Result<Exposures, BackendError> {
@@ -143,7 +143,7 @@ impl ExposureBackend for SqliteBackend {
         ).await
     }
 
-    async fn get_exposure_by_id(
+    async fn get_id(
         &self,
         id: i64,
     ) -> Result<Exposure, BackendError> {
@@ -168,7 +168,7 @@ pub(crate) mod testing {
         backend: &dyn ExposureBackend,
         workspace_id: i64,
     ) -> anyhow::Result<i64> {
-        Ok(backend.add_exposure(
+        Ok(backend.insert(
             workspace_id,
             None,
             "abcdef".into(),
@@ -185,7 +185,7 @@ pub(crate) mod testing {
 
         let workspace_id = make_example_workspace(&backend).await?;
         let id = make_example_exposure(&backend, workspace_id).await?;
-        let exposure = ExposureBackend::get_exposure_by_id(
+        let exposure = ExposureBackend::get_id(
             &backend, id
         ).await?;
         assert_eq!(exposure, Exposure {
@@ -218,8 +218,8 @@ pub(crate) mod testing {
         make_example_exposure(&backend, w2).await?;
 
         let eb: &dyn ExposureBackend = &backend;
-        assert_eq!(2, eb.list_exposures_for_workspace(w1).await?.len());
-        assert_eq!(4, eb.list_exposures_for_workspace(w2).await?.len());
+        assert_eq!(2, eb.list_for_workspace(w1).await?.len());
+        assert_eq!(4, eb.list_for_workspace(w2).await?.len());
 
         Ok(())
     }
