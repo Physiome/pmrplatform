@@ -91,6 +91,31 @@ WHERE exposure_id = ?1
     Ok(rec.into())
 }
 
+
+async fn set_default_view_sqlite(
+    sqlite: &SqliteBackend,
+    id: i64,
+    view_id: i64,
+) -> Result<bool, BackendError> {
+    let rows_affected = sqlx::query!(r#"
+UPDATE exposure_file
+SET default_view_id = ?2
+WHERE id = ?1
+    AND ?2 IN (
+        SELECT id
+        FROM exposure_file_view
+        WHERE exposure_file_id = ?1
+    )
+"#,
+        id,
+        view_id,
+    )
+    .execute(&*sqlite.pool)
+    .await?
+    .rows_affected();
+    Ok(rows_affected > 0)
+}
+
 #[async_trait]
 impl ExposureFileBackend for SqliteBackend {
     async fn insert(
@@ -126,6 +151,18 @@ impl ExposureFileBackend for SqliteBackend {
             id,
         ).await
     }
+
+    async fn set_default_view(
+        &self,
+        id: i64,
+        view_id: i64
+    ) -> Result<bool, BackendError> {
+        set_default_view_sqlite(
+            &self,
+            id,
+            view_id,
+        ).await
+    }
 }
 
 #[cfg(test)]
@@ -133,6 +170,7 @@ pub(crate) mod testing {
     use pmrmodel_base::{
         exposure::{
             ExposureFile,
+            traits::ExposureBackend,
             traits::ExposureFileBackend,
         },
     };
@@ -182,20 +220,21 @@ pub(crate) mod testing {
     }
 
     #[async_std::test]
-    async fn test_list_exposure_file() -> anyhow::Result<()> {
+    async fn test_using_exposure_files() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
             .run_migration_profile(Profile::Pmrapp)
             .await?;
         let efb: &dyn ExposureFileBackend = &backend;
+        let eb: &dyn ExposureBackend = &backend;
 
         let w1 = make_example_workspace(&backend).await?;
         let e1 = make_example_exposure(&backend, w1).await?;
-        let _ = make_example_exposure_file(
+        let ef0 = make_example_exposure_file(
             &backend, e1, "README.md").await?;
 
         let e2 = make_example_exposure(&backend, w1).await?;
-        make_example_exposure_file(&backend, e2, "README.md").await?;
+        let ef1 = make_example_exposure_file(&backend, e2, "README.md").await?;
         make_example_exposure_file(&backend, e2, "model.cellml").await?;
         make_example_exposure_file(&backend, e2, "lib/units.cellml").await?;
         let results = efb.list_for_exposure(e2).await?;
@@ -206,6 +245,13 @@ pub(crate) mod testing {
                 .map(|ef| &ef.workspace_file_path)
                 .collect::<Vec<_>>(),
         );
+
+        // Matching pairing of exposure id and file
+        assert!(eb.set_default_file(e1, ef0).await?);
+        assert!(eb.set_default_file(e2, ef1).await?);
+        // Mismatching pairing of exposure id and file
+        assert!(!eb.set_default_file(e2, ef0).await?);
+        assert!(!eb.set_default_file(e1, ef1).await?);
 
         Ok(())
     }

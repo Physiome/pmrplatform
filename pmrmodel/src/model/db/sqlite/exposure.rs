@@ -111,6 +111,30 @@ WHERE workspace_id = ?1
     Ok(rec.into())
 }
 
+async fn set_default_file_sqlite(
+    sqlite: &SqliteBackend,
+    id: i64,
+    file_id: i64,
+) -> Result<bool, BackendError> {
+    let rows_affected = sqlx::query!(r#"
+UPDATE exposure
+SET default_file_id = ?2
+WHERE id = ?1
+    AND ?2 IN (
+        SELECT id
+        FROM exposure_file
+        WHERE exposure_id = ?1
+    )
+"#,
+        id,
+        file_id,
+    )
+    .execute(&*sqlite.pool)
+    .await?
+    .rows_affected();
+    Ok(rows_affected > 0)
+}
+
 #[async_trait]
 impl ExposureBackend for SqliteBackend {
     async fn insert(
@@ -146,6 +170,18 @@ impl ExposureBackend for SqliteBackend {
         get_exposure_by_id_sqlite(
             &self,
             id,
+        ).await
+    }
+
+    async fn set_default_file(
+        &self,
+        id: i64,
+        file_id: i64,
+    ) -> Result<bool, BackendError> {
+        set_default_file_sqlite(
+            &self,
+            id,
+            file_id,
         ).await
     }
 }

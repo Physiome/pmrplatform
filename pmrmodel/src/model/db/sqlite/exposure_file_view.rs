@@ -117,11 +117,15 @@ impl ExposureFileViewBackend for SqliteBackend {
     }
 }
 
+// TODO generalize the testing modules across related modules (actually
+// all db access) and instantiate the test of all db implementations
+// against all relevant tests.
 #[cfg(test)]
 pub(crate) mod testing {
     use pmrmodel_base::{
         exposure::{
             ExposureFileView,
+            traits::ExposureFileBackend,
             traits::ExposureFileViewBackend,
         },
     };
@@ -175,18 +179,21 @@ pub(crate) mod testing {
     }
 
     #[async_std::test]
-    async fn test_list_exposure_file_view() -> anyhow::Result<()> {
+    async fn test_using_exposure_file_view() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
             .run_migration_profile(Profile::Pmrapp)
             .await?;
         let efvb: &dyn ExposureFileViewBackend = &backend;
+        let efb: &dyn ExposureFileBackend = &backend;
 
         let w1 = make_example_workspace(&backend).await?;
         let _ = make_example_exposure(&backend, w1).await?;
         let e2 = make_example_exposure(&backend, w1).await?;
         let e2f1 = make_example_exposure_file(&backend, e2, "README.md").await?;
-        make_example_exposure_file_view(&backend, e2f1, "view").await?;
+        let e2f1v1 = make_example_exposure_file_view(
+            &backend, e2f1, "view").await?;
+
         let e2f2 = make_example_exposure_file(
             &backend, e2, "model.cellml").await?;
         make_example_exposure_file_view(&backend, e2f2, "model").await?;
@@ -208,6 +215,14 @@ pub(crate) mod testing {
             ],
             views,
         );
+
+        // Matching pairing of exposure file and view
+        assert!(efb.set_default_view(e2f1, e2f1v1).await?);
+        assert!(efb.set_default_view(e2f2, 2).await?);
+        assert!(efb.set_default_view(e2f2, 3).await?);
+        // Mismatching pairing of exposure file and view
+        assert!(!efb.set_default_view(e2f1, 2).await?);
+        assert!(!efb.set_default_view(e2f2, e2f1v1).await?);
 
         Ok(())
     }
