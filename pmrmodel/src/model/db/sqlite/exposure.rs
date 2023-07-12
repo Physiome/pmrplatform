@@ -24,7 +24,7 @@ async fn insert_exposure_sqlite(
     sqlite: &SqliteBackend,
     workspace_id: i64,
     workspace_tag_id: Option<i64>,
-    commit_id: String,
+    commit_id: &str,
     root_exposure_file_id: Option<i64>,
 ) -> Result<i64, BackendError> {
     let created_ts = Utc::now().timestamp();
@@ -121,7 +121,7 @@ impl ExposureBackend for SqliteBackend {
         &self,
         workspace_id: i64,
         workspace_tag_id: Option<i64>,
-        commit_id: String,
+        commit_id: &str,
         root_exposure_file_id: Option<i64>,
     ) -> Result<i64, BackendError>{
         insert_exposure_sqlite(
