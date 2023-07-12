@@ -25,3 +25,4 @@ pub struct TaskArg {
 pub struct TaskArgs(Vec<TaskArg>);
 
 mod impls;
+pub mod traits;

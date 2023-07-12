@@ -4,13 +4,17 @@ use axum::{
     routing::get,
     Router,
 };
-use pmrmodel::model::db::workspace::WorkspaceBackend;
 use pmrrepo::git::{
     WorkspaceGitResult,
     PmrBackendWR,
 };
-use pmrmodel_base::merged::WorkspacePathInfo;
-use pmrmodel_base::workspace::Workspaces;
+use pmrmodel_base::{
+    merged::WorkspacePathInfo,
+    workspace::{
+        Workspaces,
+        traits::WorkspaceBackend,
+    }
+};
 use std::path::PathBuf;
 
 use pmrapp_client::model::JsonWorkspaceRecord;

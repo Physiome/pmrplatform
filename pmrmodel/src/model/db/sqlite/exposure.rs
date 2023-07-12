@@ -3,18 +3,21 @@ use async_trait::async_trait;
 use chrono::Utc;
 #[cfg(test)]
 use crate::test::Utc;
-use pmrmodel_base::exposure::{
-    Exposure,
-    Exposures,
-    // ExposureFile,
-    // ExposureFiles,
-    // ExposureFileView,
-    // ExposureFileViews,
+use pmrmodel_base::{
+    error::BackendError,
+    exposure::{
+        Exposure,
+        Exposures,
+        // ExposureFile,
+        // ExposureFiles,
+        // ExposureFileView,
+        // ExposureFileViews,
+        traits::ExposureBackend,
+    },
 };
 
 use crate::{
     backend::db::SqliteBackend,
-    model::db::exposure::ExposureBackend,
 };
 
 async fn add_exposure_sqlite(
@@ -23,7 +26,7 @@ async fn add_exposure_sqlite(
     workspace_tag_id: Option<i64>,
     commit_id: String,
     root_exposure_file_id: Option<i64>,
-) -> Result<i64, sqlx::Error> {
+) -> Result<i64, BackendError> {
     let created_ts = Utc::now().timestamp();
     let id = sqlx::query!(
         r#"
@@ -51,7 +54,7 @@ VALUES ( ?1, ?2, ?3, ?4, ?5 )
 async fn get_exposure_by_id_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
-) -> Result<Exposure, sqlx::Error> {
+) -> Result<Exposure, BackendError> {
     let rec = sqlx::query!(r#"
 SELECT
     id,
@@ -83,7 +86,7 @@ WHERE id = ?1
 async fn list_exposures_for_workspace_sqlite(
     sqlite: &SqliteBackend,
     workspace_id: i64,
-) -> Result<Exposures, sqlx::Error> {
+) -> Result<Exposures, BackendError> {
     let rec = sqlx::query!(r#"
 SELECT
     id,
@@ -120,7 +123,7 @@ impl ExposureBackend for SqliteBackend {
         workspace_tag_id: Option<i64>,
         commit_id: String,
         root_exposure_file_id: Option<i64>,
-    ) -> Result<i64, sqlx::Error>{
+    ) -> Result<i64, BackendError>{
         add_exposure_sqlite(
             &self,
             workspace_id,
@@ -133,7 +136,7 @@ impl ExposureBackend for SqliteBackend {
     async fn list_exposures_for_workspace(
         &self,
         workspace_id: i64,
-    ) -> Result<Exposures, sqlx::Error> {
+    ) -> Result<Exposures, BackendError> {
         list_exposures_for_workspace_sqlite(
             &self,
             workspace_id,
@@ -143,7 +146,7 @@ impl ExposureBackend for SqliteBackend {
     async fn get_exposure_by_id(
         &self,
         id: i64,
-    ) -> Result<Exposure, sqlx::Error> {
+    ) -> Result<Exposure, BackendError> {
         get_exposure_by_id_sqlite(
             &self,
             id,
@@ -154,11 +157,11 @@ impl ExposureBackend for SqliteBackend {
 #[cfg(test)]
 pub(crate) mod testing {
     use pmrmodel_base::exposure::Exposure;
+    use pmrmodel_base::exposure::traits::ExposureBackend;
     use crate::backend::db::{
         Profile,
         SqliteBackend,
     };
-    use crate::model::db::exposure::ExposureBackend;
     use crate::model::db::sqlite::workspace::testing::make_example_workspace;
 
     pub(crate) async fn make_example_exposure(

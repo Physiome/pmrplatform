@@ -3,14 +3,17 @@ use async_trait::async_trait;
 use chrono::Utc;
 #[cfg(test)]
 use crate::test::Utc;
-use pmrmodel_base::workspace::{
-    Workspace,
-    Workspaces,
+use pmrmodel_base::{
+    error::BackendError,
+    workspace::{
+        Workspace,
+        Workspaces,
+        traits::WorkspaceBackend,
+    }
 };
 
 use crate::{
     backend::db::SqliteBackend,
-    model::db::workspace::WorkspaceBackend,
 };
 
 #[async_trait]
@@ -20,7 +23,7 @@ impl WorkspaceBackend for SqliteBackend {
         url: &str,
         description: &str,
         long_description: &str,
-    ) -> Result<i64, sqlx::Error> {
+    ) -> Result<i64, BackendError> {
         let ts = Utc::now().timestamp();
 
         let id = sqlx::query!(
@@ -52,7 +55,7 @@ VALUES ( ?1, ?2, ?3, ?4, ?5 )
         id: i64,
         description: &str,
         long_description: &str,
-    ) -> Result<bool, sqlx::Error> {
+    ) -> Result<bool, BackendError> {
         let rows_affected = sqlx::query!(
             r#"
 UPDATE workspace
@@ -72,7 +75,7 @@ WHERE id = ?3
 
     async fn list_workspaces(
         &self,
-    ) -> Result<Workspaces, sqlx::Error> {
+    ) -> Result<Workspaces, BackendError> {
         let recs = sqlx::query_as!(Workspace,
             r#"
 SELECT
@@ -96,7 +99,7 @@ ORDER BY
     async fn get_workspace_by_id(
         &self,
         id: i64,
-    ) -> Result<Workspace, sqlx::Error> {
+    ) -> Result<Workspace, BackendError> {
         // ignoring superceded_by_id for now?
         let rec = sqlx::query_as!(Workspace,
             r#"
@@ -122,7 +125,7 @@ WHERE
     async fn list_workspace_by_url(
         &self,
         url: &str,
-    ) -> Result<Workspaces, sqlx::Error> {
+    ) -> Result<Workspaces, BackendError> {
         let rec = sqlx::query_as!(Workspace,
             r#"
 SELECT
@@ -147,12 +150,14 @@ WHERE
 
 #[cfg(test)]
 pub(crate) mod testing {
-    use pmrmodel_base::workspace::Workspace;
+    use pmrmodel_base::workspace::{
+        Workspace,
+        traits::WorkspaceBackend,
+    };
     use crate::backend::db::{
         Profile,
         SqliteBackend,
     };
-    use crate::model::db::workspace::WorkspaceBackend;
 
     pub(crate) async fn make_example_workspace(
         backend: &dyn WorkspaceBackend,

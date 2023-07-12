@@ -1,15 +1,20 @@
 use async_trait::async_trait;
 #[cfg(not(test))]
 use chrono::Utc;
-use pmrmodel_base::task::{
-    Task,
-    TaskArg,
+use pmrmodel_base::{
+    error::{
+        BackendError,
+        task::TaskError,
+    },
+    task::{
+        Task,
+        TaskArg,
+        traits::TaskBackend,
+    },
 };
 
 use crate::{
     backend::db::SqliteBackend,
-    error::TaskError,
-    model::db::task::TaskBackend,
 };
 
 #[cfg(test)]
@@ -25,7 +30,8 @@ async fn adds_task_sqlite(
         return Err(TaskError::TaskAlreadyQueued(task.id));
     }
 
-    let mut tx = sqlite.pool.begin().await?;
+    let mut tx = sqlite.pool.begin().await
+        .map_err(BackendError::from)?;
     let created_ts = Utc::now().timestamp();
     let mut result = Task {
         bin_path: task.bin_path.clone(),
@@ -49,7 +55,7 @@ VALUES ( ?1, ?2, ?3, ?4 )\
         created_ts,
         task.basedir,
     ).execute(&mut *tx)
-        .await?
+        .await.map_err(BackendError::from)?
         .last_insert_rowid();
 
     result.args = match task.args {
@@ -77,7 +83,7 @@ VALUES ( ?1, ?2 )\
                         result.id,
                         arg.arg,
                     ).execute(&mut *tx)
-                    .await?
+                    .await.map_err(BackendError::from)?
                     .last_insert_rowid();
                 results.push(TaskArg {
                     id: task_arg_id,
@@ -89,7 +95,7 @@ VALUES ( ?1, ?2 )\
         }
         None => None,
     };
-    tx.commit().await?;
+    tx.commit().await.map_err(BackendError::from)?;
     Ok(result)
 }
 
@@ -105,17 +111,15 @@ impl TaskBackend for SqliteBackend {
 
 #[cfg(test)]
 mod tests {
+    use pmrmodel_base::task_template::traits::TaskTemplateBackend;
     use pmrmodel_base::task::{
         Task,
         TaskArg,
+        traits::TaskBackend,
     };
     use crate::backend::db::{
         Profile,
         SqliteBackend,
-    };
-    use crate::model::db::{
-        task::TaskBackend,
-        task_template::TaskTemplateBackend,
     };
 
     #[async_std::test]

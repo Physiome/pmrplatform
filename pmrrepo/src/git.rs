@@ -33,6 +33,11 @@ use pmrmodel_base::{
     workspace::{
         Workspace,
         WorkspaceSyncStatus,
+        traits::{
+            WorkspaceBackend,
+            WorkspaceSyncBackend,
+            WorkspaceTagBackend,
+        },
     },
     merged::{
         WorkspacePathInfo,
@@ -40,11 +45,6 @@ use pmrmodel_base::{
 };
 
 use pmrmodel::backend::db::PmrBackend;
-use pmrmodel::model::db::workspace::{
-    WorkspaceBackend,
-    WorkspaceSyncBackend,
-    WorkspaceTagBackend,
-};
 use pmrmodel::model::workspace_sync::{
     fail_sync,
 };
@@ -733,6 +733,7 @@ mod tests {
     use tempfile::TempDir;
 
     // use pmrmodel::backend::db::MockHasPool;
+    use pmrmodel_base::error::BackendError;
     use pmrmodel_base::workspace::{
         Workspaces,
         WorkspaceSync,
@@ -746,28 +747,28 @@ mod tests {
 
         #[async_trait]
         impl WorkspaceTagBackend for Backend {
-            async fn index_workspace_tag(&self, workspace_id: i64, name: &str, commit_id: &str) -> Result<i64, sqlx::Error>;
-            async fn get_workspace_tags(&self, workspace_id: i64) -> Result<Vec<WorkspaceTag>, sqlx::Error>;
+            async fn index_workspace_tag(&self, workspace_id: i64, name: &str, commit_id: &str) -> Result<i64, BackendError>;
+            async fn get_workspace_tags(&self, workspace_id: i64) -> Result<Vec<WorkspaceTag>, BackendError>;
         }
 
         #[async_trait]
         impl WorkspaceBackend for Backend {
             async fn add_workspace(
                 &self, url: &str, description: &str, long_description: &str
-            ) -> Result<i64, sqlx::Error>;
+            ) -> Result<i64, BackendError>;
             async fn update_workspace(
                 &self, id: i64, description: &str, long_description: &str
-            ) -> Result<bool, sqlx::Error>;
-            async fn list_workspaces(&self) -> Result<Workspaces, sqlx::Error>;
-            async fn get_workspace_by_id(&self, id: i64) -> Result<Workspace, sqlx::Error>;
-            async fn list_workspace_by_url(&self, url: &str) -> Result<Workspaces, sqlx::Error>;
+            ) -> Result<bool, BackendError>;
+            async fn list_workspaces(&self) -> Result<Workspaces, BackendError>;
+            async fn get_workspace_by_id(&self, id: i64) -> Result<Workspace, BackendError>;
+            async fn list_workspace_by_url(&self, url: &str) -> Result<Workspaces, BackendError>;
         }
 
         #[async_trait]
         impl WorkspaceSyncBackend for Backend {
-            async fn begin_sync(&self, workspace_id: i64) -> Result<i64, sqlx::Error>;
-            async fn complete_sync(&self, id: i64, status: WorkspaceSyncStatus) -> Result<bool, sqlx::Error>;
-            async fn get_workspaces_sync_records(&self, workspace_id: i64) -> Result<Vec<WorkspaceSync>, sqlx::Error>;
+            async fn begin_sync(&self, workspace_id: i64) -> Result<i64, BackendError>;
+            async fn complete_sync(&self, id: i64, status: WorkspaceSyncStatus) -> Result<bool, BackendError>;
+            async fn get_workspaces_sync_records(&self, workspace_id: i64) -> Result<Vec<WorkspaceSync>, BackendError>;
         }
     }
 

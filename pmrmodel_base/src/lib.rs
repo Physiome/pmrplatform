@@ -1,3 +1,4 @@
+pub mod error;
 pub mod exposure;
 pub mod git;
 pub mod merged;

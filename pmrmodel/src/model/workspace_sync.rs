@@ -1,10 +1,14 @@
-use pmrmodel_base::workspace::WorkspaceSyncStatus;
-
-use crate::model::db::workspace::WorkspaceSyncBackend;
+use pmrmodel_base::{
+    error::BackendError,
+    workspace::{
+        WorkspaceSyncStatus,
+        traits::WorkspaceSyncBackend,
+    },
+};
 
 pub async fn fail_sync(
-    backend: &impl WorkspaceSyncBackend,
+    backend: &dyn WorkspaceSyncBackend,
     id: i64,
-) -> Result<bool, sqlx::Error> {
+) -> Result<bool, BackendError> {
     backend.complete_sync(id, WorkspaceSyncStatus::Error).await
 }

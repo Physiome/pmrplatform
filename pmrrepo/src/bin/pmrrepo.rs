@@ -16,7 +16,7 @@ use pmrmodel::model::workspace::{
     stream_workspace_records_default,
     stream_workspace_records_as_json,
 };
-use pmrmodel::model::db::workspace::{
+use pmrmodel_base::workspace::traits::{
     WorkspaceBackend,
     WorkspaceAliasBackend,
     WorkspaceSyncBackend,

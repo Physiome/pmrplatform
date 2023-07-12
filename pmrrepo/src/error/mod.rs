@@ -6,6 +6,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum PmrRepoError {
+    #[error("BackendError: {0}")]
+    BackendError(#[from] pmrmodel_base::error::BackendError),
     #[error("ContentError: {0}")]
     ContentError(#[from] ContentError),
     #[error("ExecutionError: {0}")]
@@ -16,8 +18,6 @@ pub enum PmrRepoError {
     Libgit2Error(#[from] git2::Error),
     #[error("PathError: {0}")]
     PathError(#[from] PathError),
-    #[error("SqlxError: {0}")]
-    SqlxError(#[from] sqlx::Error),
     #[error("StdIoError: {0}")]
     StdIoError(#[from] std::io::Error),
 }

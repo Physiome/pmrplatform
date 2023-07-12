@@ -1,8 +1,11 @@
 use async_trait::async_trait;
-use pmrmodel_base::task_template::{
-    TaskTemplate,
-    TaskTemplateArg,
-    TaskTemplateArgChoice,
+use crate::{
+    error::BackendError,
+    task_template::{
+        TaskTemplate,
+        TaskTemplateArg,
+        TaskTemplateArgChoice,
+    },
 };
 
 #[async_trait]
@@ -12,7 +15,7 @@ pub trait TaskTemplateBackend {
         &self,
         bin_path: &str,
         version_id: &str,
-    ) -> Result<i64, sqlx::Error>;
+    ) -> Result<i64, BackendError>;
     // adds a completed task template.
     async fn add_task_template(
         &self,
@@ -26,12 +29,12 @@ pub trait TaskTemplateBackend {
             bool,
             Option<&str>,
         )],
-    ) -> Result<i64, sqlx::Error>;
+    ) -> Result<i64, BackendError>;
     // finalize an open task template.
     async fn finalize_new_task_template(
         &self,
         id: i64,
-    ) -> Result<i64, sqlx::Error>;
+    ) -> Result<i64, BackendError>;
     async fn add_task_template_arg(
         &self,
         task_template_id: i64,
@@ -41,31 +44,31 @@ pub trait TaskTemplateBackend {
         default: Option<&str>,
         choice_fixed: bool,
         choice_source: Option<&str>,
-    ) -> Result<i64, sqlx::Error>;
+    ) -> Result<i64, BackendError>;
     async fn delete_task_template_arg_by_id(
         &self,
         id: i64,
-    ) -> Result<Option<TaskTemplateArg>, sqlx::Error>;
+    ) -> Result<Option<TaskTemplateArg>, BackendError>;
     async fn add_task_template_arg_choice(
         &self,
         task_template_arg_id: i64,
         to_arg: Option<&str>,
         label: &str,
-    ) -> Result<i64, sqlx::Error>;
+    ) -> Result<i64, BackendError>;
     async fn get_task_template_arg_by_id(
         &self,
         id: i64,
-    ) -> Result<Option<TaskTemplateArg>, sqlx::Error>;
+    ) -> Result<Option<TaskTemplateArg>, BackendError>;
     async fn delete_task_template_arg_choice_by_id(
         &self,
         id: i64,
-    ) -> Result<Option<TaskTemplateArgChoice>, sqlx::Error>;
+    ) -> Result<Option<TaskTemplateArgChoice>, BackendError>;
     async fn get_task_template_by_id(
         &self,
         id: i64,
-    ) -> Result<TaskTemplate, sqlx::Error>;
+    ) -> Result<TaskTemplate, BackendError>;
     async fn get_task_template_by_arg_id(
         &self,
         id: i64,
-    ) -> Result<TaskTemplate, sqlx::Error>;
+    ) -> Result<TaskTemplate, BackendError>;
 }

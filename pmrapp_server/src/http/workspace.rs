@@ -6,8 +6,10 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
     routing::get,
 };
-use pmrmodel::model::db::workspace::WorkspaceBackend;
-use pmrmodel_base::git::PathObject;
+use pmrmodel_base::{
+    git::PathObject,
+    workspace::traits::WorkspaceBackend,
+};
 use pmrrepo::git::{
     Kind,
     GitResultTarget,

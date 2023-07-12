@@ -18,6 +18,8 @@ pub enum Error {
     #[error("500 Internal Server Error")]
     Error,
     #[error("500 Internal Server Error")]
+    Backend(#[from] pmrmodel_base::error::BackendError),
+    #[error("500 Internal Server Error")]
     SerdeJson(#[from] serde_json::error::Error),
     #[error("500 Internal Server Error")]
     Sqlx(#[from] sqlx::Error),

@@ -2,17 +2,20 @@ use async_trait::async_trait;
 #[cfg(not(test))]
 use chrono::Utc;
 use futures::future;
-use pmrmodel_base::task_template::{
-    TaskTemplate,
-    TaskTemplateArg,
-    TaskTemplateArgs,
-    TaskTemplateArgChoice,
-    TaskTemplateArgChoices,
+use pmrmodel_base::{
+    error::BackendError,
+    task_template::{
+        TaskTemplate,
+        TaskTemplateArg,
+        TaskTemplateArgs,
+        TaskTemplateArgChoice,
+        TaskTemplateArgChoices,
+        traits::TaskTemplateBackend,
+    },
 };
 
 use crate::{
     backend::db::SqliteBackend,
-    model::db::task_template::TaskTemplateBackend,
 };
 
 #[cfg(test)]
@@ -22,7 +25,7 @@ async fn add_task_template_sqlite(
     sqlite: &SqliteBackend,
     bin_path: &str,
     version_id: &str,
-) -> Result<i64, sqlx::Error> {
+) -> Result<i64, BackendError> {
     let created_ts = Utc::now().timestamp();
 
     let id = sqlx::query!(
@@ -48,7 +51,7 @@ VALUES ( ?1, ?2, ?3 )
 async fn finalize_task_template_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
-) -> Result<i64, sqlx::Error> {
+) -> Result<i64, BackendError> {
     sqlx::query!(
         r#"
 UPDATE task_template
@@ -79,7 +82,7 @@ WHERE id = ?1
 async fn get_task_template_by_id_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
-) -> Result<TaskTemplate, sqlx::Error> {
+) -> Result<TaskTemplate, BackendError> {
     let rec = sqlx::query!(r#"
 SELECT
     id,
@@ -110,7 +113,7 @@ WHERE id = ?1
 async fn get_task_template_by_arg_id_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
-) -> Result<TaskTemplate, sqlx::Error> {
+) -> Result<TaskTemplate, BackendError> {
     let rec = sqlx::query!(r#"
 SELECT
     id,
@@ -151,7 +154,7 @@ async fn add_task_template_arg_sqlite(
     default: Option<&str>,
     choice_fixed: bool,
     choice_source: Option<&str>,
-) -> Result<i64, sqlx::Error> {
+) -> Result<i64, BackendError> {
     let id = sqlx::query!(
         r#"
 INSERT INTO task_template_arg (
@@ -185,7 +188,7 @@ async fn add_task_template_arg_choice_sqlite(
     task_template_arg_id: i64,
     to_arg: Option<&str>,
     label: &str,
-) -> Result<i64, sqlx::Error> {
+) -> Result<i64, BackendError> {
     let id = sqlx::query!(
         r#"
 INSERT INTO task_template_arg_choice (
@@ -209,7 +212,7 @@ VALUES ( ?1, ?2, ?3 )
 async fn delete_task_template_arg_choice_by_id_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
-) -> Result<Option<TaskTemplateArgChoice>, sqlx::Error> {
+) -> Result<Option<TaskTemplateArgChoice>, BackendError> {
     let mut tx = sqlite.pool.begin().await?;
     let rec = sqlx::query_as!(TaskTemplateArgChoice, r#"
 DELETE FROM
@@ -229,7 +232,7 @@ WHERE
 async fn get_task_template_args_by_task_template_id_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
-) -> Result<TaskTemplateArgs, sqlx::Error> {
+) -> Result<TaskTemplateArgs, BackendError> {
     let rec = sqlx::query!(r#"
 SELECT
     id,
@@ -275,7 +278,7 @@ async fn get_task_template_arg_by_id_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
     complete: bool,
-) -> Result<Option<TaskTemplateArg>, sqlx::Error> {
+) -> Result<Option<TaskTemplateArg>, BackendError> {
     let mut rec = sqlx::query!(r#"
 SELECT
     id,
@@ -329,7 +332,7 @@ WHERE
 async fn delete_task_template_arg_by_id_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
-) -> Result<Option<TaskTemplateArg>, sqlx::Error> {
+) -> Result<Option<TaskTemplateArg>, BackendError> {
     let mut tx = sqlite.pool.begin().await?;
     let rec = sqlx::query!(r#"
 DELETE FROM
@@ -369,7 +372,7 @@ WHERE
 async fn get_task_template_arg_choices_by_task_template_arg_id_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
-) -> Result<TaskTemplateArgChoices, sqlx::Error> {
+) -> Result<TaskTemplateArgChoices, BackendError> {
     let rec = sqlx::query_as!(TaskTemplateArgChoice, r#"
 SELECT
     id,
@@ -392,14 +395,14 @@ impl TaskTemplateBackend for SqliteBackend {
         &self,
         bin_path: &str,
         version_id: &str,
-    ) -> Result<i64, sqlx::Error> {
+    ) -> Result<i64, BackendError> {
         add_task_template_sqlite(&self, bin_path, version_id).await
     }
 
     async fn finalize_new_task_template(
         &self,
         id: i64,
-    ) -> Result<i64, sqlx::Error> {
+    ) -> Result<i64, BackendError> {
         finalize_task_template_sqlite(&self, id).await
     }
 
@@ -412,7 +415,7 @@ impl TaskTemplateBackend for SqliteBackend {
         default: Option<&str>,
         choice_fixed: bool,
         choice_source: Option<&str>,
-    ) -> Result<i64, sqlx::Error> {
+    ) -> Result<i64, BackendError> {
         add_task_template_arg_sqlite(
             &self,
             task_template_id,
@@ -428,7 +431,7 @@ impl TaskTemplateBackend for SqliteBackend {
     async fn delete_task_template_arg_by_id(
         &self,
         id: i64,
-    ) -> Result<Option<TaskTemplateArg>, sqlx::Error> {
+    ) -> Result<Option<TaskTemplateArg>, BackendError> {
         delete_task_template_arg_by_id_sqlite(
             &self,
             id,
@@ -440,7 +443,7 @@ impl TaskTemplateBackend for SqliteBackend {
         task_template_arg_id: i64,
         to_arg: Option<&str>,
         label: &str,
-    ) -> Result<i64, sqlx::Error> {
+    ) -> Result<i64, BackendError> {
         add_task_template_arg_choice_sqlite(
             &self,
             task_template_arg_id,
@@ -452,7 +455,7 @@ impl TaskTemplateBackend for SqliteBackend {
     async fn get_task_template_arg_by_id(
         &self,
         id: i64,
-    ) -> Result<Option<TaskTemplateArg>, sqlx::Error>{
+    ) -> Result<Option<TaskTemplateArg>, BackendError>{
         get_task_template_arg_by_id_sqlite(
             &self,
             id,
@@ -463,7 +466,7 @@ impl TaskTemplateBackend for SqliteBackend {
     async fn delete_task_template_arg_choice_by_id(
         &self,
         id: i64,
-    ) -> Result<Option<TaskTemplateArgChoice>, sqlx::Error> {
+    ) -> Result<Option<TaskTemplateArgChoice>, BackendError> {
         delete_task_template_arg_choice_by_id_sqlite(
             &self,
             id,
@@ -482,7 +485,7 @@ impl TaskTemplateBackend for SqliteBackend {
             bool,
             Option<&str>,
         )],
-    ) -> Result<i64, sqlx::Error> {
+    ) -> Result<i64, BackendError> {
         let result = add_task_template_sqlite(&self, bin_path, version_id).await?;
         let mut tasks = arguments.into_iter()
             .map(|x| { add_task_template_arg_sqlite(
@@ -507,14 +510,14 @@ impl TaskTemplateBackend for SqliteBackend {
     async fn get_task_template_by_id(
         &self,
         id: i64,
-    ) -> Result<TaskTemplate, sqlx::Error> {
+    ) -> Result<TaskTemplate, BackendError> {
         let mut result = get_task_template_by_id_sqlite(&self, id).await?;
         let mut args = get_task_template_args_by_task_template_id_sqlite(
             &self, result.id
         ).await?;
 
         future::try_join_all(args.iter_mut().map(|arg| async {
-            Ok::<(), sqlx::Error>(arg.choices = Some(
+            Ok::<(), BackendError>(arg.choices = Some(
                 get_task_template_arg_choices_by_task_template_arg_id_sqlite(
                     &self,
                     arg.id,
@@ -529,7 +532,7 @@ impl TaskTemplateBackend for SqliteBackend {
     async fn get_task_template_by_arg_id(
         &self,
         id: i64,
-    ) -> Result<TaskTemplate, sqlx::Error> {
+    ) -> Result<TaskTemplate, BackendError> {
         let mut result = get_task_template_by_arg_id_sqlite(&self, id).await?;
         // TODO the following duplicates the above; will need to investigate
         // how to better incorporate these additional selects into the function
@@ -539,7 +542,7 @@ impl TaskTemplateBackend for SqliteBackend {
         ).await?;
 
         future::try_join_all(args.iter_mut().map(|arg| async {
-            Ok::<(), sqlx::Error>(arg.choices = Some(
+            Ok::<(), BackendError>(arg.choices = Some(
                 get_task_template_arg_choices_by_task_template_arg_id_sqlite(
                     &self,
                     arg.id,
@@ -558,12 +561,12 @@ mod tests {
         TaskTemplate,
         TaskTemplateArg,
         TaskTemplateArgChoice,
+        traits::TaskTemplateBackend,
     };
     use crate::backend::db::{
         Profile,
         SqliteBackend,
     };
-    use crate::model::db::task_template::TaskTemplateBackend;
 
     #[async_std::test]
     async fn test_smoketest_no_args() {

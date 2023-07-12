@@ -86,3 +86,4 @@ pub struct MapToArgRef<'a>(HashMap<&'a str, Option<&'a str>>);
 #[cfg(feature = "display")]
 mod display;
 mod impls;
+pub mod traits;

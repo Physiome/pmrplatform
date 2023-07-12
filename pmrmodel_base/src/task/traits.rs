@@ -1,8 +1,8 @@
 use async_trait::async_trait;
-use pmrmodel_base::task::{
-    Task,
+use crate::{
+    error::task::TaskError,
+    task::Task,
 };
-use crate::error::TaskError;
 
 #[async_trait]
 pub trait TaskBackend {

@@ -1,10 +1,15 @@
 use async_trait::async_trait;
 use chrono::Utc;
-use pmrmodel_base::workspace::WorkspaceAlias;
+use pmrmodel_base::{
+    error::BackendError,
+    workspace::{
+        WorkspaceAlias,
+        traits::WorkspaceAliasBackend,
+    },
+};
 
 use crate::{
     backend::db::SqliteBackend,
-    model::db::workspace::WorkspaceAliasBackend,
 };
 
 #[async_trait]
@@ -14,7 +19,7 @@ impl WorkspaceAliasBackend for SqliteBackend {
         &self,
         workspace_id: i64,
         alias: &str
-    ) -> Result<i64, sqlx::Error> {
+    ) -> Result<i64, BackendError> {
         let ts = Utc::now().timestamp();
         let id = sqlx::query!(
             r#"
@@ -36,7 +41,7 @@ impl WorkspaceAliasBackend for SqliteBackend {
     async fn get_aliases(
         &self,
         workspace_id: i64,
-    ) -> Result<Vec<WorkspaceAlias>, sqlx::Error> {
+    ) -> Result<Vec<WorkspaceAlias>, BackendError> {
         let recs = sqlx::query_as!(WorkspaceAlias,
             r#"
 SELECT id, workspace_id, alias, created_ts

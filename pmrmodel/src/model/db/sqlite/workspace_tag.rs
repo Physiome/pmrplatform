@@ -1,9 +1,14 @@
 use async_trait::async_trait;
-use pmrmodel_base::workspace::WorkspaceTag;
+use pmrmodel_base::{
+    error::BackendError,
+    workspace::{
+        WorkspaceTag,
+        traits::WorkspaceTagBackend,
+    },
+};
 
 use crate::{
     backend::db::SqliteBackend,
-    model::db::workspace::WorkspaceTagBackend,
 };
 
 #[async_trait]
@@ -14,7 +19,7 @@ impl WorkspaceTagBackend for SqliteBackend {
         workspace_id: i64,
         name: &str,
         commit_id: &str,
-    ) -> Result<i64, sqlx::Error> {
+    ) -> Result<i64, BackendError> {
         let id = sqlx::query!(
             r#"
     INSERT INTO workspace_tag ( workspace_id, name, commit_id )
@@ -36,7 +41,7 @@ impl WorkspaceTagBackend for SqliteBackend {
     async fn get_workspace_tags(
         &self,
         workspace_id: i64,
-    ) -> Result<Vec<WorkspaceTag>, sqlx::Error> {
+    ) -> Result<Vec<WorkspaceTag>, BackendError> {
         let recs = sqlx::query_as!(WorkspaceTag,
             r#"
     SELECT id, workspace_id, name, commit_id
