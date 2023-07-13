@@ -1,15 +1,38 @@
 use async_trait::async_trait;
+use std::ops::Deref;
 use crate::{
-    error::BackendError,
-    exposure::{
-        Exposure,
-        Exposures,
-        ExposureFile,
-        ExposureFiles,
-        ExposureFileView,
-        ExposureFileViews,
+    error::{
+        BackendError,
+        ValueError,
     },
+    exposure,
 };
+
+pub trait Exposure {
+    fn id(&self) -> i64;
+    fn workspace_id(&self) -> i64;
+    fn workspace_tag_id(&self) -> Option<i64>;
+    fn commit_id(&self) -> &str;
+    fn created_ts(&self) -> i64;
+    fn default_file_id(&self) -> Option<i64>;
+    // plural form is a bit tricky - what do traits of them look like?
+    // can we get them to behave similarly to a vec of the undelrying?
+    // fn files(&self) -> Result<ExposureFiles, ValueError>,
+}
+
+pub trait ExposureFile {
+    fn id(&self) -> i64;
+    fn exposure_id(&self) -> i64;
+    fn workspace_file_path(&self) -> &str;
+    fn default_view_id(&self) -> Option<i64>;
+    // fn views(&self) -> Result<ExposureFileViews, ValueError>,
+}
+
+pub trait ExposureFileView {
+    fn id(&self) -> i64;
+    fn exposure_file_id(&self) -> i64;
+    fn view_key(&self) -> &str;
+}
 
 #[async_trait]
 pub trait ExposureBackend {
@@ -28,13 +51,13 @@ pub trait ExposureBackend {
     async fn list_for_workspace(
         &self,
         workspace_id: i64,
-    ) -> Result<Exposures, BackendError>;
+    ) -> Result<exposure::Exposures, BackendError>;
 
     /// Returns the `Exposure` for the given `id`.
     async fn get_id(
         &self,
         id: i64,
-    ) -> Result<Exposure, BackendError>;
+    ) -> Result<exposure::Exposure, BackendError>;
 
     /// For the given `Exposure` identified by its `id`, set the default
     /// `ExposureFile` via its `id`.
@@ -61,13 +84,13 @@ pub trait ExposureFileBackend {
     async fn list_for_exposure(
         &self,
         exposure_id: i64,
-    ) -> Result<ExposureFiles, BackendError>;
+    ) -> Result<exposure::ExposureFiles, BackendError>;
 
     /// Returns the `ExposureFile` for the given `id`.
     async fn get_id(
         &self,
         id: i64,
-    ) -> Result<ExposureFile, BackendError>;
+    ) -> Result<exposure::ExposureFile, BackendError>;
 
     /// For the given `ExposureFile` identified by its `id`, set the
     /// default `ExposureFileView` via its `id`.
@@ -93,11 +116,61 @@ pub trait ExposureFileViewBackend {
     async fn list_for_exposure_file(
         &self,
         exposure_file_id: i64,
-    ) -> Result<ExposureFileViews, BackendError>;
+    ) -> Result<exposure::ExposureFileViews, BackendError>;
 
     /// Returns the `ExposureFileView` for the given `id`.
     async fn get_id(
         &self,
         id: i64,
-    ) -> Result<ExposureFileView, BackendError>;
+    ) -> Result<exposure::ExposureFileView, BackendError>;
 }
+
+// When trait aliases become stabilized (<https://github.com/rust-lang/rust/issues/41517>)
+// pub trait Backend = ExposureBackend + ExposureFileBackend + ExposureViewBackend;
+
+#[async_trait]
+pub trait Backend: ExposureBackend + ExposureFileBackend + ExposureFileViewBackend {
+    async fn get_exposure<'a>(
+        &'a self,
+        id: i64,
+    ) -> Result<exposure::ExposureRef<'a>, BackendError>
+        where Self: Sized
+    {
+        ExposureBackend::get_id(self, id).await.map(|v| v.bind(self))
+    }
+
+    async fn get_exposure_file<'a>(
+        &'a self,
+        id: i64,
+    ) -> Result<exposure::ExposureFileRef<'a>, BackendError>
+        where Self: Sized
+    {
+        ExposureFileBackend::get_id(self, id).await.map(|v| v.bind(self))
+    }
+
+    async fn get_exposure_files<'a>(
+        &'a self,
+        exposure_id: i64,
+    ) -> Result<exposure::ExposureFileRefs<'a>, BackendError>
+        where Self: Sized
+    {
+        let exposures = ExposureFileBackend::list_for_exposure(self, exposure_id).await?;
+        let result = exposures
+            .deref()
+            .iter()
+            // FIXME the clone is wasteful here, just a temporary workaround
+            .map(|v| v.clone().bind(self))
+            .collect::<Vec<_>>().into();
+        Ok(result)
+    }
+
+    async fn get_exposure_file_view<'a>(
+        &'a self,
+        id: i64,
+    ) -> Result<exposure::ExposureFileViewRef<'a>, BackendError>
+        where Self: Sized
+    {
+        ExposureFileViewBackend::get_id(self, id).await.map(|v| v.bind(self))
+    }
+}
+impl<B: ExposureBackend + ExposureFileBackend + ExposureFileViewBackend> Backend for B {}

@@ -91,7 +91,6 @@ WHERE exposure_id = ?1
     Ok(rec.into())
 }
 
-
 async fn set_default_view_sqlite(
     sqlite: &SqliteBackend,
     id: i64,

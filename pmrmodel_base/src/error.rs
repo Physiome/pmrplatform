@@ -7,7 +7,16 @@ pub mod task;
 pub enum BackendError {
     #[cfg(feature = "sqlx")]
     #[error(transparent)]
-    SqlxError(#[from] sqlx::Error),
+    Sqlx(#[from] sqlx::Error),
     #[error("unknown error")]
     Unknown,
+}
+
+#[non_exhaustive]
+#[derive(Debug, Error)]
+pub enum ValueError {
+    #[error(transparent)]
+    Backend(#[from] BackendError),
+    #[error("uninitialized value")]
+    Uninitialized,
 }

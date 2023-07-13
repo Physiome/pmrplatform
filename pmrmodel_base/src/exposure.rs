@@ -50,4 +50,14 @@ pub struct ExposureFileViewTask {
 #[cfg(feature = "display")]
 mod display;
 mod impls;
+mod refs;
 pub mod traits;
+
+pub use refs::{
+    ExposureRef,
+    ExposureRefs,
+    ExposureFileRef,
+    ExposureFileRefs,
+    ExposureFileViewRef,
+    ExposureFileViewRefs,
+};
