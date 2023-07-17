@@ -154,14 +154,12 @@ pub trait Backend: ExposureBackend + ExposureFileBackend + ExposureFileViewBacke
     ) -> Result<exposure::ExposureFileRefs<'a>, BackendError>
         where Self: Sized
     {
-        let exposures = ExposureFileBackend::list_for_exposure(self, exposure_id).await?;
+        let exposures = ExposureFileBackend::list_for_exposure(self, exposure_id).await?.0;
         let result = exposures
-            .deref()
-            .iter()
-            // FIXME the clone is wasteful here, just a temporary workaround
-            .map(|v| v.clone().bind(self))
-            .collect::<Vec<_>>().into();
-        Ok(result)
+            .into_iter()
+            .map(|v| v.bind(self))
+            .collect::<Vec<_>>();
+        Ok(result.into())
     }
 
     async fn get_exposure_file_view<'a>(
