@@ -1,4 +1,5 @@
 use std::ops::{Deref, DerefMut};
+use crate::error::ValueError;
 use crate::exposure::*;
 
 impl From<Vec<Exposure>> for Exposures {
@@ -139,7 +140,7 @@ impl<'a> Deref for ExposureFileViewRefs<'a> {
     }
 }
 
-impl traits::Exposure for Exposure {
+impl traits::Exposure<'_, ExposureFiles> for Exposure {
     fn id(&self) -> i64 {
         self.id
     }
@@ -158,9 +159,12 @@ impl traits::Exposure for Exposure {
     fn default_file_id(&self) -> Option<i64> {
         self.default_file_id
     }
+    fn files(&self) -> Result<&ExposureFiles, ValueError> {
+        Ok(self.files.as_ref().ok_or(ValueError::Uninitialized)?)
+    }
 }
 
-impl traits::Exposure for ExposureRef<'_> {
+impl<'a> traits::Exposure<'a, ExposureFileRefs<'a>> for ExposureRef<'a> {
     fn id(&self) -> i64 {
         self.inner.id
     }
@@ -179,9 +183,12 @@ impl traits::Exposure for ExposureRef<'_> {
     fn default_file_id(&self) -> Option<i64> {
         self.inner.default_file_id
     }
+    fn files(&'a self) -> Result<&'a ExposureFileRefs<'a>, ValueError> {
+        Ok(self.files.as_ref().ok_or(ValueError::Uninitialized)?)
+    }
 }
 
-impl traits::ExposureFile for ExposureFile {
+impl traits::ExposureFile<'_, ExposureFileViews> for ExposureFile {
     fn id(&self) -> i64 {
         self.id
     }
@@ -194,10 +201,12 @@ impl traits::ExposureFile for ExposureFile {
     fn default_view_id(&self) -> Option<i64> {
         self.default_view_id
     }
-    // pub views: Option<ExposureFileViews>,
+    fn views(&self) -> Result<&ExposureFileViews, ValueError> {
+        Ok(self.views.as_ref().ok_or(ValueError::Uninitialized)?)
+    }
 }
 
-impl traits::ExposureFile for ExposureFileRef<'_> {
+impl<'a> traits::ExposureFile<'a, ExposureFileViewRefs<'a>> for ExposureFileRef<'a> {
     fn id(&self) -> i64 {
         self.inner.id
     }
@@ -210,8 +219,21 @@ impl traits::ExposureFile for ExposureFileRef<'_> {
     fn default_view_id(&self) -> Option<i64> {
         self.inner.default_view_id
     }
-    // pub views: Option<ExposureFileViews>,
+    fn views(&'a self) -> Result<&'a ExposureFileViewRefs<'a>, ValueError> {
+        // None of these work
+        // self.backend.get_exposure_files(self.inner.id);
+        // traits::Backend::get_exposure_files(self.backend, self.inner.id);
+        Ok(self.views.as_ref().ok_or(ValueError::Uninitialized)?)
+    }
 }
+
+// separating it out doesn't work either
+// impl<'a> ExposureFileRef<'a> {
+//     pub async fn get_views(&'a self) -> Result<&'a ExposureFileViewRefs<'a>, ValueError> {
+//         traits::Backend::get_exposure_files(self.backend, self.inner.id).await;
+//         todo!();
+//     }
+// }
 
 impl traits::ExposureFileView for ExposureFileView {
     fn id(&self) -> i64 {

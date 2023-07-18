@@ -10,7 +10,7 @@ use crate::exposure::{
 
 pub struct ExposureRef<'a> {
     pub(super) inner: Exposure,
-    // pub(super) inner_files: ExposureFileRefs<'a>,
+    pub(super) files: Option<ExposureFileRefs<'a>>,
     pub(super) backend: &'a dyn traits::Backend,
 }
 
@@ -18,7 +18,7 @@ pub struct ExposureRefs<'a>(pub(super) Vec<ExposureRef<'a>>);
 
 pub struct ExposureFileRef<'a> {
     pub(super) inner: ExposureFile,
-    // pub(super) inner_views: ExposureFileViewRefs<'a>,
+    pub(super) views: Option<ExposureFileViewRefs<'a>>,
     pub(super) backend: &'a dyn traits::Backend,
 }
 
@@ -38,6 +38,8 @@ impl Exposure {
     ) -> ExposureRef<'a> {
         ExposureRef {
             inner: self,
+            // TODO verify that inner.files is also None?
+            files: None,
             backend: backend,
         }
     }
@@ -69,6 +71,8 @@ impl ExposureFile {
     ) -> ExposureFileRef<'a> {
         ExposureFileRef {
             inner: self,
+            // TODO verify that inner.views is also None?
+            views: None,
             backend: backend,
         }
     }

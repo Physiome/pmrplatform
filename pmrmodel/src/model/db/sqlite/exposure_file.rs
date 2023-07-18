@@ -169,7 +169,10 @@ pub(crate) mod testing {
     use pmrmodel_base::{
         exposure::{
             ExposureFile,
+            traits::Backend,
+            traits::Exposure as _,
             traits::ExposureBackend,
+            traits::ExposureFile as _,
             traits::ExposureFileBackend,
         },
     };
@@ -255,5 +258,30 @@ pub(crate) mod testing {
         Ok(())
     }
 
-}
+    #[async_std::test]
+    async fn test_exposure_backend() -> anyhow::Result<()> {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await?
+            .run_migration_profile(Profile::Pmrapp)
+            .await?;
+        let w = make_example_workspace(&backend).await?;
+        let id = make_example_exposure(&backend, w).await?;
+        make_example_exposure_file(&backend, id, "README.md").await?;
+        make_example_exposure_file(&backend, id, "model.cellml").await?;
+        make_example_exposure_file(&backend, id, "lib/units.cellml").await?;
+        // let exposure = b.get_exposure(id).await?;
+        let exposure = Backend::get_exposure(&backend, id).await?;
+        // exposure.backend;
+        let exposure_files = Backend::get_exposure_files(&backend, exposure.id()).await?;
+        assert_eq!(3, exposure_files.len());
+        assert_eq!(
+            vec!["README.md", "model.cellml", "lib/units.cellml"],
+            exposure_files.iter()
+                .map(|ef| ef.workspace_file_path())
+                .collect::<Vec<_>>(),
+        );
 
+        Ok(())
+    }
+
+}

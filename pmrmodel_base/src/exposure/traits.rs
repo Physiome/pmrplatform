@@ -8,24 +8,22 @@ use crate::{
     exposure,
 };
 
-pub trait Exposure {
+pub trait Exposure<'a, S> {
     fn id(&self) -> i64;
     fn workspace_id(&self) -> i64;
     fn workspace_tag_id(&self) -> Option<i64>;
     fn commit_id(&self) -> &str;
     fn created_ts(&self) -> i64;
     fn default_file_id(&self) -> Option<i64>;
-    // plural form is a bit tricky - what do traits of them look like?
-    // can we get them to behave similarly to a vec of the undelrying?
-    // fn files(&self) -> Result<ExposureFiles, ValueError>,
+    fn files(&'a self) -> Result<&'a S, ValueError>;
 }
 
-pub trait ExposureFile {
+pub trait ExposureFile<'a, S> {
     fn id(&self) -> i64;
     fn exposure_id(&self) -> i64;
     fn workspace_file_path(&self) -> &str;
     fn default_view_id(&self) -> Option<i64>;
-    // fn views(&self) -> Result<ExposureFileViews, ValueError>,
+    fn views(&'a self) -> Result<&'a S, ValueError>;
 }
 
 pub trait ExposureFileView {
