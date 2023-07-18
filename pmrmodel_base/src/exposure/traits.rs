@@ -125,50 +125,78 @@ pub trait ExposureFileViewBackend {
     ) -> Result<exposure::ExposureFileView, BackendError>;
 }
 
-// When trait aliases become stabilized (<https://github.com/rust-lang/rust/issues/41517>)
-// pub trait Backend = ExposureBackend + ExposureFileBackend + ExposureViewBackend;
-
 #[async_trait]
 pub trait Backend: ExposureBackend + ExposureFileBackend + ExposureFileViewBackend {
+    /// get the `ExposureRef` by the provided `id`
     async fn get_exposure<'a>(
         &'a self,
         id: i64,
     ) -> Result<exposure::ExposureRef<'a>, BackendError>
         where Self: Sized
     {
-        ExposureBackend::get_id(self, id).await.map(|v| v.bind(self))
+        ExposureBackend::get_id(self, id)
+            .await
+            .map(|v| v.bind(self))
     }
 
+    /// get all `ExposureRefs` for the provided `workspace_id`
+    async fn get_exposures<'a>(
+        &'a self,
+        workspace_id: i64,
+    ) -> Result<exposure::ExposureRefs<'a>, BackendError>
+        where Self: Sized
+    {
+        ExposureBackend::list_for_workspace(self, workspace_id)
+            .await
+            .map(|v| v.bind(self).into())
+    }
+
+    /// get the `ExposureFileRef` by the provided `id`
     async fn get_exposure_file<'a>(
         &'a self,
         id: i64,
     ) -> Result<exposure::ExposureFileRef<'a>, BackendError>
         where Self: Sized
     {
-        ExposureFileBackend::get_id(self, id).await.map(|v| v.bind(self))
+        ExposureFileBackend::get_id(self, id).
+            await
+            .map(|v| v.bind(self))
     }
 
+    /// get all `ExposureFileRefs` for the provided `exposure_id`
     async fn get_exposure_files<'a>(
         &'a self,
         exposure_id: i64,
     ) -> Result<exposure::ExposureFileRefs<'a>, BackendError>
         where Self: Sized
     {
-        let exposures = ExposureFileBackend::list_for_exposure(self, exposure_id).await?.0;
-        let result = exposures
-            .into_iter()
-            .map(|v| v.bind(self))
-            .collect::<Vec<_>>();
-        Ok(result.into())
+        ExposureFileBackend::list_for_exposure(self, exposure_id)
+            .await
+            .map(|v| v.bind(self).into())
     }
 
+    /// get the `ExposureFileViewRef` by the provided `id`
     async fn get_exposure_file_view<'a>(
         &'a self,
         id: i64,
     ) -> Result<exposure::ExposureFileViewRef<'a>, BackendError>
         where Self: Sized
     {
-        ExposureFileViewBackend::get_id(self, id).await.map(|v| v.bind(self))
+        ExposureFileViewBackend::get_id(self, id)
+            .await
+            .map(|v| v.bind(self))
+    }
+
+    /// get all `ExposureFileViewRefs` for the provided `exposure_file_id`
+    async fn get_exposure_file_views<'a>(
+        &'a self,
+        exposure_file_id: i64,
+    ) -> Result<exposure::ExposureFileViewRefs<'a>, BackendError>
+        where Self: Sized
+    {
+        ExposureFileViewBackend::list_for_exposure_file(self, exposure_file_id)
+            .await
+            .map(|v| v.bind(self))
     }
 }
 impl<B: ExposureBackend + ExposureFileBackend + ExposureFileViewBackend> Backend for B {}

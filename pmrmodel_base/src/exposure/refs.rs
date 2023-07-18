@@ -1,7 +1,10 @@
 use crate::exposure::{
     Exposure,
+    Exposures,
     ExposureFile,
+    ExposureFiles,
     ExposureFileView,
+    ExposureFileViews,
     traits,
 };
 
@@ -11,7 +14,7 @@ pub struct ExposureRef<'a> {
     pub(super) backend: &'a dyn traits::Backend,
 }
 
-pub struct ExposureRefs<'a>(Vec<ExposureRef<'a>>);
+pub struct ExposureRefs<'a>(pub(super) Vec<ExposureRef<'a>>);
 
 pub struct ExposureFileRef<'a> {
     pub(super) inner: ExposureFile,
@@ -40,6 +43,19 @@ impl Exposure {
     }
 }
 
+impl Exposures {
+    pub(super) fn bind<'a>(
+        self,
+        backend: &'a dyn traits::Backend,
+    ) -> ExposureRefs<'a> {
+        self.0
+            .into_iter()
+            .map(|v| v.bind(backend))
+            .collect::<Vec<_>>()
+            .into()
+    }
+}
+
 impl ExposureRef<'_> {
     pub fn into_inner(self) -> Exposure {
         self.inner
@@ -58,6 +74,19 @@ impl ExposureFile {
     }
 }
 
+impl ExposureFiles {
+    pub(super) fn bind<'a>(
+        self,
+        backend: &'a dyn traits::Backend,
+    ) -> ExposureFileRefs<'a> {
+        self.0
+            .into_iter()
+            .map(|v| v.bind(backend))
+            .collect::<Vec<_>>()
+            .into()
+    }
+}
+
 impl ExposureFileRef<'_> {
     pub fn into_inner(self) -> ExposureFile {
         self.inner
@@ -73,6 +102,19 @@ impl ExposureFileView {
             inner: self,
             backend: backend,
         }
+    }
+}
+
+impl ExposureFileViews {
+    pub(super) fn bind<'a>(
+        self,
+        backend: &'a dyn traits::Backend,
+    ) -> ExposureFileViewRefs<'a> {
+        self.0
+            .into_iter()
+            .map(|v| v.bind(backend))
+            .collect::<Vec<_>>()
+            .into()
     }
 }
 

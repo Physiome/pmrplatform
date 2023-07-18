@@ -27,6 +27,26 @@ impl DerefMut for Exposures {
     }
 }
 
+impl<'a> From<Vec<ExposureRef<'a>>> for ExposureRefs<'a> {
+    fn from(args: Vec<ExposureRef<'a>>) -> Self {
+        Self(args)
+    }
+}
+
+impl<'a, const N: usize> From<[ExposureRef<'a>; N]> for ExposureRefs<'a> {
+    fn from(args: [ExposureRef<'a>; N]) -> Self {
+        Self(args.into())
+    }
+}
+
+impl<'a> Deref for ExposureRefs<'a> {
+    type Target = Vec<ExposureRef<'a>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl From<Vec<ExposureFile>> for ExposureFiles {
     fn from(args: Vec<ExposureFile>) -> Self {
         Self(args)
@@ -96,6 +116,26 @@ impl Deref for ExposureFileViews {
 impl DerefMut for ExposureFileViews {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+impl<'a> From<Vec<ExposureFileViewRef<'a>>> for ExposureFileViewRefs<'a> {
+    fn from(args: Vec<ExposureFileViewRef<'a>>) -> Self {
+        Self(args)
+    }
+}
+
+impl<'a, const N: usize> From<[ExposureFileViewRef<'a>; N]> for ExposureFileViewRefs<'a> {
+    fn from(args: [ExposureFileViewRef<'a>; N]) -> Self {
+        Self(args.into())
+    }
+}
+
+impl<'a> Deref for ExposureFileViewRefs<'a> {
+    type Target = Vec<ExposureFileViewRef<'a>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
