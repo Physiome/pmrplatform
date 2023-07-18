@@ -8,6 +8,7 @@ use crate::{
     exposure,
 };
 
+#[async_trait]
 pub trait Exposure<'a, S> {
     fn id(&self) -> i64;
     fn workspace_id(&self) -> i64;
@@ -15,15 +16,16 @@ pub trait Exposure<'a, S> {
     fn commit_id(&self) -> &str;
     fn created_ts(&self) -> i64;
     fn default_file_id(&self) -> Option<i64>;
-    fn files(&'a self) -> Result<&'a S, ValueError>;
+    async fn files(&'a self) -> Result<&'a S, ValueError>;
 }
 
+#[async_trait]
 pub trait ExposureFile<'a, S> {
     fn id(&self) -> i64;
     fn exposure_id(&self) -> i64;
     fn workspace_file_path(&self) -> &str;
     fn default_view_id(&self) -> Option<i64>;
-    fn views(&'a self) -> Result<&'a S, ValueError>;
+    async fn views(&'a self) -> Result<&'a S, ValueError>;
 }
 
 pub trait ExposureFileView {
@@ -129,7 +131,7 @@ pub trait Backend: ExposureBackend + ExposureFileBackend + ExposureFileViewBacke
     async fn get_exposure<'a>(
         &'a self,
         id: i64,
-    ) -> Result<exposure::ExposureRef<'a>, BackendError>
+    ) -> Result<exposure::ExposureRef<'a, Self>, BackendError>
         where Self: Sized
     {
         ExposureBackend::get_id(self, id)
@@ -141,7 +143,7 @@ pub trait Backend: ExposureBackend + ExposureFileBackend + ExposureFileViewBacke
     async fn get_exposures<'a>(
         &'a self,
         workspace_id: i64,
-    ) -> Result<exposure::ExposureRefs<'a>, BackendError>
+    ) -> Result<exposure::ExposureRefs<'a, Self>, BackendError>
         where Self: Sized
     {
         ExposureBackend::list_for_workspace(self, workspace_id)
@@ -153,7 +155,7 @@ pub trait Backend: ExposureBackend + ExposureFileBackend + ExposureFileViewBacke
     async fn get_exposure_file<'a>(
         &'a self,
         id: i64,
-    ) -> Result<exposure::ExposureFileRef<'a>, BackendError>
+    ) -> Result<exposure::ExposureFileRef<'a, Self>, BackendError>
         where Self: Sized
     {
         ExposureFileBackend::get_id(self, id).
@@ -165,7 +167,7 @@ pub trait Backend: ExposureBackend + ExposureFileBackend + ExposureFileViewBacke
     async fn get_exposure_files<'a>(
         &'a self,
         exposure_id: i64,
-    ) -> Result<exposure::ExposureFileRefs<'a>, BackendError>
+    ) -> Result<exposure::ExposureFileRefs<'a, Self>, BackendError>
         where Self: Sized
     {
         ExposureFileBackend::list_for_exposure(self, exposure_id)
@@ -177,7 +179,7 @@ pub trait Backend: ExposureBackend + ExposureFileBackend + ExposureFileViewBacke
     async fn get_exposure_file_view<'a>(
         &'a self,
         id: i64,
-    ) -> Result<exposure::ExposureFileViewRef<'a>, BackendError>
+    ) -> Result<exposure::ExposureFileViewRef<'a, Self>, BackendError>
         where Self: Sized
     {
         ExposureFileViewBackend::get_id(self, id)
@@ -189,7 +191,7 @@ pub trait Backend: ExposureBackend + ExposureFileBackend + ExposureFileViewBacke
     async fn get_exposure_file_views<'a>(
         &'a self,
         exposure_file_id: i64,
-    ) -> Result<exposure::ExposureFileViewRefs<'a>, BackendError>
+    ) -> Result<exposure::ExposureFileViewRefs<'a, Self>, BackendError>
         where Self: Sized
     {
         ExposureFileViewBackend::list_for_exposure_file(self, exposure_file_id)

@@ -1,3 +1,4 @@
+use std::sync::OnceLock;
 use crate::exposure::{
     Exposure,
     Exposures,
@@ -8,48 +9,48 @@ use crate::exposure::{
     traits,
 };
 
-pub struct ExposureRef<'a> {
+pub struct ExposureRef<'a, Backend: traits::Backend + Sized> {
     pub(super) inner: Exposure,
-    pub(super) files: Option<ExposureFileRefs<'a>>,
-    pub(super) backend: &'a dyn traits::Backend,
+    pub(super) files: OnceLock<ExposureFileRefs<'a, Backend>>,
+    pub(super) backend: &'a Backend,
 }
 
-pub struct ExposureRefs<'a>(pub(super) Vec<ExposureRef<'a>>);
+pub struct ExposureRefs<'a, B: traits::Backend + Sized>(pub(super) Vec<ExposureRef<'a, B>>);
 
-pub struct ExposureFileRef<'a> {
+pub struct ExposureFileRef<'a, Backend: traits::Backend + Sized> {
     pub(super) inner: ExposureFile,
-    pub(super) views: Option<ExposureFileViewRefs<'a>>,
-    pub(super) backend: &'a dyn traits::Backend,
+    pub(super) views: OnceLock<ExposureFileViewRefs<'a, Backend>>,
+    pub(super) backend: &'a Backend,
 }
 
-pub struct ExposureFileRefs<'a>(pub(super) Vec<ExposureFileRef<'a>>);
+pub struct ExposureFileRefs<'a, B: traits::Backend + Sized>(pub(super) Vec<ExposureFileRef<'a, B>>);
 
-pub struct ExposureFileViewRef<'a> {
+pub struct ExposureFileViewRef<'a, Backend: traits::Backend + Sized> {
     pub(super) inner: ExposureFileView,
-    pub(super) backend: &'a dyn traits::Backend,
+    pub(super) backend: &'a Backend,
 }
 
-pub struct ExposureFileViewRefs<'a>(pub(super) Vec<ExposureFileViewRef<'a>>);
+pub struct ExposureFileViewRefs<'a, B: traits::Backend + Sized>(pub(super) Vec<ExposureFileViewRef<'a, B>>);
 
 impl Exposure {
-    pub(super) fn bind<'a>(
+    pub(super) fn bind<'a, B: traits::Backend + Sized>(
         self,
-        backend: &'a dyn traits::Backend,
-    ) -> ExposureRef<'a> {
+        backend: &'a B,
+    ) -> ExposureRef<'a, B> {
         ExposureRef {
             inner: self,
             // TODO verify that inner.files is also None?
-            files: None,
+            files: OnceLock::new(),
             backend: backend,
         }
     }
 }
 
 impl Exposures {
-    pub(super) fn bind<'a>(
+    pub(super) fn bind<'a, B: traits::Backend + Sized>(
         self,
-        backend: &'a dyn traits::Backend,
-    ) -> ExposureRefs<'a> {
+        backend: &'a B,
+    ) -> ExposureRefs<'a, B> {
         self.0
             .into_iter()
             .map(|v| v.bind(backend))
@@ -58,31 +59,31 @@ impl Exposures {
     }
 }
 
-impl ExposureRef<'_> {
+impl<B: traits::Backend + Sized> ExposureRef<'_, B> {
     pub fn into_inner(self) -> Exposure {
         self.inner
     }
 }
 
 impl ExposureFile {
-    pub(super) fn bind<'a>(
+    pub(super) fn bind<'a, B: traits::Backend + Sized>(
         self,
-        backend: &'a dyn traits::Backend,
-    ) -> ExposureFileRef<'a> {
+        backend: &'a B,
+    ) -> ExposureFileRef<'a, B> {
         ExposureFileRef {
             inner: self,
             // TODO verify that inner.views is also None?
-            views: None,
+            views: OnceLock::new(),
             backend: backend,
         }
     }
 }
 
 impl ExposureFiles {
-    pub(super) fn bind<'a>(
+    pub(super) fn bind<'a, B: traits::Backend + Sized>(
         self,
-        backend: &'a dyn traits::Backend,
-    ) -> ExposureFileRefs<'a> {
+        backend: &'a B,
+    ) -> ExposureFileRefs<'a, B> {
         self.0
             .into_iter()
             .map(|v| v.bind(backend))
@@ -91,17 +92,17 @@ impl ExposureFiles {
     }
 }
 
-impl ExposureFileRef<'_> {
+impl<B: traits::Backend + Sized> ExposureFileRef<'_, B> {
     pub fn into_inner(self) -> ExposureFile {
         self.inner
     }
 }
 
 impl ExposureFileView {
-    pub(super) fn bind<'a>(
+    pub(super) fn bind<'a, B: traits::Backend + Sized>(
         self,
-        backend: &'a dyn traits::Backend,
-    ) -> ExposureFileViewRef<'a> {
+        backend: &'a B,
+    ) -> ExposureFileViewRef<'a, B> {
         ExposureFileViewRef {
             inner: self,
             backend: backend,
@@ -110,10 +111,10 @@ impl ExposureFileView {
 }
 
 impl ExposureFileViews {
-    pub(super) fn bind<'a>(
+    pub(super) fn bind<'a, B: traits::Backend + Sized>(
         self,
-        backend: &'a dyn traits::Backend,
-    ) -> ExposureFileViewRefs<'a> {
+        backend: &'a B,
+    ) -> ExposureFileViewRefs<'a, B> {
         self.0
             .into_iter()
             .map(|v| v.bind(backend))
@@ -122,7 +123,7 @@ impl ExposureFileViews {
     }
 }
 
-impl ExposureFileViewRef<'_> {
+impl<B: traits::Backend + Sized> ExposureFileViewRef<'_, B> {
     pub fn into_inner(self) -> ExposureFileView {
         self.inner
     }

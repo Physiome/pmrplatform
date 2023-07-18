@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use std::ops::{Deref, DerefMut};
 use crate::error::ValueError;
 use crate::exposure::*;
@@ -28,20 +29,20 @@ impl DerefMut for Exposures {
     }
 }
 
-impl<'a> From<Vec<ExposureRef<'a>>> for ExposureRefs<'a> {
-    fn from(args: Vec<ExposureRef<'a>>) -> Self {
+impl<'a, B: traits::Backend + Sized> From<Vec<ExposureRef<'a, B>>> for ExposureRefs<'a, B> {
+    fn from(args: Vec<ExposureRef<'a, B>>) -> Self {
         Self(args)
     }
 }
 
-impl<'a, const N: usize> From<[ExposureRef<'a>; N]> for ExposureRefs<'a> {
-    fn from(args: [ExposureRef<'a>; N]) -> Self {
+impl<'a, B: traits::Backend + Sized, const N: usize> From<[ExposureRef<'a, B>; N]> for ExposureRefs<'a, B> {
+    fn from(args: [ExposureRef<'a, B>; N]) -> Self {
         Self(args.into())
     }
 }
 
-impl<'a> Deref for ExposureRefs<'a> {
-    type Target = Vec<ExposureRef<'a>>;
+impl<'a, B: traits::Backend + Sized> Deref for ExposureRefs<'a, B> {
+    type Target = Vec<ExposureRef<'a, B>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -74,20 +75,20 @@ impl DerefMut for ExposureFiles {
     }
 }
 
-impl<'a> From<Vec<ExposureFileRef<'a>>> for ExposureFileRefs<'a> {
-    fn from(args: Vec<ExposureFileRef<'a>>) -> Self {
+impl<'a, B: traits::Backend + Sized> From<Vec<ExposureFileRef<'a, B>>> for ExposureFileRefs<'a, B> {
+    fn from(args: Vec<ExposureFileRef<'a, B>>) -> Self {
         Self(args)
     }
 }
 
-impl<'a, const N: usize> From<[ExposureFileRef<'a>; N]> for ExposureFileRefs<'a> {
-    fn from(args: [ExposureFileRef<'a>; N]) -> Self {
+impl<'a, B: traits::Backend + Sized, const N: usize> From<[ExposureFileRef<'a, B>; N]> for ExposureFileRefs<'a, B> {
+    fn from(args: [ExposureFileRef<'a, B>; N]) -> Self {
         Self(args.into())
     }
 }
 
-impl<'a> Deref for ExposureFileRefs<'a> {
-    type Target = Vec<ExposureFileRef<'a>>;
+impl<'a, B: traits::Backend + Sized> Deref for ExposureFileRefs<'a, B> {
+    type Target = Vec<ExposureFileRef<'a, B>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -120,27 +121,28 @@ impl DerefMut for ExposureFileViews {
     }
 }
 
-impl<'a> From<Vec<ExposureFileViewRef<'a>>> for ExposureFileViewRefs<'a> {
-    fn from(args: Vec<ExposureFileViewRef<'a>>) -> Self {
+impl<'a, B: traits::Backend + Sized> From<Vec<ExposureFileViewRef<'a, B>>> for ExposureFileViewRefs<'a, B> {
+    fn from(args: Vec<ExposureFileViewRef<'a, B>>) -> Self {
         Self(args)
     }
 }
 
-impl<'a, const N: usize> From<[ExposureFileViewRef<'a>; N]> for ExposureFileViewRefs<'a> {
-    fn from(args: [ExposureFileViewRef<'a>; N]) -> Self {
+impl<'a, B: traits::Backend + Sized, const N: usize> From<[ExposureFileViewRef<'a, B>; N]> for ExposureFileViewRefs<'a, B> {
+    fn from(args: [ExposureFileViewRef<'a, B>; N]) -> Self {
         Self(args.into())
     }
 }
 
-impl<'a> Deref for ExposureFileViewRefs<'a> {
-    type Target = Vec<ExposureFileViewRef<'a>>;
+impl<'a, B: traits::Backend + Sized> Deref for ExposureFileViewRefs<'a, B> {
+    type Target = Vec<ExposureFileViewRef<'a, B>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl traits::Exposure<'_, ExposureFiles> for Exposure {
+#[async_trait]
+impl<'a> traits::Exposure<'a, ExposureFiles> for Exposure {
     fn id(&self) -> i64 {
         self.id
     }
@@ -159,12 +161,13 @@ impl traits::Exposure<'_, ExposureFiles> for Exposure {
     fn default_file_id(&self) -> Option<i64> {
         self.default_file_id
     }
-    fn files(&self) -> Result<&ExposureFiles, ValueError> {
+    async fn files(&'a self) -> Result<&ExposureFiles, ValueError> {
         Ok(self.files.as_ref().ok_or(ValueError::Uninitialized)?)
     }
 }
 
-impl<'a> traits::Exposure<'a, ExposureFileRefs<'a>> for ExposureRef<'a> {
+#[async_trait]
+impl<'a, B: traits::Backend + Sized + Sync> traits::Exposure<'a, ExposureFileRefs<'a, B>> for ExposureRef<'a, B> {
     fn id(&self) -> i64 {
         self.inner.id
     }
@@ -183,12 +186,15 @@ impl<'a> traits::Exposure<'a, ExposureFileRefs<'a>> for ExposureRef<'a> {
     fn default_file_id(&self) -> Option<i64> {
         self.inner.default_file_id
     }
-    fn files(&'a self) -> Result<&'a ExposureFileRefs<'a>, ValueError> {
-        Ok(self.files.as_ref().ok_or(ValueError::Uninitialized)?)
+    async fn files(&'a self) -> Result<&'a ExposureFileRefs<'a, B>, ValueError> {
+        // TODO actually handle the set result.
+        let _ = self.files.set(self.backend.get_exposure_files(self.inner.id).await?);
+        Ok(self.files.get().ok_or(ValueError::Uninitialized)?)
     }
 }
 
-impl traits::ExposureFile<'_, ExposureFileViews> for ExposureFile {
+#[async_trait]
+impl<'a> traits::ExposureFile<'a, ExposureFileViews> for ExposureFile {
     fn id(&self) -> i64 {
         self.id
     }
@@ -201,12 +207,13 @@ impl traits::ExposureFile<'_, ExposureFileViews> for ExposureFile {
     fn default_view_id(&self) -> Option<i64> {
         self.default_view_id
     }
-    fn views(&self) -> Result<&ExposureFileViews, ValueError> {
+    async fn views(&'a self) -> Result<&ExposureFileViews, ValueError> {
         Ok(self.views.as_ref().ok_or(ValueError::Uninitialized)?)
     }
 }
 
-impl<'a> traits::ExposureFile<'a, ExposureFileViewRefs<'a>> for ExposureFileRef<'a> {
+#[async_trait]
+impl<'a, B: traits::Backend + Sized + Sync> traits::ExposureFile<'a, ExposureFileViewRefs<'a, B>> for ExposureFileRef<'a, B> {
     fn id(&self) -> i64 {
         self.inner.id
     }
@@ -219,21 +226,12 @@ impl<'a> traits::ExposureFile<'a, ExposureFileViewRefs<'a>> for ExposureFileRef<
     fn default_view_id(&self) -> Option<i64> {
         self.inner.default_view_id
     }
-    fn views(&'a self) -> Result<&'a ExposureFileViewRefs<'a>, ValueError> {
-        // None of these work
-        // self.backend.get_exposure_files(self.inner.id);
-        // traits::Backend::get_exposure_files(self.backend, self.inner.id);
-        Ok(self.views.as_ref().ok_or(ValueError::Uninitialized)?)
+    async fn views(&'a self) -> Result<&'a ExposureFileViewRefs<'a, B>, ValueError> {
+        // TODO actually handle the set result.
+        let _ = self.views.set(self.backend.get_exposure_file_views(self.inner.id).await?);
+        Ok(self.views.get().ok_or(ValueError::Uninitialized)?)
     }
 }
-
-// separating it out doesn't work either
-// impl<'a> ExposureFileRef<'a> {
-//     pub async fn get_views(&'a self) -> Result<&'a ExposureFileViewRefs<'a>, ValueError> {
-//         traits::Backend::get_exposure_files(self.backend, self.inner.id).await;
-//         todo!();
-//     }
-// }
 
 impl traits::ExposureFileView for ExposureFileView {
     fn id(&self) -> i64 {
@@ -247,7 +245,7 @@ impl traits::ExposureFileView for ExposureFileView {
     }
 }
 
-impl traits::ExposureFileView for ExposureFileViewRef<'_> {
+impl<B: traits::Backend + Sized> traits::ExposureFileView for ExposureFileViewRef<'_, B> {
     fn id(&self) -> i64 {
         self.inner.id
     }

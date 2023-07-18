@@ -274,6 +274,8 @@ pub(crate) mod testing {
         // exposure.backend;
         let exposure_files = Backend::get_exposure_files(&backend, exposure.id()).await?;
         assert_eq!(3, exposure_files.len());
+        let exposure_files = exposure.files().await?;
+        assert_eq!(3, exposure_files.len());
         assert_eq!(
             vec!["README.md", "model.cellml", "lib/units.cellml"],
             exposure_files.iter()
