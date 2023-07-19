@@ -282,6 +282,7 @@ pub(crate) mod testing {
                 .map(|ef| ef.workspace_file_path())
                 .collect::<Vec<_>>(),
         );
+        assert_eq!(exposure.id(), exposure_files[0].exposure().await?.id());
 
         Ok(())
     }

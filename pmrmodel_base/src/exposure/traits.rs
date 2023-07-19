@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use std::ops::Deref;
 use crate::{
     error::{
         BackendError,
@@ -20,12 +19,13 @@ pub trait Exposure<'a, S> {
 }
 
 #[async_trait]
-pub trait ExposureFile<'a, S> {
+pub trait ExposureFile<'a, S, P> {
     fn id(&self) -> i64;
     fn exposure_id(&self) -> i64;
     fn workspace_file_path(&self) -> &str;
     fn default_view_id(&self) -> Option<i64>;
     async fn views(&'a self) -> Result<&'a S, ValueError>;
+    async fn exposure(&'a self) -> Result<&'a P, ValueError>;
 }
 
 #[async_trait]

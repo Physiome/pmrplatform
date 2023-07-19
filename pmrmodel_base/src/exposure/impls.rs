@@ -203,7 +203,7 @@ impl<'a, B: traits::Backend + Sized + Sync> traits::Exposure<'a, ExposureFileRef
 }
 
 #[async_trait]
-impl<'a> traits::ExposureFile<'a, ExposureFileViews> for ExposureFile {
+impl<'a> traits::ExposureFile<'a, ExposureFileViews, Exposure> for ExposureFile {
     fn id(&self) -> i64 {
         self.id
     }
@@ -219,10 +219,16 @@ impl<'a> traits::ExposureFile<'a, ExposureFileViews> for ExposureFile {
     async fn views(&'a self) -> Result<&ExposureFileViews, ValueError> {
         Ok(self.views.as_ref().ok_or(ValueError::Uninitialized)?)
     }
+    async fn exposure(&'a self) -> Result<&'a Exposure, ValueError> {
+        // reference to parent is not provided, so simply uninitialized
+        Err(ValueError::Uninitialized)
+    }
 }
 
 #[async_trait]
-impl<'a, B: traits::Backend + Sized + Sync> traits::ExposureFile<'a, ExposureFileViewRefs<'a, B>> for ExposureFileRef<'a, B> {
+impl<'a, B: traits::Backend + Sized + Sync>
+    traits::ExposureFile<'a, ExposureFileViewRefs<'a, B>, ExposureRef<'a, B>>
+for ExposureFileRef<'a, B> {
     fn id(&self) -> i64 {
         self.inner.id
     }
@@ -248,6 +254,22 @@ impl<'a, B: traits::Backend + Sized + Sync> traits::ExposureFile<'a, ExposureFil
                     instance accessed backend"
                 ));
                 Ok(self.views.get().expect("views just been set!"))
+            }
+        }
+    }
+    async fn exposure(
+        &'a self
+    ) -> Result<&'a ExposureRef<'a, B>, ValueError> {
+        match self.parent.get() {
+            Some(parent) => Ok(parent),
+            None => {
+                self.parent.set(
+                    self.backend.get_exposure(self.inner.exposure_id).await?
+                ).unwrap_or_else(|_| log::warn!(
+                    "concurrent call to the same ExposureFileRef.parent() \
+                    instance accessed backend"
+                ));
+                Ok(self.parent.get().expect("parent just been set!"))
             }
         }
     }
