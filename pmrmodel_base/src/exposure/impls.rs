@@ -187,9 +187,18 @@ impl<'a, B: traits::Backend + Sized + Sync> traits::Exposure<'a, ExposureFileRef
         self.inner.default_file_id
     }
     async fn files(&'a self) -> Result<&'a ExposureFileRefs<'a, B>, ValueError> {
-        // TODO actually handle the set result.
-        let _ = self.files.set(self.backend.get_exposure_files(self.inner.id).await?);
-        Ok(self.files.get().ok_or(ValueError::Uninitialized)?)
+        match self.files.get() {
+            Some(files) => Ok(files),
+            None => {
+                self.files.set(
+                    self.backend.get_exposure_files(self.inner.id).await?
+                ).unwrap_or_else(|_| log::warn!(
+                    "concurrent call to the same ExposureRef.files() \
+                    instance accessed backend"
+                ));
+                Ok(self.files.get().expect("files just been set!"))
+            }
+        }
     }
 }
 
@@ -226,10 +235,21 @@ impl<'a, B: traits::Backend + Sized + Sync> traits::ExposureFile<'a, ExposureFil
     fn default_view_id(&self) -> Option<i64> {
         self.inner.default_view_id
     }
-    async fn views(&'a self) -> Result<&'a ExposureFileViewRefs<'a, B>, ValueError> {
-        // TODO actually handle the set result.
-        let _ = self.views.set(self.backend.get_exposure_file_views(self.inner.id).await?);
-        Ok(self.views.get().ok_or(ValueError::Uninitialized)?)
+    async fn views(
+        &'a self
+    ) -> Result<&'a ExposureFileViewRefs<'a, B>, ValueError> {
+        match self.views.get() {
+            Some(views) => Ok(views),
+            None => {
+                self.views.set(
+                    self.backend.get_exposure_file_views(self.inner.id).await?
+                ).unwrap_or_else(|_| log::warn!(
+                    "concurrent call to the same ExposureFileRef.views() \
+                    instance accessed backend"
+                ));
+                Ok(self.views.get().expect("views just been set!"))
+            }
+        }
     }
 }
 

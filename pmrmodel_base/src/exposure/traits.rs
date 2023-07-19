@@ -158,8 +158,8 @@ pub trait Backend: ExposureBackend + ExposureFileBackend + ExposureFileViewBacke
     ) -> Result<exposure::ExposureFileRef<'a, Self>, BackendError>
         where Self: Sized
     {
-        ExposureFileBackend::get_id(self, id).
-            await
+        ExposureFileBackend::get_id(self, id)
+            .await
             .map(|v| v.bind(self))
     }
 
