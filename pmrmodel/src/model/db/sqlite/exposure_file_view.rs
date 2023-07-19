@@ -125,7 +125,10 @@ pub(crate) mod testing {
     use pmrmodel_base::{
         exposure::{
             ExposureFileView,
+            traits::Backend,
+            traits::ExposureFile as _,
             traits::ExposureFileBackend,
+            traits::ExposureFileView as _,
             traits::ExposureFileViewBackend,
         },
     };
@@ -223,6 +226,10 @@ pub(crate) mod testing {
         // Mismatching pairing of exposure file and view
         assert!(!efb.set_default_view(e2f1, 2).await?);
         assert!(!efb.set_default_view(e2f2, e2f1v1).await?);
+
+        let v = Backend::get_exposure_file_view(&backend, 2).await?;
+        assert_eq!(v.view_key(), "model");
+        assert_eq!(v.exposure_file().await?.id(), e2);
 
         Ok(())
     }

@@ -28,10 +28,12 @@ pub trait ExposureFile<'a, S> {
     async fn views(&'a self) -> Result<&'a S, ValueError>;
 }
 
-pub trait ExposureFileView {
+#[async_trait]
+pub trait ExposureFileView<'a, P> {
     fn id(&self) -> i64;
     fn exposure_file_id(&self) -> i64;
     fn view_key(&self) -> &str;
+    async fn exposure_file(&'a self) -> Result<&'a P, ValueError>;
 }
 
 #[async_trait]

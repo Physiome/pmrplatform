@@ -28,6 +28,7 @@ pub struct ExposureFileRefs<'a, B: traits::Backend + Sized>(pub(super) Vec<Expos
 pub struct ExposureFileViewRef<'a, Backend: traits::Backend + Sized> {
     pub(super) inner: ExposureFileView,
     pub(super) backend: &'a Backend,
+    pub(super) parent: OnceLock<ExposureFileRef<'a, Backend>>,
 }
 
 pub struct ExposureFileViewRefs<'a, B: traits::Backend + Sized>(pub(super) Vec<ExposureFileViewRef<'a, B>>);
@@ -106,6 +107,7 @@ impl ExposureFileView {
         ExposureFileViewRef {
             inner: self,
             backend: backend,
+            parent: OnceLock::new(),
         }
     }
 }
