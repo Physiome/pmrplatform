@@ -283,8 +283,14 @@ impl<'a> traits::ExposureFileView<'a, ExposureFile> for ExposureFileView {
     fn exposure_file_id(&self) -> i64 {
         self.exposure_file_id
     }
-    fn view_key(&self) -> &str {
-        self.view_key.as_ref()
+    fn view_task_template_id(&self) -> i64 {
+        self.view_task_template_id
+    }
+    fn view_key(&self) -> Option<&str> {
+        self.view_key.as_ref().map(|x| x.as_ref())
+    }
+    fn updated_ts(&self) -> i64 {
+        self.updated_ts
     }
     async fn exposure_file(&'a self) -> Result<&'a ExposureFile, ValueError> {
         // reference to parent is not provided, so simply uninitialized
@@ -299,11 +305,17 @@ for ExposureFileViewRef<'a, B> {
     fn id(&self) -> i64 {
         self.inner.id
     }
+    fn view_task_template_id(&self) -> i64 {
+        self.inner.view_task_template_id
+    }
     fn exposure_file_id(&self) -> i64 {
         self.inner.exposure_file_id
     }
-    fn view_key(&self) -> &str {
-        self.inner.view_key.as_ref()
+    fn view_key(&self) -> Option<&str> {
+        self.inner.view_key.as_ref().map(|x| x.as_ref())
+    }
+    fn updated_ts(&self) -> i64 {
+        self.inner.updated_ts
     }
     async fn exposure_file(
         &'a self

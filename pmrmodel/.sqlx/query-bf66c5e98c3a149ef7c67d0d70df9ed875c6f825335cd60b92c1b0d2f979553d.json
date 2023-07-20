@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nUPDATE exposure_file_view\nSET\n    view_key = ?2\nWHERE id = ?1\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "bf66c5e98c3a149ef7c67d0d70df9ed875c6f825335cd60b92c1b0d2f979553d"
+}

@@ -31,8 +31,10 @@ pub trait ExposureFile<'a, S, P> {
 #[async_trait]
 pub trait ExposureFileView<'a, P> {
     fn id(&self) -> i64;
+    fn view_task_template_id(&self) -> i64;
     fn exposure_file_id(&self) -> i64;
-    fn view_key(&self) -> &str;
+    fn view_key(&self) -> Option<&str>;
+    fn updated_ts(&self) -> i64;
     async fn exposure_file(&'a self) -> Result<&'a P, ValueError>;
 }
 
@@ -111,7 +113,7 @@ pub trait ExposureFileViewBackend {
     async fn insert(
         &self,
         exposure_file_id: i64,
-        view_key: &str,
+        view_task_template_id: i64,
     ) -> Result<i64, BackendError>;
 
     /// Returns all `ExposureFileViews` for the given `exposure_file_id`.
@@ -125,6 +127,17 @@ pub trait ExposureFileViewBackend {
         &self,
         id: i64,
     ) -> Result<exposure::ExposureFileView, BackendError>;
+
+    /// Update the view_key for `ExposureFileView` under the given `id`.
+    ///
+    /// When the full task management is done, this may become an
+    /// unnecessary backdoor.
+    /// TODO determine whether this backdoor is kept.
+    async fn update_view_key(
+        &self,
+        id: i64,
+        view_key: &str,
+    ) -> Result<bool, BackendError>;
 }
 
 #[async_trait]
