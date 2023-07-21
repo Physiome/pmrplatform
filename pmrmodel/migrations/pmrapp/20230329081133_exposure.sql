@@ -107,14 +107,23 @@ CREATE TABLE IF NOT EXISTS view_task_template (
     task_template_id INTEGER NOT NULL
 );
 
--- A profile is a collection of relevant templates for a given
--- exposure_file resource.
+-- A profile is a collection of relevant view_task_templates - this
+-- is not prefixed with the exposure_file resource despite being
+-- initially designed for them - reason being is that these should be
+-- generalized models.
 CREATE TABLE IF NOT EXISTS profile (
     id INTEGER PRIMARY KEY NOT NULL,
     title TEXT NOT NULL,
     description TEXT NOT NULL
+    -- TODO maybe this will require an additional discriminant for
+    -- what the given profile is for, though it might just end up
+    -- being multi-purpose.
 );
 
+-- Likewise for views - these could be generalized for other resource
+-- types.  Rather than calling this `profile_view_task_template`, the
+-- task_template is only a means to the end - which is producing the
+-- view itself.
 CREATE TABLE IF NOT EXISTS profile_views (
     id INTEGER PRIMARY KEY NOT NULL,
     profile_id INTEGER NOT NULL,
@@ -124,3 +133,6 @@ CREATE TABLE IF NOT EXISTS profile_views (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS profile_views__profile_id_view_task_template_id ON profile_views(profile_id, view_task_template_id);
+
+-- TODO determine the linkage (if necessary) of the original profile
+-- selected for the corresponding resource type.
