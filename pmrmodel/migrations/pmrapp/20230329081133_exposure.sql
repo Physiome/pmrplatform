@@ -104,7 +104,8 @@ CREATE TABLE IF NOT EXISTS view_task_template (
     description TEXT NOT NULL,
     -- This references the task_template that resides on the pmrtqs
     -- platform.
-    task_template_id INTEGER NOT NULL
+    task_template_id INTEGER NOT NULL,
+    updated_ts INTEGER NOT NULL
 );
 
 -- A profile is a collection of relevant view_task_templates - this
@@ -119,6 +120,7 @@ CREATE TABLE IF NOT EXISTS profile (
     -- what the given profile is for, though it might just end up
     -- being multi-purpose.
 );
+CREATE UNIQUE INDEX IF NOT EXISTS profile__profile_title ON profile(title);
 
 -- Likewise for views - these could be generalized for other resource
 -- types.  Rather than calling this `profile_view_task_template`, the

@@ -19,6 +19,7 @@ pub struct ViewTaskTemplate {
     pub view_key: String,
     pub description: String,
     pub task_template_id: i64,
+    pub updated_ts: i64,
     // potential future derived fields
     // pub task_template: Option<crate::task_template::TaskTemplate>,
 }
@@ -29,7 +30,7 @@ pub struct ViewTaskTemplates(Vec<ViewTaskTemplate>);
 // The underlying binding record for the relationship
 // TODO determine whether this is ultimately necessary
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct ProfileViews {
+pub struct ProfileView {
     pub id: i64,
     pub profile_id: i64,
     pub view_task_template_id: i64,
@@ -44,3 +45,4 @@ pub struct ViewTaskTemplateProfile {
 }
 
 mod impls;
+pub mod traits;
