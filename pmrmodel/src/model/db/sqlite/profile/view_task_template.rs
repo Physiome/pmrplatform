@@ -145,6 +145,8 @@ mod testing {
         SqliteBackend,
     };
 
+    use crate::test::set_timestamp;
+
     #[async_std::test]
     async fn test_basic() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
@@ -166,6 +168,7 @@ mod testing {
             updated_ts: 1234567890,
         });
 
+        set_timestamp(1357924680);
         assert!(b.update_view_task_template(
             view_task_template_id,
             "final_view",
@@ -178,8 +181,9 @@ mod testing {
             view_key: "final_view".to_string(),
             description: "This is a finalized view.".to_string(),
             task_template_id: 2,
-            updated_ts: 1234567890,
+            updated_ts: 1357924680,
         });
         Ok(())
     }
+
 }

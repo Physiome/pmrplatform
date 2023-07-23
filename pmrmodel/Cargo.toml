@@ -9,7 +9,7 @@ edition = "2021"
 [dependencies]
 async-std = { version = "1.5.0", features = [ "attributes" ] }
 async-trait = "0.1.50"
-chrono = "0.4"
+chrono = "0.4.26"
 futures = "0.3"
 log = { version = "0.4", features = ["std", "serde"] }
 parking_lot = "0.12"
