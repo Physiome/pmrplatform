@@ -16,6 +16,8 @@ pub struct Profile {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ViewTaskTemplate {
     pub id: i64,
+    // note that this value, if non-ascii, should be escaped as a view?
+    // TODO determine any/if restrictions on range of valid characters.
     pub view_key: String,
     pub description: String,
     pub task_template_id: i64,

@@ -133,6 +133,9 @@ CREATE TABLE IF NOT EXISTS profile_views (
     FOREIGN KEY(profile_id) REFERENCES profile(id),
     FOREIGN KEY(view_task_template_id) REFERENCES view_task_template(id)
 );
+-- Note that no tracking of when the profile got views extended or
+-- removed - this can cause a previously defined exposure view not
+-- matching with the current profile.
 
 CREATE UNIQUE INDEX IF NOT EXISTS profile_views__profile_id_view_task_template_id ON profile_views(profile_id, view_task_template_id);
 

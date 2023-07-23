@@ -19,6 +19,7 @@ pub trait ProfileBackend {
     ) -> Result<i64, BackendError>;
     async fn update_profile(
         &self,
+        id: i64,
         title: &str,
         description: &str,
     ) -> Result<bool, BackendError>;
@@ -40,6 +41,7 @@ pub trait ViewTaskTemplateBackend {
     ) -> Result<i64, BackendError>;
     async fn update_view_task_template(
         &self,
+        id: i64,
         view_key: &str,
         description: &str,
         task_template_id: i64,
