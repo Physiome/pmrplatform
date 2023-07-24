@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nINSERT INTO profile_views (\n    profile_id,\n    view_task_template_id\n)\nVALUES ( ?1, ?2 )\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "db4a4cfb4d2c3c112c6e88e87749a5bdf1251002a6dbb3b0f3c1f50af92963f2"
+}
