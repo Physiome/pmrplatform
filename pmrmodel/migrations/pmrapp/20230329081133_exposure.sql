@@ -126,6 +126,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS profile__profile_title ON profile(title);
 -- types.  Rather than calling this `profile_view_task_template`, the
 -- task_template is only a means to the end - which is producing the
 -- view itself.
+-- Table ending as a plural to indicate a simple joiner table that
+-- intends to be an intermediate.
 CREATE TABLE IF NOT EXISTS profile_views (
     id INTEGER PRIMARY KEY NOT NULL,
     profile_id INTEGER NOT NULL,

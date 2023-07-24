@@ -5,7 +5,6 @@ use crate::{
         Profile,
         ViewTaskTemplate,
         ViewTaskTemplates,
-        ProfileView,
         ViewTaskTemplateProfile,
     },
 };
@@ -17,7 +16,7 @@ pub trait ProfileBackend {
         title: &str,
         description: &str,
     ) -> Result<i64, BackendError>;
-    async fn update_profile(
+    async fn update_profile_by_fields(
         &self,
         id: i64,
         title: &str,
@@ -39,7 +38,7 @@ pub trait ViewTaskTemplateBackend {
         description: &str,
         task_template_id: i64,
     ) -> Result<i64, BackendError>;
-    async fn update_view_task_template(
+    async fn update_view_task_template_by_fields(
         &self,
         id: i64,
         view_key: &str,
@@ -55,14 +54,15 @@ pub trait ViewTaskTemplateBackend {
 #[async_trait]
 pub trait ProfileViewsBackend {
     // TODO determine if exposing these low level records are necessary.
-    async fn insert_profile_view(
+    async fn insert_profile_views(
         &self,
         profile_id: i64,
         view_task_template_id: i64,
-    ) -> Result<ProfileView, BackendError>;
-    async fn delete_profile_view(
+    ) -> Result<i64, BackendError>;
+    async fn delete_profile_views_by_fields(
         &self,
-        profile_view: ProfileView
+        profile_id: i64,
+        view_task_template_id: i64,
     ) -> Result<bool, BackendError>;
     // this returns the records external to the table that this trait
     // suppposedly manages.

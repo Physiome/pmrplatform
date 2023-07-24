@@ -31,7 +31,7 @@ VALUES ( ?1, ?2 )
     Ok(id)
 }
 
-async fn update_profile_sqlite(
+async fn update_profile_by_fields_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
     title: &str,
@@ -87,13 +87,13 @@ impl ProfileBackend for SqliteBackend {
     ) -> Result<i64, BackendError> {
         insert_profile_sqlite(&self, title, description).await
     }
-    async fn update_profile(
+    async fn update_profile_by_fields(
         &self,
         id: i64,
         title: &str,
         description: &str,
     ) -> Result<bool, BackendError> {
-        update_profile_sqlite(&self, id, title, description).await
+        update_profile_by_fields_sqlite(&self, id, title, description).await
     }
     async fn select_profile_by_id(
         &self,
@@ -129,7 +129,7 @@ mod testing {
             description: "".to_string(),
         });
 
-        assert!(b.update_profile(
+        assert!(b.update_profile_by_fields(
             profile_id,
             "Updated Title",
             "Updated Description",

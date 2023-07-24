@@ -41,7 +41,7 @@ VALUES ( ?1, ?2, ?3, ?4 )
     Ok(id)
 }
 
-async fn update_view_task_template_sqlite(
+async fn update_view_task_template_by_fields_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
     view_key: &str,
@@ -111,14 +111,14 @@ impl ViewTaskTemplateBackend for SqliteBackend {
             task_template_id,
         ).await
     }
-    async fn update_view_task_template(
+    async fn update_view_task_template_by_fields(
         &self,
         id: i64,
         view_key: &str,
         description: &str,
         task_template_id: i64,
     ) -> Result<bool, BackendError> {
-        update_view_task_template_sqlite(
+        update_view_task_template_by_fields_sqlite(
             &self,
             id,
             view_key,
@@ -169,7 +169,7 @@ mod testing {
         });
 
         set_timestamp(1357924680);
-        assert!(b.update_view_task_template(
+        assert!(b.update_view_task_template_by_fields(
             view_task_template_id,
             "final_view",
             "This is a finalized view.",
