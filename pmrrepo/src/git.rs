@@ -783,6 +783,7 @@ mod tests {
             description: None,
             long_description: None,
             created_ts: 1234567890,
+            exposures: None,
         };
         let pmrbackend = PmrBackendW::new(mock_backend, git_root.path().to_owned().to_path_buf(), &workspace);
         pmrbackend.git_sync_workspace().await?;
@@ -971,6 +972,7 @@ mod tests {
             description: Some("demo workspace 10".to_string()),
             long_description: None,
             created_ts: 1234567890,
+            exposures: None,
         };
 
         let pmrbackend = PmrBackendWR::new(
@@ -1011,6 +1013,7 @@ mod tests {
             superceded_by_id: None,
             long_description: None,
             created_ts: 1234567890,
+            exposures: None,
         };
 
         let mut mock_backend = MockBackend::new();
@@ -1025,6 +1028,7 @@ mod tests {
                 superceded_by_id: None,
                 long_description: None,
                 created_ts: 1234567890,
+                exposures: None,
             }].into()));
         let pmrbackend = PmrBackendWR::new(
             &mock_backend,
@@ -1118,6 +1122,7 @@ mod tests {
             superceded_by_id: None,
             long_description: None,
             created_ts: 1234567890,
+            exposures: None,
         };
         let mock_backend = MockBackend::new();
         let pmrbackend = PmrBackendWR::new(
@@ -1301,6 +1306,7 @@ mod tests {
             superceded_by_id: None,
             long_description: None,
             created_ts: 1234567890,
+            exposures: None,
         };
         let mock_backend = MockBackend::new();
         let pmrbackend = PmrBackendWR::new(

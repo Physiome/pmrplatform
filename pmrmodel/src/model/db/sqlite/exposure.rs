@@ -188,8 +188,17 @@ impl ExposureBackend for SqliteBackend {
 
 #[cfg(test)]
 pub(crate) mod testing {
-    use pmrmodel_base::exposure::Exposure;
-    use pmrmodel_base::exposure::traits::ExposureBackend;
+    use pmrmodel_base::{
+        exposure::{
+            Exposure,
+            traits::{
+                Backend,
+                Exposure as _,
+                ExposureBackend,
+            },
+        },
+        workspace::traits::Workspace,
+    };
     use crate::backend::db::{
         Profile,
         SqliteBackend,
@@ -230,6 +239,12 @@ pub(crate) mod testing {
             files: None,
             // files: Some([].to_vec().into()),
         });
+
+        let workspace = Backend::get_workspace(&backend, id).await?;
+        assert_eq!(workspace.id(), workspace_id);
+        let exposures = workspace.exposures().await?;
+        assert_eq!(exposures.len(), 1);
+        assert_eq!(exposures[0].id(), exposure.id);
         Ok(())
     }
 

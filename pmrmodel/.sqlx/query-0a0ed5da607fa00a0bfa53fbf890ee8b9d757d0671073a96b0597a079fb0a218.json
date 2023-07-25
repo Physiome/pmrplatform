@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\nSELECT\n    id,\n    url,\n    superceded_by_id,\n    description,\n    long_description,\n    created_ts\nFROM\n    workspace\nORDER BY\n    id\n            ",
+  "query": "\nSELECT\n    id,\n    url,\n    superceded_by_id,\n    description,\n    long_description,\n    created_ts\nFROM\n    workspace\nWHERE\n    id = ?1\n        ",
   "describe": {
     "columns": [
       {
@@ -35,7 +35,7 @@
       }
     ],
     "parameters": {
-      "Right": 0
+      "Right": 1
     },
     "nullable": [
       false,
@@ -46,5 +46,5 @@
       false
     ]
   },
-  "hash": "9460a4282a6a4723899546c32706e100c052d0febfd4ea2424e880e668b2af8a"
+  "hash": "0a0ed5da607fa00a0bfa53fbf890ee8b9d757d0671073a96b0597a079fb0a218"
 }

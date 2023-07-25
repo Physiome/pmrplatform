@@ -8,11 +8,13 @@ use crate::exposure::{
     ExposureFileViews,
     traits,
 };
+use crate::workspace::WorkspaceRef;
 
 pub struct ExposureRef<'a, Backend: traits::Backend + Sized> {
     pub(super) inner: Exposure,
     pub(super) files: OnceLock<ExposureFileRefs<'a, Backend>>,
     pub(super) backend: &'a Backend,
+    pub(super) parent: OnceLock<WorkspaceRef<'a, Backend>>,
 }
 
 pub struct ExposureRefs<'a, B: traits::Backend + Sized>(pub(super) Vec<ExposureRef<'a, B>>);
@@ -44,6 +46,7 @@ impl Exposure {
             // TODO verify that inner.files is also None?
             files: OnceLock::new(),
             backend: backend,
+            parent: OnceLock::new(),
         }
     }
 }

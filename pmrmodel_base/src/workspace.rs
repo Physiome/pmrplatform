@@ -1,5 +1,6 @@
 use num_enum::FromPrimitive;
 use serde::{Deserialize, Serialize};
+use crate::exposure::Exposures;
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Workspace {
@@ -9,6 +10,8 @@ pub struct Workspace {
     pub description: Option<String>,
     pub long_description: Option<String>,
     pub created_ts: i64,
+
+    pub exposures: Option<Exposures>,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -53,3 +56,9 @@ pub struct WorkspaceTag {
 mod display;
 mod impls;
 pub mod traits;
+mod refs;
+
+pub use refs::{
+    WorkspaceRef,
+    WorkspaceRefs,
+};

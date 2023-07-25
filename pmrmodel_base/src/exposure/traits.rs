@@ -5,10 +5,11 @@ use crate::{
         ValueError,
     },
     exposure,
+    workspace,
 };
 
 #[async_trait]
-pub trait Exposure<'a, S> {
+pub trait Exposure<'a, S, P> {
     fn id(&self) -> i64;
     fn workspace_id(&self) -> i64;
     fn workspace_tag_id(&self) -> Option<i64>;
@@ -16,6 +17,7 @@ pub trait Exposure<'a, S> {
     fn created_ts(&self) -> i64;
     fn default_file_id(&self) -> Option<i64>;
     async fn files(&'a self) -> Result<&'a S, ValueError>;
+    async fn workspace(&'a self) -> Result<&'a P, ValueError>;
 }
 
 #[async_trait]
@@ -141,7 +143,11 @@ pub trait ExposureFileViewBackend {
 }
 
 #[async_trait]
-pub trait Backend: ExposureBackend + ExposureFileBackend + ExposureFileViewBackend {
+pub trait Backend: workspace::traits::WorkspaceBackend
+    + ExposureBackend
+    + ExposureFileBackend
+    + ExposureFileViewBackend
+{
     /// get the `ExposureRef` by the provided `id`
     async fn get_exposure<'a>(
         &'a self,
@@ -213,5 +219,34 @@ pub trait Backend: ExposureBackend + ExposureFileBackend + ExposureFileViewBacke
             .await
             .map(|v| v.bind(self))
     }
+
+    /// get the `WorkspaceRef` by the provided `id`
+    async fn get_workspace<'a>(
+        &'a self,
+        id: i64,
+    ) -> Result<workspace::WorkspaceRef<'a, Self>, BackendError>
+        where Self: Sized
+    {
+        // WorkspaceBackend::get_id(self, id)
+        workspace::traits::WorkspaceBackend::get_workspace_by_id(self, id)
+            .await
+            .map(|v| v.bind(self))
+    }
+
+    /// get the `WorkspaceRef` by the provided `id`
+    async fn list_workspaces<'a>(
+        &'a self,
+    ) -> Result<workspace::WorkspaceRefs<'a, Self>, BackendError>
+        where Self: Sized
+    {
+        workspace::traits::WorkspaceBackend::list_workspaces(self)
+            .await
+            .map(|v| v.bind(self).into())
+    }
+
 }
-impl<B: ExposureBackend + ExposureFileBackend + ExposureFileViewBackend> Backend for B {}
+impl<B: workspace::traits::WorkspaceBackend
+    + ExposureBackend
+    + ExposureFileBackend
+    + ExposureFileViewBackend
+> Backend for B {}

@@ -16,18 +16,16 @@ use crate::{
     backend::db::SqliteBackend,
 };
 
-#[async_trait]
-impl WorkspaceBackend for SqliteBackend {
-    async fn add_workspace(
-        &self,
-        url: &str,
-        description: &str,
-        long_description: &str,
-    ) -> Result<i64, BackendError> {
-        let ts = Utc::now().timestamp();
 
-        let id = sqlx::query!(
-            r#"
+async fn add_workspace_sqlite(
+    backend: &SqliteBackend,
+    url: &str,
+    description: &str,
+    long_description: &str,
+) -> Result<i64, BackendError> {
+    let ts = Utc::now().timestamp();
+    let id = sqlx::query!(
+        r#"
 INSERT INTO workspace (
     url,
     superceded_by_id,
@@ -36,48 +34,48 @@ INSERT INTO workspace (
     created_ts
 )
 VALUES ( ?1, ?2, ?3, ?4, ?5 )
-            "#,
-            url,
-            None::<i64>,
-            description,
-            long_description,
-            ts,
-        )
-        .execute(&*self.pool)
-        .await?
-        .last_insert_rowid();
+        "#,
+        url,
+        None::<i64>,
+        description,
+        long_description,
+        ts,
+    )
+    .execute(&*backend.pool)
+    .await?
+    .last_insert_rowid();
 
-        Ok(id)
-    }
+    Ok(id)
+}
 
-    async fn update_workspace(
-        &self,
-        id: i64,
-        description: &str,
-        long_description: &str,
-    ) -> Result<bool, BackendError> {
-        let rows_affected = sqlx::query!(
-            r#"
-UPDATE workspace
-SET description = ?1, long_description = ?2
-WHERE id = ?3
-            "#,
-            description,
-            long_description,
-            id,
-        )
-        .execute(&*self.pool)
-        .await?
-        .rows_affected();
+async fn update_workspace_sqlite(
+    backend: &SqliteBackend,
+    id: i64,
+    description: &str,
+    long_description: &str,
+) -> Result<bool, BackendError> {
+    let rows_affected = sqlx::query!(r#"
+UPDATE
+    workspace
+SET
+    description = ?1,
+    long_description = ?2
+WHERE
+    id = ?3"#,
+        description,
+        long_description,
+        id,
+    )
+    .execute(&*backend.pool)
+    .await?
+    .rows_affected();
+    Ok(rows_affected > 0)
+}
 
-        Ok(rows_affected > 0)
-    }
-
-    async fn list_workspaces(
-        &self,
-    ) -> Result<Workspaces, BackendError> {
-        let recs = sqlx::query_as!(Workspace,
-            r#"
+async fn list_workspaces_sqlite(
+    backend: &SqliteBackend,
+) -> Result<Workspaces, BackendError> {
+    let recs = sqlx::query!(r#"
 SELECT
     id,
     url,
@@ -89,20 +87,28 @@ FROM
     workspace
 ORDER BY
     id
-            "#
-        )
-        .fetch_all(&*self.pool)
-        .await?;
-        Ok(recs.into())
-    }
+        "#
+    )
+    .map(|row| Workspace {
+        id: row.id,
+        url: row.url,
+        superceded_by_id: row.superceded_by_id,
+        description: row.description,
+        long_description: row.long_description,
+        created_ts: row.created_ts,
+        exposures: None,
+    })
+    .fetch_all(&*backend.pool)
+    .await?;
+    Ok(recs.into())
+}
 
-    async fn get_workspace_by_id(
-        &self,
-        id: i64,
-    ) -> Result<Workspace, BackendError> {
-        // ignoring superceded_by_id for now?
-        let rec = sqlx::query_as!(Workspace,
-            r#"
+async fn get_workspace_by_id_sqlite(
+    backend: &SqliteBackend,
+    id: i64,
+) -> Result<Workspace, BackendError> {
+    // ignoring superceded_by_id for now?
+    let rec = sqlx::query!(r#"
 SELECT
     id,
     url,
@@ -114,20 +120,28 @@ FROM
     workspace
 WHERE
     id = ?1
-            "#,
-            id,
-        )
-        .fetch_one(&*self.pool)
-        .await?;
-        Ok(rec)
-    }
+        "#,
+        id,
+    )
+    .map(|row| Workspace {
+        id: row.id,
+        url: row.url,
+        superceded_by_id: row.superceded_by_id,
+        description: row.description,
+        long_description: row.long_description,
+        created_ts: row.created_ts,
+        exposures: None,
+    })
+    .fetch_one(&*backend.pool)
+    .await?;
+    Ok(rec)
+}
 
-    async fn list_workspace_by_url(
-        &self,
-        url: &str,
-    ) -> Result<Workspaces, BackendError> {
-        let rec = sqlx::query_as!(Workspace,
-            r#"
+async fn list_workspaces_by_url_sqlite(
+    backend: &SqliteBackend,
+    url: &str,
+) -> Result<Workspaces, BackendError> {
+    let recs = sqlx::query!(r#"
 SELECT
     id,
     url,
@@ -139,12 +153,71 @@ FROM
     workspace
 WHERE
     url = ?1
-            "#,
+        "#,
+        url,
+    )
+    .map(|row| Workspace {
+        id: row.id,
+        url: row.url,
+        superceded_by_id: row.superceded_by_id,
+        description: row.description,
+        long_description: row.long_description,
+        created_ts: row.created_ts,
+        exposures: None,
+    })
+    .fetch_all(&*backend.pool)
+    .await?;
+    Ok(recs.into())
+}
+
+#[async_trait]
+impl WorkspaceBackend for SqliteBackend {
+    async fn add_workspace(
+        &self,
+        url: &str,
+        description: &str,
+        long_description: &str,
+    ) -> Result<i64, BackendError> {
+        add_workspace_sqlite(
+            &self,
             url,
-        )
-        .fetch_all(&*self.pool)
-        .await?;
-        Ok(rec.into())
+            description,
+            long_description,
+        ).await
+    }
+
+    async fn update_workspace(
+        &self,
+        id: i64,
+        description: &str,
+        long_description: &str,
+    ) -> Result<bool, BackendError> {
+        update_workspace_sqlite(
+            &self,
+            id,
+            description,
+            long_description,
+        ).await
+    }
+
+    async fn list_workspaces(
+        &self,
+    ) -> Result<Workspaces, BackendError> {
+        list_workspaces_sqlite(&self).await
+    }
+
+    async fn get_workspace_by_id(
+        &self,
+        id: i64,
+    ) -> Result<Workspace, BackendError> {
+        get_workspace_by_id_sqlite(&self, id).await
+    }
+
+    async fn list_workspace_by_url(
+        &self,
+        url: &str,
+    ) -> Result<Workspaces, BackendError> {
+        list_workspaces_by_url_sqlite(&self, url).await
     }
 }
 
@@ -186,6 +259,7 @@ pub(crate) mod testing {
             created_ts: 1234567890,
             description: Some("".into()),
             long_description: Some("".into()),
+            exposures: None,
         };
         assert_eq!(workspace, answer);
         Ok(())
@@ -241,6 +315,7 @@ pub(crate) mod testing {
             created_ts: 1234567890,
             description: Some("title".into()),
             long_description: Some("description".into()),
+            exposures: None,
         });
         Ok(())
     }

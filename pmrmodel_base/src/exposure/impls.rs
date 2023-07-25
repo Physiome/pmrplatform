@@ -2,6 +2,10 @@ use async_trait::async_trait;
 use std::ops::{Deref, DerefMut};
 use crate::error::ValueError;
 use crate::exposure::*;
+use crate::workspace::{
+    Workspace,
+    WorkspaceRef,
+};
 
 impl From<Vec<Exposure>> for Exposures {
     fn from(args: Vec<Exposure>) -> Self {
@@ -142,7 +146,7 @@ impl<'a, B: traits::Backend + Sized> Deref for ExposureFileViewRefs<'a, B> {
 }
 
 #[async_trait]
-impl<'a> traits::Exposure<'a, ExposureFiles> for Exposure {
+impl<'a> traits::Exposure<'a, ExposureFiles, Workspace> for Exposure {
     fn id(&self) -> i64 {
         self.id
     }
@@ -164,10 +168,16 @@ impl<'a> traits::Exposure<'a, ExposureFiles> for Exposure {
     async fn files(&'a self) -> Result<&ExposureFiles, ValueError> {
         Ok(self.files.as_ref().ok_or(ValueError::Uninitialized)?)
     }
+    async fn workspace(&'a self) -> Result<&Workspace, ValueError> {
+        // reference to parent is not provided, so simply uninitialized
+        Err(ValueError::Uninitialized)
+    }
 }
 
 #[async_trait]
-impl<'a, B: traits::Backend + Sized + Sync> traits::Exposure<'a, ExposureFileRefs<'a, B>> for ExposureRef<'a, B> {
+impl<'a, B: traits::Backend + Sized + Sync>
+    traits::Exposure<'a, ExposureFileRefs<'a, B>, WorkspaceRef<'a, B>>
+for ExposureRef<'a, B> {
     fn id(&self) -> i64 {
         self.inner.id
     }
@@ -197,6 +207,22 @@ impl<'a, B: traits::Backend + Sized + Sync> traits::Exposure<'a, ExposureFileRef
                     instance accessed backend"
                 ));
                 Ok(self.files.get().expect("files just been set!"))
+            }
+        }
+    }
+    async fn workspace(
+        &'a self
+    ) -> Result<&'a WorkspaceRef<'a, B>, ValueError> {
+        match self.parent.get() {
+            Some(parent) => Ok(parent),
+            None => {
+                self.parent.set(
+                    self.backend.get_workspace(self.inner.workspace_id).await?
+                ).unwrap_or_else(|_| log::warn!(
+                    "concurrent call to the same ExposureRef.workspace() \
+                    instance accessed backend"
+                ));
+                Ok(self.parent.get().expect("parent just been set!"))
             }
         }
     }
