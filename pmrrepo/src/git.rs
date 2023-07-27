@@ -72,13 +72,13 @@ use crate::{
 mod util;
 use util::*;
 
-pub struct PmrBackendW<'a, P: Platform> {
+pub struct HandleW<'a, P: Platform> {
     platform: &'a P,
     git_root: PathBuf,
     pub workspace: &'a Workspace,
 }
 
-pub struct PmrBackendWR<'a, P: Platform> {
+pub struct HandleWR<'a, P: Platform> {
     platform: &'a P,
     git_root: PathBuf,
     pub workspace: &'a Workspace,
@@ -317,7 +317,7 @@ pub async fn stream_blob(
 }
 
 fn get_submodule_target<P: Platform>(
-    pmrbackend: &PmrBackendWR<P>,
+    pmrbackend: &HandleWR<P>,
     commit: &Commit,
     path: &str,
 ) -> Result<String, PmrRepoError> {
@@ -369,7 +369,7 @@ fn get_submodule_target<P: Platform>(
     }.into())
 }
 
-impl<'a, P: Platform> PmrBackendW<'a, P> {
+impl<'a, P: Platform> HandleW<'a, P> {
     pub fn new(
         platform: &'a P,
         git_root: PathBuf,
@@ -382,7 +382,7 @@ impl<'a, P: Platform> PmrBackendW<'a, P> {
         }
     }
 
-    pub async fn git_sync_workspace(self) -> Result<PmrBackendWR<'a, P>, PmrRepoError> {
+    pub async fn git_sync_workspace(self) -> Result<HandleWR<'a, P>, PmrRepoError> {
         // using libgit2 as mature protocol support is desired.
         let repo_dir = self.git_root.join(self.workspace.id.to_string());
         let repo_check = git2::Repository::open_bare(&repo_dir);
@@ -432,7 +432,7 @@ impl<'a, P: Platform> PmrBackendW<'a, P> {
         }
 
         WorkspaceSyncBackend::complete_sync(self.platform, sync_id, WorkspaceSyncStatus::Completed).await?;
-        let result = PmrBackendWR::new(self.platform, self.git_root, &self.workspace)?;
+        let result = HandleWR::new(self.platform, self.git_root, &self.workspace)?;
         result.index_tags().await?;
 
         Ok(result)
@@ -440,7 +440,7 @@ impl<'a, P: Platform> PmrBackendW<'a, P> {
 }
 
 
-impl<'a, P: Platform> PmrBackendWR<'a, P> {
+impl<'a, P: Platform> HandleWR<'a, P> {
     pub fn new(
         platform: &'a P,
         git_root: PathBuf,
@@ -640,7 +640,7 @@ impl<'a, P: Platform> PmrBackendWR<'a, P> {
                 }
                 // TODO need to derive this for this specific workspace
                 // for now, just use the first result.
-                let pmrbackend = PmrBackendWR::new(
+                let pmrbackend = HandleWR::new(
                     self.platform, self.git_root.clone(), &workspaces[0])?;
                 let git_result = pmrbackend.pathinfo(
                     Some(commit), Some(path),
@@ -953,7 +953,7 @@ mod tests {
             created_ts: 1234567890,
             exposures: None,
         };
-        let pmrbackend = PmrBackendW::new(mock_backend, git_root.path().to_owned().to_path_buf(), &workspace);
+        let pmrbackend = HandleW::new(mock_backend, git_root.path().to_owned().to_path_buf(), &workspace);
         pmrbackend.git_sync_workspace().await?;
         Ok(())
     }
@@ -1143,7 +1143,7 @@ mod tests {
             exposures: None,
         };
 
-        let pmrbackend = PmrBackendWR::new(
+        let pmrbackend = HandleWR::new(
             &mock_backend,
             git_root.path().to_path_buf(),
             &workspace,
@@ -1198,7 +1198,7 @@ mod tests {
                 created_ts: 1234567890,
                 exposures: None,
             }].into()));
-        let pmrbackend = PmrBackendWR::new(
+        let pmrbackend = HandleWR::new(
             &mock_backend,
             git_root.path().to_path_buf(),
             &repodata_workspace,
@@ -1293,7 +1293,7 @@ mod tests {
             exposures: None,
         };
         let mock_backend = MockBackend::new();
-        let pmrbackend = PmrBackendWR::new(
+        let pmrbackend = HandleWR::new(
             &mock_backend,
             git_root.path().to_path_buf(),
             &repodata_workspace,
@@ -1477,7 +1477,7 @@ mod tests {
             exposures: None,
         };
         let mock_backend = MockBackend::new();
-        let pmrbackend = PmrBackendWR::new(
+        let pmrbackend = HandleWR::new(
             &mock_backend,
             git_root.path().to_path_buf(),
             &repodata_workspace,

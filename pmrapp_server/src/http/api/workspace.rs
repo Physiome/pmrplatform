@@ -6,7 +6,7 @@ use axum::{
 };
 use pmrrepo::git::{
     WorkspaceGitResult,
-    PmrBackendWR,
+    HandleWR,
 };
 use pmrmodel_base::{
     merged::WorkspacePathInfo,
@@ -50,12 +50,12 @@ pub async fn api_workspace_top(
         Ok(workspace) => workspace,
         Err(_) => return Err(Error::NotFound),
     };
-    let commit_id = match PmrBackendWR::new(
+    let commit_id = match HandleWR::new(
         &ctx.backend,
         PathBuf::from(&ctx.config.pmr_git_root),
         &workspace
     ) {
-        Ok(pmrbackend) => match pmrbackend.pathinfo(None, None) {
+        Ok(handle) => match handle.pathinfo(None, None) {
             Ok(result) => Some(format!("{}", result.commit.id())),
             Err(_) => None,
         },
@@ -75,18 +75,18 @@ pub async fn api_workspace_top_ssr(
         Ok(workspace) => workspace,
         Err(_) => return Err(Error::NotFound),
     };
-    let pmrbackend = PmrBackendWR::new(
+    let handle = HandleWR::new(
         &ctx.backend,
         PathBuf::from(&ctx.config.pmr_git_root),
         &workspace
     )?;
 
-    let (head_commit, path_info) = match pmrbackend.pathinfo(None, None) {
+    let (head_commit, path_info) = match handle.pathinfo(None, None) {
         Ok(result) => (
             Some(format!("{}", result.commit.id())),
             Some(<WorkspacePathInfo>::from(
                 &WorkspaceGitResult::new(
-                    &pmrbackend.workspace,
+                    &handle.workspace,
                     &result,
                 )
             )),
@@ -112,13 +112,13 @@ async fn api_workspace_pathinfo(
         Ok(workspace) => workspace,
         Err(_) => return Err(Error::NotFound),
     };
-    let pmrbackend = PmrBackendWR::new(
+    let handle = HandleWR::new(
         &ctx.backend,
         PathBuf::from(&ctx.config.pmr_git_root),
         &workspace
     )?;
 
-    let result = match pmrbackend.pathinfo(
+    let result = match handle.pathinfo(
         commit_id.as_deref(),
         path.as_deref(),
     ) {
@@ -130,7 +130,7 @@ async fn api_workspace_pathinfo(
         ))),
         Err(e) => {
             // TODO log the URI triggering these messages?
-            log::info!("pmrbackend.pathinfo error: {:?}", e);
+            log::info!("handle.pathinfo error: {:?}", e);
             Err(Error::NotFound)
         }
     };

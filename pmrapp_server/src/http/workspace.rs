@@ -13,7 +13,7 @@ use pmrmodel_base::{
 use pmrrepo::git::{
     Kind,
     GitResultTarget,
-    PmrBackendWR,
+    HandleWR,
 };
 use std::{
     io::Write,
@@ -112,23 +112,23 @@ async fn raw_workspace_pathinfo_workspace_id_commit_id_path(
         Ok(workspace) => workspace,
         Err(_) => return Error::NotFound.into_response(),
     };
-    let pmrbackend = match PmrBackendWR::new(
+    let handle = match HandleWR::new(
         &ctx.backend,
         PathBuf::from(&ctx.config.pmr_git_root),
         &workspace
     ) {
-        Ok(pmrbackend) => pmrbackend,
+        Ok(handle) => handle,
         Err(e) => return Error::from(e).into_response()
     };
 
-    let result = match pmrbackend.pathinfo(
+    let result = match handle.pathinfo(
         Some(&commit_id),
         Some(&filepath),
     ) {
         Ok(result) => {
             let mut buffer = <Vec<u8>>::new();
             // The following is a !Send Future (async) so....
-            // pmrbackend.stream_result_blob(&mut blob, &result).await?;
+            // handle.stream_result_blob(&mut blob, &result).await?;
             // Ok(blob)
 
             match &result.target {
@@ -167,7 +167,7 @@ async fn raw_workspace_pathinfo_workspace_id_commit_id_path(
         },
         Err(e) => {
             // TODO log the URI triggering these messages?
-            log::info!("pmrbackend.pathinfo error: {:?}", e);
+            log::info!("handle.pathinfo error: {:?}", e);
             Err(Error::NotFound)
         }
     };
