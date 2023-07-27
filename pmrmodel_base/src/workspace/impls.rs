@@ -4,10 +4,8 @@ use std::ops::{
     DerefMut,
 };
 use crate::error::ValueError;
-use crate::exposure::{
-    traits::Backend,
-    ExposureRefs,
-};
+use crate::exposure::ExposureRefs;
+use crate::platform::Platform;
 use crate::workspace::*;
 
 impl From<Vec<Workspace>> for Workspaces {
@@ -36,20 +34,20 @@ impl DerefMut for Workspaces {
     }
 }
 
-impl<'a, B: Backend + Sized> From<Vec<WorkspaceRef<'a, B>>> for WorkspaceRefs<'a, B> {
-    fn from(args: Vec<WorkspaceRef<'a, B>>) -> Self {
+impl<'a, P: Platform + Sized> From<Vec<WorkspaceRef<'a, P>>> for WorkspaceRefs<'a, P> {
+    fn from(args: Vec<WorkspaceRef<'a, P>>) -> Self {
         Self(args)
     }
 }
 
-impl<'a, B: Backend + Sized, const N: usize> From<[WorkspaceRef<'a, B>; N]> for WorkspaceRefs<'a, B> {
-    fn from(args: [WorkspaceRef<'a, B>; N]) -> Self {
+impl<'a, P: Platform + Sized, const N: usize> From<[WorkspaceRef<'a, P>; N]> for WorkspaceRefs<'a, P> {
+    fn from(args: [WorkspaceRef<'a, P>; N]) -> Self {
         Self(args.into())
     }
 }
 
-impl<'a, B: Backend + Sized> Deref for WorkspaceRefs<'a, B> {
-    type Target = Vec<WorkspaceRef<'a, B>>;
+impl<'a, P: Platform + Sized> Deref for WorkspaceRefs<'a, P> {
+    type Target = Vec<WorkspaceRef<'a, P>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -82,7 +80,7 @@ impl<'a> traits::Workspace<'a, Exposures> for Workspace {
 }
 
 #[async_trait]
-impl<'a, B: Backend + Sized + Sync> traits::Workspace<'a, ExposureRefs<'a, B>> for WorkspaceRef<'a, B> {
+impl<'a, P: Platform + Sized + Sync> traits::Workspace<'a, ExposureRefs<'a, P>> for WorkspaceRef<'a, P> {
     fn id(&self) -> i64 {
         self.inner.id
     }
@@ -101,15 +99,15 @@ impl<'a, B: Backend + Sized + Sync> traits::Workspace<'a, ExposureRefs<'a, B>> f
     fn created_ts(&self) -> i64 {
         self.inner.created_ts
     }
-    async fn exposures(&'a self) -> Result<&'a ExposureRefs<'a, B>, ValueError> {
+    async fn exposures(&'a self) -> Result<&'a ExposureRefs<'a, P>, ValueError> {
         match self.exposures.get() {
             Some(exposures) => Ok(exposures),
             None => {
                 self.exposures.set(
-                    self.backend.get_exposures(self.inner.id).await?
+                    self.platform.get_exposures(self.inner.id).await?
                 ).unwrap_or_else(|_| log::warn!(
                     "concurrent call to the same WorkspaceRef.exposures() \
-                    instance accessed backend"
+                    instance accessed platform"
                 ));
                 Ok(self.exposures.get()
                     .expect("exposures should have been set just now!"))

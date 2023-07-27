@@ -1,49 +1,48 @@
 use std::sync::OnceLock;
 use crate::{
     exposure,
+    platform::Platform,
     workspace::{
         Workspace,
         Workspaces,
     },
 };
 
-pub struct WorkspaceRef<'a, Backend: exposure::traits::Backend + Sized> {
+pub struct WorkspaceRef<'a, P: Platform + Sized> {
     pub(super) inner: Workspace,
-    pub(super) exposures: OnceLock<exposure::ExposureRefs<'a, Backend>>,
-    // TODO if/when a platform that encapsulates all common thing,
-    // change this reference to that.
-    pub(super) backend: &'a Backend,
+    pub(super) exposures: OnceLock<exposure::ExposureRefs<'a, P>>,
+    pub(super) platform: &'a P,
 }
 
-pub struct WorkspaceRefs<'a, B: exposure::traits::Backend + Sized>(pub(super) Vec<WorkspaceRef<'a, B>>);
+pub struct WorkspaceRefs<'a, P: Platform + Sized>(pub(super) Vec<WorkspaceRef<'a, P>>);
 
 impl Workspace {
-    pub(crate) fn bind<'a, B: exposure::traits::Backend + Sized>(
+    pub(crate) fn bind<'a, P: Platform + Sized>(
         self,
-        backend: &'a B,
-    ) -> WorkspaceRef<'a, B> {
+        platform: &'a P,
+    ) -> WorkspaceRef<'a, P> {
         WorkspaceRef {
             inner: self,
             exposures: OnceLock::new(),
-            backend: backend,
+            platform: platform,
         }
     }
 }
 
 impl Workspaces {
-    pub(crate) fn bind<'a, B: exposure::traits::Backend + Sized>(
+    pub(crate) fn bind<'a, P: Platform + Sized>(
         self,
-        backend: &'a B,
-    ) -> WorkspaceRefs<'a, B> {
+        platform: &'a P,
+    ) -> WorkspaceRefs<'a, P> {
         self.0
             .into_iter()
-            .map(|v| v.bind(backend))
+            .map(|v| v.bind(platform))
             .collect::<Vec<_>>()
             .into()
     }
 }
 
-impl<B: exposure::traits::Backend + Sized> WorkspaceRef<'_, B> {
+impl<P: Platform + Sized> WorkspaceRef<'_, P> {
     pub fn into_inner(self) -> Workspace {
         self.inner
     }

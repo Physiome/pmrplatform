@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use std::ops::{Deref, DerefMut};
 use crate::error::ValueError;
 use crate::exposure::*;
+use crate::platform::Platform;
 use crate::workspace::{
     Workspace,
     WorkspaceRef,
@@ -33,20 +34,20 @@ impl DerefMut for Exposures {
     }
 }
 
-impl<'a, B: traits::Backend + Sized> From<Vec<ExposureRef<'a, B>>> for ExposureRefs<'a, B> {
-    fn from(args: Vec<ExposureRef<'a, B>>) -> Self {
+impl<'a, P: Platform + Sized> From<Vec<ExposureRef<'a, P>>> for ExposureRefs<'a, P> {
+    fn from(args: Vec<ExposureRef<'a, P>>) -> Self {
         Self(args)
     }
 }
 
-impl<'a, B: traits::Backend + Sized, const N: usize> From<[ExposureRef<'a, B>; N]> for ExposureRefs<'a, B> {
-    fn from(args: [ExposureRef<'a, B>; N]) -> Self {
+impl<'a, P: Platform + Sized, const N: usize> From<[ExposureRef<'a, P>; N]> for ExposureRefs<'a, P> {
+    fn from(args: [ExposureRef<'a, P>; N]) -> Self {
         Self(args.into())
     }
 }
 
-impl<'a, B: traits::Backend + Sized> Deref for ExposureRefs<'a, B> {
-    type Target = Vec<ExposureRef<'a, B>>;
+impl<'a, P: Platform + Sized> Deref for ExposureRefs<'a, P> {
+    type Target = Vec<ExposureRef<'a, P>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -79,20 +80,20 @@ impl DerefMut for ExposureFiles {
     }
 }
 
-impl<'a, B: traits::Backend + Sized> From<Vec<ExposureFileRef<'a, B>>> for ExposureFileRefs<'a, B> {
-    fn from(args: Vec<ExposureFileRef<'a, B>>) -> Self {
+impl<'a, P: Platform + Sized> From<Vec<ExposureFileRef<'a, P>>> for ExposureFileRefs<'a, P> {
+    fn from(args: Vec<ExposureFileRef<'a, P>>) -> Self {
         Self(args)
     }
 }
 
-impl<'a, B: traits::Backend + Sized, const N: usize> From<[ExposureFileRef<'a, B>; N]> for ExposureFileRefs<'a, B> {
-    fn from(args: [ExposureFileRef<'a, B>; N]) -> Self {
+impl<'a, P: Platform + Sized, const N: usize> From<[ExposureFileRef<'a, P>; N]> for ExposureFileRefs<'a, P> {
+    fn from(args: [ExposureFileRef<'a, P>; N]) -> Self {
         Self(args.into())
     }
 }
 
-impl<'a, B: traits::Backend + Sized> Deref for ExposureFileRefs<'a, B> {
-    type Target = Vec<ExposureFileRef<'a, B>>;
+impl<'a, P: Platform + Sized> Deref for ExposureFileRefs<'a, P> {
+    type Target = Vec<ExposureFileRef<'a, P>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -125,20 +126,20 @@ impl DerefMut for ExposureFileViews {
     }
 }
 
-impl<'a, B: traits::Backend + Sized> From<Vec<ExposureFileViewRef<'a, B>>> for ExposureFileViewRefs<'a, B> {
-    fn from(args: Vec<ExposureFileViewRef<'a, B>>) -> Self {
+impl<'a, P: Platform + Sized> From<Vec<ExposureFileViewRef<'a, P>>> for ExposureFileViewRefs<'a, P> {
+    fn from(args: Vec<ExposureFileViewRef<'a, P>>) -> Self {
         Self(args)
     }
 }
 
-impl<'a, B: traits::Backend + Sized, const N: usize> From<[ExposureFileViewRef<'a, B>; N]> for ExposureFileViewRefs<'a, B> {
-    fn from(args: [ExposureFileViewRef<'a, B>; N]) -> Self {
+impl<'a, P: Platform + Sized, const N: usize> From<[ExposureFileViewRef<'a, P>; N]> for ExposureFileViewRefs<'a, P> {
+    fn from(args: [ExposureFileViewRef<'a, P>; N]) -> Self {
         Self(args.into())
     }
 }
 
-impl<'a, B: traits::Backend + Sized> Deref for ExposureFileViewRefs<'a, B> {
-    type Target = Vec<ExposureFileViewRef<'a, B>>;
+impl<'a, P: Platform + Sized> Deref for ExposureFileViewRefs<'a, P> {
+    type Target = Vec<ExposureFileViewRef<'a, P>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -175,9 +176,9 @@ impl<'a> traits::Exposure<'a, ExposureFiles, Workspace> for Exposure {
 }
 
 #[async_trait]
-impl<'a, B: traits::Backend + Sized + Sync>
-    traits::Exposure<'a, ExposureFileRefs<'a, B>, WorkspaceRef<'a, B>>
-for ExposureRef<'a, B> {
+impl<'a, P: Platform + Sized + Sync>
+    traits::Exposure<'a, ExposureFileRefs<'a, P>, WorkspaceRef<'a, P>>
+for ExposureRef<'a, P> {
     fn id(&self) -> i64 {
         self.inner.id
     }
@@ -196,15 +197,15 @@ for ExposureRef<'a, B> {
     fn default_file_id(&self) -> Option<i64> {
         self.inner.default_file_id
     }
-    async fn files(&'a self) -> Result<&'a ExposureFileRefs<'a, B>, ValueError> {
+    async fn files(&'a self) -> Result<&'a ExposureFileRefs<'a, P>, ValueError> {
         match self.files.get() {
             Some(files) => Ok(files),
             None => {
                 self.files.set(
-                    self.backend.get_exposure_files(self.inner.id).await?
+                    self.platform.get_exposure_files(self.inner.id).await?
                 ).unwrap_or_else(|_| log::warn!(
                     "concurrent call to the same ExposureRef.files() \
-                    instance accessed backend"
+                    instance accessed platform"
                 ));
                 Ok(self.files.get().expect("files just been set!"))
             }
@@ -212,15 +213,15 @@ for ExposureRef<'a, B> {
     }
     async fn workspace(
         &'a self
-    ) -> Result<&'a WorkspaceRef<'a, B>, ValueError> {
+    ) -> Result<&'a WorkspaceRef<'a, P>, ValueError> {
         match self.parent.get() {
             Some(parent) => Ok(parent),
             None => {
                 self.parent.set(
-                    self.backend.get_workspace(self.inner.workspace_id).await?
+                    self.platform.get_workspace(self.inner.workspace_id).await?
                 ).unwrap_or_else(|_| log::warn!(
                     "concurrent call to the same ExposureRef.workspace() \
-                    instance accessed backend"
+                    instance accessed platform"
                 ));
                 Ok(self.parent.get().expect("parent just been set!"))
             }
@@ -252,9 +253,9 @@ impl<'a> traits::ExposureFile<'a, ExposureFileViews, Exposure> for ExposureFile 
 }
 
 #[async_trait]
-impl<'a, B: traits::Backend + Sized + Sync>
-    traits::ExposureFile<'a, ExposureFileViewRefs<'a, B>, ExposureRef<'a, B>>
-for ExposureFileRef<'a, B> {
+impl<'a, P: Platform + Sized + Sync>
+    traits::ExposureFile<'a, ExposureFileViewRefs<'a, P>, ExposureRef<'a, P>>
+for ExposureFileRef<'a, P> {
     fn id(&self) -> i64 {
         self.inner.id
     }
@@ -269,15 +270,15 @@ for ExposureFileRef<'a, B> {
     }
     async fn views(
         &'a self
-    ) -> Result<&'a ExposureFileViewRefs<'a, B>, ValueError> {
+    ) -> Result<&'a ExposureFileViewRefs<'a, P>, ValueError> {
         match self.views.get() {
             Some(views) => Ok(views),
             None => {
                 self.views.set(
-                    self.backend.get_exposure_file_views(self.inner.id).await?
+                    self.platform.get_exposure_file_views(self.inner.id).await?
                 ).unwrap_or_else(|_| log::warn!(
                     "concurrent call to the same ExposureFileRef.views() \
-                    instance accessed backend"
+                    instance accessed platform"
                 ));
                 Ok(self.views.get().expect("views just been set!"))
             }
@@ -285,15 +286,15 @@ for ExposureFileRef<'a, B> {
     }
     async fn exposure(
         &'a self
-    ) -> Result<&'a ExposureRef<'a, B>, ValueError> {
+    ) -> Result<&'a ExposureRef<'a, P>, ValueError> {
         match self.parent.get() {
             Some(parent) => Ok(parent),
             None => {
                 self.parent.set(
-                    self.backend.get_exposure(self.inner.exposure_id).await?
+                    self.platform.get_exposure(self.inner.exposure_id).await?
                 ).unwrap_or_else(|_| log::warn!(
                     "concurrent call to the same ExposureFileRef.parent() \
-                    instance accessed backend"
+                    instance accessed platform"
                 ));
                 Ok(self.parent.get().expect("parent just been set!"))
             }
@@ -325,9 +326,9 @@ impl<'a> traits::ExposureFileView<'a, ExposureFile> for ExposureFileView {
 }
 
 #[async_trait]
-impl<'a, B: traits::Backend + Sized + Sync>
-    traits::ExposureFileView<'a, ExposureFileRef<'a, B>>
-for ExposureFileViewRef<'a, B> {
+impl<'a, P: Platform + Sized + Sync>
+    traits::ExposureFileView<'a, ExposureFileRef<'a, P>>
+for ExposureFileViewRef<'a, P> {
     fn id(&self) -> i64 {
         self.inner.id
     }
@@ -345,16 +346,16 @@ for ExposureFileViewRef<'a, B> {
     }
     async fn exposure_file(
         &'a self
-    ) -> Result<&'a ExposureFileRef<'a, B>, ValueError> {
+    ) -> Result<&'a ExposureFileRef<'a, P>, ValueError> {
         match self.parent.get() {
             Some(parent) => Ok(parent),
             None => {
                 self.parent.set(
-                    self.backend.get_exposure_file(self.inner.exposure_file_id)
+                    self.platform.get_exposure_file(self.inner.exposure_file_id)
                         .await?
                 ).unwrap_or_else(|_| log::warn!(
                     "concurrent call to the same ExposureFileViewRef.parent() \
-                    instance accessed backend"
+                    instance accessed platform"
                 ));
                 Ok(self.parent.get().expect("parent just been set!"))
             }

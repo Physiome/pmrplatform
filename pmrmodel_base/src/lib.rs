@@ -2,6 +2,7 @@ pub mod error;
 pub mod exposure;
 pub mod git;
 pub mod merged;
+pub mod platform;
 pub mod profile;
 pub mod task;
 pub mod task_template;
