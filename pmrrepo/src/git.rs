@@ -30,6 +30,7 @@ use pmrmodel_base::{
         PathObject,
         PathInfo,
     },
+    platform::Platform,
     workspace::{
         Workspace,
         WorkspaceSyncStatus,
@@ -44,7 +45,6 @@ use pmrmodel_base::{
     },
 };
 
-use pmrmodel::backend::db::PmrBackend;
 use pmrmodel::model::workspace_sync::{
     fail_sync,
 };
@@ -72,14 +72,14 @@ use crate::{
 mod util;
 use util::*;
 
-pub struct PmrBackendW<'a, P: PmrBackend> {
-    backend: &'a P,
+pub struct PmrBackendW<'a, P: Platform> {
+    platform: &'a P,
     git_root: PathBuf,
     pub workspace: &'a Workspace,
 }
 
-pub struct PmrBackendWR<'a, P: PmrBackend> {
-    backend: &'a P,
+pub struct PmrBackendWR<'a, P: Platform> {
+    platform: &'a P,
     git_root: PathBuf,
     pub workspace: &'a Workspace,
     pub repo: Repository,
@@ -316,7 +316,7 @@ pub async fn stream_blob(
     writer.write(&blob.data)
 }
 
-fn get_submodule_target<P: PmrBackend>(
+fn get_submodule_target<P: Platform>(
     pmrbackend: &PmrBackendWR<P>,
     commit: &Commit,
     path: &str,
@@ -369,25 +369,14 @@ fn get_submodule_target<P: PmrBackend>(
     }.into())
 }
 
-// If trait aliases <https://github.com/rust-lang/rust/issues/41517> are stabilized:
-// pub trait PmrWorkspaceBackend = PmrBackend + WorkspaceBackend + WorkspaceSyncBackend + WorkspaceTagBackend;
-pub trait PmrWorkspaceBackend: PmrBackend
-    + WorkspaceBackend
-    + WorkspaceSyncBackend
-    + WorkspaceTagBackend {}
-impl<P: PmrBackend
-    + WorkspaceBackend
-    + WorkspaceSyncBackend
-    + WorkspaceTagBackend> PmrWorkspaceBackend for P {}
-
-impl<'a, P: PmrWorkspaceBackend> PmrBackendW<'a, P> {
+impl<'a, P: Platform> PmrBackendW<'a, P> {
     pub fn new(
-        backend: &'a P,
+        platform: &'a P,
         git_root: PathBuf,
         workspace: &'a Workspace,
     ) -> Self {
         Self {
-            backend: &backend,
+            platform: &platform,
             git_root: git_root,
             workspace: &workspace,
         }
@@ -399,7 +388,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendW<'a, P> {
         let repo_check = git2::Repository::open_bare(&repo_dir);
 
         info!("Syncing local {:?} with remote <{}>...", repo_dir, &self.workspace.url);
-        let sync_id = WorkspaceSyncBackend::begin_sync(self.backend, self.workspace.id).await?;
+        let sync_id = WorkspaceSyncBackend::begin_sync(self.platform, self.workspace.id).await?;
         match repo_check {
             Ok(repo) => {
                 info!("Found existing repo at {:?}, synchronizing...", repo_dir);
@@ -407,7 +396,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendW<'a, P> {
                 match remote.fetch(&[] as &[&str], None, None) {
                     Ok(_) => info!("Repository synchronized"),
                     Err(e) => {
-                        fail_sync(self.backend, sync_id).await?;
+                        fail_sync(self.platform, sync_id).await?;
                         return Err(ExecutionError::Synchronize {
                             workspace_id: self.workspace.id,
                             remote: self.workspace.url.clone(),
@@ -417,7 +406,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendW<'a, P> {
                 };
             }
             Err(ref e) if e.class() == git2::ErrorClass::Repository => {
-                fail_sync(self.backend, sync_id).await?;
+                fail_sync(self.platform, sync_id).await?;
                 return Err(ExecutionError::Synchronize {
                     workspace_id: self.workspace.id,
                     remote: self.workspace.url.clone(),
@@ -431,7 +420,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendW<'a, P> {
                 match builder.clone(&self.workspace.url, &repo_dir) {
                     Ok(_) => info!("Repository cloned"),
                     Err(e) => {
-                        fail_sync(self.backend, sync_id).await?;
+                        fail_sync(self.platform, sync_id).await?;
                         return Err(ExecutionError::Synchronize {
                             workspace_id: self.workspace.id,
                             remote: self.workspace.url.clone(),
@@ -442,8 +431,8 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendW<'a, P> {
             }
         }
 
-        WorkspaceSyncBackend::complete_sync(self.backend, sync_id, WorkspaceSyncStatus::Completed).await?;
-        let result = PmrBackendWR::new(self.backend, self.git_root, &self.workspace)?;
+        WorkspaceSyncBackend::complete_sync(self.platform, sync_id, WorkspaceSyncStatus::Completed).await?;
+        let result = PmrBackendWR::new(self.platform, self.git_root, &self.workspace)?;
         result.index_tags().await?;
 
         Ok(result)
@@ -451,9 +440,9 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendW<'a, P> {
 }
 
 
-impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
+impl<'a, P: Platform> PmrBackendWR<'a, P> {
     pub fn new(
-        backend: &'a P,
+        platform: &'a P,
         git_root: PathBuf,
         workspace: &'a Workspace,
     ) -> Result<Self, GixError> {
@@ -463,7 +452,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
             .open(repo_dir)?
             .to_thread_local();
         Ok(Self {
-            backend: &backend,
+            platform: &platform,
             git_root: git_root,
             workspace: &workspace,
             repo: repo,
@@ -471,7 +460,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
     }
 
     pub async fn index_tags(&self) -> Result<(), GixError> {
-        let backend = self.backend;
+        let platform = self.platform;
         let workspace = &self.workspace;
         self.repo.references()?.tags()?
             .filter_map(|reference| {
@@ -500,7 +489,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
             })
             .map(|(name, oid)| async move {
                 match WorkspaceTagBackend::index_workspace_tag(
-                    backend,
+                    platform,
                     workspace.id,
                     &name,
                     &oid,
@@ -641,7 +630,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
             },
             GitResultTarget::SubRepoPath { location, commit, path } => {
                 let workspaces = WorkspaceBackend::list_workspace_by_url(
-                    self.backend, &location,
+                    self.platform, &location,
                 ).await?;
                 if workspaces.len() == 0 {
                     return Err(ContentError::NoWorkspaceForUrl{
@@ -652,7 +641,7 @@ impl<'a, P: PmrWorkspaceBackend> PmrBackendWR<'a, P> {
                 // TODO need to derive this for this specific workspace
                 // for now, just use the first result.
                 let pmrbackend = PmrBackendWR::new(
-                    self.backend, self.git_root.clone(), &workspaces[0])?;
+                    self.platform, self.git_root.clone(), &workspaces[0])?;
                 let git_result = pmrbackend.pathinfo(
                     Some(commit), Some(path),
                 )?;
@@ -732,18 +721,90 @@ mod tests {
     use mockall::predicate::*;
     use tempfile::TempDir;
 
-    // use pmrmodel::backend::db::MockHasPool;
     use pmrmodel_base::error::BackendError;
+    use pmrmodel_base::exposure::{
+        Exposure,
+        Exposures,
+        ExposureFile,
+        ExposureFiles,
+        ExposureFileView,
+        ExposureFileViews,
+        traits::{
+            ExposureBackend,
+            ExposureFileBackend,
+            ExposureFileViewBackend,
+        },
+    };
     use pmrmodel_base::workspace::{
         Workspaces,
+        WorkspaceAlias,
         WorkspaceSync,
         WorkspaceTag,
+        traits::WorkspaceAliasBackend,
     };
-    use pmrmodel::backend::db::PmrBackend;
 
     mock! {
-        Backend {}
-        impl PmrBackend for Backend {}
+        Backend {
+            async fn exposure_insert(
+                &self,
+                workspace_id: i64,
+                workspace_tag_id: Option<i64>,
+                commit_id: &str,
+                default_file_id: Option<i64>,
+            ) -> Result<i64, BackendError>;
+            async fn exposure_list_for_workspace(
+                &self,
+                workspace_id: i64,
+            ) -> Result<Exposures, BackendError>;
+            async fn exposure_get_id(
+                &self,
+                id: i64,
+            ) -> Result<Exposure, BackendError>;
+            async fn exposure_set_default_file(
+                &self,
+                id: i64,
+                file_id: i64,
+            ) -> Result<bool, BackendError>;
+
+            async fn exposure_file_insert(
+                &self,
+                exposure_id: i64,
+                workspace_file_path: &str,
+                default_view_id: Option<i64>,
+            ) -> Result<i64, BackendError>;
+            async fn exposure_file_list_for_exposure(
+                &self,
+                exposure_id: i64,
+            ) -> Result<ExposureFiles, BackendError>;
+            async fn exposure_file_get_id(
+                &self,
+                id: i64,
+            ) -> Result<ExposureFile, BackendError>;
+            async fn exposure_file_set_default_view(
+                &self,
+                id: i64,
+                file_id: i64,
+            ) -> Result<bool, BackendError>;
+
+            async fn exposure_file_view_insert(
+                &self,
+                exposure_file_id: i64,
+                view_task_template_id: i64,
+            ) -> Result<i64, BackendError>;
+            async fn exposure_file_view_list_for_exposure_file(
+                &self,
+                exposure_file_id: i64,
+            ) -> Result<ExposureFileViews, BackendError>;
+            async fn exposure_file_view_get_id(
+                &self,
+                id: i64,
+            ) -> Result<ExposureFileView, BackendError>;
+            async fn exposure_file_view_update_view_key(
+                &self,
+                id: i64,
+                view_key: &str,
+            ) -> Result<bool, BackendError>;
+        }
 
         #[async_trait]
         impl WorkspaceTagBackend for Backend {
@@ -769,6 +830,113 @@ mod tests {
             async fn begin_sync(&self, workspace_id: i64) -> Result<i64, BackendError>;
             async fn complete_sync(&self, id: i64, status: WorkspaceSyncStatus) -> Result<bool, BackendError>;
             async fn get_workspaces_sync_records(&self, workspace_id: i64) -> Result<Vec<WorkspaceSync>, BackendError>;
+        }
+
+        #[async_trait]
+        impl WorkspaceAliasBackend for Backend {
+            async fn add_alias(
+                &self,
+                workspace_id: i64,
+                alias: &str,
+            ) -> Result<i64, BackendError>;
+            async fn get_aliases(
+                &self,
+                workspace_id: i64,
+            ) -> Result<Vec<WorkspaceAlias>, BackendError>;
+        }
+
+    }
+
+    #[async_trait]
+    impl ExposureBackend for MockBackend {
+        async fn insert(
+            &self,
+            workspace_id: i64,
+            workspace_tag_id: Option<i64>,
+            commit_id: &str,
+            default_file_id: Option<i64>,
+        ) -> Result<i64, BackendError> {
+            self.exposure_insert(workspace_id, workspace_tag_id, commit_id, default_file_id).await
+        }
+        async fn list_for_workspace(
+            &self,
+            workspace_id: i64,
+        ) -> Result<Exposures, BackendError> {
+            self.exposure_list_for_workspace(workspace_id).await
+        }
+        async fn get_id(
+            &self,
+            id: i64,
+        ) -> Result<Exposure, BackendError> {
+            self.exposure_get_id(id).await
+        }
+        async fn set_default_file(
+            &self,
+            id: i64,
+            file_id: i64,
+        ) -> Result<bool, BackendError> {
+            self.set_default_file(id, file_id).await
+        }
+    }
+
+    #[async_trait]
+    impl ExposureFileBackend for MockBackend {
+        async fn insert(
+            &self,
+            exposure_id: i64,
+            workspace_file_path: &str,
+            default_view_id: Option<i64>,
+        ) -> Result<i64, BackendError> {
+            self.exposure_file_insert(exposure_id, workspace_file_path, default_view_id).await
+        }
+        async fn list_for_exposure(
+            &self,
+            exposure_id: i64,
+        ) -> Result<ExposureFiles, BackendError> {
+            self.exposure_file_list_for_exposure(exposure_id).await
+        }
+        async fn get_id(
+            &self,
+            id: i64,
+        ) -> Result<ExposureFile, BackendError> {
+            self.exposure_file_get_id(id).await
+        }
+        async fn set_default_view(
+            &self,
+            id: i64,
+            file_id: i64,
+        ) -> Result<bool, BackendError> {
+            self.exposure_file_set_default_view(id, file_id).await
+        }
+    }
+
+    #[async_trait]
+    impl ExposureFileViewBackend for MockBackend {
+        async fn insert(
+            &self,
+            exposure_file_id: i64,
+            view_task_template_id: i64,
+        ) -> Result<i64, BackendError> {
+            self.exposure_file_view_insert(exposure_file_id, view_task_template_id).await
+        }
+        async fn list_for_exposure_file(
+            &self,
+            exposure_file_id: i64,
+        ) -> Result<ExposureFileViews, BackendError> {
+            self.exposure_file_view_list_for_exposure_file(exposure_file_id).await
+        }
+        async fn get_id(
+            &self,
+            id: i64,
+        ) -> Result<ExposureFileView, BackendError> {
+            self.exposure_file_view_get_id(id).await
+        }
+        async fn update_view_key(
+            &self,
+            id: i64,
+            view_key: &str,
+        ) -> Result<bool, BackendError> {
+            self.exposure_file_view_update_view_key(id, view_key).await
         }
     }
 

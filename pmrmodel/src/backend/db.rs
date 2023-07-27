@@ -9,8 +9,6 @@ pub enum Profile {
     Pmrtqs,
 }
 
-pub trait PmrBackend {}
-
 #[derive(Clone)]
 pub struct Backend<T> {
     pub pool: Arc<T>,
@@ -49,5 +47,3 @@ impl<DB: sqlx::Database> Backend<Pool<DB>> {
 }
 
 pub type SqliteBackend = Backend<SqlitePool>;
-
-impl PmrBackend for SqliteBackend {}
