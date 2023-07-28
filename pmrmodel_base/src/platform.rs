@@ -120,8 +120,8 @@ pub trait Platform: WorkspaceBackend
             .await
             .map(|v| v.bind(self).into())
     }
-
 }
+
 impl<B: workspace::traits::WorkspaceBackend
     + WorkspaceAliasBackend
     + WorkspaceSyncBackend

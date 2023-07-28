@@ -59,6 +59,7 @@ use std::{
 };
 
 use crate::{
+    backend::Backend,
     error::{
         ContentError,
         ExecutionError,
