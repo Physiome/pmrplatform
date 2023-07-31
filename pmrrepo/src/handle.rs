@@ -1,18 +1,22 @@
+use gix::Repository;
 use pmrmodel_base::{
-    error::BackendError,
     platform::Platform,
-    workspace::{
-        WorkspaceRef,
-        traits::Workspace,
-    },
+    workspace::WorkspaceRef,
 };
 use std::path::PathBuf;
 use crate::backend::Backend;
 
-mod impls;
-
 pub struct HandleW<'a, P: Platform> {
-    backend: &'a Backend<P>,
-    repo_dir: PathBuf,
-    pub workspace: WorkspaceRef<'a, P>,
+    backend: &'a Backend<'a, P>,
+    pub(crate) repo_dir: PathBuf,
+    pub(crate) workspace: WorkspaceRef<'a, P>,
 }
+
+pub struct HandleWR<'a, P: Platform> {
+    backend: &'a Backend<'a, P>,
+    pub(crate) repo_dir: PathBuf,
+    pub(crate) workspace: WorkspaceRef<'a, P>,
+    pub(crate) repo: Repository,
+}
+
+mod impls;
