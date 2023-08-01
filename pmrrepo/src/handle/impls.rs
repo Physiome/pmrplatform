@@ -22,15 +22,14 @@ use super::{
 
 impl<'a, P: Platform + Sync> HandleW<'a, P> {
     pub(crate) fn new(
-        backend: &'a Backend<P>,
         repo_root: PathBuf,
         workspace: WorkspaceRef<'a, P>,
     ) -> Self {
         let repo_dir = repo_root.join(workspace.id().to_string());
-        Self { backend, repo_dir, workspace }
+        Self { repo_dir, workspace }
     }
 
-    pub async fn sync_workspace(&'a self) -> Result<(), PmrRepoError> {
+    pub(crate) async fn sync_workspace(&'a self) -> Result<(), PmrRepoError> {
         let ticket = self.workspace.begin_sync().await?;
         let repo_dir = &self.repo_dir.as_ref();
         let url = self.workspace.url();

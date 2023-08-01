@@ -6,8 +6,7 @@ use pmrmodel_base::{
 use std::path::PathBuf;
 use crate::backend::Backend;
 
-pub struct HandleW<'a, P: Platform> {
-    backend: &'a Backend<'a, P>,
+pub(crate) struct HandleW<'a, P: Platform> {
     pub(crate) repo_dir: PathBuf,
     pub(crate) workspace: WorkspaceRef<'a, P>,
 }
