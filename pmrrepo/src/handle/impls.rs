@@ -32,67 +32,33 @@ impl<'a, P: Platform + Sync> HandleW<'a, P> {
 
     pub async fn sync_workspace(&'a self) -> Result<(), PmrRepoError> {
         let ticket = self.workspace.begin_sync().await?;
-        // currently this is the only implementation...
-        let result = self.git_sync_workspace();
-        match result {
-            Ok(_) => ticket.complete_sync().await?,
-            Err(_) => ticket.fail_sync().await?,
-        };
-        result
-    }
-
-    // TODO eventually when a more generic trait that can encapsulte
-    // other repo implementation, the following should be moved to the
-    // implementation specific module, and the rest be provided via a
-    // generic trait or similar.
-    fn git_sync_workspace(&self) -> Result<(), PmrRepoError> {
-        // using libgit2 as mature protocol support is desired.
-        let repo_dir = &self.repo_dir;
+        let repo_dir = &self.repo_dir.as_ref();
         let url = self.workspace.url();
-        info!("Syncing local {repo_dir:?} with remote <{url}>...");
 
-        let repo_check = git2::Repository::open_bare(repo_dir);
-        match repo_check {
-            Ok(repo) => {
-                info!("Found existing repo at {repo_dir:?}, synchronizing...");
-                let mut remote = repo.find_remote("origin")?;
-                match remote.fetch(&[] as &[&str], None, None) {
-                    Ok(_) => info!("Repository synchronized"),
-                    Err(e) => {
-                        return Err(ExecutionError::Synchronize {
+        // currently this is the only implementation...
+        // TODO eventually when a more generic trait that provides
+        // common generic methods that will encapsulate all repo
+        // implementation.
+        match crate::git::fetch_or_clone(repo_dir, &url) {
+            Ok(_) => {
+                ticket.complete_sync().await?;
+                Ok(())
+            }
+            Err(e) => {
+                ticket.fail_sync().await?;
+                match e {
+                    crate::git::error::FetchClone::Message(s) => Err(
+                        ExecutionError::Synchronize {
                             workspace_id: self.workspace.id(),
                             remote: url.to_string(),
-                            msg: e.to_string(),
-                        }.into())
-                    },
-                };
-            }
-            Err(ref e) if e.class() == git2::ErrorClass::Repository => {
-                return Err(ExecutionError::Synchronize {
-                    workspace_id: self.workspace.id(),
-                    remote: url.to_string(),
-                    msg: "expected local underlying repo to be a bare repo".to_string(),
-                }.into())
-            }
-            Err(_) => {
-                info!("Cloning new repository at {repo_dir:?}...");
-                let mut builder = git2::build::RepoBuilder::new();
-                builder.bare(true);
-                match builder.clone(url, repo_dir) {
-                    Ok(_) => info!("Repository cloned"),
-                    Err(e) => {
-                        return Err(ExecutionError::Synchronize {
-                            workspace_id: self.workspace.id(),
-                            remote: url.to_string(),
-                            msg: format!("fail to clone: {e}"),
-                        }.into())
-                    },
-                };
+                            msg: s,
+                        }.into()
+                    ),
+                    crate::git::error::FetchClone::Libgit2(e) => Err(e.into()),
+                }
             }
         }
-        Ok(())
     }
-
 }
 
 impl<'a, P: Platform + Sync> HandleWR<'a, P> {
