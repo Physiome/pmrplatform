@@ -1,11 +1,19 @@
+use futures::stream::{
+    StreamExt,
+    futures_unordered::FuturesUnordered,
+};
 use pmrmodel_base::{
     platform::Platform,
     workspace::{
         WorkspaceRef,
         traits::Workspace,
+        traits::WorkspaceTagBackend,
     },
 };
-use std::path::PathBuf;
+use std::{
+    ops::Deref,
+    path::PathBuf,
+};
 
 use crate::{
     backend::Backend,
@@ -22,14 +30,15 @@ use super::{
 
 impl<'a, P: Platform + Sync> HandleW<'a, P> {
     pub(crate) fn new(
+        backend: &'a Backend<P>,
         repo_root: PathBuf,
         workspace: WorkspaceRef<'a, P>,
     ) -> Self {
         let repo_dir = repo_root.join(workspace.id().to_string());
-        Self { repo_dir, workspace }
+        Self { backend, repo_dir, workspace }
     }
 
-    pub(crate) async fn sync_workspace(&'a self) -> Result<(), PmrRepoError> {
+    pub(crate) async fn sync_workspace(self) -> Result<WorkspaceRef<'a, P>, PmrRepoError> {
         let ticket = self.workspace.begin_sync().await?;
         let repo_dir = &self.repo_dir.as_ref();
         let url = self.workspace.url();
@@ -41,7 +50,7 @@ impl<'a, P: Platform + Sync> HandleW<'a, P> {
         match crate::git::fetch_or_clone(repo_dir, &url) {
             Ok(_) => {
                 ticket.complete_sync().await?;
-                Ok(())
+                Ok(self.workspace)
             }
             Err(e) => {
                 ticket.fail_sync().await?;
@@ -73,6 +82,50 @@ impl<'a, P: Platform + Sync> HandleWR<'a, P> {
             .to_thread_local();
         Ok(Self { backend, repo_dir, workspace, repo })
     }
+
+    pub async fn index_tags(&self) -> Result<(), GixError> {
+        let platform = self.backend.db_platform;
+        let workspace = &self.workspace;
+        self.repo.references()?.tags()?
+            .filter_map(|reference| {
+                match reference {
+                    Ok(tag) => {
+                        let target = tag.target().id().to_hex().to_string();
+                        match std::str::from_utf8(
+                            tag.name().as_bstr().deref()
+                        ) {
+                            Ok(s) => Some((s.to_string(), target)),
+                            Err(_) => {
+                                warn!("\
+                                a tag for commit_id {} omitted due to \
+                                invalid utf8 encoding\
+                                ", target
+                                );
+                                None
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        warn!("failed to decode a tag: {}", e);
+                        None
+                    }
+                }
+            })
+            .map(|(name, oid)| async move {
+                match WorkspaceTagBackend::index_workspace_tag(
+                    platform,
+                    workspace.id(),
+                    &name,
+                    &oid,
+                ).await {
+                    Ok(_) => info!("indexed tag: {}", name),
+                    Err(e) => warn!("tagging error: {:?}", e),
+                }
+            })
+            .collect::<FuturesUnordered<_>>().collect::<Vec<_>>().await;
+        Ok(())
+    }
+
 }
 
 #[cfg(test)]

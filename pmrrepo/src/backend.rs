@@ -1,11 +1,15 @@
 use pmrmodel_base::{
     platform::Platform,
+    workspace::WorkspaceRef,
 };
 use std::path::PathBuf;
 
 use crate::{
     error::PmrRepoError,
-    handle::HandleW,
+    handle::{
+        HandleW,
+        HandleWR,
+    },
 };
 
 pub struct Backend<'a, P: Platform> {
@@ -23,7 +27,9 @@ impl<'a, P: Platform + Sync> Backend<'a, P> {
 
     pub async fn sync_workspace(&self, workspace_id: i64) -> Result<(), PmrRepoError> {
         let workspace = self.db_platform.get_workspace(workspace_id).await?;
-        let handle = HandleW::new(self.repo_root.clone(), workspace);
-        handle.sync_workspace().await
+        let handle = HandleW::new(&self, self.repo_root.clone(), workspace);
+        let workspace = handle.sync_workspace().await?;
+        let handle = HandleWR::new(&self, self.repo_root.clone(), workspace)?;
+        Ok(handle.index_tags().await?)
     }
 }

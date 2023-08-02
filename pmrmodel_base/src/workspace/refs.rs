@@ -57,7 +57,7 @@ impl<'a, P: Platform + Sized> WorkspaceRef<'a, P> {
         self.inner
     }
 
-    pub async fn begin_sync(&'a self) -> Result<WorkspaceSyncRef<'a, P>, BackendError> {
+    pub async fn begin_sync(&self) -> Result<WorkspaceSyncRef<'a, P>, BackendError> {
         let id = WorkspaceSyncBackend::begin_sync(
             self.platform,
             self.inner.id,
