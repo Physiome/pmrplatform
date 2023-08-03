@@ -70,6 +70,7 @@ use crate::{
 };
 
 use super::util::*;
+use super::*;
 
 pub struct HandleW<'a, P: Platform> {
     platform: &'a P,
@@ -84,6 +85,13 @@ pub struct HandleWR<'a, P: Platform> {
     pub repo: Repository,
 }
 
+pub struct GitResult<'a> {
+    pub repo: &'a Repository,
+    pub commit: Commit<'a>,
+    pub path: &'a str,
+    pub target: GitResultTarget<'a>,
+}
+
 pub enum GitResultTarget<'a> {
     Object(Object<'a>),
     SubRepoPath {
@@ -91,13 +99,6 @@ pub enum GitResultTarget<'a> {
         commit: String,
         path: &'a str,
     },
-}
-
-pub struct GitResult<'a> {
-    pub repo: &'a Repository,
-    pub commit: Commit<'a>,
-    pub path: &'a str,
-    pub target: GitResultTarget<'a>,
 }
 
 pub struct WorkspaceGitResult<'a>(&'a Workspace, &'a GitResult<'a>);
@@ -315,59 +316,6 @@ pub async fn stream_blob(
     writer.write(&blob.data)
 }
 
-fn get_submodule_target<P: Platform>(
-    pmrbackend: &HandleWR<P>,
-    commit: &Commit,
-    path: &str,
-) -> Result<String, PmrRepoError> {
-    let blob = commit
-        .tree_id().map_err(GixError::from)?
-        .object().map_err(GixError::from)?
-        .try_into_tree().map_err(GixError::from)?
-        .lookup_entry_by_path(
-            Path::new(".gitmodules")).map_err(GixError::from)?
-        .ok_or_else(|| PmrRepoError::from(PathError::NoSuchPath {
-            workspace_id: pmrbackend.workspace.id,
-            oid: commit.id.to_string(),
-            path: path.to_string(),
-        }))?
-        .id()
-        .object().map_err(GixError::from)?;
-    let config = gix::config::File::try_from(
-        std::str::from_utf8(&blob.data)
-        .map_err(
-            |e| PmrRepoError::from(ContentError::Invalid {
-                workspace_id: pmrbackend.workspace.id,
-                oid: commit.id().to_string(),
-                path: path.to_string(),
-                msg: format!("error parsing `.gitmodules`: {}", e),
-            })
-        )?
-    ).map_err(
-        |e| PmrRepoError::from(ContentError::Invalid {
-            workspace_id: pmrbackend.workspace.id,
-            oid: commit.id().to_string(),
-            path: path.to_string(),
-            msg: format!("error parsing `.gitmodules`: {}", e),
-        })
-    )?;
-    for rec in config.sections_and_ids() {
-        match rec.0.value("path") {
-            Some(rec_path) => {
-                if path == rec_path.into_owned() {
-                    return Ok(format!("{}", rec.0.value("url").unwrap()));
-                }
-            },
-            None => {},
-        }
-    }
-    Err(PathError::NotSubmodule {
-        workspace_id: pmrbackend.workspace.id,
-        oid: commit.id().to_string(),
-        path: path.to_string(),
-    }.into())
-}
-
 impl<'a, P: Platform> HandleW<'a, P> {
     pub fn new(
         platform: &'a P,
@@ -574,8 +522,8 @@ impl<'a, P: Platform> HandleWR<'a, P> {
                         EntryMode::Commit => {
                             info!("entry {:?} is a commit", entry.id());
                             let location = get_submodule_target(
-                                &self,
                                 &commit,
+                                self.workspace.id,
                                 curr_path.to_str().unwrap(),
                             )?;
                             target = Some(GitResultTarget::SubRepoPath {

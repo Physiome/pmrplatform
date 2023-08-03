@@ -2,6 +2,20 @@ use futures::stream::{
     StreamExt,
     futures_unordered::FuturesUnordered,
 };
+use gix::{
+    Commit,
+    Object,
+    Repository,
+    objs::{
+        BlobRef,
+        CommitRef,
+        TreeRef,
+        WriteTo,
+        tree::EntryMode,
+    },
+    traverse::commit::Sorting,
+    traverse::tree::Recorder,
+};
 use pmrmodel_base::{
     platform::Platform,
     workspace::{
@@ -9,23 +23,35 @@ use pmrmodel_base::{
         traits::Workspace,
         traits::WorkspaceTagBackend,
     },
+    merged::{
+        WorkspacePathInfo,
+    },
 };
 use std::{
     ops::Deref,
+    path::Path,
     path::PathBuf,
 };
 
 use crate::{
     backend::Backend,
     error::{
+        ContentError,
         ExecutionError,
         GixError,
+        PathError,
         PmrRepoError,
     },
+    git::{
+        get_commit,
+        get_submodule_target,
+    }
 };
 use super::{
     Handle,
     GitHandle,
+    GitHandleResult,
+    GitResultTarget,
 };
 
 impl<'a, P: Platform + Sync> Handle<'a, P> {
@@ -145,16 +171,97 @@ impl<'a, P: Platform + Sync> GitHandle<'a, P> {
         Ok(())
     }
 
+    // commit_id/path should be a pathinfo struct?
+    pub fn pathinfo(
+        &'a self,
+        commit_id: Option<&'a str>,
+        path: Option<&'a str>,
+    ) -> Result<GitHandleResult<'a, P>, PmrRepoError> {
+        let workspace_id = self.workspace.id();
+        let commit = get_commit(&self.repo, workspace_id, commit_id)?;
+        let tree = commit
+            .tree_id().map_err(GixError::from)?
+            .object().map_err(GixError::from)?;
+
+        let (path, target) = match path {
+            Some("") | Some("/") | None => {
+                info!("No path provided; using root tree entry");
+                ("".as_ref(), GitResultTarget::Object(tree))
+            },
+            Some(s) => {
+                let path = s.strip_prefix('/').unwrap_or(&s);
+                let mut comps = Path::new(path).components();
+                let mut curr_path = PathBuf::new();
+                let mut object = Some(tree);
+                let mut target: Option<GitResultTarget> = None;
+
+                while let Some(component) = comps.next() {
+                    let entry = object
+                        .expect("iteration has this set or look breaked")
+                        .try_into_tree().map_err(GixError::from)?
+                        .lookup_entry_by_path(
+                            Path::new(&component)
+                        ).map_err(GixError::from)?
+                        .ok_or_else(
+                            || PmrRepoError::from(PathError::NoSuchPath {
+                                workspace_id: workspace_id,
+                                oid: commit.id.to_string(),
+                                path: path.to_string(),
+                            })
+                        )?;
+                    curr_path.push(component);
+                    match entry.mode() {
+                        EntryMode::Commit => {
+                            info!("entry {:?} is a commit", entry.id());
+                            let location = get_submodule_target(
+                                &commit,
+                                workspace_id,
+                                curr_path.to_str().unwrap(),
+                            )?;
+                            target = Some(GitResultTarget::SubRepoPath {
+                                location: location,
+                                commit: entry.id().to_string(),
+                                path: comps.as_path().to_str().unwrap(),
+                            });
+                            object = None;
+                            break;
+                        }
+                        _ => ()
+                    }
+                    let next_object = entry
+                        .object().map_err(GixError::from)?;
+                    info!("got {} {:?}", next_object.kind, &next_object);
+                    object = Some(next_object);
+                };
+                match object {
+                    Some(object) =>
+                        (path, GitResultTarget::Object(object)),
+                    None =>
+                        // Only way object is None is have target set.
+                        (path, target.expect("to be a SubRepoPath")),
+                }
+            },
+        };
+        let git_result = GitHandleResult {
+            backend: &self.backend,
+            repo: &self.repo,
+            commit: commit,
+            path: path,
+            target: target,
+            workspace: &self.workspace,
+        };
+        Ok(git_result)
+    }
+
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use mockall::predicate::*;
     use pmrmodel_base::workspace::{
         Workspace,
         WorkspaceSyncStatus,
+        traits::Workspace as _,
     };
     use tempfile::TempDir;
 
@@ -176,7 +283,7 @@ mod tests {
                 id: id,
                 superceded_by_id: None,
                 url: url.to_string(),
-                description: None,
+                description: Some(format!("Workspace {id}")),
                 long_description: None,
                 created_ts: 1234567890,
                 exposures: None,
@@ -320,7 +427,7 @@ mod tests {
     }
 
     #[async_std::test]
-    async fn test_sync_workspace_not_bare() {
+    async fn test_sync_workspace_not_bare() -> anyhow::Result<()> {
         let (origin_, _) = crate::test::repo_init(None, None, None).unwrap();
         let origin = origin_.unwrap();
 
@@ -359,6 +466,44 @@ mod tests {
             origin.path().display(),
         );
         assert_eq!(failed_sync.to_string(), err_msg);
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn test_workspace_path_info_from_workspace_git_result() -> anyhow::Result<()> {
+        let (td_, repo) = crate::test::repo_init(None, None, None).unwrap();
+        crate::test::commit(&repo, vec![("some_file", "")]).unwrap();
+
+        let td = td_.unwrap();
+        let td_path = td.path().to_owned();
+        let url = td_path.to_str().unwrap();
+
+        let repo_root = TempDir::new().unwrap();
+        let mut platform = MockPlatform::new();
+        platform.expect_begin_sync()
+            .times(1)
+            .with(eq(10))
+            .returning(|_| Ok(10));
+        platform.expect_complete_sync()
+            .times(1)
+            .with(eq(10), eq(WorkspaceSyncStatus::Completed))
+            .returning(|_, _| Ok(true));
+        expect_workspace(&mut platform, 10, td.path().to_str().unwrap());
+
+        {
+            let backend = Backend::new(&platform, repo_root.path().to_path_buf());
+            assert!(backend.sync_workspace(10).await.is_ok());
+        }
+        platform.checkpoint();
+
+        expect_workspace(&mut platform, 10, td.path().to_str().unwrap());
+        let backend = Backend::new(&platform, repo_root.path().to_path_buf());
+        let handle = backend.git_handle(10).await?;
+        let result = handle.pathinfo(None, None).unwrap();
+        // let pathinfo = <WorkspacePathInfo>::from(&GitHandleResult::new(&pmrbackend.workspace, &result));
+        assert_eq!(result.path, "".to_string());
+        assert_eq!(result.workspace.description(), Some("Workspace 10"));
+        Ok(())
     }
 
 }

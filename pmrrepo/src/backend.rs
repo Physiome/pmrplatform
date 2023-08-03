@@ -31,4 +31,9 @@ impl<'a, P: Platform + Sync> Backend<'a, P> {
         handle.sync_workspace().await?;
         Ok(())
     }
+
+    pub async fn git_handle(&'a self, workspace_id: i64) -> Result<GitHandle<'a, P>, PmrRepoError> {
+        let workspace = self.db_platform.get_workspace(workspace_id).await?;
+        Ok(GitHandle::new(&self, self.repo_root.clone(), workspace)?)
+    }
 }

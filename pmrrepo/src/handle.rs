@@ -12,11 +12,11 @@ pub(crate) struct Handle<'a, P: Platform> {
     pub(crate) workspace: WorkspaceRef<'a, P>,
 }
 
-pub struct GitHandle<'a, P: Platform> {
-    backend: &'a Backend<'a, P>,
-    pub(crate) repo_dir: PathBuf,
-    pub(crate) workspace: WorkspaceRef<'a, P>,
-    pub(crate) repo: Repository,
-}
-
 mod impls;
+mod git;
+
+pub use git::{
+    GitHandle,
+    GitResultTarget,
+    GitHandleResult,
+};
