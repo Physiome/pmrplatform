@@ -24,11 +24,11 @@ use crate::{
     },
 };
 use super::{
-    HandleW,
-    HandleWR,
+    Handle,
+    GitHandle,
 };
 
-impl<'a, P: Platform + Sync> HandleW<'a, P> {
+impl<'a, P: Platform + Sync> Handle<'a, P> {
     pub(crate) fn new(
         backend: &'a Backend<P>,
         repo_root: PathBuf,
@@ -38,7 +38,7 @@ impl<'a, P: Platform + Sync> HandleW<'a, P> {
         Self { backend, repo_dir, workspace }
     }
 
-    pub(crate) async fn sync_workspace(self) -> Result<HandleWR<'a, P>, PmrRepoError> {
+    pub(crate) async fn sync_workspace(self) -> Result<GitHandle<'a, P>, PmrRepoError> {
         let ticket = self.workspace.begin_sync().await?;
         let repo_dir = &self.repo_dir.as_ref();
         let url = self.workspace.url();
@@ -50,7 +50,7 @@ impl<'a, P: Platform + Sync> HandleW<'a, P> {
         match crate::git::fetch_or_clone(repo_dir, &url) {
             Ok(_) => {
                 ticket.complete_sync().await?;
-                let handle: HandleWR<'a, P> = self.try_into()?;
+                let handle: GitHandle<'a, P> = self.try_into()?;
                 handle.index_tags().await?;
                 Ok(handle)
             }
@@ -71,10 +71,10 @@ impl<'a, P: Platform + Sync> HandleW<'a, P> {
     }
 }
 
-impl<'a, P: Platform + Sync> TryFrom<HandleW<'a, P>> for HandleWR<'a, P> {
+impl<'a, P: Platform + Sync> TryFrom<Handle<'a, P>> for GitHandle<'a, P> {
     type Error = GixError;
 
-    fn try_from(item: HandleW<'a, P>) -> Result<Self, GixError> {
+    fn try_from(item: Handle<'a, P>) -> Result<Self, GixError> {
         let repo = gix::open::Options::isolated()
             .open_path_as_is(true)
             .open(&item.repo_dir)?
@@ -88,7 +88,7 @@ impl<'a, P: Platform + Sync> TryFrom<HandleW<'a, P>> for HandleWR<'a, P> {
     }
 }
 
-impl<'a, P: Platform + Sync> HandleWR<'a, P> {
+impl<'a, P: Platform + Sync> GitHandle<'a, P> {
     pub(crate) fn new(
         backend: &'a Backend<P>,
         repo_root: PathBuf,

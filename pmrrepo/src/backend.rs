@@ -7,8 +7,8 @@ use std::path::PathBuf;
 use crate::{
     error::PmrRepoError,
     handle::{
-        HandleW,
-        HandleWR,
+        Handle,
+        GitHandle,
     },
 };
 
@@ -27,7 +27,7 @@ impl<'a, P: Platform + Sync> Backend<'a, P> {
 
     pub async fn sync_workspace(&self, workspace_id: i64) -> Result<(), PmrRepoError> {
         let workspace = self.db_platform.get_workspace(workspace_id).await?;
-        let handle = HandleW::new(&self, self.repo_root.clone(), workspace);
+        let handle = Handle::new(&self, self.repo_root.clone(), workspace);
         handle.sync_workspace().await?;
         Ok(())
     }
