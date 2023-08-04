@@ -3,28 +3,24 @@ use futures::stream::{
     futures_unordered::FuturesUnordered,
 };
 use gix::{
-    Commit,
-    Object,
-    Repository,
     objs::{
-        BlobRef,
         CommitRef,
-        TreeRef,
-        WriteTo,
         tree::EntryMode,
     },
     traverse::commit::Sorting,
     traverse::tree::Recorder,
 };
 use pmrmodel_base::{
+    git::{
+        LogEntryInfo,
+        LogInfo,
+        RemoteInfo,
+    },
     platform::Platform,
     workspace::{
         WorkspaceRef,
         traits::Workspace,
         traits::WorkspaceTagBackend,
-    },
-    merged::{
-        WorkspacePathInfo,
     },
 };
 use std::{
@@ -36,7 +32,6 @@ use std::{
 use crate::{
     backend::Backend,
     error::{
-        ContentError,
         ExecutionError,
         GixError,
         PathError,
@@ -45,6 +40,7 @@ use crate::{
     git::{
         get_commit,
         get_submodule_target,
+        util::*,
     }
 };
 use super::{
@@ -218,11 +214,11 @@ impl<'a, P: Platform + Sync> GitHandle<'a, P> {
                                 workspace_id,
                                 curr_path.to_str().unwrap(),
                             )?;
-                            target = Some(GitResultTarget::SubRepoPath {
+                            target = Some(GitResultTarget::RemoteInfo(RemoteInfo {
                                 location: location,
                                 commit: entry.id().to_string(),
-                                path: comps.as_path().to_str().unwrap(),
-                            });
+                                path: comps.as_path().to_str().unwrap().to_string(),
+                            }));
                             object = None;
                             break;
                         }
@@ -238,7 +234,7 @@ impl<'a, P: Platform + Sync> GitHandle<'a, P> {
                         (path, GitResultTarget::Object(object)),
                     None =>
                         // Only way object is None is have target set.
-                        (path, target.expect("to be a SubRepoPath")),
+                        (path, target.expect("to be a RemoteInfo")),
                 }
             },
         };
@@ -253,15 +249,83 @@ impl<'a, P: Platform + Sync> GitHandle<'a, P> {
         Ok(git_result)
     }
 
+    pub fn loginfo(
+        &self,
+        commit_id: Option<&str>,
+        path: Option<&'a str>,
+        count: Option<usize>,
+    ) -> Result<LogInfo, PmrRepoError> {
+        let workspace_id = self.workspace.id();
+        let commit = get_commit(&self.repo, workspace_id, commit_id)?;
+        let mut filter = PathFilter::new(&self.repo, path);
+        let log_entry_iter = self.repo
+            .rev_walk([commit.id])
+            .sorting(Sorting::ByCommitTimeNewestFirst)
+            .all().map_err(GixError::from)?
+            .filter(|info| info.as_ref()
+                .map(|info| filter.check(info))
+                .unwrap_or(true)
+            )
+            .map(|info| {
+                let commit = info?.object()?;
+                let commit_ref = CommitRef::from_bytes(&commit.data)?;
+                let committer = commit_ref.committer;
+                Ok(LogEntryInfo {
+                    commit_id: format!("{}", commit.id()),
+                    author: format_signature_ref(&commit_ref.author),
+                    committer: format_signature_ref(&committer),
+                    commit_timestamp: committer.time.seconds,
+                    message: commit_ref.message.to_string(),
+                })
+            });
+
+        let log_entries = match count {
+            Some(count) => log_entry_iter
+                .take(count)
+                .collect::<Result<Vec<_>, GixError>>()?,
+            None => log_entry_iter
+                .collect::<Result<Vec<_>, GixError>>()?,
+        };
+
+        Ok(LogInfo { entries: log_entries })
+    }
+
+    pub fn files(
+        &self,
+        commit_id: Option<&str>,
+    ) -> Result<Vec<String>, PmrRepoError> {
+        let workspace_id = self.workspace.id();
+        let commit = get_commit(&self.repo, workspace_id, commit_id)?;
+        let tree = commit.tree().map_err(GixError::from)?;
+        let mut recorder = Recorder::default();
+        tree.traverse()
+            .breadthfirst(&mut recorder).map_err(GixError::from)?;
+        let mut results = recorder.records.iter()
+            .filter(|entry| entry.mode != EntryMode::Tree)
+            .filter_map(
+                |entry| std::str::from_utf8(entry.filepath.as_ref()).ok()
+            )
+            .map(|x| x.to_string())
+            .collect::<Vec<_>>();
+        results.sort();
+        Ok(results)
+    }
+
 }
 
 #[cfg(test)]
 mod tests {
     use mockall::predicate::*;
-    use pmrmodel_base::workspace::{
-        Workspace,
-        WorkspaceSyncStatus,
-        traits::Workspace as _,
+    use super::*;
+    use pmrmodel_base::{
+        git::{
+            RemoteInfo,
+        },
+        workspace::{
+            Workspace,
+            WorkspaceSyncStatus,
+            traits::Workspace as _,
+        },
     };
     use tempfile::TempDir;
 
@@ -475,8 +539,6 @@ mod tests {
         crate::test::commit(&repo, vec![("some_file", "")]).unwrap();
 
         let td = td_.unwrap();
-        let td_path = td.path().to_owned();
-        let url = td_path.to_str().unwrap();
 
         let repo_root = TempDir::new().unwrap();
         let mut platform = MockPlatform::new();
@@ -500,9 +562,284 @@ mod tests {
         let backend = Backend::new(&platform, repo_root.path().to_path_buf());
         let handle = backend.git_handle(10).await?;
         let result = handle.pathinfo(None, None).unwrap();
-        // let pathinfo = <WorkspacePathInfo>::from(&GitHandleResult::new(&pmrbackend.workspace, &result));
         assert_eq!(result.path, "".to_string());
         assert_eq!(result.workspace.description(), Some("Workspace 10"));
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn test_workspace_submodule_access() -> anyhow::Result<()> {
+        let (
+            repo_root,
+            _, // (import1, import1_oids),
+            _, // (import2, import2_oids),
+            _, // (repodata, repodata_oids)
+        ) = crate::test::create_repodata();
+
+        let mut platform = MockPlatform::new();
+        expect_workspace(&mut platform, 3, "http://models.example.com/w/repodata");
+
+        let backend = Backend::new(&platform, repo_root.path().to_path_buf());
+        let handle = backend.git_handle(3).await?;
+        let pathinfo = handle.pathinfo(
+            Some("557ee3cb13fb421d2bd6897615ae95830eb427c8"),
+            Some("ext/import1/README"),
+        ).unwrap();
+
+        assert_eq!(
+            pathinfo.path,
+            "ext/import1/README".to_string());
+        let GitResultTarget::RemoteInfo(target) = pathinfo.target else {
+            unreachable!()
+        };
+        assert_eq!(
+            target,
+            RemoteInfo {
+                location: "http://models.example.com/w/import1"
+                    .to_string(),
+                commit: "01b952d14a0a33d22a0aa465fe763e5d17b15d46"
+                    .to_string(),
+                path: "README".to_string(),
+            },
+        );
+
+        let pathinfo = handle.pathinfo(
+            Some("c4d735e5a305559c1cb0ce8de4c25ed5c3f4f263"),
+            Some("ext/import2/import1/if1"),
+        ).unwrap();
+        assert_eq!(
+            pathinfo.path,
+            "ext/import2/import1/if1".to_string());
+        let GitResultTarget::RemoteInfo(target) = pathinfo.target else{
+            unreachable!()
+        };
+        assert_eq!(
+            target,
+            RemoteInfo {
+                location: "http://models.example.com/w/import2"
+                    .to_string(),
+                commit: "0ab8a26a0e85a033bea0388216667d83cc0dc1dd"
+                    .to_string(),
+                path: "import1/if1".to_string(),
+            },
+        );
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn test_workspace_loginfo() -> anyhow::Result<()> {
+        let (
+            repo_root,
+            _, // (import1, import1_oids),
+            _, // (import2, import2_oids),
+            (_, repodata_oids),
+        ) = crate::test::create_repodata();
+
+        let mut platform = MockPlatform::new();
+        expect_workspace(&mut platform, 3, "http://models.example.com/w/repodata");
+
+        let backend = Backend::new(&platform, repo_root.path().to_path_buf());
+        let handle = backend.git_handle(3).await?;
+        let logs = handle.loginfo(None, None, None).unwrap();
+        assert_eq!(
+            repodata_oids.iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>(),
+            logs.entries.iter()
+                .map(|x| x.commit_id.clone())
+                .rev()
+                .skip(1)  // skip the initial commit
+                .collect::<Vec<_>>(),
+        );
+        assert_eq!(logs, serde_json::from_str(r#"{
+          "entries": [
+            {
+              "commit_id": "8ae6e9af37c8bd78614545d0ab807348fc46dcab",
+              "author": "user <user@example.com>",
+              "committer": "user <user@example.com>",
+              "commit_timestamp": 1666666780,
+              "message": "updating dir1"
+            },
+            {
+              "commit_id": "c4d735e5a305559c1cb0ce8de4c25ed5c3f4f263",
+              "author": "user <user@example.com>",
+              "committer": "user <user@example.com>",
+              "commit_timestamp": 1666666770,
+              "message": "fixing import1"
+            },
+            {
+              "commit_id": "a4a04eed5e243e3019592579a7f6eb950399f9bf",
+              "author": "user <user@example.com>",
+              "committer": "user <user@example.com>",
+              "commit_timestamp": 1666666760,
+              "message": "bumping import2, breaking import1"
+            },
+            {
+              "commit_id": "502b18ac456c8e475f731cbfe568fd6eb1177327",
+              "author": "user <user@example.com>",
+              "committer": "user <user@example.com>",
+              "commit_timestamp": 1666666750,
+              "message": "bumping import2"
+            },
+            {
+              "commit_id": "965ccc1276832489c69b680b49874a6e1dc1743b",
+              "author": "user <user@example.com>",
+              "committer": "user <user@example.com>",
+              "commit_timestamp": 1666666740,
+              "message": "adding import2"
+            },
+            {
+              "commit_id": "27be7efbe5fcccda5ee6ca00ef96834f592139a5",
+              "author": "user <user@example.com>",
+              "committer": "user <user@example.com>",
+              "commit_timestamp": 1666666730,
+              "message": "bumping import1"
+            },
+            {
+              "commit_id": "e931905807563cb5353958e865d72fed12dccd4f",
+              "author": "user <user@example.com>",
+              "committer": "user <user@example.com>",
+              "commit_timestamp": 1666666720,
+              "message": "adding some files"
+            },
+            {
+              "commit_id": "557ee3cb13fb421d2bd6897615ae95830eb427c8",
+              "author": "user <user@example.com>",
+              "committer": "user <user@example.com>",
+              "commit_timestamp": 1666666710,
+              "message": "adding import1"
+            },
+            {
+              "commit_id": "9f02f69509110e7235e4bb9f50e235a246ae9f5c",
+              "author": "user <user@example.com>",
+              "committer": "user <user@example.com>",
+              "commit_timestamp": 1666666700,
+              "message": "Initial commit of repodata"
+            },
+            {
+              "commit_id": "e55a6e1058fe4caf81e5cdfe806a3f86e1b94fb2",
+              "author": "user <user@example.com>",
+              "committer": "user <user@example.com>",
+              "commit_timestamp": 1654321000,
+              "message": "initial commit"
+            }
+          ]
+        }"#)?);
+
+        // for a specific path
+        assert_eq!(
+            [
+                "27be7efbe5fcccda5ee6ca00ef96834f592139a5",
+                "9f02f69509110e7235e4bb9f50e235a246ae9f5c",
+            ],
+            handle
+                .loginfo(None, Some("file1"), None)?
+                .entries.iter()
+                .map(|x| x.commit_id.to_string())
+                .collect::<Vec<_>>()
+                .as_ref(),
+        );
+        assert_eq!(
+            [
+                "c4d735e5a305559c1cb0ce8de4c25ed5c3f4f263",
+                "a4a04eed5e243e3019592579a7f6eb950399f9bf",
+                "27be7efbe5fcccda5ee6ca00ef96834f592139a5",
+                "557ee3cb13fb421d2bd6897615ae95830eb427c8",
+            ],
+            handle
+                .loginfo(None, Some("ext/import1"), None)?
+                .entries.iter()
+                .map(|x| x.commit_id.to_string())
+                .collect::<Vec<_>>()
+                .as_ref(),
+        );
+        assert_eq!(
+            0,
+            handle
+                .loginfo(None, Some("no/such/path"), None)?
+                .entries.iter()
+                .map(|x| x.commit_id.to_string())
+                .collect::<Vec<_>>()
+                .len(),
+        );
+
+        // from both a path and commit
+        assert_eq!(
+            [
+                "27be7efbe5fcccda5ee6ca00ef96834f592139a5",
+                "557ee3cb13fb421d2bd6897615ae95830eb427c8",
+            ],
+            handle
+                .loginfo(
+                    Some("502b18ac456c8e475f731cbfe568fd6eb1177327"),
+                    Some("ext/import1"),
+                    None,
+                )?
+                .entries.iter()
+                .map(|x| x.commit_id.to_string())
+                .collect::<Vec<_>>()
+                .as_ref(),
+        );
+
+        // from both a path and commit and count
+        assert_eq!(
+            [
+                "27be7efbe5fcccda5ee6ca00ef96834f592139a5",
+            ],
+            handle
+                .loginfo(
+                    Some("502b18ac456c8e475f731cbfe568fd6eb1177327"),
+                    Some("ext/import1"),
+                    Some(1),
+                )?
+                .entries.iter()
+                .map(|x| x.commit_id.to_string())
+                .collect::<Vec<_>>()
+                .as_ref(),
+        );
+
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn test_workspace_files() -> anyhow::Result<()> {
+        let (
+            repo_root,
+            _, // (import1, import1_oids),
+            _, // (import2, import2_oids),
+            _, // (repodata, repodata_oids)
+        ) = crate::test::create_repodata();
+
+        let mut platform = MockPlatform::new();
+        expect_workspace(&mut platform, 3, "http://models.example.com/w/repodata");
+        let backend = Backend::new(&platform, repo_root.path().to_path_buf());
+        let handle = backend.git_handle(3).await?;
+
+        assert_eq!(
+            handle.files(None)?,
+            [
+                ".gitmodules",
+                "README",
+                "dir1/file1",
+                "dir1/file2",
+                "dir1/nested/file_a",
+                "dir1/nested/file_b",
+                "dir1/nested/file_c",
+                "ext/import1",
+                "ext/import2",
+                "file1",
+                "file2",
+            ]
+        );
+        assert_eq!(
+            handle.files(
+                Some("9f02f69509110e7235e4bb9f50e235a246ae9f5c"))?,
+            [
+                "README",
+                "file1",
+            ]
+        );
+
         Ok(())
     }
 

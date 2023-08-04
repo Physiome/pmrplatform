@@ -66,7 +66,6 @@ use crate::{
         PathError,
         PmrRepoError,
     },
-    util::is_binary,
 };
 
 use super::util::*;

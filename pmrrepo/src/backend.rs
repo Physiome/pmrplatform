@@ -1,7 +1,4 @@
-use pmrmodel_base::{
-    platform::Platform,
-    workspace::WorkspaceRef,
-};
+use pmrmodel_base::platform::Platform;
 use std::path::PathBuf;
 
 use crate::{

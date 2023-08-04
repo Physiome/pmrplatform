@@ -1,4 +1,3 @@
-use gix::Repository;
 use pmrmodel_base::{
     platform::Platform,
     workspace::WorkspaceRef,

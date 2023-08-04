@@ -5,26 +5,26 @@ use gix::{
 };
 use crate::error::GixError;
 
-pub(super) fn rev_parse_single<'a>(
+pub(crate) fn rev_parse_single<'a>(
     repo: &'a Repository,
     commit_id: &'a str,
 ) -> Result<Object<'a>, GixError> {
     Ok(repo.rev_parse_single(commit_id)?.object()?)
 }
 
-pub(super) fn format_signature_ref(
+pub(crate) fn format_signature_ref(
     value: &SignatureRef,
 ) -> String {
     format!("{} <{}>", value.name, value.email)
 }
 
-pub(super) struct PathFilter<'a> {
+pub(crate) struct PathFilter<'a> {
     repo: &'a Repository,
     path: Option<&'a str>,
 }
 
 impl<'a> PathFilter<'a> {
-    pub(super) fn new(
+    pub(crate) fn new(
         repo: &'a Repository,
         path: Option<&'a str>,
     ) -> Self {
@@ -34,7 +34,7 @@ impl<'a> PathFilter<'a> {
         }
     }
 
-    pub(super) fn check(
+    pub(crate) fn check(
         &mut self,
         info: &gix::revision::walk::Info,
     ) -> bool {

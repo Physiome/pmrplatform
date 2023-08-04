@@ -17,7 +17,7 @@ use crate::{
 };
 
 mod impls;
-mod util;
+pub(crate) mod util;
 use util::*;
 
 pub use impls::{

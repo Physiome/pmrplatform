@@ -1,18 +1,10 @@
 use super::*;
 
+use pmrmodel_base::git::RemoteInfo;
 use gix::{
     Commit,
     Object,
     Repository,
-    objs::{
-        BlobRef,
-        CommitRef,
-        TreeRef,
-        WriteTo,
-        tree::EntryMode,
-    },
-    traverse::commit::Sorting,
-    traverse::tree::Recorder,
 };
 
 pub struct GitHandle<'a, P: Platform> {
@@ -24,11 +16,7 @@ pub struct GitHandle<'a, P: Platform> {
 
 pub enum GitResultTarget<'a> {
     Object(Object<'a>),
-    SubRepoPath {
-        location: String,
-        commit: String,
-        path: &'a str,
-    },
+    RemoteInfo(RemoteInfo),
 }
 
 pub struct GitHandleResult<'a, P: Platform> {
