@@ -1,8 +1,10 @@
+use async_recursion::async_recursion;
 use futures::stream::{
     StreamExt,
     futures_unordered::FuturesUnordered,
 };
 use gix::{
+    object::Kind,
     objs::{
         CommitRef,
         tree::EntryMode,
@@ -20,18 +22,23 @@ use pmrmodel_base::{
     workspace::{
         WorkspaceRef,
         traits::Workspace,
+        traits::WorkspaceBackend,
         traits::WorkspaceTagBackend,
     },
 };
 use std::{
+    io::Write,
     ops::Deref,
-    path::Path,
-    path::PathBuf,
+    path::{
+        Path,
+        PathBuf,
+    },
 };
 
 use crate::{
     backend::Backend,
     error::{
+        ContentError,
         ExecutionError,
         GixError,
         PathError,
@@ -313,6 +320,45 @@ impl<'a, P: Platform + Sync> GitHandle<'a, P> {
 
 }
 
+impl<'a, P: Platform + Sync> GitHandleResult<'a, P> {
+
+    #[async_recursion(?Send)]
+    pub async fn stream_blob(
+        &self,
+        mut writer: impl Write + 'async_recursion,
+    ) -> Result<usize, PmrRepoError> {
+        match &self.target {
+            GitResultTarget::Object(object) => match object.kind {
+                Kind::Blob => Ok(writer.write(&object.data)?),
+                _ => Err(ContentError::Invalid {
+                    workspace_id: self.workspace.id(),
+                    oid: self.commit.id().to_string(),
+                    path: self.path.to_string(),
+                    msg: format!("expected to be a blob"),
+                }.into())
+            },
+            GitResultTarget::RemoteInfo(RemoteInfo { location, commit, path }) => {
+                let workspaces = WorkspaceBackend::list_workspace_by_url(
+                    self.backend.db_platform, &location,
+                ).await?;
+                if workspaces.len() == 0 {
+                    return Err(ContentError::NoWorkspaceForUrl{
+                        workspace_id: self.workspace.id(),
+                        url: location.to_string(),
+                    }.into())
+                }
+                // TODO need to derive this for this specific workspace
+                // for now, just use the first result.
+                // TODO figure out how to acquire the git_handle using the url
+                // instead?
+                let handle = self.backend.git_handle(workspaces[0].id).await?;
+                let git_result = handle.pathinfo(Some(&commit), Some(&path))?;
+                git_result.stream_blob(writer).await
+            },
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use mockall::predicate::*;
@@ -577,7 +623,20 @@ mod tests {
         ) = crate::test::create_repodata();
 
         let mut platform = MockPlatform::new();
+        platform.expect_list_workspace_by_url()
+            .times(1)
+            .with(eq("http://models.example.com/w/import2"))
+            .returning(|_| Ok([Workspace {
+                id: 2,
+                url: "http://models.example.com/w/import2".to_string(),
+                description: Some("Workspace 2".to_string()),
+                superceded_by_id: None,
+                long_description: None,
+                created_ts: 1234567890,
+                exposures: None,
+            }].into()));
         expect_workspace(&mut platform, 3, "http://models.example.com/w/repodata");
+        expect_workspace(&mut platform, 2, "http://models.example.com/w/import2");
 
         let backend = Backend::new(&platform, repo_root.path().to_path_buf());
         let handle = backend.git_handle(3).await?;
@@ -623,6 +682,36 @@ mod tests {
                 path: "import1/if1".to_string(),
             },
         );
+
+        let mut buffer = <Vec<u8>>::new();
+        let readme_result = handle.pathinfo(
+            Some("557ee3cb13fb421d2bd6897615ae95830eb427c8"),
+            Some("README"),
+        )?;
+        assert_eq!(
+            readme_result.stream_blob(&mut buffer).await?,
+            22,
+        );
+        assert_eq!(
+            std::str::from_utf8(&buffer).unwrap(),
+            "A simple readme file.\n",
+        );
+
+        let mut buffer = <Vec<u8>>::new();
+        let import2_result = handle.pathinfo(
+            Some("a4a04eed5e243e3019592579a7f6eb950399f9bf"),
+            Some("ext/import2/if2"),
+        )?;
+        assert_eq!(
+            import2_result.stream_blob(&mut buffer).await?,
+            4,
+        );
+        assert_eq!(
+            std::str::from_utf8(&buffer).unwrap(),
+            "if2\n",
+        );
+
+
         Ok(())
     }
 

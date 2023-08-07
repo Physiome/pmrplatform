@@ -10,8 +10,8 @@ use gix::{
 pub struct GitHandle<'a, P: Platform> {
     pub(super) backend: &'a Backend<'a, P>,
     pub(crate) repo_dir: PathBuf,
-    pub(crate) workspace: WorkspaceRef<'a, P>,
-    pub(crate) repo: Repository,
+    pub workspace: WorkspaceRef<'a, P>,
+    pub repo: Repository,
 }
 
 pub enum GitResultTarget<'a> {

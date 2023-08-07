@@ -4,6 +4,7 @@ use sqlx::{
 };
 use std::env;
 use std::io::{self, Write};
+use std::ops::Deref;
 use std::path::PathBuf;
 use std::process;
 use structopt::StructOpt;
@@ -23,10 +24,8 @@ use pmrmodel_base::workspace::traits::{
     WorkspaceTagBackend,
 };
 
+use pmrrepo::backend::Backend;
 use pmrrepo::git::{
-    HandleW,
-    HandleWR,
-
     stream_git_result_as_json,
     stream_git_result_default,
 };
@@ -122,13 +121,15 @@ async fn main(args: Args) -> anyhow::Result<()> {
         log::warn!("database {} does not exist; creating...", &db_url);
         Sqlite::create_database(&db_url).await?
     }
-    let backend = SqliteBackend::from_url(&db_url)
+    let platform = SqliteBackend::from_url(&db_url)
         .await?
         .run_migration_profile(Profile::Pmrapp)
         .await?;
-    let wb: &dyn WorkspaceBackend = &backend;
-    let wsb: &dyn WorkspaceSyncBackend = &backend;
-    let wtb: &dyn WorkspaceTagBackend = &backend;
+    let wb: &dyn WorkspaceBackend = &platform;
+    let wsb: &dyn WorkspaceSyncBackend = &platform;
+    let wtb: &dyn WorkspaceTagBackend = &platform;
+
+    let backend = Backend::new(&platform, git_root);
 
     match args.cmd {
         Some(Command::Register { url, description, long_description }) => {
@@ -156,16 +157,13 @@ async fn main(args: Args) -> anyhow::Result<()> {
             }
             else {
                 println!("Syncing commits for workspace with id {}...", workspace_id);
-                let workspace = wb.get_workspace_by_id(workspace_id).await?;
-                let handle = HandleW::new(&backend, git_root, &workspace);
-                handle.git_sync_workspace().await?;
+                let _ = backend.sync_workspace(workspace_id).await?;
             }
         }
         Some(Command::Tags { workspace_id, index }) => {
             if index {
                 println!("Indexing tags for workspace with id {}...", workspace_id);
-                let workspace = wb.get_workspace_by_id(workspace_id).await?;
-                let handle = HandleWR::new(&backend, git_root, &workspace)?;
+                let handle = backend.git_handle(workspace_id).await?;
                 handle.index_tags().await?;
             }
             else {
@@ -178,51 +176,46 @@ async fn main(args: Args) -> anyhow::Result<()> {
             }
         }
         Some(Command::Blob { workspace_id, obj_id }) => {
-            let workspace = wb.get_workspace_by_id(workspace_id).await?;
-            let handle = HandleWR::new(&backend, git_root, &workspace)?;
-            handle.get_obj_by_spec(&obj_id).await?;
+            let handle = backend.git_handle(workspace_id).await?;
+            let obj = handle.repo.rev_parse_single(obj_id.deref())?.object()?;
+            log::info!("Found object {} {}", obj.kind, obj.id);
+            // info!("{:?}", object_to_info(&obj));
         }
         Some(Command::Info { workspace_id, commit_id, path, raw }) => {
-            let workspace = wb.get_workspace_by_id(workspace_id).await?;
-            let handle = HandleWR::new(&backend, git_root, &workspace)?;
+            let handle = backend.git_handle(workspace_id).await?;
+            let git_result = handle.pathinfo(
+                commit_id.as_deref(), path.as_deref())?;
             if raw {
-                let git_result = handle.pathinfo(
-                    commit_id.as_deref(), path.as_deref())?;
-                handle.stream_result_blob(
-                    io::stdout(), &git_result).await?;
+                git_result.stream_blob(io::stdout()).await?;
             }
             else {
+                println!("FIXME");
+                /*
                 if args.json {
-                    let git_result = handle.pathinfo(
-                        commit_id.as_deref(), path.as_deref())?;
                     stream_git_result_as_json(
                         io::stdout(), &git_result)?;
                 }
                 else {
-                    let git_result = handle.pathinfo(
-                        commit_id.as_deref(), path.as_deref())?;
                     stream_git_result_default(
                         io::stdout(), &git_result)?;
                 }
+                */
             }
         }
         Some(Command::Log { workspace_id, commit_id }) => {
-            let workspace = wb.get_workspace_by_id(workspace_id).await?;
-            let handle = HandleWR::new(&backend, git_root, &workspace)?;
+            let handle = backend.git_handle(workspace_id).await?;
             let logs = handle.loginfo(commit_id.as_deref(), None, None)?;
             if args.json {
-                // stream_git_result_as_json(io::stdout(), &logs)?;
                 let writer = io::stdout();
                 serde_json::to_writer(writer, &logs)?;
             }
             else {
-                // stream_git_result_default(io::stdout(), &logs)?;
                 let mut writer = io::stdout();
                 writer.write(format!("have log_info {:?}", logs).as_bytes())?;
             }
         }
         Some(Command::Alias { workspace_id, alias }) => {
-            let wab: &dyn WorkspaceAliasBackend = &backend;
+            let wab: &dyn WorkspaceAliasBackend = &platform;
             if alias.is_none() {
                 let aliases = wab.get_aliases(workspace_id).await?;
                 println!("Printing list of all aliases");
