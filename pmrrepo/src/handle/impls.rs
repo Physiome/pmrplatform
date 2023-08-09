@@ -427,7 +427,6 @@ mod tests {
             "if2\n",
         );
 
-
         Ok(())
     }
 
@@ -645,6 +644,25 @@ mod tests {
             ]
         );
 
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn test_workspace_borrow_move() -> anyhow::Result<()> {
+        let (
+            repo_root,
+            _, // (import1, import1_oids),
+            _, // (import2, import2_oids),
+            _, // (repodata, repodata_oids)
+        ) = crate::test::create_repodata();
+        let mut platform = MockPlatform::new();
+        expect_workspace(&mut platform, 3, "http://models.example.com/w/repodata");
+        let backend = Backend::new(&platform, repo_root.path().to_path_buf());
+        let handle = backend.git_handle(3).await?;
+        {
+            let _ = handle.pathinfo(None, None);
+        }
+        let _ = handle.workspace.into_inner();
         Ok(())
     }
 

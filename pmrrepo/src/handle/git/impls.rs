@@ -58,7 +58,7 @@ use super::{
     util::*,
 };
 
-impl<P: Platform + Sync> From<&GitHandleResult<'_, P>> for Option<PathObject> {
+impl<P: Platform + Sync> From<&GitHandleResult<'_, '_, P>> for Option<PathObject> {
     fn from(item: &GitHandleResult<P>) -> Self {
         match &item.target {
             GitResultTarget::Object(object) => match gitresult_to_info(
@@ -154,11 +154,11 @@ impl<'a, P: Platform + Sync> GitHandle<'a, P> {
     }
 
     // commit_id/path should be a pathinfo struct?
-    pub fn pathinfo(
-        &'a self,
-        commit_id: Option<&'a str>,
+    pub fn pathinfo<'b>(
+        &'b self,
+        commit_id: Option<&'b str>,
         path: Option<&'a str>,
-    ) -> Result<GitHandleResult<'a, P>, PmrRepoError> {
+    ) -> Result<GitHandleResult<'a, 'b, P>, PmrRepoError> {
         let workspace_id = self.workspace.id();
         let commit = get_commit(&self.repo, workspace_id, commit_id)?;
         let tree = commit
@@ -299,7 +299,7 @@ impl<'a, P: Platform + Sync> GitHandle<'a, P> {
 
 }
 
-impl<'a, P: Platform + Sync> GitHandleResult<'a, P> {
+impl<'a, 'b, P: Platform + Sync> GitHandleResult<'a, 'b, P> {
 
     #[async_recursion(?Send)]
     pub async fn stream_blob(
