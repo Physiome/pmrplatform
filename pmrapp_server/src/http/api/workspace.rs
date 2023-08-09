@@ -4,6 +4,7 @@ use axum::{
     routing::get,
     Router,
 };
+use pmrrepo::backend::Backend;
 use pmrrepo::git::{
     WorkspaceGitResult,
     HandleWR,
@@ -38,7 +39,7 @@ pub fn router() -> Router {
 }
 
 pub async fn api_workspace(ctx: Extension<AppContext>) -> Result<Json<Workspaces>> {
-    let workspaces = WorkspaceBackend::list_workspaces(&ctx.backend).await?;
+    let workspaces = WorkspaceBackend::list_workspaces(&ctx.db).await?;
     Ok(Json(workspaces))
 }
 
@@ -46,12 +47,12 @@ pub async fn api_workspace_top(
     ctx: Extension<AppContext>,
     Path(workspace_id): Path<i64>,
 ) -> Result<Json<JsonWorkspaceRecord>> {
-    let workspace = match WorkspaceBackend::get_workspace_by_id(&ctx.backend, workspace_id).await {
+    let workspace = match WorkspaceBackend::get_workspace_by_id(&ctx.db, workspace_id).await {
         Ok(workspace) => workspace,
         Err(_) => return Err(Error::NotFound),
     };
     let commit_id = match HandleWR::new(
-        &ctx.backend,
+        &ctx.db,
         PathBuf::from(&ctx.config.pmr_git_root),
         &workspace
     ) {
@@ -71,12 +72,12 @@ pub async fn api_workspace_top_ssr(
     ctx: Extension<AppContext>,
     Path(workspace_id): Path<i64>,
 ) -> Result<(JsonWorkspaceRecord, Option<WorkspacePathInfo>)> {
-    let workspace = match WorkspaceBackend::get_workspace_by_id(&ctx.backend, workspace_id).await {
+    let workspace = match WorkspaceBackend::get_workspace_by_id(&ctx.db, workspace_id).await {
         Ok(workspace) => workspace,
         Err(_) => return Err(Error::NotFound),
     };
     let handle = HandleWR::new(
-        &ctx.backend,
+        &ctx.db,
         PathBuf::from(&ctx.config.pmr_git_root),
         &workspace
     )?;
@@ -108,12 +109,12 @@ async fn api_workspace_pathinfo(
     commit_id: Option<String>,
     path: Option<String>,
 ) -> Result<Json<WorkspacePathInfo>> {
-    let workspace = match WorkspaceBackend::get_workspace_by_id(&ctx.backend, workspace_id).await {
+    let workspace = match WorkspaceBackend::get_workspace_by_id(&ctx.db, workspace_id).await {
         Ok(workspace) => workspace,
         Err(_) => return Err(Error::NotFound),
     };
     let handle = HandleWR::new(
-        &ctx.backend,
+        &ctx.db,
         PathBuf::from(&ctx.config.pmr_git_root),
         &workspace
     )?;

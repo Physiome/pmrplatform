@@ -13,7 +13,6 @@ use crate::{
         PathError,
         PmrRepoError,
     },
-    util::is_binary,
 };
 
 mod impls;

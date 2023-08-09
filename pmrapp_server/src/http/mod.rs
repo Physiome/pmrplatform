@@ -42,11 +42,11 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 #[derive(Clone)]
 pub struct AppContext {
     config: Arc<Config>,
-    backend: SqliteBackend,
+    db: SqliteBackend,
 }
 
 
-pub async fn serve(config: Config, backend: SqliteBackend) {
+pub async fn serve(config: Config, db: SqliteBackend) {
     let socket: SocketAddr = ([0, 0, 0, 0], config.http_port).into();
     let app = router()
         .nest("/workspace/", workspace::router())
@@ -55,7 +55,7 @@ pub async fn serve(config: Config, backend: SqliteBackend) {
             ServiceBuilder::new()
             .layer(Extension(AppContext {
                 config: Arc::new(config),
-                backend: backend,
+                db: db,
             }))
             .layer(TraceLayer::new_for_http())
         );

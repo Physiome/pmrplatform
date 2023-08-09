@@ -7,13 +7,16 @@ use axum::{
     routing::get,
 };
 use pmrmodel_base::{
-    git::PathObject,
+    git::{
+        PathObject,
+        RemoteInfo,
+    },
     workspace::traits::WorkspaceBackend,
 };
-use pmrrepo::git::{
-    Kind,
-    GitResultTarget,
-    HandleWR,
+use pmrrepo::{
+    backend::Backend,
+    handle::GitResultTarget,
+    git::Kind,
 };
 use std::{
     io::Write,
@@ -108,15 +111,8 @@ async fn raw_workspace_pathinfo_workspace_id_commit_id_path(
     let commit_id = path.1.clone();
     let filepath = path.2.clone();
 
-    let workspace = match WorkspaceBackend::get_workspace_by_id(&ctx.backend, workspace_id).await {
-        Ok(workspace) => workspace,
-        Err(_) => return Error::NotFound.into_response(),
-    };
-    let handle = match HandleWR::new(
-        &ctx.backend,
-        PathBuf::from(&ctx.config.pmr_git_root),
-        &workspace
-    ) {
+    let backend = Backend::new(&ctx.db, (&ctx.config.pmr_git_root).into());
+    let handle = match backend.git_handle(workspace_id).await {
         Ok(handle) => handle,
         Err(e) => return Error::from(e).into_response()
     };
@@ -157,7 +153,7 @@ async fn raw_workspace_pathinfo_workspace_id_commit_id_path(
                         Err(Error::NotFound)
                     },
                 },
-                GitResultTarget::SubRepoPath { location, commit, path } => {
+                GitResultTarget::RemoteInfo(RemoteInfo { location, commit, path }) => {
                     // XXX this should be a redirect
                     Ok(Redirect::temporary(
                         &format!("{}/raw/{}/{}", location, commit, path)

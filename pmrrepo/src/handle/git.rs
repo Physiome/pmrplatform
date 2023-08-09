@@ -1,5 +1,4 @@
 use super::*;
-
 use pmrmodel_base::git::RemoteInfo;
 use gix::{
     Commit,
@@ -27,3 +26,7 @@ pub struct GitHandleResult<'a, P: Platform> {
     pub target: GitResultTarget<'a>,
     pub workspace: &'a WorkspaceRef<'a, P>,
 }
+
+pub(super) mod error;
+mod impls;
+pub(super) mod util;
