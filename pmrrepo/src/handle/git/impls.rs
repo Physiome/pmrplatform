@@ -157,7 +157,7 @@ impl<'a, P: Platform + Sync> GitHandle<'a, P> {
     pub fn pathinfo<'b>(
         &'b self,
         commit_id: Option<&'b str>,
-        path: Option<&'a str>,
+        path: Option<&'b str>,
     ) -> Result<GitHandleResult<'a, 'b, P>, PmrRepoError> {
         let workspace_id = self.workspace.id();
         let commit = get_commit(&self.repo, workspace_id, commit_id)?;

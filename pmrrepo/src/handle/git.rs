@@ -18,13 +18,13 @@ pub enum GitResultTarget<'a> {
     RemoteInfo(RemoteInfo),
 }
 
-pub struct GitHandleResult<'a, 'b, P: Platform> {
-    pub(super) backend: &'a Backend<'a, P>,
-    pub repo: &'b Repository,
-    pub commit: Commit<'b>,
-    pub path: &'a str,
-    pub target: GitResultTarget<'b>,
-    pub workspace: &'b WorkspaceRef<'a, P>,
+pub struct GitHandleResult<'db, 'repo, P: Platform> {
+    pub(super) backend: &'db Backend<'db, P>,
+    pub repo: &'repo Repository,
+    pub commit: Commit<'repo>,
+    pub path: &'repo str,
+    pub target: GitResultTarget<'repo>,
+    pub workspace: &'repo WorkspaceRef<'db, P>,
 }
 
 pub(super) mod error;
