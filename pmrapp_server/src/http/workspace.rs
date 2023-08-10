@@ -7,7 +7,7 @@ use axum::{
     routing::get,
 };
 use pmrmodel_base::{
-    git::{
+    repo::{
         PathObject,
         RemoteInfo,
     },

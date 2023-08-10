@@ -1,9 +1,11 @@
 pub mod error;
 pub mod exposure;
+#[cfg(feature = "git")]
 pub mod git;
 pub mod merged;
 pub mod platform;
 pub mod profile;
+pub mod repo;
 pub mod task;
 pub mod task_template;
 pub mod workspace;

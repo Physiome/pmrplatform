@@ -11,7 +11,7 @@ use gix::{
         WriteTo as _,
     },
 };
-use pmrmodel_base::git::{
+use pmrmodel_base::repo::{
     CommitInfo,
     FileInfo,
     ObjectInfo,

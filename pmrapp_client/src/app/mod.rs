@@ -3,7 +3,7 @@ use pmrmodel_base::{
         Workspaces,
         // Workspace,
     },
-    git::PathInfo,
+    repo::PathInfo,
     merged::WorkspacePathInfo,
 };
 use sauron::prelude::*;

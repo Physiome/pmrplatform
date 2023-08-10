@@ -7,7 +7,7 @@ use pmrmodel_base::{
         Workspaces,
         Workspace,
     },
-    git::{
+    repo::{
         PathInfo,
         PathObject,
         TreeEntryInfo,

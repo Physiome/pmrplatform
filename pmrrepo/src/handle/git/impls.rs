@@ -13,7 +13,7 @@ use gix::{
     traverse::tree::Recorder,
 };
 use pmrmodel_base::{
-    git::{
+    repo::{
         LogEntryInfo,
         LogInfo,
         ObjectInfo,
@@ -66,7 +66,8 @@ impl<P: Platform + Sync> From<&GitHandleResult<'_, '_, P>> for Option<PathObject
                 object,
             ) {
                 Some(ObjectInfo::FileInfo(file_info)) => Some(PathObject::FileInfo(file_info)),
-                Some(ObjectInfo::TreeInfo(tree_info)) => Some(PathObject::TreeInfo(tree_info)), _ => None,
+                Some(ObjectInfo::TreeInfo(tree_info)) => Some(PathObject::TreeInfo(tree_info)),
+                _ => None,
             },
             GitResultTarget::RemoteInfo(RemoteInfo { location, commit, path }) => {
                 Some(PathObject::RemoteInfo(RemoteInfo {

@@ -1,5 +1,5 @@
 use super::*;
-use pmrmodel_base::git::RemoteInfo;
+use pmrmodel_base::repo::RemoteInfo;
 use gix::{
     Commit,
     Object,

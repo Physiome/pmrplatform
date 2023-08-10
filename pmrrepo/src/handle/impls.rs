@@ -79,7 +79,7 @@ mod tests {
     use mockall::predicate::*;
     use super::*;
     use pmrmodel_base::{
-        git::{
+        repo::{
             RemoteInfo,
         },
         workspace::{

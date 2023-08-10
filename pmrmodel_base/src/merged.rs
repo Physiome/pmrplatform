@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::git::{
+use crate::repo::{
     CommitInfo,
     PathObject,
 };

@@ -17,7 +17,7 @@ use gix::{
 };
 use gix::object::Kind;
 use pmrmodel_base::{
-    git::{
+    repo::{
         TreeEntryInfo,
         LogEntryInfo,
         ObjectInfo,

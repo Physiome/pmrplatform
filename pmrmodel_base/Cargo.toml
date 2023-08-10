@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 async-trait = "0.1.50"
 chrono = { version = "0.4", optional = true }
+gix = { version = "^0.48", optional = true }
 log = { version = "0.4" }
 num_enum = "0.6.1"
 serde = { version = "1.0.59", features = ["serde_derive"] }
@@ -16,7 +17,8 @@ sqlx = { version = "0.7.0", features = [], optional = true }
 thiserror = "1.0"
 
 [features]
-sqlx = ["dep:sqlx"]
+git = ["dep:gix"]
 display = ["dep:chrono"]
+sqlx = ["dep:sqlx"]
 
 [lib]
