@@ -5,26 +5,14 @@ use pmrmodel_base::{
         traits::Workspace as _,
     },
 };
-use std::{
-    io::Write,
-    ops::Deref,
-    path::PathBuf
-};
+use std::path::PathBuf;
 
 use crate::{
     backend::Backend,
     error::{
-        ContentError,
         ExecutionError,
-        GixError,
-        PathError,
         PmrRepoError,
     },
-    git::{
-        get_commit,
-        get_submodule_target,
-        util::*,
-    }
 };
 use super::{
     Handle,
@@ -85,7 +73,6 @@ mod tests {
         workspace::{
             Workspace,
             WorkspaceSyncStatus,
-            traits::Workspace as _,
         },
     };
     use tempfile::TempDir;

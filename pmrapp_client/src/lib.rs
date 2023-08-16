@@ -5,7 +5,6 @@ pub use sauron;
 mod api;
 mod app;
 mod error;
-pub mod model;
 
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub async fn main(serialized_state: String) {

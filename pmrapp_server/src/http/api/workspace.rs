@@ -5,20 +5,14 @@ use axum::{
     Router,
 };
 use pmrrepo::backend::Backend;
-use pmrrepo::git::{
-    WorkspaceGitResult,
-    HandleWR,
-};
 use pmrmodel_base::{
-    merged::WorkspacePathInfo,
+    repo::RepoResult,
     workspace::{
         Workspaces,
         traits::WorkspaceBackend,
     }
 };
-use std::path::PathBuf;
 
-use pmrapp_client::model::JsonWorkspaceRecord;
 use crate::http::AppContext;
 use crate::http::{Error, Result};
 
@@ -46,51 +40,25 @@ pub async fn api_workspace(ctx: Extension<AppContext>) -> Result<Json<Workspaces
 pub async fn api_workspace_top(
     ctx: Extension<AppContext>,
     Path(workspace_id): Path<i64>,
-) -> Result<Json<JsonWorkspaceRecord>> {
-    let workspace = match WorkspaceBackend::get_workspace_by_id(&ctx.db, workspace_id).await {
-        Ok(workspace) => workspace,
-        Err(_) => return Err(Error::NotFound),
-    };
-    let commit_id = match HandleWR::new(
-        &ctx.db,
-        PathBuf::from(&ctx.config.pmr_git_root),
-        &workspace
-    ) {
-        Ok(handle) => match handle.pathinfo(None, None) {
-            Ok(result) => Some(format!("{}", result.commit.id())),
-            Err(_) => None,
-        },
-        Err(_) => None
-    };
-    Ok(Json(JsonWorkspaceRecord {
-        workspace: workspace,
-        head_commit: commit_id,
-    }))
+) -> Result<Json<RepoResult>> {
+    let backend = Backend::new(&ctx.db, (&ctx.config.pmr_git_root).into());
+    let handle = backend.git_handle(workspace_id).await?;
+    let pathinfo = handle.pathinfo(None, None)?;
+    Ok(Json(pathinfo.into()))
 }
 
+/*
 pub async fn api_workspace_top_ssr(
     ctx: Extension<AppContext>,
     Path(workspace_id): Path<i64>,
-) -> Result<(JsonWorkspaceRecord, Option<WorkspacePathInfo>)> {
-    let workspace = match WorkspaceBackend::get_workspace_by_id(&ctx.db, workspace_id).await {
-        Ok(workspace) => workspace,
-        Err(_) => return Err(Error::NotFound),
-    };
-    let handle = HandleWR::new(
-        &ctx.db,
-        PathBuf::from(&ctx.config.pmr_git_root),
-        &workspace
-    )?;
+) -> Result<(JsonWorkspaceRecord, Option<RepoResult>)> {
+    let backend = Backend::new(&ctx.db, (&ctx.config.pmr_git_root).into());
+    let handle = backend.git_handle(workspace_id).await?;
 
-    let (head_commit, path_info) = match handle.pathinfo(None, None) {
+    let pathinfo = match handle.pathinfo(None, None) {
         Ok(result) => (
             Some(format!("{}", result.commit.id())),
-            Some(<WorkspacePathInfo>::from(
-                &WorkspaceGitResult::new(
-                    &handle.workspace,
-                    &result,
-                )
-            )),
+            Some(result.into()),
         ),
         Err(_) => (None, None)
     };
@@ -102,33 +70,22 @@ pub async fn api_workspace_top_ssr(
         path_info,
     ))
 }
+*/
 
 async fn api_workspace_pathinfo(
     ctx: Extension<AppContext>,
     workspace_id: i64,
     commit_id: Option<String>,
     path: Option<String>,
-) -> Result<Json<WorkspacePathInfo>> {
-    let workspace = match WorkspaceBackend::get_workspace_by_id(&ctx.db, workspace_id).await {
-        Ok(workspace) => workspace,
-        Err(_) => return Err(Error::NotFound),
-    };
-    let handle = HandleWR::new(
-        &ctx.db,
-        PathBuf::from(&ctx.config.pmr_git_root),
-        &workspace
-    )?;
+) -> Result<Json<RepoResult>> {
+    let backend = Backend::new(&ctx.db, (&ctx.config.pmr_git_root).into());
+    let handle = backend.git_handle(workspace_id).await?;
 
     let result = match handle.pathinfo(
         commit_id.as_deref(),
         path.as_deref(),
     ) {
-        Ok(result) => Ok(Json(<WorkspacePathInfo>::from(
-            &WorkspaceGitResult::new(
-                &workspace,
-                &result,
-            )
-        ))),
+        Ok(pathinfo) => Ok(Json(pathinfo.into())),
         Err(e) => {
             // TODO log the URI triggering these messages?
             log::info!("handle.pathinfo error: {:?}", e);
@@ -141,14 +98,14 @@ async fn api_workspace_pathinfo(
 pub async fn api_workspace_pathinfo_workspace_id(
     ctx: Extension<AppContext>,
     Path(workspace_id): Path<i64>,
-) -> Result<Json<WorkspacePathInfo>> {
+) -> Result<Json<RepoResult>> {
     api_workspace_pathinfo(ctx, workspace_id, None, None).await
 }
 
 pub async fn api_workspace_pathinfo_workspace_id_commit_id(
     ctx: Extension<AppContext>,
     Path((workspace_id, commit_id)): Path<(i64, String)>,
-) -> Result<Json<WorkspacePathInfo>> {
+) -> Result<Json<RepoResult>> {
     api_workspace_pathinfo(ctx, workspace_id, Some(commit_id), None).await
 }
 
@@ -156,7 +113,7 @@ pub async fn api_workspace_pathinfo_workspace_id_commit_id(
 pub async fn api_workspace_pathinfo_workspace_id_commit_id_path(
     ctx: Extension<AppContext>,
     Path((workspace_id, commit_id, path)): Path<(i64, String, String)>,
-) -> Result<Json<WorkspacePathInfo>> {
+) -> Result<Json<RepoResult>> {
     api_workspace_pathinfo(ctx, workspace_id, Some(commit_id), Some(path)).await
 }
 

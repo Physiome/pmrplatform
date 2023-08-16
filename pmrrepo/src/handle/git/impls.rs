@@ -13,12 +13,13 @@ use gix::{
     traverse::tree::Recorder,
 };
 use pmrmodel_base::{
+    git::PathObject,
     repo::{
         LogEntryInfo,
         LogInfo,
-        ObjectInfo,
-        PathObject,
+        PathObjectInfo,
         RemoteInfo,
+        RepoResult,
     },
     platform::Platform,
     workspace::{
@@ -43,7 +44,6 @@ use crate::{
     backend::Backend,
     error::{
         ContentError,
-        ExecutionError,
         GixError,
         PathError,
         PmrRepoError,
@@ -58,24 +58,23 @@ use super::{
     util::*,
 };
 
-impl<P: Platform + Sync> From<&GitHandleResult<'_, '_, P>> for Option<PathObject> {
+impl<P: Platform + Sync> From<&GitHandleResult<'_, '_, P>> for PathObjectInfo {
     fn from(item: &GitHandleResult<P>) -> Self {
         match &item.target {
-            GitResultTarget::Object(object) => match gitresult_to_info(
-                item,
-                object,
-            ) {
-                Some(ObjectInfo::FileInfo(file_info)) => Some(PathObject::FileInfo(file_info)),
-                Some(ObjectInfo::TreeInfo(tree_info)) => Some(PathObject::TreeInfo(tree_info)),
-                _ => None,
-            },
-            GitResultTarget::RemoteInfo(RemoteInfo { location, commit, path }) => {
-                Some(PathObject::RemoteInfo(RemoteInfo {
-                    location: location.to_string(),
-                    commit: commit.to_string(),
-                    path: path.to_string(),
-                }))
-            },
+            GitResultTarget::Object(object) => object.into(),
+            GitResultTarget::RemoteInfo(remote_info) => PathObjectInfo::RemoteInfo(remote_info.clone()),
+        }
+    }
+}
+
+impl<P: Platform + Sync> From<GitHandleResult<'_, '_, P>> for RepoResult {
+    fn from(item: GitHandleResult<P>) -> Self {
+        RepoResult {
+            target: (&item).into(),
+            workspace: item.workspace.clone_inner(),
+            commit: item.commit.try_into()
+                .expect("commit should have been parsed during processing"),
+            path: item.path.to_string(),
         }
     }
 }
@@ -90,7 +89,6 @@ impl<'a, P: Platform + Sync> TryFrom<Handle<'a, P>> for GitHandle<'a, P> {
             .to_thread_local();
         Ok(Self {
             backend: item.backend,
-            repo_dir: item.repo_dir,
             workspace: item.workspace,
             repo
         })
@@ -108,7 +106,7 @@ impl<'a, P: Platform + Sync> GitHandle<'a, P> {
             .open_path_as_is(true)
             .open(&repo_dir)?
             .to_thread_local();
-        Ok(Self { backend, repo_dir, workspace, repo })
+        Ok(Self { backend, workspace, repo })
     }
 
     pub async fn index_tags(&self) -> Result<(), GixError> {
@@ -169,7 +167,9 @@ impl<'a, P: Platform + Sync> GitHandle<'a, P> {
         let (path, target) = match path {
             Some("") | Some("/") | None => {
                 info!("No path provided; using root tree entry");
-                ("".as_ref(), GitResultTarget::Object(tree))
+                ("".as_ref(), GitResultTarget::Object(
+                    PathObject::new(Some("".as_ref()), tree),
+                ))
             },
             Some(s) => {
                 let path = s.strip_prefix('/').unwrap_or(&s);
@@ -218,7 +218,9 @@ impl<'a, P: Platform + Sync> GitHandle<'a, P> {
                 };
                 match object {
                     Some(object) =>
-                        (path, GitResultTarget::Object(object)),
+                        (path, GitResultTarget::Object(
+                            PathObject::new(Some(path), object)
+                        )),
                     None =>
                         // Only way object is None is have target set.
                         (path, target.expect("to be a RemoteInfo")),
@@ -301,15 +303,14 @@ impl<'a, P: Platform + Sync> GitHandle<'a, P> {
 }
 
 impl<'a, 'b, P: Platform + Sync> GitHandleResult<'a, 'b, P> {
-
     #[async_recursion(?Send)]
     pub async fn stream_blob(
         &self,
         mut writer: impl Write + 'async_recursion,
     ) -> Result<usize, PmrRepoError> {
         match &self.target {
-            GitResultTarget::Object(object) => match object.kind {
-                Kind::Blob => Ok(writer.write(&object.data)?),
+            GitResultTarget::Object(object) => match object.object.kind {
+                Kind::Blob => Ok(writer.write(&object.object.data)?),
                 _ => Err(ContentError::Invalid {
                     workspace_id: self.workspace.id(),
                     oid: self.commit.id().to_string(),

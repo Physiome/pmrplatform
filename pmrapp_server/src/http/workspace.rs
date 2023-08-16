@@ -8,20 +8,15 @@ use axum::{
 };
 use pmrmodel_base::{
     repo::{
-        PathObject,
+        PathObjectInfo,
         RemoteInfo,
     },
-    workspace::traits::WorkspaceBackend,
 };
 use pmrrepo::{
     backend::Backend,
     handle::GitResultTarget,
-    git::Kind,
 };
-use std::{
-    io::Write,
-    path::PathBuf,
-};
+use std::io::Write;
 
 use crate::http::{
     api,
@@ -59,9 +54,9 @@ async fn render_workspace(
     path: Path<i64>,
 ) -> Response {
     let workspace_id = path.0;
-    match api::workspace::api_workspace_top_ssr(ctx, path).await {
-        Ok((record, path_info)) => {
-            let app = App::with_workspace_top(workspace_id, record, path_info);
+    match api::workspace::api_workspace_top(ctx, path).await {
+        Ok(Json(repo_result)) => {
+            let app = App::with_workspace_top(workspace_id, repo_result);
             let content = page::index(&app).render_to_string();
             Html(content).into_response()
         },
@@ -128,31 +123,25 @@ async fn raw_workspace_pathinfo_workspace_id_commit_id_path(
             // Ok(blob)
 
             match &result.target {
-                GitResultTarget::Object(object) => match object.kind {
-                    Kind::Blob => {
-                        let path_object = <Option<PathObject>>::from(&result);
-                        match (path_object, object.kind) {
-                            (Some(PathObject::FileInfo(info)), Kind::Blob) => {
-                                // possible to avoid copying these bytes?
-                                match (&mut buffer).write(&object.data) {
-                                    Ok(_) => Ok((
-                                        [(header::CONTENT_TYPE, info.mime_type)],
-                                        buffer
-                                    ).into_response()),
-                                    Err(_) => Err(Error::Error),
-                                }
-                            },
-                            _ => {
-                                log::info!("failed to get blob from object");
-                                Err(Error::NotFound)
+                GitResultTarget::Object(object) => {
+                    let info: PathObjectInfo = object.into();
+                    match info {
+                        PathObjectInfo::FileInfo(info) => {
+                            // possible to avoid copying these bytes?
+                            match (&mut buffer).write(&object.object.data) {
+                                Ok(_) => Ok((
+                                    [(header::CONTENT_TYPE, info.mime_type)],
+                                    buffer
+                                ).into_response()),
+                                Err(_) => Err(Error::Error),
                             }
+                        },
+                        _ => {
+                            log::info!("failed to get blob from object");
+                            Err(Error::NotFound)
                         }
-                    },
-                    _ => {
-                        log::info!("target is not a git blob");
-                        Err(Error::NotFound)
-                    },
-                },
+                    }
+                }
                 GitResultTarget::RemoteInfo(RemoteInfo { location, commit, path }) => {
                     // XXX this should be a redirect
                     Ok(Redirect::temporary(

@@ -47,8 +47,11 @@ pub struct LogInfo {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RemoteInfo {
+    /// The url of the remote location.
     pub location: String,
+    /// The commit id of the interested target.
     pub commit: String,
+    /// The path of the interested target.
     pub path: String,
 }
 
@@ -58,32 +61,48 @@ pub enum ObjectInfo {
     TreeInfo(TreeInfo),
     CommitInfo(CommitInfo),
     LogInfo(LogInfo),
+    Unknown,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum PathObject {
+pub enum PathObjectInfo {
     FileInfo(FileInfo),
     TreeInfo(TreeInfo),
     RemoteInfo(RemoteInfo),
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct PathInfo {
-    pub commit: CommitInfo,
-    pub path: String,
-    pub object: Option<PathObject>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum RepoTarget {
-    Object(ObjectInfo),
-    RemoteInfo(RemoteInfo),
+    Unknown,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RepoResult {
-    pub commit: String,
-    pub path: String,
-    pub target: RepoTarget,
+    /// The workspace that this result was derived from.
     pub workspace: Workspace,
+    /// The commit id that this result was derived from.
+    pub commit: CommitInfo,
+    /// The path to the target.
+    pub path: String,
+    /// The target is the resource identified at the path.
+    pub target: PathObjectInfo,
 }
+
+/*
+// This was the original result, but it lacked workspace and description
+// so it wasn't too useful, but given that a repo is ultimately from a
+// workspace so it make sense to see if the above, more detailed result
+// type, is more useful.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct PathInfo {
+    // TODO figure out if we need these back, as the "merged" version
+    // was removed to keep the amount of objects simple.
+    // TODO need to see if the end point really need this, or is there
+    // a better way if leptos routing can fix this issue.
+    // TODO determine if the more verbose RepoResult is just going to
+    // be the better, although albeit, verbose way.
+    // TODO comment/uncomment workspace_id/description field while all
+    // related questions are being worked on.
+    pub workspace_id: i64,
+    pub description: Option<String>,
+    pub commit: CommitInfo,
+    pub path: String,
+    pub object: ObjectInfo,
+}
+*/

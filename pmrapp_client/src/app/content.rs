@@ -8,27 +8,20 @@ use pmrmodel_base::{
         Workspace,
     },
     repo::{
-        PathInfo,
-        PathObject,
-        TreeEntryInfo,
+        PathObjectInfo,
+        RepoResult,
     },
-    merged::{
-        WorkspacePathInfo,
-    }
 };
 
-use crate::model::JsonWorkspaceRecord;
 use crate::app::Resource;
 use crate::app::Msg;
 
-#[derive(
-    Debug, Deserialize, Serialize, PartialEq, Clone, derive_more::From,
-)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub enum Content {
     Homepage,
     WorkspaceListing(Workspaces),
-    WorkspaceTop(JsonWorkspaceRecord, Option<WorkspacePathInfo>),
-    WorkspacePathInfo(WorkspacePathInfo),
+    WorkspaceTop(RepoResult),
+    WorkspaceRepoResult(RepoResult),
 }
 
 
@@ -76,31 +69,31 @@ impl Content {
                     </div>
                 }
             },
-            Content::WorkspaceTop(entry, wks_path_info) => {
+            Content::WorkspaceTop(repo_result) => {
                 node! {
                     <div class="main">
-                        <h1>{ text!("{}", &entry.workspace.description.as_ref().unwrap_or(
-                            &format!("Workspace {}", &entry.workspace.id))) }</h1>
+                        <h1>{ text!("{}", &repo_result.workspace.description.as_ref().unwrap_or(
+                            &format!("Workspace {}", &repo_result.workspace.id))) }</h1>
                         <dl>
                             <dt>"Git Repository URI"</dt>
-                            <dd>{ text!("{}", &entry.workspace.url) }</dd>
+                            <dd>{ text!("{}", &repo_result.workspace.url) }</dd>
                         </dl>
                         <div class="workspace-pathinfo">
                         {
-                            self.show_workspace_file_table((&wks_path_info).as_ref())
+                            self.show_workspace_file_table(&repo_result)
                         }
                         </div>
                     </div>
                 }
             },
-            Content::WorkspacePathInfo(wks_path_info) => {
-                let workspace_id = wks_path_info.workspace_id;
+            Content::WorkspaceRepoResult(repo_result) => {
+                let workspace_id = repo_result.workspace.id;
                 node! {
                     <div class="main">
                         <h1>
                             <a
                                 relative
-                                href=format!("/workspace/{}/", &wks_path_info.workspace_id)
+                                href=format!("/workspace/{}/", &repo_result.workspace.id)
                                 on_click=move |e| {
                                     e.prevent_default();
                                     Msg::Retrieve(
@@ -109,23 +102,23 @@ impl Content {
                                     )
                                 }>
                             {
-                                text!("{}", &wks_path_info.description.as_ref().unwrap_or(
-                                    &format!("Workspace {}", &wks_path_info.workspace_id)))
+                                text!("{}", &repo_result.workspace.description.as_ref().unwrap_or(
+                                    &format!("Workspace {}", &repo_result.workspace.id)))
                             }
                             </a>
                         </h1>
                         <div class="workspace-pathinfo">
                         {
-                            match &wks_path_info.object {
-                                Some(PathObject::TreeInfo(..)) => {
-                                    self.show_workspace_file_table(Some(&wks_path_info))
+                            match &repo_result.target {
+                                PathObjectInfo::TreeInfo(..) => {
+                                    self.show_workspace_file_table(&repo_result)
                                 }
-                                Some(PathObject::FileInfo(file_info)) => {
+                                PathObjectInfo::FileInfo(file_info) => {
                                     let href = format!(
                                         "/workspace/{}/raw/{}/{}",
-                                        &wks_path_info.workspace_id,
-                                        &wks_path_info.commit.commit_id,
-                                        &wks_path_info.path,
+                                        &repo_result.workspace.id,
+                                        &repo_result.commit.commit_id,
+                                        &repo_result.path,
                                     );
                                     node! {
                                         <div>
@@ -153,8 +146,8 @@ impl Content {
                                         }
                                     }
                                 }
-                                _ => {
-                                    text!("")
+                                other => {
+                                    text!("unhandled PathObjectInfo {other:?}")
                                 }
                             }
                         }
@@ -184,7 +177,7 @@ impl Content {
         }
     }
 
-    fn show_workspace_file_table(&self, wks_path_info: Option<&WorkspacePathInfo>) -> Node<app::Msg> {
+    fn show_workspace_file_table(&self, repo_result: &RepoResult) -> Node<app::Msg> {
         node! {
             <table class="file-listing">
                 <thead>
@@ -195,51 +188,46 @@ impl Content {
                     </tr>
                 </thead>
                 {
-                    self.show_workspace_file_table_body(wks_path_info)
+                    self.show_workspace_file_table_body(repo_result)
                 }
             </table>
         }
     }
 
-    fn show_workspace_file_table_body(&self, wks_path_info: Option<&WorkspacePathInfo>) -> Node<app::Msg> {
-        match wks_path_info {
-            Some(wks_path_info) => {
-                match &wks_path_info.object {
-                    Some(PathObject::TreeInfo(tree_info)) => {
-                        node! {
-                            <tbody>
-                            {
-                                if wks_path_info.path != "" {
-                                    self.show_workspace_file_row(
-                                        wks_path_info.workspace_id,
-                                        wks_path_info.commit.commit_id.clone(),
-                                        wks_path_info.path.clone(),
-                                        "pardir",
-                                        "..",
-                                    )
-                                }
-                                else {
-                                    node! {}
-                                }
-                            }
-                            {
-                                for info in tree_info.entries.iter() {
-                                    self.show_workspace_file_row(
-                                        wks_path_info.workspace_id,
-                                        wks_path_info.commit.commit_id.clone(),
-                                        wks_path_info.path.clone(),
-                                        &info.kind,
-                                        &info.name,
-                                    )
-                                }
-                            }
-                            </tbody>
+    fn show_workspace_file_table_body(&self, repo_result: &RepoResult) -> Node<app::Msg> {
+        match &repo_result.target {
+            PathObjectInfo::TreeInfo(tree_info) => {
+                node! {
+                    <tbody>
+                    {
+                        if repo_result.path != "" {
+                            self.show_workspace_file_row(
+                                repo_result.workspace.id,
+                                repo_result.commit.commit_id.clone(),
+                                repo_result.path.clone(),
+                                "pardir",
+                                "..",
+                            )
                         }
-                    },
-                    _ => node! {},
+                        else {
+                            node! {}
+                        }
+                    }
+                    {
+                        for info in tree_info.entries.iter() {
+                            self.show_workspace_file_row(
+                                repo_result.workspace.id,
+                                repo_result.commit.commit_id.clone(),
+                                repo_result.path.clone(),
+                                &info.kind,
+                                &info.name,
+                            )
+                        }
+                    }
+                    </tbody>
                 }
-            }
-            None => node! {},
+            },
+            _ => node! {},
         }
     }
 
@@ -278,7 +266,7 @@ impl Content {
                     on_click=move |e| {
                         e.prevent_default();
                         Msg::Retrieve(
-                            Resource::WorkspacePathInfo(
+                            Resource::WorkspaceRepoResult(
                                 workspace_id,
                                 commit_id.clone(),
                                 path_name.clone(),

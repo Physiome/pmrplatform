@@ -1,20 +1,22 @@
 use super::*;
-use pmrmodel_base::repo::RemoteInfo;
+use pmrmodel_base::{
+    git::PathObject,
+    repo::RemoteInfo,
+};
 use gix::{
     Commit,
-    Object,
     Repository,
 };
 
 pub struct GitHandle<'a, P: Platform> {
     pub(super) backend: &'a Backend<'a, P>,
-    pub(crate) repo_dir: PathBuf,
     pub workspace: WorkspaceRef<'a, P>,
     pub repo: Repository,
 }
 
+#[derive(Debug)]
 pub enum GitResultTarget<'a> {
-    Object(Object<'a>),
+    Object(PathObject<'a>),
     RemoteInfo(RemoteInfo),
 }
 

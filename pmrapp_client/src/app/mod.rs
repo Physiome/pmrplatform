@@ -3,8 +3,7 @@ use pmrmodel_base::{
         Workspaces,
         // Workspace,
     },
-    repo::PathInfo,
-    merged::WorkspacePathInfo,
+    repo::RepoResult,
 };
 use sauron::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -17,8 +16,6 @@ mod content;
 use content::Content;
 use crate::error::ServerError;
 use crate::api;
-use crate::model::JsonWorkspaceRecord;
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FetchStatus<T> {
@@ -34,7 +31,7 @@ pub enum Resource {
     Homepage,
     WorkspaceListing,
     WorkspaceTop(i64),
-    WorkspacePathInfo(i64, String, String),
+    WorkspaceRepoResult(i64, String, String),
 }
 
 pub enum Msg {
@@ -120,7 +117,7 @@ impl Application<Msg> for App {
                         class={ match self.resource {
                             Resource::WorkspaceListing |
                             Resource::WorkspaceTop(..) |
-                            Resource::WorkspacePathInfo(..) => "active",
+                            Resource::WorkspaceRepoResult(..) => "active",
                             _ => ""
                         } }
                         on_click=|e| {
@@ -158,7 +155,7 @@ impl Application<Msg> for App {
                 Resource::WorkspaceTop(workspace_id) => {
                     self.fetch_workspace(resource, workspace_id)
                 }
-                Resource::WorkspacePathInfo(workspace_id, ref commit_id, ref path) => {
+                Resource::WorkspaceRepoResult(workspace_id, ref commit_id, ref path) => {
                     let commit_id = commit_id.clone();
                     let path = path.clone();
                     self.fetch_workspace_pathinfo(
@@ -253,7 +250,7 @@ impl App {
 
     pub fn with_workspace_listing(workspaces: Workspaces) -> Self {
         Self {
-            content: FetchStatus::Complete(Content::from(workspaces)),
+            content: FetchStatus::Complete(Content::WorkspaceListing(workspaces)),
             is_loading: false,
             resource: Resource::WorkspaceListing,
         }
@@ -261,11 +258,10 @@ impl App {
 
     pub fn with_workspace_top(
         workspace_id: i64,
-        record: JsonWorkspaceRecord,
-        object_info: Option<WorkspacePathInfo>,
+        repo_result: RepoResult,
     ) -> Self {
         Self {
-            content: FetchStatus::Complete(Content::from((record, object_info))),
+            content: FetchStatus::Complete(Content::WorkspaceTop(repo_result)),
             is_loading: false,
             resource: Resource::WorkspaceTop(workspace_id),
         }
@@ -275,12 +271,12 @@ impl App {
         workspace_id: i64,
         commit_id: String,
         filepath: String,
-        object_info: WorkspacePathInfo,
+        object_info: RepoResult,
     ) -> Self {
         Self {
-            content: FetchStatus::Complete(Content::from(object_info)),
+            content: FetchStatus::Complete(Content::WorkspaceRepoResult(object_info)),
             is_loading: false,
-            resource: Resource::WorkspacePathInfo(workspace_id, commit_id, filepath),
+            resource: Resource::WorkspaceRepoResult(workspace_id, commit_id, filepath),
         }
     }
 }
@@ -298,7 +294,7 @@ impl App {
             let async_fetch = |program:Program<Self,Msg>| async move{
                 match api::get_workspace_listing().await {
                     Ok(workspaces) => {
-                        program.dispatch(Msg::ReceivedContent(resource, Content::from(
+                        program.dispatch(Msg::ReceivedContent(resource, Content::WorkspaceListing(
                             workspaces,
                         )));
                     }
@@ -315,36 +311,11 @@ impl App {
         Cmd::new(move|program| {
             let async_fetch = |program:Program<Self,Msg>| async move{
                 match api::get_workspace_top(&workspace_id).await {
-                    Ok(json_workspace_record) => {
-                        match json_workspace_record.head_commit {
-                            Some(_) => {
-                                let async_fetch = |program:Program<Self, Msg>| async move {
-                                    match api::get_workspace_pathinfo(
-                                        &workspace_id,
-                                        // have to unwrap here.
-                                        &json_workspace_record.head_commit.as_ref().unwrap(),
-                                        None,
-                                    ).await {
-                                        Ok(object_info) => {
-                                            program.dispatch(Msg::ReceivedContent(resource, Content::from(
-                                                (json_workspace_record, Some(object_info))
-                                            )));
-                                        }
-                                        Err(_) => {
-                                            program.dispatch(Msg::ReceivedContent(resource, Content::from(
-                                                (json_workspace_record, None)
-                                            )));
-                                        }
-                                    }
-                                };
-                                spawn_local(async_fetch(program))
-                            }
-                            None => {
-                                program.dispatch(Msg::ReceivedContent(resource, Content::from(
-                                    (json_workspace_record, None)
-                                )));
-                            }
-                        }
+                    Ok(repo_result) => {
+                        program.dispatch(Msg::ReceivedContent(
+                            resource,
+                            Content::WorkspaceTop(repo_result),
+                        ));
                     }
                     Err(e) => {
                         program.dispatch(Msg::RequestError(e));
@@ -369,9 +340,9 @@ impl App {
                     &commit_id,
                     Some(&path),
                 ).await {
-                    Ok(workspaces) => {
-                        program.dispatch(Msg::ReceivedContent(resource, Content::from(
-                            workspaces,
+                    Ok(repo_result) => {
+                        program.dispatch(Msg::ReceivedContent(resource, Content::WorkspaceRepoResult(
+                            repo_result,
                         )));
                     }
                     Err(e) => {

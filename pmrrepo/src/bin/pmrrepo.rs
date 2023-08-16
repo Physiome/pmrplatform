@@ -17,17 +17,19 @@ use pmrmodel::model::workspace::{
     stream_workspace_records_default,
     stream_workspace_records_as_json,
 };
-use pmrmodel_base::workspace::traits::{
-    WorkspaceBackend,
-    WorkspaceAliasBackend,
-    WorkspaceSyncBackend,
-    WorkspaceTagBackend,
+use pmrmodel_base::{
+    platform::Platform,
+    repo::PathObjectInfo,
+    workspace::traits::{
+        WorkspaceBackend,
+        WorkspaceAliasBackend,
+        WorkspaceSyncBackend,
+        WorkspaceTagBackend,
+    },
 };
-
-use pmrrepo::backend::Backend;
-use pmrrepo::git::{
-    stream_git_result_as_json,
-    stream_git_result_default,
+use pmrrepo::{
+    backend::Backend,
+    handle::GitHandleResult,
 };
 
 #[derive(StructOpt)]
@@ -91,6 +93,36 @@ enum Command {
         alias: Option<String>,
         // TODO include reverse lookup here?
     },
+}
+
+fn stream_git_result_default<P: Platform + Sync>(
+    mut writer: impl Write,
+    item: &GitHandleResult<P>,
+) -> std::result::Result<usize, std::io::Error> {
+    // TODO split off to a formatter version?
+    // alternatively, produce some structured data?
+    writer.write(format!("
+        have repo at {:?}
+        have commit {:?}
+        have commit_object {:?}
+        using repopath {:?}
+        have git_object {:?}
+        have path_object_info {:?}
+        \n",
+        item.repo.path(),
+        &item.commit.id(),
+        &item.commit,
+        item.path,
+        &item.target,
+        <PathObjectInfo>::from(item),
+    ).as_bytes())
+}
+
+fn stream_git_result_as_json<P: Platform + Sync>(
+    writer: impl Write,
+    item: &GitHandleResult<P>,
+) -> Result<(), serde_json::Error> {
+    serde_json::to_writer(writer, &<PathObjectInfo>::from(item))
 }
 
 fn fetch_envvar(key: &str) -> anyhow::Result<String> {
@@ -189,8 +221,6 @@ async fn main(args: Args) -> anyhow::Result<()> {
                 git_result.stream_blob(io::stdout()).await?;
             }
             else {
-                println!("FIXME");
-                /*
                 if args.json {
                     stream_git_result_as_json(
                         io::stdout(), &git_result)?;
@@ -199,7 +229,6 @@ async fn main(args: Args) -> anyhow::Result<()> {
                     stream_git_result_default(
                         io::stdout(), &git_result)?;
                 }
-                */
             }
         }
         Some(Command::Log { workspace_id, commit_id }) => {

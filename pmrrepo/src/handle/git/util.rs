@@ -4,19 +4,6 @@ use gix::{
     Repository,
     actor::SignatureRef,
     object::Kind,
-    objs::{
-        BlobRef,
-        CommitRef,
-        TreeRef,
-        WriteTo as _,
-    },
-};
-use pmrmodel_base::repo::{
-    CommitInfo,
-    FileInfo,
-    ObjectInfo,
-    TreeEntryInfo,
-    TreeInfo,
 };
 use std::path::Path;
 use crate::{
@@ -27,13 +14,8 @@ use crate::{
         PathError,
         PmrRepoError,
     },
-    util::is_binary,
 };
-use super::{
-    Platform,
-    GitHandleResult,
-    error::FetchClone,
-};
+use super::error::FetchClone;
 
 pub(super) fn rev_parse_single<'a>(
     repo: &'a Repository,
@@ -89,7 +71,7 @@ impl<'a> PathFilter<'a> {
     }
 }
 
-pub(super) fn get_commit<'a>(
+pub(crate) fn get_commit<'a>(
     repo: &'a Repository,
     workspace_id: i64,
     commit_id: Option<&'a str>,
@@ -113,7 +95,7 @@ pub(super) fn get_commit<'a>(
     }
 }
 
-pub(super) fn get_submodule_target(
+pub(crate) fn get_submodule_target(
     commit: &Commit,
     workspace_id: i64,
     path: &str,
@@ -202,101 +184,3 @@ pub(crate) fn fetch_or_clone(
     }
     Ok(())
 }
-
-// These assume the blobs are all contained because the conversion to
-// the Ref equivalent currently drops information for gix, and to make
-// the internal usage consistent, the raw object is passed.
-pub(super) fn obj_blob_to_info(git_object: &Object, path: Option<&str>) -> ObjectInfo {
-    let blob = BlobRef::from_bytes(&git_object.data).unwrap();
-    ObjectInfo::FileInfo(FileInfo {
-        size: blob.size() as u64,
-        binary: is_binary(blob.data),
-        mime_type: path
-            .and_then(|path| mime_guess::from_path(path).first_raw())
-            .unwrap_or("application/octet-stream")
-            .to_string(),
-    })
-}
-
-pub(super) fn obj_tree_to_info(git_object: &Object) -> ObjectInfo {
-    let tree = TreeRef::from_bytes(&git_object.data).unwrap();
-    ObjectInfo::TreeInfo(
-        TreeInfo {
-            filecount: tree.entries.len() as u64,
-            entries: tree.entries.iter().map(|entry| TreeEntryInfo {
-                filemode: std::str::from_utf8(entry.mode.as_bytes()).unwrap().to_string(),
-                kind: format!("{}", entry.oid.kind()),
-                id: format!("{}", entry.oid),
-                name: format!("{}", entry.filename),
-            }).collect(),
-        }
-    )
-}
-
-pub(super) fn obj_commit_to_info(git_object: &Object) -> ObjectInfo {
-    ObjectInfo::CommitInfo(commitref_id_to_commitinfo(
-        git_object.id.to_string(),
-        CommitRef::from_bytes(&git_object.data)
-            .expect("should have been verified as a well-formed commit"),
-    ))
-}
-
-// practically duplicating the above.
-pub(super) fn commit_to_info(commit: &Commit) -> ObjectInfo {
-    ObjectInfo::CommitInfo(commitref_id_to_commitinfo(
-        commit.id.to_string(),
-        CommitRef::from_bytes(&commit.data)
-            .expect("should have been verified as a well-formed commit"),
-    ))
-}
-
-pub(super) fn commitref_id_to_commitinfo(
-    commit_id: String,
-    commit: CommitRef,
-) -> CommitInfo {
-    CommitInfo {
-        commit_id: commit_id,
-        author: format_signature_ref(&commit.author()),
-        committer: format_signature_ref(&commit.committer()),
-    }
-}
-
-pub(super) fn gitresult_to_info<P: Platform>(
-    git_result: &GitHandleResult<P>,
-    git_object: &Object,
-) -> Option<ObjectInfo> {
-    // TODO split off to a formatter version?
-    // alternatively, produce some structured data?
-    match git_object.kind {
-        Kind::Blob => {
-            Some(obj_blob_to_info(
-                &git_object,
-                Some(git_result.path),
-            ))
-        },
-        _ => object_to_info(git_object),
-    }
-}
-
-pub(super) fn object_to_info(
-    git_object: &Object,
-) -> Option<ObjectInfo> {
-    match git_object.kind {
-        Kind::Blob => {
-            Some(obj_blob_to_info(
-                &git_object,
-                None,
-            ))
-        }
-        Kind::Tree => {
-            Some(obj_tree_to_info(&git_object))
-        }
-        Kind::Commit => {
-            Some(obj_commit_to_info(&git_object))
-        }
-        Kind::Tag => {
-            None
-        }
-    }
-}
-

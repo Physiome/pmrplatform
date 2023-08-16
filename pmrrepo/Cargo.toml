@@ -14,7 +14,6 @@ futures = "0.3"
 git2 = "0.13"
 gix = "^0.48"
 log = { version = "0.4", features = ["std", "serde"] }
-mime_guess = "2.0.4"
 paw = "1.0"
 pmrmodel_base = { version = "0.1", features = ["sqlx", "git"] }
 pmrmodel = "0.1"
