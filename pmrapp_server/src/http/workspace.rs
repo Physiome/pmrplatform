@@ -6,7 +6,7 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
     routing::get,
 };
-use pmrmodel_base::{
+use pmrcore::{
     repo::{
         PathObjectInfo,
         RemoteInfo,

@@ -7,7 +7,7 @@ use pmrmodel::backend::db::{
     Profile,
     SqliteBackend,
 };
-use pmrmodel_base::task_template::{
+use pmrcore::task_template::{
     TaskTemplate,
     traits::TaskTemplateBackend,
 };

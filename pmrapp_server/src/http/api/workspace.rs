@@ -5,7 +5,7 @@ use axum::{
     Router,
 };
 use pmrrepo::backend::Backend;
-use pmrmodel_base::{
+use pmrcore::{
     repo::RepoResult,
     workspace::{
         Workspaces,

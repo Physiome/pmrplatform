@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 #[cfg(test)]
 use crate::test::Utc;
-use pmrmodel_base::{
+use pmrcore::{
     error::BackendError,
     exposure::{
         Exposure,
@@ -188,7 +188,7 @@ impl ExposureBackend for SqliteBackend {
 
 #[cfg(test)]
 pub(crate) mod testing {
-    use pmrmodel_base::{
+    use pmrcore::{
         exposure::{
             Exposure,
             traits::{

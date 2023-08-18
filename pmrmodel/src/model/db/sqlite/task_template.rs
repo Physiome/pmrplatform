@@ -2,7 +2,7 @@ use async_trait::async_trait;
 #[cfg(not(test))]
 use chrono::Utc;
 use futures::future;
-use pmrmodel_base::{
+use pmrcore::{
     error::BackendError,
     task_template::{
         TaskTemplate,
@@ -557,7 +557,7 @@ impl TaskTemplateBackend for SqliteBackend {
 
 #[cfg(test)]
 mod tests {
-    use pmrmodel_base::task_template::{
+    use pmrcore::task_template::{
         TaskTemplate,
         TaskTemplateArg,
         TaskTemplateArgChoice,

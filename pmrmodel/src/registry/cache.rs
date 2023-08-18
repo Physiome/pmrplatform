@@ -2,7 +2,7 @@ use parking_lot::{
     Mutex,
     MutexGuard,
 };
-use pmrmodel_base::task_template::{
+use pmrcore::task_template::{
     MapToArgRef,
     TaskTemplateArg,
 };

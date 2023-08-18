@@ -8,7 +8,7 @@ use gix::{
     objs::tree,
 };
 use mockall::mock;
-use pmrmodel_base::{
+use pmrcore::{
     error::BackendError,
     exposure::{
         Exposure,

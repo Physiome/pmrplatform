@@ -17,7 +17,7 @@ use pmrmodel::model::workspace::{
     stream_workspace_records_default,
     stream_workspace_records_as_json,
 };
-use pmrmodel_base::{
+use pmrcore::{
     platform::Platform,
     repo::PathObjectInfo,
     workspace::traits::{

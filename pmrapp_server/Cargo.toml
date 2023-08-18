@@ -14,7 +14,7 @@ dotenvy = "0.15.0"
 log = { version = "0.4", features = ["std", "serde"] }
 pmrapp_client = "0.0.0"
 pmrmodel = "0.1.0"
-pmrmodel_base = "0.1.0"
+pmrcore = "0.1.0"
 pmrrepo = "0.1.0"
 tokio = { version = "1.20", features = [ "full" ] }
 tower = "0.4"

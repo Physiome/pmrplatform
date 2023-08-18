@@ -15,7 +15,7 @@ git2 = "0.13"
 gix = "^0.48"
 log = { version = "0.4", features = ["std", "serde"] }
 paw = "1.0"
-pmrmodel_base = { version = "0.1", features = ["sqlx", "git"] }
+pmrcore = { version = "0.1", features = ["sqlx", "git"] }
 pmrmodel = "0.1"
 serde = "1.0.59"
 serde_json = "1.0.59"

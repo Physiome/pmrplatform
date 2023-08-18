@@ -1,8 +1,8 @@
-use pmrmodel_base::workspace::{
+use pmrcore::workspace::{
     Workspaces,
     // Workspace,
 };
-use pmrmodel_base::repo::RepoResult;
+use pmrcore::repo::RepoResult;
 use crate::error::ServerError;
 
 pub async fn request_get_json<T: serde::de::DeserializeOwned>(

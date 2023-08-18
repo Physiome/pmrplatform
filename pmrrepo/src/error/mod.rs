@@ -7,7 +7,7 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum PmrRepoError {
     #[error("BackendError: {0}")]
-    BackendError(#[from] pmrmodel_base::error::BackendError),
+    BackendError(#[from] pmrcore::error::BackendError),
     #[error("ContentError: {0}")]
     ContentError(#[from] ContentError),
     #[error("ExecutionError: {0}")]

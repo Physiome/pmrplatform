@@ -1,5 +1,5 @@
 use super::*;
-use pmrmodel_base::{
+use pmrcore::{
     git::PathObject,
     repo::RemoteInfo,
 };

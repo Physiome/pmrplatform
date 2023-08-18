@@ -1,4 +1,4 @@
-use pmrmodel_base::workspace::Workspaces;
+use pmrcore::workspace::Workspaces;
 use std::io::Write;
 
 pub fn stream_workspace_records_default(

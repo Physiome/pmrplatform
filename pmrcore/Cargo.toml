@@ -1,5 +1,5 @@
 [package]
-name = "pmrmodel_base"
+name = "pmrcore"
 version = "0.1.0"
 
 authors = ["Tommy Yu <tommy.yu@auckland.ac.nz>"]

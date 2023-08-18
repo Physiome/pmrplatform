@@ -12,7 +12,7 @@ use gix::{
     traverse::commit::Sorting,
     traverse::tree::Recorder,
 };
-use pmrmodel_base::{
+use pmrcore::{
     git::PathObject,
     repo::{
         LogEntryInfo,

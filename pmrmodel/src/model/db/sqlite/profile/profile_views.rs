@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use pmrmodel_base::{
+use pmrcore::{
     error::BackendError,
     profile::ViewTaskTemplate,
     profile::ViewTaskTemplates,
@@ -117,7 +117,7 @@ impl ProfileViewsBackend for SqliteBackend {
 
 #[cfg(test)]
 mod testing {
-    use pmrmodel_base::profile::{
+    use pmrcore::profile::{
         ViewTaskTemplate,
         traits::{
             ProfileBackend,

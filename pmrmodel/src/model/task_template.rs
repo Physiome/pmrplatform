@@ -1,8 +1,8 @@
-use pmrmodel_base::task::{
+use pmrcore::task::{
     Task,
     TaskArg,
 };
-use pmrmodel_base::task_template::{
+use pmrcore::task_template::{
     MapToArgRef,
     TaskTemplate,
     TaskTemplateArg,
@@ -748,11 +748,11 @@ fn test_choice_without_prompt() {
 
 #[cfg(test)]
 mod test {
-    use pmrmodel_base::task_template::{
+    use pmrcore::task_template::{
         TaskTemplate,
         TaskTemplateArg,
     };
-    use pmrmodel_base::task::{
+    use pmrcore::task::{
         Task,
         TaskArg,
     };

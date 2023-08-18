@@ -3,14 +3,14 @@ members = [
     "pmrapp_client",
     "pmrapp_server",
     "pmrctrl",
-    "pmrmodel_base",
+    "pmrcore",
     "pmrmodel",
     "pmrrepo",
     "pmrtqs"
 ]
 default-members = [
     "pmrctrl",
-    "pmrmodel_base",
+    "pmrcore",
     "pmrmodel",
     "pmrrepo",
     "pmrtqs",
@@ -21,6 +21,6 @@ pmrapp_client = { path = "./pmrapp_client" }
 pmrapp_server = { path = "./pmrapp_server" }
 pmrctrl = { path = "./pmrctrl" }
 pmrmodel = { path = "./pmrmodel" }
-pmrmodel_base = { path = "./pmrmodel_base" }
+pmrcore = { path = "./pmrcore" }
 pmrrepo = { path = "./pmrrepo" }
 pmrtqs = { path = "./pmrtqs" }

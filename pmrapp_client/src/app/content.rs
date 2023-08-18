@@ -2,7 +2,7 @@ use crate::app;
 use sauron::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use pmrmodel_base::{
+use pmrcore::{
     workspace::{
         Workspaces,
         Workspace,

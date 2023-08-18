@@ -1,4 +1,4 @@
-use pmrmodel_base::{
+use pmrcore::{
     error::BackendError,
     workspace::{
         WorkspaceSyncStatus,

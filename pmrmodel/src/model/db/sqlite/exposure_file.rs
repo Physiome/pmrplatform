@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use pmrmodel_base::{
+use pmrcore::{
     error::BackendError,
     exposure::{
         ExposureFile,
@@ -166,7 +166,7 @@ impl ExposureFileBackend for SqliteBackend {
 
 #[cfg(test)]
 pub(crate) mod testing {
-    use pmrmodel_base::{
+    use pmrcore::{
         exposure::{
             ExposureFile,
             traits::Exposure as _,

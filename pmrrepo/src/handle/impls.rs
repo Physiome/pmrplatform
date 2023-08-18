@@ -1,4 +1,4 @@
-use pmrmodel_base::{
+use pmrcore::{
     platform::Platform,
     workspace::{
         WorkspaceRef,
@@ -66,7 +66,7 @@ impl<'a, P: Platform + Sync> Handle<'a, P> {
 mod tests {
     use mockall::predicate::*;
     use super::*;
-    use pmrmodel_base::{
+    use pmrcore::{
         repo::{
             RemoteInfo,
         },

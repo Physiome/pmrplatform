@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use pmrmodel_base::{
+use pmrcore::{
     error::BackendError,
     profile::Profile,
     profile::traits::ProfileBackend,
@@ -105,7 +105,7 @@ impl ProfileBackend for SqliteBackend {
 
 #[cfg(test)]
 mod testing {
-    use pmrmodel_base::profile::{
+    use pmrcore::profile::{
         Profile,
         traits::ProfileBackend,
     };

@@ -1,4 +1,4 @@
-use pmrmodel_base::platform::Platform;
+use pmrcore::platform::Platform;
 use std::path::PathBuf;
 
 use crate::{
