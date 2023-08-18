@@ -196,7 +196,7 @@ pub(crate) mod testing {
                 ExposureBackend,
             },
         },
-        platform::Platform,
+        platform::MCPlatform,
         workspace::traits::Workspace,
     };
     use crate::backend::db::{
@@ -240,7 +240,7 @@ pub(crate) mod testing {
             // files: Some([].to_vec().into()),
         });
 
-        let workspace = Platform::get_workspace(&backend, id).await?;
+        let workspace = MCPlatform::get_workspace(&backend, id).await?;
         assert_eq!(workspace.id(), workspace_id);
         let exposures = workspace.exposures().await?;
         assert_eq!(exposures.len(), 1);

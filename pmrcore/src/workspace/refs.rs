@@ -2,7 +2,7 @@ use std::sync::OnceLock;
 use crate::{
     error::BackendError,
     exposure,
-    platform::Platform,
+    platform::MCPlatform,
     workspace::{
         Workspace,
         Workspaces,
@@ -13,21 +13,21 @@ use crate::{
     },
 };
 
-pub struct WorkspaceRef<'a, P: Platform + Sized> {
+pub struct WorkspaceRef<'a, P: MCPlatform + Sized> {
     pub(super) inner: Workspace,
     pub(super) exposures: OnceLock<exposure::ExposureRefs<'a, P>>,
     pub(super) platform: &'a P,
 }
 
-pub struct WorkspaceSyncRef<'a, P: Platform + Sized> {
+pub struct WorkspaceSyncRef<'a, P: MCPlatform + Sized> {
     pub(super) id: i64,
     pub(super) platform: &'a P,
 }
 
-pub struct WorkspaceRefs<'a, P: Platform + Sized>(pub(super) Vec<WorkspaceRef<'a, P>>);
+pub struct WorkspaceRefs<'a, P: MCPlatform + Sized>(pub(super) Vec<WorkspaceRef<'a, P>>);
 
 impl Workspace {
-    pub(crate) fn bind<'a, P: Platform + Sized>(
+    pub(crate) fn bind<'a, P: MCPlatform + Sized>(
         self,
         platform: &'a P,
     ) -> WorkspaceRef<'a, P> {
@@ -40,7 +40,7 @@ impl Workspace {
 }
 
 impl Workspaces {
-    pub(crate) fn bind<'a, P: Platform + Sized>(
+    pub(crate) fn bind<'a, P: MCPlatform + Sized>(
         self,
         platform: &'a P,
     ) -> WorkspaceRefs<'a, P> {
@@ -52,7 +52,7 @@ impl Workspaces {
     }
 }
 
-impl<'a, P: Platform + Sized> WorkspaceRef<'a, P> {
+impl<'a, P: MCPlatform + Sized> WorkspaceRef<'a, P> {
     pub fn into_inner(self) -> Workspace {
         self.inner
     }
@@ -73,7 +73,7 @@ impl<'a, P: Platform + Sized> WorkspaceRef<'a, P> {
     }
 }
 
-impl<P: Platform + Sized> WorkspaceSyncRef<'_, P> {
+impl<P: MCPlatform + Sized> WorkspaceSyncRef<'_, P> {
     pub async fn complete_sync(&self) -> Result<bool, BackendError> {
         WorkspaceSyncBackend::complete_sync(
             self.platform,

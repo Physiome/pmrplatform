@@ -21,7 +21,7 @@ use pmrcore::{
         RemoteInfo,
         RepoResult,
     },
-    platform::Platform,
+    platform::MCPlatform,
     workspace::{
         WorkspaceRef,
         traits::{
@@ -58,7 +58,7 @@ use super::{
     util::*,
 };
 
-impl<P: Platform + Sync> From<&GitHandleResult<'_, '_, P>> for PathObjectInfo {
+impl<P: MCPlatform + Sync> From<&GitHandleResult<'_, '_, P>> for PathObjectInfo {
     fn from(item: &GitHandleResult<P>) -> Self {
         match &item.target {
             GitResultTarget::Object(object) => object.into(),
@@ -67,7 +67,7 @@ impl<P: Platform + Sync> From<&GitHandleResult<'_, '_, P>> for PathObjectInfo {
     }
 }
 
-impl<P: Platform + Sync> From<GitHandleResult<'_, '_, P>> for RepoResult {
+impl<P: MCPlatform + Sync> From<GitHandleResult<'_, '_, P>> for RepoResult {
     fn from(item: GitHandleResult<P>) -> Self {
         RepoResult {
             target: (&item).into(),
@@ -79,7 +79,7 @@ impl<P: Platform + Sync> From<GitHandleResult<'_, '_, P>> for RepoResult {
     }
 }
 
-impl<'a, P: Platform + Sync> TryFrom<Handle<'a, P>> for GitHandle<'a, P> {
+impl<'a, P: MCPlatform + Sync> TryFrom<Handle<'a, P>> for GitHandle<'a, P> {
     type Error = GixError;
 
     fn try_from(item: Handle<'a, P>) -> Result<Self, GixError> {
@@ -95,7 +95,7 @@ impl<'a, P: Platform + Sync> TryFrom<Handle<'a, P>> for GitHandle<'a, P> {
     }
 }
 
-impl<'a, P: Platform + Sync> GitHandle<'a, P> {
+impl<'a, P: MCPlatform + Sync> GitHandle<'a, P> {
     pub(crate) fn new(
         backend: &'a Backend<P>,
         repo_root: PathBuf,
@@ -302,7 +302,7 @@ impl<'a, P: Platform + Sync> GitHandle<'a, P> {
 
 }
 
-impl<'a, 'b, P: Platform + Sync> GitHandleResult<'a, 'b, P> {
+impl<'a, 'b, P: MCPlatform + Sync> GitHandleResult<'a, 'b, P> {
     #[async_recursion(?Send)]
     pub async fn stream_blob(
         &self,

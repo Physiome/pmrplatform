@@ -16,8 +16,13 @@ use crate::{
     },
 };
 
+/// MCPlatform - Managed Content Platform
+///
+/// This platform is used to manage the core contents relating to PMR,
+/// i.e. workspace and exposures.  It is applicable to everything that
+/// correctly implements the relevant backends that compose this trait.
 #[async_trait]
-pub trait Platform: WorkspaceBackend
+pub trait MCPlatform: WorkspaceBackend
     + WorkspaceAliasBackend
     + WorkspaceSyncBackend
     + WorkspaceTagBackend
@@ -122,11 +127,11 @@ pub trait Platform: WorkspaceBackend
     }
 }
 
-impl<B: workspace::traits::WorkspaceBackend
+impl<P: workspace::traits::WorkspaceBackend
     + WorkspaceAliasBackend
     + WorkspaceSyncBackend
     + WorkspaceTagBackend
     + ExposureBackend
     + ExposureFileBackend
     + ExposureFileViewBackend
-> Platform for B {}
+> MCPlatform for P {}

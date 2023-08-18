@@ -1,11 +1,11 @@
 use pmrcore::{
-    platform::Platform,
+    platform::MCPlatform,
     workspace::WorkspaceRef,
 };
 use std::path::PathBuf;
 use crate::backend::Backend;
 
-pub(crate) struct Handle<'a, P: Platform> {
+pub(crate) struct Handle<'a, P: MCPlatform> {
     backend: &'a Backend<'a, P>,
     pub(crate) repo_dir: PathBuf,
     pub(crate) workspace: WorkspaceRef<'a, P>,

@@ -174,7 +174,7 @@ pub(crate) mod testing {
             traits::ExposureFile as _,
             traits::ExposureFileBackend,
         },
-        platform::Platform,
+        platform::MCPlatform,
     };
     use crate::backend::db::{
         Profile,
@@ -270,9 +270,9 @@ pub(crate) mod testing {
         make_example_exposure_file(&backend, id, "model.cellml").await?;
         make_example_exposure_file(&backend, id, "lib/units.cellml").await?;
         // let exposure = b.get_exposure(id).await?;
-        let exposure = Platform::get_exposure(&backend, id).await?;
+        let exposure = MCPlatform::get_exposure(&backend, id).await?;
         // exposure.backend;
-        let exposure_files = Platform::get_exposure_files(&backend, exposure.id()).await?;
+        let exposure_files = MCPlatform::get_exposure_files(&backend, exposure.id()).await?;
         assert_eq!(3, exposure_files.len());
         let exposure_files = exposure.files().await?;
         assert_eq!(3, exposure_files.len());

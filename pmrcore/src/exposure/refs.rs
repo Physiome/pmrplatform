@@ -7,37 +7,37 @@ use crate::exposure::{
     ExposureFileView,
     ExposureFileViews,
 };
-use crate::platform::Platform;
+use crate::platform::MCPlatform;
 use crate::workspace::WorkspaceRef;
 
-pub struct ExposureRef<'a, P: Platform + Sized> {
+pub struct ExposureRef<'a, P: MCPlatform + Sized> {
     pub(super) inner: Exposure,
     pub(super) files: OnceLock<ExposureFileRefs<'a, P>>,
     pub(super) platform: &'a P,
     pub(super) parent: OnceLock<WorkspaceRef<'a, P>>,
 }
 
-pub struct ExposureRefs<'a, P: Platform + Sized>(pub(super) Vec<ExposureRef<'a, P>>);
+pub struct ExposureRefs<'a, P: MCPlatform + Sized>(pub(super) Vec<ExposureRef<'a, P>>);
 
-pub struct ExposureFileRef<'a, P: Platform + Sized> {
+pub struct ExposureFileRef<'a, P: MCPlatform + Sized> {
     pub(super) inner: ExposureFile,
     pub(super) views: OnceLock<ExposureFileViewRefs<'a, P>>,
     pub(super) platform: &'a P,
     pub(super) parent: OnceLock<ExposureRef<'a, P>>,
 }
 
-pub struct ExposureFileRefs<'a, P: Platform + Sized>(pub(super) Vec<ExposureFileRef<'a, P>>);
+pub struct ExposureFileRefs<'a, P: MCPlatform + Sized>(pub(super) Vec<ExposureFileRef<'a, P>>);
 
-pub struct ExposureFileViewRef<'a, P: Platform + Sized> {
+pub struct ExposureFileViewRef<'a, P: MCPlatform + Sized> {
     pub(super) inner: ExposureFileView,
     pub(super) platform: &'a P,
     pub(super) parent: OnceLock<ExposureFileRef<'a, P>>,
 }
 
-pub struct ExposureFileViewRefs<'a, P: Platform + Sized>(pub(super) Vec<ExposureFileViewRef<'a, P>>);
+pub struct ExposureFileViewRefs<'a, P: MCPlatform + Sized>(pub(super) Vec<ExposureFileViewRef<'a, P>>);
 
 impl Exposure {
-    pub(crate) fn bind<'a, P: Platform + Sized>(
+    pub(crate) fn bind<'a, P: MCPlatform + Sized>(
         self,
         platform: &'a P,
     ) -> ExposureRef<'a, P> {
@@ -52,7 +52,7 @@ impl Exposure {
 }
 
 impl Exposures {
-    pub(crate) fn bind<'a, P: Platform + Sized>(
+    pub(crate) fn bind<'a, P: MCPlatform + Sized>(
         self,
         platform: &'a P,
     ) -> ExposureRefs<'a, P> {
@@ -64,14 +64,14 @@ impl Exposures {
     }
 }
 
-impl<P: Platform + Sized> ExposureRef<'_, P> {
+impl<P: MCPlatform + Sized> ExposureRef<'_, P> {
     pub fn into_inner(self) -> Exposure {
         self.inner
     }
 }
 
 impl ExposureFile {
-    pub(crate) fn bind<'a, P: Platform + Sized>(
+    pub(crate) fn bind<'a, P: MCPlatform + Sized>(
         self,
         platform: &'a P,
     ) -> ExposureFileRef<'a, P> {
@@ -86,7 +86,7 @@ impl ExposureFile {
 }
 
 impl ExposureFiles {
-    pub(crate) fn bind<'a, P: Platform + Sized>(
+    pub(crate) fn bind<'a, P: MCPlatform + Sized>(
         self,
         platform: &'a P,
     ) -> ExposureFileRefs<'a, P> {
@@ -98,14 +98,14 @@ impl ExposureFiles {
     }
 }
 
-impl<P: Platform + Sized> ExposureFileRef<'_, P> {
+impl<P: MCPlatform + Sized> ExposureFileRef<'_, P> {
     pub fn into_inner(self) -> ExposureFile {
         self.inner
     }
 }
 
 impl ExposureFileView {
-    pub(crate) fn bind<'a, P: Platform + Sized>(
+    pub(crate) fn bind<'a, P: MCPlatform + Sized>(
         self,
         platform: &'a P,
     ) -> ExposureFileViewRef<'a, P> {
@@ -118,7 +118,7 @@ impl ExposureFileView {
 }
 
 impl ExposureFileViews {
-    pub(crate) fn bind<'a, P: Platform + Sized>(
+    pub(crate) fn bind<'a, P: MCPlatform + Sized>(
         self,
         platform: &'a P,
     ) -> ExposureFileViewRefs<'a, P> {
@@ -130,7 +130,7 @@ impl ExposureFileViews {
     }
 }
 
-impl<P: Platform + Sized> ExposureFileViewRef<'_, P> {
+impl<P: MCPlatform + Sized> ExposureFileViewRef<'_, P> {
     pub fn into_inner(self) -> ExposureFileView {
         self.inner
     }

@@ -180,7 +180,7 @@ pub(crate) mod testing {
             traits::ExposureFileView as _,
             traits::ExposureFileViewBackend,
         },
-        platform::Platform,
+        platform::MCPlatform,
     };
     use crate::backend::db::{
         Profile,
@@ -282,7 +282,7 @@ pub(crate) mod testing {
         assert!(!efb.set_default_view(e2f1, 2).await?);
         assert!(!efb.set_default_view(e2f2, e2f1v1).await?);
 
-        let v = Platform::get_exposure_file_view(&backend, 2).await?;
+        let v = MCPlatform::get_exposure_file_view(&backend, 2).await?;
         assert_eq!(v.view_key(), Some("model"));
         assert_eq!(v.exposure_file().await?.id(), e2);
 

@@ -1,4 +1,4 @@
-use pmrcore::platform::Platform;
+use pmrcore::platform::MCPlatform;
 use std::path::PathBuf;
 
 use crate::{
@@ -9,12 +9,12 @@ use crate::{
     },
 };
 
-pub struct Backend<'a, P: Platform> {
+pub struct Backend<'a, P: MCPlatform> {
     pub(crate) db_platform: &'a P,
     pub(crate) repo_root: PathBuf,
 }
 
-impl<'a, P: Platform + Sync> Backend<'a, P> {
+impl<'a, P: MCPlatform + Sync> Backend<'a, P> {
     pub fn new(db_platform: &'a P, repo_root: PathBuf) -> Self {
         Self {
             db_platform,

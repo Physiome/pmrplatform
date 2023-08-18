@@ -18,7 +18,7 @@ use pmrmodel::model::workspace::{
     stream_workspace_records_as_json,
 };
 use pmrcore::{
-    platform::Platform,
+    platform::MCPlatform,
     repo::PathObjectInfo,
     workspace::traits::{
         WorkspaceBackend,
@@ -95,7 +95,7 @@ enum Command {
     },
 }
 
-fn stream_git_result_default<P: Platform + Sync>(
+fn stream_git_result_default<P: MCPlatform + Sync>(
     mut writer: impl Write,
     item: &GitHandleResult<P>,
 ) -> std::result::Result<usize, std::io::Error> {
@@ -118,7 +118,7 @@ fn stream_git_result_default<P: Platform + Sync>(
     ).as_bytes())
 }
 
-fn stream_git_result_as_json<P: Platform + Sync>(
+fn stream_git_result_as_json<P: MCPlatform + Sync>(
     writer: impl Write,
     item: &GitHandleResult<P>,
 ) -> Result<(), serde_json::Error> {

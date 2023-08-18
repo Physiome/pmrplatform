@@ -5,7 +5,7 @@ use std::ops::{
 };
 use crate::error::ValueError;
 use crate::exposure::ExposureRefs;
-use crate::platform::Platform;
+use crate::platform::MCPlatform;
 use crate::workspace::*;
 
 impl From<Vec<Workspace>> for Workspaces {
@@ -34,19 +34,19 @@ impl DerefMut for Workspaces {
     }
 }
 
-impl<'a, P: Platform + Sized> From<Vec<WorkspaceRef<'a, P>>> for WorkspaceRefs<'a, P> {
+impl<'a, P: MCPlatform + Sized> From<Vec<WorkspaceRef<'a, P>>> for WorkspaceRefs<'a, P> {
     fn from(args: Vec<WorkspaceRef<'a, P>>) -> Self {
         Self(args)
     }
 }
 
-impl<'a, P: Platform + Sized, const N: usize> From<[WorkspaceRef<'a, P>; N]> for WorkspaceRefs<'a, P> {
+impl<'a, P: MCPlatform + Sized, const N: usize> From<[WorkspaceRef<'a, P>; N]> for WorkspaceRefs<'a, P> {
     fn from(args: [WorkspaceRef<'a, P>; N]) -> Self {
         Self(args.into())
     }
 }
 
-impl<'a, P: Platform + Sized> Deref for WorkspaceRefs<'a, P> {
+impl<'a, P: MCPlatform + Sized> Deref for WorkspaceRefs<'a, P> {
     type Target = Vec<WorkspaceRef<'a, P>>;
 
     fn deref(&self) -> &Self::Target {
@@ -80,7 +80,7 @@ impl<'a> traits::Workspace<'a, Exposures> for Workspace {
 }
 
 #[async_trait]
-impl<'a, P: Platform + Sized + Sync> traits::Workspace<'a, ExposureRefs<'a, P>> for WorkspaceRef<'a, P> {
+impl<'a, P: MCPlatform + Sized + Sync> traits::Workspace<'a, ExposureRefs<'a, P>> for WorkspaceRef<'a, P> {
     fn id(&self) -> i64 {
         self.inner.id
     }

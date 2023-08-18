@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use std::ops::{Deref, DerefMut};
 use crate::error::ValueError;
 use crate::exposure::*;
-use crate::platform::Platform;
+use crate::platform::MCPlatform;
 use crate::workspace::{
     Workspace,
     WorkspaceRef,
@@ -34,19 +34,19 @@ impl DerefMut for Exposures {
     }
 }
 
-impl<'a, P: Platform + Sized> From<Vec<ExposureRef<'a, P>>> for ExposureRefs<'a, P> {
+impl<'a, P: MCPlatform + Sized> From<Vec<ExposureRef<'a, P>>> for ExposureRefs<'a, P> {
     fn from(args: Vec<ExposureRef<'a, P>>) -> Self {
         Self(args)
     }
 }
 
-impl<'a, P: Platform + Sized, const N: usize> From<[ExposureRef<'a, P>; N]> for ExposureRefs<'a, P> {
+impl<'a, P: MCPlatform + Sized, const N: usize> From<[ExposureRef<'a, P>; N]> for ExposureRefs<'a, P> {
     fn from(args: [ExposureRef<'a, P>; N]) -> Self {
         Self(args.into())
     }
 }
 
-impl<'a, P: Platform + Sized> Deref for ExposureRefs<'a, P> {
+impl<'a, P: MCPlatform + Sized> Deref for ExposureRefs<'a, P> {
     type Target = Vec<ExposureRef<'a, P>>;
 
     fn deref(&self) -> &Self::Target {
@@ -80,19 +80,19 @@ impl DerefMut for ExposureFiles {
     }
 }
 
-impl<'a, P: Platform + Sized> From<Vec<ExposureFileRef<'a, P>>> for ExposureFileRefs<'a, P> {
+impl<'a, P: MCPlatform + Sized> From<Vec<ExposureFileRef<'a, P>>> for ExposureFileRefs<'a, P> {
     fn from(args: Vec<ExposureFileRef<'a, P>>) -> Self {
         Self(args)
     }
 }
 
-impl<'a, P: Platform + Sized, const N: usize> From<[ExposureFileRef<'a, P>; N]> for ExposureFileRefs<'a, P> {
+impl<'a, P: MCPlatform + Sized, const N: usize> From<[ExposureFileRef<'a, P>; N]> for ExposureFileRefs<'a, P> {
     fn from(args: [ExposureFileRef<'a, P>; N]) -> Self {
         Self(args.into())
     }
 }
 
-impl<'a, P: Platform + Sized> Deref for ExposureFileRefs<'a, P> {
+impl<'a, P: MCPlatform + Sized> Deref for ExposureFileRefs<'a, P> {
     type Target = Vec<ExposureFileRef<'a, P>>;
 
     fn deref(&self) -> &Self::Target {
@@ -126,19 +126,19 @@ impl DerefMut for ExposureFileViews {
     }
 }
 
-impl<'a, P: Platform + Sized> From<Vec<ExposureFileViewRef<'a, P>>> for ExposureFileViewRefs<'a, P> {
+impl<'a, P: MCPlatform + Sized> From<Vec<ExposureFileViewRef<'a, P>>> for ExposureFileViewRefs<'a, P> {
     fn from(args: Vec<ExposureFileViewRef<'a, P>>) -> Self {
         Self(args)
     }
 }
 
-impl<'a, P: Platform + Sized, const N: usize> From<[ExposureFileViewRef<'a, P>; N]> for ExposureFileViewRefs<'a, P> {
+impl<'a, P: MCPlatform + Sized, const N: usize> From<[ExposureFileViewRef<'a, P>; N]> for ExposureFileViewRefs<'a, P> {
     fn from(args: [ExposureFileViewRef<'a, P>; N]) -> Self {
         Self(args.into())
     }
 }
 
-impl<'a, P: Platform + Sized> Deref for ExposureFileViewRefs<'a, P> {
+impl<'a, P: MCPlatform + Sized> Deref for ExposureFileViewRefs<'a, P> {
     type Target = Vec<ExposureFileViewRef<'a, P>>;
 
     fn deref(&self) -> &Self::Target {
@@ -176,7 +176,7 @@ impl<'a> traits::Exposure<'a, ExposureFiles, Workspace> for Exposure {
 }
 
 #[async_trait]
-impl<'a, P: Platform + Sized + Sync>
+impl<'a, P: MCPlatform + Sized + Sync>
     traits::Exposure<'a, ExposureFileRefs<'a, P>, WorkspaceRef<'a, P>>
 for ExposureRef<'a, P> {
     fn id(&self) -> i64 {
@@ -253,7 +253,7 @@ impl<'a> traits::ExposureFile<'a, ExposureFileViews, Exposure> for ExposureFile 
 }
 
 #[async_trait]
-impl<'a, P: Platform + Sized + Sync>
+impl<'a, P: MCPlatform + Sized + Sync>
     traits::ExposureFile<'a, ExposureFileViewRefs<'a, P>, ExposureRef<'a, P>>
 for ExposureFileRef<'a, P> {
     fn id(&self) -> i64 {
@@ -326,7 +326,7 @@ impl<'a> traits::ExposureFileView<'a, ExposureFile> for ExposureFileView {
 }
 
 #[async_trait]
-impl<'a, P: Platform + Sized + Sync>
+impl<'a, P: MCPlatform + Sized + Sync>
     traits::ExposureFileView<'a, ExposureFileRef<'a, P>>
 for ExposureFileViewRef<'a, P> {
     fn id(&self) -> i64 {

@@ -1,5 +1,5 @@
 use pmrcore::{
-    platform::Platform,
+    platform::MCPlatform,
     workspace::{
         WorkspaceRef,
         traits::Workspace as _,
@@ -19,7 +19,7 @@ use super::{
     GitHandle,
 };
 
-impl<'a, P: Platform + Sync> Handle<'a, P> {
+impl<'a, P: MCPlatform + Sync> Handle<'a, P> {
     pub(crate) fn new(
         backend: &'a Backend<P>,
         repo_root: PathBuf,
