@@ -71,6 +71,9 @@ impl<'a> PathFilter<'a> {
     }
 }
 
+// TODO there needs to be a way to fully disambiguate commit_id from all
+// other strings, so this should map to the underlying Oid for any input
+// that isn't None.
 pub(crate) fn get_commit<'a>(
     repo: &'a Repository,
     workspace_id: i64,

@@ -9,6 +9,8 @@ pmrcore = "0.1.0"
 pmrmodel = "0.1.0"
 pmrrepo = "0.1.0"
 pmrtqs = "0.1.0"
+serde = { version = "1.0.59", features = ["serde_derive"] }
+thiserror = "1.0"
 
 [dev-dependencies]
 tempfile = "3.1.0"
