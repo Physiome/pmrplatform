@@ -1,5 +1,8 @@
 use pmrcore::{
-    exposure::traits::ExposureBackend,
+    exposure::traits::{
+        Exposure,
+        ExposureBackend,
+    },
     platform::{
         MCPlatform,
         TMPlatform,
@@ -36,7 +39,7 @@ impl<
 
         // workspace_id and commit verified, create the root exposure
         let eb: &dyn ExposureBackend = &self.mc_platform;
-        let inner = eb.get_id(
+        let inner = self.mc_platform.get_exposure(
             eb.insert(
                 workspace_id,
                 None,
@@ -56,11 +59,10 @@ impl<
         &'a self,
         id: i64,
     ) -> Result<ExposureCtrl<'a, MCP, TMP>, PlatformError> {
-        let eb: &dyn ExposureBackend = &self.mc_platform;
-        let inner = eb.get_id(id).await?;
+        let inner = self.mc_platform.get_exposure(id).await?;
         let git_handle = self
             .repo_backend()
-            .git_handle(inner.workspace_id).await?;
+            .git_handle(inner.workspace_id()).await?;
         let platform = self;
         Ok(ExposureCtrl {
             platform,

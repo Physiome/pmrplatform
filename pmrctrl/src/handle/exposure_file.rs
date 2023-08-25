@@ -1,5 +1,5 @@
 use pmrcore::{
-    exposure::ExposureFile,
+    exposure::ExposureFileRef,
     platform::{
         MCPlatform,
         TMPlatform,
@@ -19,7 +19,7 @@ pub struct ExposureFileCtrl<
     // TODO maybe this could also follow the OnceLock pattern for on-demand
     // usage?
     pub(crate) pathinfo: GitHandleResult<'db, 'repo, MCP>,
-    pub(crate) inner: ExposureFile,
+    pub(crate) inner: ExposureFileRef<'db, MCP>,
 }
 
 mod impls;

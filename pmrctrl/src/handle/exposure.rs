@@ -1,5 +1,5 @@
 use pmrcore::{
-    exposure::Exposure,
+    exposure::ExposureRef,
     platform::{
         MCPlatform,
         TMPlatform,
@@ -18,7 +18,7 @@ pub struct ExposureCtrl<
     // TODO maybe this could also follow the OnceLock pattern for on-demand
     // usage?
     pub(crate) git_handle: GitHandle<'a, MCP>,
-    pub(crate) inner: Exposure,
+    pub(crate) inner: ExposureRef<'a, MCP>,
 }
 
 mod impls;

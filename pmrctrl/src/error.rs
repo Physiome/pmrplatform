@@ -1,4 +1,7 @@
-use pmrcore::error::BackendError;
+use pmrcore::error::{
+    BackendError,
+    ValueError,
+};
 use pmrrepo::error::PmrRepoError;
 use thiserror::Error;
 
@@ -8,4 +11,6 @@ pub enum PlatformError {
     BackendError(#[from] BackendError),
     #[error(transparent)]
     PmrRepoError(#[from] PmrRepoError),
+    #[error(transparent)]
+    ValueError(#[from] ValueError),
 }
