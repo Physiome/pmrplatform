@@ -77,7 +77,7 @@ mod tests {
     };
     use tempfile::TempDir;
 
-    use test_pmr::repo::MockPlatform;
+    use test_pmr::core::MockPlatform;
 
     use crate::{
         backend::Backend,
