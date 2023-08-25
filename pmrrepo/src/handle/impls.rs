@@ -77,9 +77,10 @@ mod tests {
     };
     use tempfile::TempDir;
 
+    use test_pmr::repo::MockPlatform;
+
     use crate::{
         backend::Backend,
-        test::MockPlatform,
         handle::GitResultTarget,
     };
 
@@ -105,7 +106,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_sync_workspace_empty() -> anyhow::Result<()> {
-        let (td, _) = crate::test::repo_init(None, None, None)?;
+        let (td, _) = test_pmr::repo::repo_init(None, None, None)?;
         let td = td.as_ref().expect("tempdir created");
         let mut platform = MockPlatform::new();
         let wid = 1;
@@ -127,7 +128,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_sync_workspace_with_index_tag() -> anyhow::Result<()> {
-        let (td, _) = crate::test::repo_init(None, None, None)?;
+        let (td, _) = test_pmr::repo::repo_init(None, None, None)?;
         let td = td.as_ref().expect("tempdir created");
         // TODO use gix to tag?
         let repo = git2::Repository::open_bare(td)?;
@@ -190,7 +191,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_sync_failure_dropped_source() -> anyhow::Result<()> {
-        let (td_, _) = crate::test::repo_init(None, None, None).unwrap();
+        let (td_, _) = test_pmr::repo::repo_init(None, None, None).unwrap();
         let td = td_.unwrap();
         let mut platform = MockPlatform::new();
         let wid = 42;
@@ -241,7 +242,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_sync_workspace_not_bare() -> anyhow::Result<()> {
-        let (origin_, _) = crate::test::repo_init(None, None, None).unwrap();
+        let (origin_, _) = test_pmr::repo::repo_init(None, None, None).unwrap();
         let origin = origin_.unwrap();
 
         let repo_root = TempDir::new().unwrap();
@@ -257,8 +258,8 @@ mod tests {
         config.set_raw_value("committer", None, "name", "user").unwrap();
         config.set_raw_value("committer", None, "email", "user@example.com").unwrap();
         drop(config);
-        crate::test::init_empty_commit(&repo, None).unwrap();
-        crate::test::commit(&repo, vec![("some_file", "")]).unwrap();
+        test_pmr::repo::init_empty_commit(&repo, None).unwrap();
+        test_pmr::repo::commit(&repo, vec![("some_file", "")]).unwrap();
 
         let mut platform = MockPlatform::new();
         platform.expect_begin_sync()
@@ -284,8 +285,8 @@ mod tests {
 
     #[async_std::test]
     async fn test_workspace_path_info_from_workspace_git_result() -> anyhow::Result<()> {
-        let (td_, repo) = crate::test::repo_init(None, None, None).unwrap();
-        crate::test::commit(&repo, vec![("some_file", "")]).unwrap();
+        let (td_, repo) = test_pmr::repo::repo_init(None, None, None).unwrap();
+        test_pmr::repo::commit(&repo, vec![("some_file", "")]).unwrap();
 
         let td = td_.unwrap();
 
@@ -323,7 +324,7 @@ mod tests {
             _, // (import1, import1_oids),
             _, // (import2, import2_oids),
             _, // (repodata, repodata_oids)
-        ) = crate::test::create_repodata();
+        ) = test_pmr::repo::create_repodata();
 
         let mut platform = MockPlatform::new();
         platform.expect_list_workspace_by_url()
@@ -424,7 +425,7 @@ mod tests {
             _, // (import1, import1_oids),
             _, // (import2, import2_oids),
             (_, repodata_oids),
-        ) = crate::test::create_repodata();
+        ) = test_pmr::repo::create_repodata();
 
         let mut platform = MockPlatform::new();
         expect_workspace(&mut platform, 3, "http://models.example.com/w/repodata");
@@ -599,7 +600,7 @@ mod tests {
             _, // (import1, import1_oids),
             _, // (import2, import2_oids),
             _, // (repodata, repodata_oids)
-        ) = crate::test::create_repodata();
+        ) = test_pmr::repo::create_repodata();
 
         let mut platform = MockPlatform::new();
         expect_workspace(&mut platform, 3, "http://models.example.com/w/repodata");
@@ -641,7 +642,7 @@ mod tests {
             _, // (import1, import1_oids),
             _, // (import2, import2_oids),
             _, // (repodata, repodata_oids)
-        ) = crate::test::create_repodata();
+        ) = test_pmr::repo::create_repodata();
         let mut platform = MockPlatform::new();
         expect_workspace(&mut platform, 3, "http://models.example.com/w/repodata");
         let backend = Backend::new(&platform, repo_root.path().to_path_buf());

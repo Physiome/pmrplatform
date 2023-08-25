@@ -6,7 +6,8 @@ members = [
     "pmrcore",
     "pmrmodel",
     "pmrrepo",
-    "pmrtqs"
+    "pmrtqs",
+    "testing",
 ]
 default-members = [
     "pmrctrl",
@@ -14,6 +15,7 @@ default-members = [
     "pmrmodel",
     "pmrrepo",
     "pmrtqs",
+    "testing",
 ]
 
 [patch.crates-io]
