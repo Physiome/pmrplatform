@@ -434,3 +434,35 @@ fn smoke_test_append_commit_from_objects() {
         "0123456789012345678012345678012345678901");
 
 }
+
+#[test]
+fn smoke_test_create_repodata() {
+    fn assert_oids<const N: usize>(oids: Vec<gix::ObjectId>, answer: &[&str; N]) {
+        let result = oids.iter()
+            .map(|oid| oid.to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(&result, answer);
+    }
+
+    let (_, (_, import1), (_, import2), (_, repodata)) = create_repodata();
+    assert_oids(import1, &[
+        "01b952d14a0a33d22a0aa465fe763e5d17b15d46",
+        "083b775d81ec9b66796edbbdce4d714bb2ddc355"
+    ]);
+    assert_oids(import2, &[
+        "f45998e0a944759385381d0a8dc7d432a2f54dca",
+        "ae357572b18748ef0235a6a04e3f3ea8f6f9b52d",
+        "0ab8a26a0e85a033bea0388216667d83cc0dc1dd",
+    ]);
+    assert_oids(repodata, &[
+        "9f02f69509110e7235e4bb9f50e235a246ae9f5c",
+        "557ee3cb13fb421d2bd6897615ae95830eb427c8",
+        "e931905807563cb5353958e865d72fed12dccd4f",
+        "27be7efbe5fcccda5ee6ca00ef96834f592139a5",
+        "965ccc1276832489c69b680b49874a6e1dc1743b",
+        "502b18ac456c8e475f731cbfe568fd6eb1177327",
+        "a4a04eed5e243e3019592579a7f6eb950399f9bf",
+        "c4d735e5a305559c1cb0ce8de4c25ed5c3f4f263",
+        "8ae6e9af37c8bd78614545d0ab807348fc46dcab",
+    ]);
+}
