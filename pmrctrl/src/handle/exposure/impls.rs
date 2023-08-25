@@ -53,4 +53,15 @@ impl<
             inner,
         })
     }
+
+    /// List all files associated with this exposure.
+    pub fn list_files(&self) -> Result<Vec<String>, PlatformError> {
+        Ok(self.git_handle.files(Some(&self.inner.commit_id))?)
+    }
+
+    /// List the files that have a corresponding exposure file
+    pub fn list_exposure_files(&self) -> Result<Vec<String>, PlatformError> {
+        todo!()
+    }
+
 }
