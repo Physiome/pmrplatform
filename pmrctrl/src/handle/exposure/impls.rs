@@ -6,31 +6,51 @@ use pmrcore::{
     },
 };
 
-use super::ExposureCtrl;
 use crate::{
+    handle::{
+        ExposureCtrl,
+        ExposureFileCtrl,
+    },
     error::PlatformError,
 };
 
 impl<
-    'a,
+    'db,
     MCP: MCPlatform + Sync,
     TMP: TMPlatform + Sync,
-> ExposureCtrl<'a, MCP, TMP> {
-    pub async fn create_file(
-        &self,
-        workspace_file_path: &str,
-    ) -> Result<i64, PlatformError> {
+> ExposureCtrl<'db, MCP, TMP> {
+    pub async fn create_file<'repo>(
+        &'db self,
+        workspace_file_path: &'repo str,
+    ) -> Result<ExposureFileCtrl<'db, 'repo, MCP, TMP>, PlatformError>
+    where
+        'db: 'repo
+    {
         // quick failing here.
-        let _ = self.git_handle.pathinfo(
+        let pathinfo = self.git_handle.pathinfo(
             Some(&self.inner.commit_id),
             Some(workspace_file_path),
         )?;
         // path exists, so create the exposure file
         let efb: &dyn ExposureFileBackend = &self.platform.mc_platform;
-        Ok(efb.insert(
+        let inner = efb.insert(
             self.inner.id,
             workspace_file_path,
             None,
-        ).await?)
+        ).await?;
+        let inner = efb.get_id(
+            efb.insert(
+                self.inner.id,
+                workspace_file_path,
+                None,
+            ).await?
+        ).await?;
+        let platform = self.platform;
+        // maybe return the id that would produce this from the platform?
+        Ok(ExposureFileCtrl {
+            platform,
+            pathinfo,
+            inner,
+        })
     }
 }
