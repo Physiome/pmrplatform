@@ -9,16 +9,21 @@ async fn test_platform_core() -> anyhow::Result<()> {
     ).await?;
     assert_eq!(exposure.list_files()?, &["README", "if1"]);
     assert_eq!(exposure.list_exposure_files().await?.len(), 0);
-    let _file = exposure.create_file("if1").await?;
-    // this is cached from above.
-    assert_eq!(exposure.list_exposure_files().await?.len(), 0);
 
+    // this stops "`ex2` dropped here while still borrowed" before the
+    // ex2.list_exposure_files() call
+    {
+        let _file = exposure.create_file("if1").await?;
+        // this is cached from above.
+        assert_eq!(exposure.list_exposure_files().await?.len(), 0);
+    }
     // load a new copy
-    // TODO figure out how/what to expose inner
-    // let exposure = platform.get_exposure(exposure.inner.id()).await?;
-    // TODO figure out lifetime issues here.
-    // let ex2 = platform.get_exposure(1).await?;
-    // let files = ex2.list_exposure_files().await?;
-    // assert_eq!(files, &["if1"]);
+    {
+        // TODO figure out how/what to expose inner
+        // let exposure = platform.get_exposure(exposure.inner.id()).await?;
+        let ex2 = platform.get_exposure(1).await?;
+        let files = ex2.list_exposure_files().await?;
+        assert_eq!(files, &["if1"]);
+    }
     Ok(())
 }
