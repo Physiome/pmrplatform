@@ -1,3 +1,4 @@
+use pmrcore::exposure::traits::Exposure;
 use test_pmr::ctrl::create_sqlite_platform;
 
 #[async_std::test]
@@ -19,9 +20,7 @@ async fn test_platform_core() -> anyhow::Result<()> {
     }
     // load a new copy
     {
-        // TODO figure out how/what to expose inner
-        // let exposure = platform.get_exposure(exposure.inner.id()).await?;
-        let ex2 = platform.get_exposure(1).await?;
+        let ex2 = platform.get_exposure(exposure.exposure.id()).await?;
         let files = ex2.list_exposure_files().await?;
         assert_eq!(files, &["if1"]);
     }

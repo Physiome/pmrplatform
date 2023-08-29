@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-pub struct Backend<'a, P: MCPlatform> {
+pub struct Backend<'a, P: MCPlatform + Sync> {
     pub(crate) db_platform: &'a P,
     pub(crate) repo_root: PathBuf,
 }

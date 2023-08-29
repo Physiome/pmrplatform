@@ -10,8 +10,8 @@ use std::{
 
 pub struct Platform<
     'a,
-    MCP: MCPlatform + Sync,
-    TMP: TMPlatform + Sync,
+    MCP: MCPlatform + Sized + Sync,
+    TMP: TMPlatform + Sized + Sync,
 > {
     pub mc_platform: MCP,
     pub tm_platform: TMP,

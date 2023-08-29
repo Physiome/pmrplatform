@@ -16,8 +16,8 @@ use crate::{
 
 impl<
     'a,
-    MCP: MCPlatform + Sync,
-    TMP: TMPlatform + Sync,
+    MCP: MCPlatform + Sized + Sync,
+    TMP: TMPlatform + Sized + Sync,
 > Platform<'a, MCP, TMP> {
     /// Creates an exposure with all the relevant data validated.
     ///
@@ -39,7 +39,7 @@ impl<
 
         // workspace_id and commit verified, create the root exposure
         let eb: &dyn ExposureBackend = &self.mc_platform;
-        let inner = self.mc_platform.get_exposure(
+        let exposure = self.mc_platform.get_exposure(
             eb.insert(
                 workspace_id,
                 None,
@@ -51,7 +51,7 @@ impl<
         Ok(ExposureCtrl {
             platform,
             git_handle,
-            inner,
+            exposure,
         })
     }
 
@@ -59,15 +59,15 @@ impl<
         &'a self,
         id: i64,
     ) -> Result<ExposureCtrl<'a, MCP, TMP>, PlatformError> {
-        let inner = self.mc_platform.get_exposure(id).await?;
+        let exposure = self.mc_platform.get_exposure(id).await?;
         let git_handle = self
             .repo_backend()
-            .git_handle(inner.workspace_id()).await?;
+            .git_handle(exposure.workspace_id()).await?;
         let platform = self;
         Ok(ExposureCtrl {
             platform,
             git_handle,
-            inner,
+            exposure,
         })
     }
 }

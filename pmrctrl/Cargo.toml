@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+async-trait = "0.1.50"
 log = { version = "0.4", features = ["std", "serde"] }
 pmrcore = "0.1.0"
 pmrmodel = "0.1.0"

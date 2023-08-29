@@ -14,7 +14,7 @@ use crate::{
 impl<
     'db,
     'repo,
-    MCP: MCPlatform + Sync,
-    TMP: TMPlatform + Sync,
+    MCP: MCPlatform + Sized + Sync,
+    TMP: TMPlatform + Sized + Sync,
 > ExposureFileCtrl<'db, 'repo, MCP, TMP> {
 }

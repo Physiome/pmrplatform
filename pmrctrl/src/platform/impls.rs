@@ -12,8 +12,8 @@ use crate::platform::Platform;
 
 impl<
     'a,
-    MCP: MCPlatform + Sync,
-    TMP: TMPlatform + Sync,
+    MCP: MCPlatform + Sized + Sync,
+    TMP: TMPlatform + Sized + Sync,
 > Platform<'a, MCP, TMP> {
     pub fn new(mc_platform: MCP, tm_platform: TMP, repo_root: PathBuf) -> Self {
         let repo_backend = OnceLock::new();

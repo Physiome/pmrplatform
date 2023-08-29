@@ -8,7 +8,7 @@ use gix::{
     Repository,
 };
 
-pub struct GitHandle<'a, P: MCPlatform> {
+pub struct GitHandle<'a, P: MCPlatform + Sync> {
     pub(super) backend: &'a Backend<'a, P>,
     pub workspace: WorkspaceRef<'a, P>,
     pub repo: Repository,
@@ -20,7 +20,7 @@ pub enum GitResultTarget<'a> {
     RemoteInfo(RemoteInfo),
 }
 
-pub struct GitHandleResult<'db, 'repo, P: MCPlatform> {
+pub struct GitHandleResult<'db, 'repo, P: MCPlatform + Sync> {
     pub(super) backend: &'db Backend<'db, P>,
     pub repo: &'repo Repository,
     pub commit: Commit<'repo>,
