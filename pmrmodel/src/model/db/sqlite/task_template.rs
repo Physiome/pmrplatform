@@ -25,7 +25,7 @@ async fn add_task_template_sqlite(
     sqlite: &SqliteBackend,
     bin_path: &str,
     version_id: &str,
-) -> Result<i64, BackendError> {
+) -> Result<(i64, i64), BackendError> {
     let created_ts = Utc::now().timestamp();
 
     let id = sqlx::query!(
@@ -45,14 +45,14 @@ VALUES ( ?1, ?2, ?3 )
     .await?
     .last_insert_rowid();
 
-    Ok(id)
+    Ok((id, created_ts))
 }
 
 async fn finalize_task_template_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
-) -> Result<i64, BackendError> {
-    sqlx::query!(
+) -> Result<Option<i64>, BackendError> {
+    let rec = sqlx::query!(
         r#"
 UPDATE task_template
 SET
@@ -70,13 +70,14 @@ SET
         WHERE task_template_id = ?1
     )
 WHERE id = ?1
+RETURNING final_task_template_arg_id
         "#,
         id,
     )
-    .execute(&*sqlite.pool)
+    .fetch_one(&*sqlite.pool)
     .await?;
 
-    Ok(id)
+    Ok(rec.final_task_template_arg_id)
 }
 
 async fn get_task_template_by_id_sqlite(
@@ -391,18 +392,18 @@ WHERE task_template_arg_id = ?1
 
 #[async_trait]
 impl TaskTemplateBackend for SqliteBackend {
-    async fn add_new_task_template(
+    async fn add_task_template(
         &self,
         bin_path: &str,
         version_id: &str,
-    ) -> Result<i64, BackendError> {
+    ) -> Result<(i64, i64), BackendError> {
         add_task_template_sqlite(&self, bin_path, version_id).await
     }
 
     async fn finalize_new_task_template(
         &self,
         id: i64,
-    ) -> Result<i64, BackendError> {
+    ) -> Result<Option<i64>, BackendError> {
         finalize_task_template_sqlite(&self, id).await
     }
 
@@ -473,40 +474,6 @@ impl TaskTemplateBackend for SqliteBackend {
         ).await
     }
 
-    async fn add_task_template(
-        &self,
-        bin_path: &str,
-        version_id: &str,
-        arguments: &[(
-            Option<&str>,
-            bool,
-            Option<&str>,
-            Option<&str>,
-            bool,
-            Option<&str>,
-        )],
-    ) -> Result<i64, BackendError> {
-        let result = add_task_template_sqlite(&self, bin_path, version_id).await?;
-        let mut tasks = arguments.into_iter()
-            .map(|x| { add_task_template_arg_sqlite(
-                &self,
-                result,
-                x.0,
-                x.1,
-                x.2,
-                x.3,
-                x.4,
-                x.5,
-            )})
-            .into_iter();
-        // execute sequentially to ensure insertion order
-        while let Some(task) = tasks.next() {
-            task.await?;
-        }
-        finalize_task_template_sqlite(&self, result).await?;
-        Ok(result)
-    }
-
     async fn get_task_template_by_id(
         &self,
         id: i64,
@@ -569,22 +536,19 @@ mod tests {
     };
 
     #[async_std::test]
-    async fn test_smoketest_no_args() {
+    async fn test_smoketest_no_args() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
-            .await
-            .unwrap()
+            .await?
             .run_migration_profile(Profile::Pmrtqs)
-            .await
-            .unwrap();
+            .await?;
+        let ttb: &dyn TaskTemplateBackend = &backend;
 
-        let id = TaskTemplateBackend::add_task_template(
-            &backend, "/bin/true", "1.0.0", &[],
-        ).await
-            .unwrap();
-        let template = TaskTemplateBackend::get_task_template_by_id(
-            &backend, id
-        ).await
-            .unwrap();
+        let (id, _) = ttb.add_task_template("/bin/true", "1.0.0").await?;
+        let fin_arg_id = ttb.finalize_new_task_template(id).await?;
+        let template = ttb.get_task_template_by_id(id).await?;
+
+        assert_eq!(id, 1);
+        assert_eq!(fin_arg_id, Some(0));
         assert_eq!(template, TaskTemplate {
             id: 1,
             bin_path: "/bin/true".into(),
@@ -594,39 +558,38 @@ mod tests {
             superceded_by_id: None,
             args: Some([].to_vec().into()),
         });
+        Ok(())
     }
 
     #[async_std::test]
-    async fn test_smoketest_with_args() {
-        let backend = SqliteBackend::from_url("sqlite::memory:")
-            .await
-            .unwrap()
-            .run_migration_profile(Profile::Pmrtqs)
-            .await
-            .unwrap();
+    async fn test_smoketest_with_args() -> anyhow::Result<()> {
+        let backend = SqliteBackend::from_url("sqlite::memory:").await?
+            .run_migration_profile(Profile::Pmrtqs).await?;
 
-        let id = TaskTemplateBackend::add_task_template(
-            &backend, "/bin/echo", "1.0.0", &[(
-                None,
-                false,
-                Some("First statement"),
-                None,
-                false,
-                None,
-            ), (
-                None,
-                false,
-                Some("Second statement"),
-                None,
-                false,
-                None,
-            )],
-        ).await
-            .unwrap();
-        let template = TaskTemplateBackend::get_task_template_by_id(
-            &backend, id
-        ).await
-            .unwrap();
+        let ttb: &dyn TaskTemplateBackend = &backend;
+
+        let (id, _) = ttb.add_task_template("/bin/echo", "1.0.0").await?;
+        ttb.add_task_template_arg(
+            id,
+            None,
+            false,
+            Some("First statement"),
+            None,
+            false,
+            None,
+        ).await?;
+        ttb.add_task_template_arg(
+            id,
+            None,
+            false,
+            Some("Second statement"),
+            None,
+            false,
+            None,
+        ).await?;
+        ttb.finalize_new_task_template(id).await?;
+
+        let template = ttb.get_task_template_by_id(id).await?;
         let answer = TaskTemplate {
             id: 1,
             bin_path: "/bin/echo".into(),
@@ -690,16 +653,12 @@ mod tests {
                 }
             ]
         }
-        "#).unwrap());
+        "#)?);
 
         // add a couple choices
-        TaskTemplateBackend::add_task_template_arg_choice(
-            &backend, 2, None, "omit").await.unwrap();
-        TaskTemplateBackend::add_task_template_arg_choice(
-            &backend, 2, Some(""), "empty string").await.unwrap();
-        let template = TaskTemplateBackend::get_task_template_by_id(
-            &backend, id
-        ).await.unwrap();
+        ttb.add_task_template_arg_choice(2, None, "omit").await?;
+        ttb.add_task_template_arg_choice(2, Some(""), "empty string").await?;
+        let template = ttb.get_task_template_by_id(id).await?;
 
         assert_eq!(template, serde_json::from_str(r#"
         {
@@ -747,7 +706,7 @@ mod tests {
                 }
             ]
         }
-        "#).unwrap());
+        "#)?);
         assert_eq!(template.args.unwrap()[1].choices, Some([
             TaskTemplateArgChoice {
                 id: 1,
@@ -763,8 +722,7 @@ mod tests {
             },
         ].to_vec().into()));
 
-        let arg = TaskTemplateBackend::get_task_template_arg_by_id(
-            &backend, 2).await.unwrap().unwrap();
+        let arg = ttb.get_task_template_arg_by_id(2).await?.unwrap();
         assert_eq!(arg.prompt, Some("Second statement".into()));
         assert_eq!(arg.choices, Some([
             TaskTemplateArgChoice {
@@ -781,11 +739,8 @@ mod tests {
             },
         ].to_vec().into()));
 
-        TaskTemplateBackend::delete_task_template_arg_choice_by_id(
-            &backend, 2).await.unwrap();
-        let template = TaskTemplateBackend::get_task_template_by_id(
-            &backend, id
-        ).await.unwrap();
+        ttb.delete_task_template_arg_choice_by_id(2).await?;
+        let template = ttb.get_task_template_by_id(id).await?;
         assert_eq!(template.args.unwrap()[1].choices, Some([
             TaskTemplateArgChoice {
                 id: 1,
@@ -794,6 +749,7 @@ mod tests {
                 label: "omit".into(),
             },
         ].to_vec().into()));
+        Ok(())
     }
 
     #[async_std::test]
@@ -805,7 +761,7 @@ mod tests {
             .await
             .unwrap();
 
-        let id = TaskTemplateBackend::add_new_task_template(
+        let (id, _) = TaskTemplateBackend::add_task_template(
             &backend, "/bin/true", "1.0.0",
         ).await
             .unwrap();
@@ -876,7 +832,7 @@ mod tests {
             .await
             .unwrap();
 
-        let id = TaskTemplateBackend::add_new_task_template(
+        let (id, _) = TaskTemplateBackend::add_task_template(
             &backend, "/bin/true", "1.0.0",
         ).await.unwrap();
         TaskTemplateBackend::add_task_template_arg(
@@ -919,7 +875,7 @@ mod tests {
             .await
             .unwrap();
 
-        let id = TaskTemplateBackend::add_new_task_template(
+        let (id, _) = TaskTemplateBackend::add_task_template(
             &backend, "/bin/true", "1.0.0",
         ).await
             .unwrap();
@@ -994,6 +950,66 @@ mod tests {
             args: Some([].to_vec().into()),
         });
 
+    }
+
+    #[async_std::test]
+    async fn test_adds() -> anyhow::Result<()> {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await?
+            .run_migration_profile(Profile::Pmrtqs)
+            .await?;
+        let ttb: &(dyn TaskTemplateBackend + Sync) = &backend;
+        let task_template: TaskTemplate = serde_json::from_str(r#"
+        {
+            "bin_path": "/bin/echo",
+            "version_id": "1.0.0",
+            "args": [
+                {
+                    "flag": null,
+                    "flag_joined": false,
+                    "prompt": "First statement",
+                    "default": null,
+                    "choice_fixed": false,
+                    "choice_source": null,
+                    "choices": [
+                        {
+                            "to_arg": null,
+                            "label": "omit"
+                        },
+                        {
+                            "to_arg": "",
+                            "label": "empty string"
+                        }
+                    ]
+                },
+                {
+                    "flag": null,
+                    "flag_joined": false,
+                    "prompt": "Second statement",
+                    "default": null,
+                    "choice_fixed": false,
+                    "choice_source": null,
+                    "choices": []
+                }
+            ]
+        }
+        "#)?;
+
+        let result = ttb.adds_task_template(task_template.clone()).await?;
+        assert_ne!(result, task_template);
+
+        assert_eq!(result.id, 1);
+        assert_eq!(result.final_task_template_arg_id, Some(2));
+
+        let tt2 = ttb.adds_task_template(serde_json::from_str(r#"
+        {
+            "bin_path": "/bin/echo",
+            "version_id": "1.0.0",
+            "args": []
+        }"#)?).await?;
+        assert_eq!(tt2.final_task_template_arg_id, Some(0));
+
+        Ok(())
     }
 
 }

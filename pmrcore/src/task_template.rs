@@ -14,6 +14,7 @@ pub struct TaskTemplate {
     pub id: i64,
     pub bin_path: String,
     pub version_id: String,
+    #[serde(default)]
     pub created_ts: i64,
     pub final_task_template_arg_id: Option<i64>,
     pub superceded_by_id: Option<i64>,

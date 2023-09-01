@@ -131,10 +131,13 @@ mod tests {
             .await
             .unwrap();
 
-        let id = TaskTemplateBackend::add_task_template(
-            &backend, "/bin/true", "1.0.0", &[],
+        let (id, _) = TaskTemplateBackend::add_task_template(
+            &backend, "/bin/true", "1.0.0",
         ).await
             .unwrap();
+        TaskTemplateBackend::finalize_new_task_template(
+            &backend, id,
+        ).await.unwrap();
 
         // note that no arguments were added to the task template, but
         // arguments are injected here - the model API should be used to

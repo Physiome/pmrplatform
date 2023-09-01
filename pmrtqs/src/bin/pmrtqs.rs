@@ -129,7 +129,7 @@ async fn main() -> anyhow::Result<()> {
     match args.command {
         Commands::Register { program, version } => {
             println!("registering program '{}'...", &program);
-            let id = TaskTemplateBackend::add_new_task_template(
+            let (id, _) = TaskTemplateBackend::add_task_template(
                 &backend, &program, &version,
             ).await?;
             println!("program '{}' registered as id: {}", &program, id);
