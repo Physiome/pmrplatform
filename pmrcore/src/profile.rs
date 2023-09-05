@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::task_template::TaskTemplate;
+
 // profile module contains miscellaneous structs that are parts that
 // may form into a profiles that encapsulate defaults.
 
@@ -22,8 +24,7 @@ pub struct ViewTaskTemplate {
     pub description: String,
     pub task_template_id: i64,
     pub updated_ts: i64,
-    // potential future derived fields
-    // pub task_template: Option<crate::task_template::TaskTemplate>,
+    pub task_template: Option<TaskTemplate>,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]

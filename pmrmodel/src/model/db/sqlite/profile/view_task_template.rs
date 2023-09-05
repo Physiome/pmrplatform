@@ -77,8 +77,7 @@ async fn select_view_task_template_by_id_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
 ) -> Result<ViewTaskTemplate, BackendError> {
-    let result = sqlx::query_as!(
-        ViewTaskTemplate,
+    let result = sqlx::query!(
         r#"
 SELECT
     id,
@@ -91,6 +90,14 @@ WHERE id = ?1
         "#,
         id,
     )
+    .map(|row| ViewTaskTemplate {
+        id: row.id,
+        view_key: row.view_key,
+        description: row.description,
+        task_template_id: row.task_template_id,
+        updated_ts: row.updated_ts,
+        task_template: None,
+    })
     .fetch_one(&*sqlite.pool)
     .await?;
     Ok(result)
@@ -166,6 +173,7 @@ mod testing {
             description: "".to_string(),
             task_template_id: 1,
             updated_ts: 1234567890,
+            task_template: None,
         });
 
         set_timestamp(1357924680);
@@ -182,6 +190,7 @@ mod testing {
             description: "This is a finalized view.".to_string(),
             task_template_id: 2,
             updated_ts: 1357924680,
+            task_template: None,
         });
         Ok(())
     }

@@ -57,8 +57,7 @@ async fn get_view_task_templates_for_profile_sqlite(
     sqlite: &SqliteBackend,
     profile_id: i64,
 ) -> Result<ViewTaskTemplates, BackendError> {
-    let result = sqlx::query_as!(
-        ViewTaskTemplate,
+    let result = sqlx::query!(
         r#"
 SELECT
     vtt.id,
@@ -72,6 +71,14 @@ WHERE profile_views.profile_id = ?1
         "#,
         profile_id,
     )
+    .map(|row| ViewTaskTemplate {
+        id: row.id,
+        view_key: row.view_key,
+        description: row.description,
+        task_template_id: row.task_template_id,
+        updated_ts: row.updated_ts,
+        task_template: None,
+    })
     .fetch_all(&*sqlite.pool)
     .await?;
     Ok(result.into())
@@ -184,7 +191,8 @@ mod testing {
             view_key: "view6".into(),
             description: "".into(),
             task_template_id: 6,
-            updated_ts: 1234567890
+            updated_ts: 1234567890,
+            task_template: None,
         }]);
 
         Ok(())
