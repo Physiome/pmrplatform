@@ -62,9 +62,14 @@ pub async fn create_sqlite_platform<'a>() -> anyhow::Result<(
     Ok((tempdir, platform))
 }
 
-#[async_std::test]
-async fn smoke_test_create_platform() -> anyhow::Result<()> {
-    create_sqlite_platform().await?;
-    create_blank_sqlite_platform().await?;
-    Ok(())
+#[cfg(test)]
+mod testing {
+    use super::*;
+
+    #[async_std::test]
+    async fn smoke_test_create_platform() -> anyhow::Result<()> {
+        create_sqlite_platform().await?;
+        create_blank_sqlite_platform().await?;
+        Ok(())
+    }
 }

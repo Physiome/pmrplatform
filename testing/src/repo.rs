@@ -342,127 +342,132 @@ pub fn create_repodata() -> (
     )
 }
 
-#[test]
-fn smoke_test_append_commit_from_objects() {
-    fn assert_blob(repo: &git2::Repository, path: &str, answer: &str) {
-        let tree = repo.revparse_single("HEAD").unwrap()
-            .as_commit().unwrap()
-            .tree().unwrap();
-        let file = tree.get_path(Path::new(&path)).unwrap();
-        let object = file.to_object(&repo).unwrap();
-        let blob = object.as_blob().unwrap();
-        assert_eq!(std::str::from_utf8(blob.content()).unwrap(), answer);
-    }
+#[cfg(test)]
+mod testing {
+    use super::*;
 
-    fn assert_commit(repo: &git2::Repository, path: &str, answer: &str) {
-        let tree = repo.revparse_single("HEAD").unwrap()
-            .as_commit().unwrap()
-            .tree().unwrap();
-        let target = tree.get_path(Path::new(&path)).unwrap();
-        assert_eq!(target.id(), git2::Oid::from_str(answer).unwrap());
-    }
+    #[test]
+    fn smoke_test_append_commit_from_objects() {
+        fn assert_blob(repo: &git2::Repository, path: &str, answer: &str) {
+            let tree = repo.revparse_single("HEAD").unwrap()
+                .as_commit().unwrap()
+                .tree().unwrap();
+            let file = tree.get_path(Path::new(&path)).unwrap();
+            let object = file.to_object(&repo).unwrap();
+            let blob = object.as_blob().unwrap();
+            assert_eq!(std::str::from_utf8(blob.content()).unwrap(), answer);
+        }
 
-    let (td, repo) = crate::repo::repo_init(
-        None, None, Some(1666666666)).unwrap();
-    let commit = crate::repo::append_commit_from_objects(
-        &repo, Some(1666666700), None,
-        vec![
-            crate::repo::GitObj::Blob("some_file", "a blob"),
-            crate::repo::GitObj::Tree("some_dir", vec![
-                crate::repo::GitObj::Blob("file1", "file1 in some_dir"),
-                crate::repo::GitObj::Blob("file2", "file2 in some_dir"),
-                crate::repo::GitObj::Tree("nested", vec![
-                    crate::repo::GitObj::Blob("file_a", "file_a in nested"),
-                    crate::repo::GitObj::Blob("file_b", "file_b in nested"),
+        fn assert_commit(repo: &git2::Repository, path: &str, answer: &str) {
+            let tree = repo.revparse_single("HEAD").unwrap()
+                .as_commit().unwrap()
+                .tree().unwrap();
+            let target = tree.get_path(Path::new(&path)).unwrap();
+            assert_eq!(target.id(), git2::Oid::from_str(answer).unwrap());
+        }
+
+        let (td, repo) = crate::repo::repo_init(
+            None, None, Some(1666666666)).unwrap();
+        let commit = crate::repo::append_commit_from_objects(
+            &repo, Some(1666666700), None,
+            vec![
+                crate::repo::GitObj::Blob("some_file", "a blob"),
+                crate::repo::GitObj::Tree("some_dir", vec![
+                    crate::repo::GitObj::Blob("file1", "file1 in some_dir"),
+                    crate::repo::GitObj::Blob("file2", "file2 in some_dir"),
+                    crate::repo::GitObj::Tree("nested", vec![
+                        crate::repo::GitObj::Blob("file_a", "file_a in nested"),
+                        crate::repo::GitObj::Blob("file_b", "file_b in nested"),
+                    ]),
                 ]),
-            ]),
-            crate::repo::GitObj::Commit(
-                "some_gitmodule", "0123456789012345678012345678012345678901"),
-        ],
-    ).unwrap();
+                crate::repo::GitObj::Commit(
+                    "some_gitmodule", "0123456789012345678012345678012345678901"),
+            ],
+        ).unwrap();
 
-    let path = &td.unwrap();
-    let repo_check = git2::Repository::open_bare(path).unwrap();
-    assert_eq!(
-        format!("{}", repo_check.revparse_single("HEAD").unwrap().id()),
-        "b39494b016b98c591125089e5fa0adefa80076f7",
-    );
-    assert_eq!(
-        format!("{}", commit),
-        "b39494b016b98c591125089e5fa0adefa80076f7",
-    );
-    let tree_id = repo_check.revparse_single("HEAD").unwrap()
-        .as_commit().unwrap()
-        .tree().unwrap().id();
-    assert_eq!(
-        format!("{}", tree_id),
-        "7e0875ba237c0897e5cda37dade7fe58fbc92447",
-    );
+        let path = &td.unwrap();
+        let repo_check = git2::Repository::open_bare(path).unwrap();
+        assert_eq!(
+            format!("{}", repo_check.revparse_single("HEAD").unwrap().id()),
+            "b39494b016b98c591125089e5fa0adefa80076f7",
+        );
+        assert_eq!(
+            format!("{}", commit),
+            "b39494b016b98c591125089e5fa0adefa80076f7",
+        );
+        let tree_id = repo_check.revparse_single("HEAD").unwrap()
+            .as_commit().unwrap()
+            .tree().unwrap().id();
+        assert_eq!(
+            format!("{}", tree_id),
+            "7e0875ba237c0897e5cda37dade7fe58fbc92447",
+        );
 
-    assert_blob(&repo_check, "some_dir/nested/file_a", "file_a in nested");
+        assert_blob(&repo_check, "some_dir/nested/file_a", "file_a in nested");
 
-    // This won't actually resolve to any valid submodule given the
-    // above example construct due to the lack of `.gitmodules` file,
-    // but given this is a bare repo the test is to be sure that this
-    // commit object reference is injected.
-    assert_commit(
-        &repo_check, "some_gitmodule",
-        "0123456789012345678012345678012345678901");
+        // This won't actually resolve to any valid submodule given the
+        // above example construct due to the lack of `.gitmodules` file,
+        // but given this is a bare repo the test is to be sure that this
+        // commit object reference is injected.
+        assert_commit(
+            &repo_check, "some_gitmodule",
+            "0123456789012345678012345678012345678901");
 
-    let _ = crate::repo::append_commit_from_objects(
-        &repo, Some(1666666800), None,
-        vec![
-            crate::repo::GitObj::Blob("new_file", "\na new_file\n"),
-            crate::repo::GitObj::Tree("some_dir", vec![
-                crate::repo::GitObj::Blob("file2", "file2 modified"),
-                crate::repo::GitObj::Blob("file3", "file3 is new"),
-                crate::repo::GitObj::Tree("nested", vec![
-                    crate::repo::GitObj::Blob("file_a", "file_a modified"),
-                    crate::repo::GitObj::Blob("file_c", "file_c is new"),
+        let _ = crate::repo::append_commit_from_objects(
+            &repo, Some(1666666800), None,
+            vec![
+                crate::repo::GitObj::Blob("new_file", "\na new_file\n"),
+                crate::repo::GitObj::Tree("some_dir", vec![
+                    crate::repo::GitObj::Blob("file2", "file2 modified"),
+                    crate::repo::GitObj::Blob("file3", "file3 is new"),
+                    crate::repo::GitObj::Tree("nested", vec![
+                        crate::repo::GitObj::Blob("file_a", "file_a modified"),
+                        crate::repo::GitObj::Blob("file_c", "file_c is new"),
+                    ]),
                 ]),
-            ]),
-        ],
-    ).unwrap();
+            ],
+        ).unwrap();
 
-    // first newline trimed out (helps with formatting)
-    assert_blob(&repo_check, "new_file", "a new_file\n");
-    assert_blob(&repo_check, "some_dir/nested/file_a", "file_a modified");
-    assert_blob(&repo_check, "some_dir/nested/file_b", "file_b in nested");
-    assert_blob(&repo_check, "some_dir/nested/file_c", "file_c is new");
-    assert_commit(
-        &repo_check, "some_gitmodule",
-        "0123456789012345678012345678012345678901");
+        // first newline trimed out (helps with formatting)
+        assert_blob(&repo_check, "new_file", "a new_file\n");
+        assert_blob(&repo_check, "some_dir/nested/file_a", "file_a modified");
+        assert_blob(&repo_check, "some_dir/nested/file_b", "file_b in nested");
+        assert_blob(&repo_check, "some_dir/nested/file_c", "file_c is new");
+        assert_commit(
+            &repo_check, "some_gitmodule",
+            "0123456789012345678012345678012345678901");
 
-}
-
-#[test]
-fn smoke_test_create_repodata() {
-    fn assert_oids<const N: usize>(oids: Vec<gix::ObjectId>, answer: &[&str; N]) {
-        let result = oids.iter()
-            .map(|oid| oid.to_string())
-            .collect::<Vec<_>>();
-        assert_eq!(&result, answer);
     }
 
-    let (_, (_, import1), (_, import2), (_, repodata)) = create_repodata();
-    assert_oids(import1, &[
-        "01b952d14a0a33d22a0aa465fe763e5d17b15d46",
-        "083b775d81ec9b66796edbbdce4d714bb2ddc355"
-    ]);
-    assert_oids(import2, &[
-        "f45998e0a944759385381d0a8dc7d432a2f54dca",
-        "ae357572b18748ef0235a6a04e3f3ea8f6f9b52d",
-        "0ab8a26a0e85a033bea0388216667d83cc0dc1dd",
-    ]);
-    assert_oids(repodata, &[
-        "9f02f69509110e7235e4bb9f50e235a246ae9f5c",
-        "557ee3cb13fb421d2bd6897615ae95830eb427c8",
-        "e931905807563cb5353958e865d72fed12dccd4f",
-        "27be7efbe5fcccda5ee6ca00ef96834f592139a5",
-        "965ccc1276832489c69b680b49874a6e1dc1743b",
-        "502b18ac456c8e475f731cbfe568fd6eb1177327",
-        "a4a04eed5e243e3019592579a7f6eb950399f9bf",
-        "c4d735e5a305559c1cb0ce8de4c25ed5c3f4f263",
-        "8ae6e9af37c8bd78614545d0ab807348fc46dcab",
-    ]);
+    #[test]
+    fn smoke_test_create_repodata() {
+        fn assert_oids<const N: usize>(oids: Vec<gix::ObjectId>, answer: &[&str; N]) {
+            let result = oids.iter()
+                .map(|oid| oid.to_string())
+                .collect::<Vec<_>>();
+            assert_eq!(&result, answer);
+        }
+
+        let (_, (_, import1), (_, import2), (_, repodata)) = create_repodata();
+        assert_oids(import1, &[
+            "01b952d14a0a33d22a0aa465fe763e5d17b15d46",
+            "083b775d81ec9b66796edbbdce4d714bb2ddc355"
+        ]);
+        assert_oids(import2, &[
+            "f45998e0a944759385381d0a8dc7d432a2f54dca",
+            "ae357572b18748ef0235a6a04e3f3ea8f6f9b52d",
+            "0ab8a26a0e85a033bea0388216667d83cc0dc1dd",
+        ]);
+        assert_oids(repodata, &[
+            "9f02f69509110e7235e4bb9f50e235a246ae9f5c",
+            "557ee3cb13fb421d2bd6897615ae95830eb427c8",
+            "e931905807563cb5353958e865d72fed12dccd4f",
+            "27be7efbe5fcccda5ee6ca00ef96834f592139a5",
+            "965ccc1276832489c69b680b49874a6e1dc1743b",
+            "502b18ac456c8e475f731cbfe568fd6eb1177327",
+            "a4a04eed5e243e3019592579a7f6eb950399f9bf",
+            "c4d735e5a305559c1cb0ce8de4c25ed5c3f4f263",
+            "8ae6e9af37c8bd78614545d0ab807348fc46dcab",
+        ]);
+    }
 }
