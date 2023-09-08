@@ -7,6 +7,7 @@ use crate::task_template::TaskTemplate;
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Profile {
+    #[serde(default)]
     pub id: i64,
     pub title: String,
     pub description: String,
@@ -17,12 +18,15 @@ pub struct Profile {
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ViewTaskTemplate {
+    #[serde(default)]
     pub id: i64,
     // note that this value, if non-ascii, should be escaped as a view?
     // TODO determine any/if restrictions on range of valid characters.
     pub view_key: String,
     pub description: String,
+    #[serde(default)]
     pub task_template_id: i64,
+    #[serde(default)]
     pub updated_ts: i64,
     pub task_template: Option<TaskTemplate>,
 }
@@ -34,6 +38,7 @@ pub struct ViewTaskTemplates(Vec<ViewTaskTemplate>);
 // TODO determine whether this is ultimately necessary
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ProfileView {
+    #[serde(default)]
     pub id: i64,
     pub profile_id: i64,
     pub view_task_template_id: i64,

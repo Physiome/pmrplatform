@@ -8,6 +8,25 @@ use tempfile::TempDir;
 
 use crate::repo::create_repodata;
 
+pub async fn create_blank_sqlite_platform<'a>() -> anyhow::Result<(
+    TempDir,
+    Platform<'a, SqliteBackend, SqliteBackend>,
+)> {
+    let tempdir = TempDir::new()?;
+    let platform = Platform::new(
+        SqliteBackend::from_url("sqlite::memory:")
+            .await?
+            .run_migration_profile(Profile::Pmrapp)
+            .await?,
+        SqliteBackend::from_url("sqlite::memory:")
+            .await?
+            .run_migration_profile(Profile::Pmrtqs)
+            .await?,
+        tempdir.path().to_path_buf(),
+    );
+    Ok((tempdir, platform))
+}
+
 pub async fn create_sqlite_platform<'a>() -> anyhow::Result<(
     TempDir,
     Platform<'a, SqliteBackend, SqliteBackend>,
@@ -41,4 +60,11 @@ pub async fn create_sqlite_platform<'a>() -> anyhow::Result<(
 
     let platform = Platform::new(mc, tm, tempdir.path().to_path_buf());
     Ok((tempdir, platform))
+}
+
+#[async_std::test]
+async fn smoke_test_create_platform() -> anyhow::Result<()> {
+    create_sqlite_platform().await?;
+    create_blank_sqlite_platform().await?;
+    Ok(())
 }
