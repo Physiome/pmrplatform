@@ -6,10 +6,14 @@ use pmrcore::task_template::{
     MapToArgRef,
     TaskTemplate,
     TaskTemplateArg,
+    TaskTemplateArgs,
 };
 use std::{
     collections::HashMap,
+    iter::Flatten,
     ops::Deref,
+    slice::Iter,
+    vec::IntoIter,
 };
 
 use crate::registry::ChoiceRegistryCache;
@@ -30,13 +34,28 @@ pub struct TaskArgBuilder<'a> {
 }
 
 #[derive(Debug)]
-pub struct TaskArgBuilders<'a>(
-    std::iter::Flatten<std::vec::IntoIter<TaskArgBuilder<'a>>>);
+pub struct TaskArgBuilders<'a>(Flatten<IntoIter<TaskArgBuilder<'a>>>);
 
 #[derive(Debug)]
 pub struct TaskBuilder<'a>{
     task_template: &'a TaskTemplate,
     arg_builders: TaskArgBuilders<'a>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct UserArgRef<'a> {
+    id: i64,
+    prompt: &'a str,
+    default: Option<&'a str>,
+    choice_fixed: bool,
+    // ideal is to have a reference but just clone to punt the lifetime
+    // issues to later.
+    choices: Option<Vec<&'a str>>,
+}
+
+pub struct UserArgBuilder<'a, T> {
+    args: Iter<'a, TaskTemplateArg>,
+    choice_registry_cache: &'a ChoiceRegistryCache<'a, T>,
 }
 
 impl<'a> TaskArgBuilder<'a> {
@@ -63,6 +82,20 @@ impl<'a> TaskBuilder<'a> {
     }
 }
 
+impl<'a, T> UserArgBuilder<'a, T> {
+    fn new(
+        task_template: &'a TaskTemplate,
+        choice_registry_cache: &'a ChoiceRegistryCache<'a, T>,
+    ) -> Self {
+        Self {
+            args: (&task_template.args.as_ref())
+                .expect("args must have been provided with the template")
+                .iter(),
+            choice_registry_cache,
+        }
+    }
+}
+
 impl From<TaskBuilder<'_>> for Task {
     fn from(item: TaskBuilder<'_>) -> Self {
         item.to_task()
@@ -71,6 +104,15 @@ impl From<TaskBuilder<'_>> for Task {
 
 impl<'a> From<(ArgChunk<'a>, &'a TaskTemplateArg)> for TaskArgBuilder<'a> {
     fn from(item: (ArgChunk<'a>, &'a TaskTemplateArg)) -> Self {
+        Self::new(item.0, item.1)
+    }
+}
+
+impl<'a, T> From<(
+    &'a TaskTemplate,
+    &'a ChoiceRegistryCache<'a, T>,
+)> for UserArgBuilder<'a, T> {
+    fn from(item: (&'a TaskTemplate, &'a ChoiceRegistryCache<'a, T>)) -> Self {
         Self::new(item.0, item.1)
     }
 }
@@ -100,6 +142,36 @@ impl<'a> Iterator for TaskArgBuilders<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
+    }
+}
+
+impl<'a, T> Iterator for UserArgBuilder<'a, T> {
+    type Item = UserArgRef<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(arg) = self.args.next() {
+            if arg.prompt.is_none() {
+                continue
+            } else {
+                return Some(UserArgRef {
+                    id: arg.id,
+                    prompt: arg.prompt.as_deref()
+                        .expect("tested not to be none"),
+                    default: arg.default.as_deref(),
+                    choice_fixed: arg.choice_fixed,
+                    choices: self.choice_registry_cache.list(&arg)
+                        .ok()
+                        .as_deref()
+                        .map(|r| r
+                            .as_ref()
+                            .map(|v| v.clone())
+                            // known empty remains empty
+                            .unwrap_or(vec![])
+                        )
+                })
+            }
+        }
+        None
     }
 }
 
@@ -751,6 +823,7 @@ mod test {
     use pmrcore::task_template::{
         TaskTemplate,
         TaskTemplateArg,
+        UserArg,
     };
     use pmrcore::task::{
         Task,
@@ -766,7 +839,9 @@ mod test {
         TaskArgBuilder,
         TaskArgBuilders,
         TaskBuilder,
+        UserArgRef,
         UserInputMap,
+        UserArgBuilder,
     };
     use crate::registry::{
         ChoiceRegistry,
@@ -1085,6 +1160,216 @@ mod test {
             ))
         );
 
+    }
+
+    #[test]
+    fn test_prompt_user_inputs_none() {
+        let task_template = TaskTemplate {
+            id: 1,
+            bin_path: "/usr/local/bin/example".into(),
+            version_id: "1.0.0".into(),
+            created_ts: 1234567890,
+            final_task_template_arg_id: Some(999),
+            superceded_by_id: None,
+            args: Some([
+                TaskTemplateArg {
+                    id: 999,
+                    task_template_id: 3,
+                    flag: Some("build".into()),
+                    .. Default::default()
+                },
+            ].into()),
+        };
+        let registry = PreparedChoiceRegistry::new();
+        let cache = ChoiceRegistryCache::from(
+            &registry as &dyn ChoiceRegistry<_>);
+
+        let user_prompts = UserArgBuilder::from((
+            &task_template,
+            &cache,
+        )).collect::<Vec<_>>();
+        assert_eq!(user_prompts.len(), 0);
+    }
+
+    #[test]
+    fn test_prompt_user_inputs_various() -> anyhow::Result<()> {
+        let task_template = TaskTemplate {
+            id: 3,
+            bin_path: "/usr/local/bin/model-processor".into(),
+            version_id: "1.3.2".into(),
+            created_ts: 1686715614,
+            final_task_template_arg_id: Some(4242),
+            superceded_by_id: None,
+            args: Some([
+                TaskTemplateArg {
+                    id: 12,
+                    task_template_id: 3,
+                    flag: Some("build".into()),
+                    .. Default::default()
+                },
+                TaskTemplateArg {
+                    id: 123,
+                    task_template_id: 3,
+                    flag: Some("--title=".into()),
+                    flag_joined: true,
+                    prompt: Some("Heading for this publication".into()),
+                    default: None,
+                    choice_fixed: false,
+                    choice_source: Some("".into()),
+                    choices: None,
+                },
+                TaskTemplateArg {
+                    id: 516,
+                    task_template_id: 3,
+                    flag: Some("--docsrc".into()),
+                    flag_joined: false,
+                    prompt: Some("Documentation file".into()),
+                    default: None,
+                    choice_fixed: false,
+                    choice_source: Some("".into()),
+                    choices: None,
+                },
+                TaskTemplateArg {
+                    id: 777,
+                    task_template_id: 3,
+                    flag: Some("--alternative".into()),
+                    .. Default::default()
+                },
+                TaskTemplateArg {
+                    id: 894,
+                    task_template_id: 3,
+                    flag: None,
+                    flag_joined: false,
+                    prompt: Some("The model to process".into()),
+                    default: None,
+                    choice_fixed: true,
+                    choice_source: Some("git_repo".into()),
+                    choices: None,
+                },
+                TaskTemplateArg {
+                    id: 2424,
+                    task_template_id: 3,
+                    flag: None,
+                    flag_joined: false,
+                    prompt: Some("Dry run".into()),
+                    default: Some("no".into()),
+                    choice_fixed: true,
+                    choice_source: Some("".into()),
+                    choices: serde_json::from_str(r#"[
+                        {
+                            "to_arg": "--dry-run",
+                            "label": "yes"
+                        },
+                        {
+                            "to_arg": null,
+                            "label": "no"
+                        }
+                    ]"#)?,
+                },
+                TaskTemplateArg {
+                    id: 4242,
+                    task_template_id: 3,
+                    flag: None,
+                    flag_joined: false,
+                    prompt: Some("Hidden".into()),
+                    default: Some("no".into()),
+                    choice_fixed: true,
+                    choice_source: Some("".into()),
+                    choices: serde_json::from_str(r#"[
+                        {
+                            "to_arg": "-H",
+                            "label": "yes"
+                        },
+                        {
+                            "to_arg": null,
+                            "label": "no"
+                        }
+                    ]"#)?,
+                },
+            ].into()),
+        };
+
+        let files: Vec<String> = vec![
+            "src/README.md".into(),
+            "src/main/example.model".into(),
+        ];
+        let mut registry = PreparedChoiceRegistry::new();
+        registry.register("git_repo", files.into());
+        let cache = ChoiceRegistryCache::from(
+            &registry as &dyn ChoiceRegistry<_>);
+
+        let user_prompts = UserArgBuilder::from((
+            &task_template,
+            &cache,
+        )).collect::<Vec<_>>();
+
+        assert_eq!(user_prompts.len(), 5);
+        let json_str = serde_json::to_string(&user_prompts)?;
+
+        // verify that the fully owned version of UserArg is compatible
+        let user_args: Vec<UserArg> = serde_json::from_str(&json_str)?;
+        assert_eq!(user_args[2], UserArg {
+            id: 894,
+            prompt: "The model to process".into(),
+            default: None,
+            choice_fixed: true,
+            choices: Some(vec![
+                "src/README.md".into(),
+                "src/main/example.model".into(),
+            ]),
+        });
+
+        let value: serde_json::Value = serde_json::from_str(&json_str)?;
+        let result: serde_json::Value = serde_json::from_str(r#"[
+            {
+                "id": 123,
+                "prompt": "Heading for this publication",
+                "default": null,
+                "choice_fixed": false,
+                "choices": []
+            },
+            {
+                "id": 516,
+                "prompt": "Documentation file",
+                "default": null,
+                "choice_fixed": false,
+                "choices": []
+            },
+            {
+                "id": 894,
+                "prompt": "The model to process",
+                "default": null,
+                "choice_fixed": true,
+                "choices": [
+                    "src/README.md",
+                    "src/main/example.model"
+                ]
+            },
+            {
+                "id": 2424,
+                "prompt": "Dry run",
+                "default": "no",
+                "choice_fixed": true,
+                "choices": [
+                    "yes",
+                    "no"
+                ]
+            },
+            {
+                "id": 4242,
+                "prompt": "Hidden",
+                "default": "no",
+                "choice_fixed": true,
+                "choices": [
+                    "yes",
+                    "no"
+                ]
+            }
+        ]"#)?;
+
+        assert_eq!(value, result);
+
+        Ok(())
     }
 
     #[test]

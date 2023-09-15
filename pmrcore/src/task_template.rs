@@ -84,6 +84,34 @@ pub struct TaskTemplateArgChoices(Vec<TaskTemplateArgChoice>);
 // pub struct MapToArg(HashMap<String, Option<String>>);
 pub struct MapToArgRef<'a>(HashMap<&'a str, Option<&'a str>>);
 
+// UserArg is the user facing version of the TemplateArg - it only
+// provides fields that are critical to the end-user while hiding the
+// other details that are implementation specific for the server.
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct UserArg {
+    pub id: i64,
+    pub prompt: String,
+    pub default: Option<String>,
+    pub choice_fixed: bool,
+    pub choices: Option<Vec<String>>,
+}
+
+/*
+// TODO figure out if putting the ref version here is best - currently,
+// the pmrmodel package holds this struct because the details of its
+// construction requires the registry and the goal is to encode that so
+// no random new constructor will be provided for the reference based
+// version.
+
+pub struct UserArgRef<'a> {
+    id: i64,
+    prompt: &'a str,
+    default: Option<&'a str>,
+    choice_fixed: bool,
+    choices: Option<&'a [&'a str]>,
+}
+*/
+
 #[cfg(feature = "display")]
 mod display;
 mod impls;

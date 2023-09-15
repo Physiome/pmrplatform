@@ -102,3 +102,14 @@ impl<'a, const N: usize> From<[&'a str; N]> for MapToArgRef<'a> {
             .into()
     }
 }
+
+// this extracts the choices that are user facing (displayed for users)
+// into a vec.
+impl<'a> From<MapToArgRef<'a>> for Vec<&'a str> {
+    fn from(value: MapToArgRef<'a>) -> Self {
+        let mut result: Self = value.0.into_keys()
+            .collect();
+        result.sort();
+        result
+    }
+}
