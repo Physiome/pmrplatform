@@ -1,11 +1,7 @@
 use pmrcore::exposure::traits::Exposure;
+use pmrctrl::registry::make_choice_registry;
 
-// switch the comments between these two identical code for an interesting
-// compiler issue - see `pmrctrl::testing` for details
-// use test_pmr::ctrl::create_sqlite_platform;
-use crate::testing::create_sqlite_platform;
-
-use crate::registry::make_choice_registry;
+use test_pmr::ctrl::create_sqlite_platform;
 
 #[async_std::test]
 async fn test_platform_create_exposure_list_files() -> anyhow::Result<()> {

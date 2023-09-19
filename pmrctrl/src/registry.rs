@@ -11,7 +11,7 @@ use crate::{
     handle::ExposureCtrl,
 };
 
-pub(crate) fn make_choice_registry<'a, MCP, TMP>(
+pub fn make_choice_registry<'a, MCP, TMP>(
     handle: &ExposureCtrl<'a, MCP, TMP>,
 ) -> Result<PreparedChoiceRegistry, PlatformError>
 where
