@@ -25,7 +25,7 @@ use crate::error::{
 
 type ArgChunk<'a> = [Option<&'a str>; 2];
 // the following maps user input by TaskTemplateArg.id
-type UserInputMap = HashMap<i64, String>;
+pub type UserInputMap = HashMap<i64, String>;
 
 #[derive(Debug, PartialEq)]
 pub struct TaskArgBuilder<'a> {
