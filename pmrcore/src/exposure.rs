@@ -53,6 +53,7 @@ pub struct ExposureFileViewTask {
 mod display;
 mod impls;
 mod refs;
+pub mod task;
 pub mod traits;
 
 pub use refs::{

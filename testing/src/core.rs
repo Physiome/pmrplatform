@@ -14,6 +14,7 @@ use pmrcore::{
             ExposureFileBackend,
             ExposureFileViewBackend,
         },
+        task::traits::ExposureTaskBackend,
     },
     workspace::{
         Workspace,
@@ -104,6 +105,18 @@ mock! {
             id: i64,
             view_key: &str,
         ) -> Result<bool, BackendError>;
+        // Due to conflicting lifetime and mockall seeminging do not
+        // support impl in argument position, and that this mock is
+        // really only a placeholder for only a certain few calls, just
+        // disable this and provide the unimplemented version and be
+        // done with it
+        // async fn exposure_task_set_file_templates<I>(
+        //     &self,
+        //     exposure_file_id: i64,
+        //     task_template_ids: I,
+        // ) -> Result<(), BackendError>
+        // where
+        //     I: Iterator<Item = i64> + Send + 'static;
     }
 
     #[async_trait]
@@ -310,5 +323,21 @@ impl ExposureFileViewBackend for MockPlatform {
         view_key: &str,
     ) -> Result<bool, BackendError> {
         self.exposure_file_view_update_view_key(id, view_key).await
+    }
+}
+
+#[async_trait]
+impl ExposureTaskBackend for MockPlatform {
+    async fn set_file_templates(
+        &self,
+        exposure_file_id: i64,
+        task_template_ids: impl Iterator<Item = i64> + Send,
+    ) -> Result<(), BackendError> {
+        // see note above in the commented version of this helper
+        // self.exposure_task_set_file_templates(
+        //     exposure_file_id,
+        //     task_template_ids,
+        // ).await
+        unimplemented!()
     }
 }

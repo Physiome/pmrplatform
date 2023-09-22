@@ -1,11 +1,17 @@
 use async_trait::async_trait;
 use crate::{
     error::BackendError,
-    exposure,
-    exposure::traits::{
-        ExposureBackend,
-        ExposureFileBackend,
-        ExposureFileViewBackend,
+    exposure::{
+        self,
+        task::{
+            self,
+            traits::ExposureTaskBackend,
+        },
+        traits::{
+            ExposureBackend,
+            ExposureFileBackend,
+            ExposureFileViewBackend,
+        },
     },
     profile::traits::{
         ProfileBackend,
@@ -35,6 +41,7 @@ pub trait MCPlatform: WorkspaceBackend
     + ExposureBackend
     + ExposureFileBackend
     + ExposureFileViewBackend
+    + ExposureTaskBackend
 
     + ProfileBackend
     + ViewTaskTemplateBackend
@@ -145,6 +152,7 @@ impl<P: workspace::traits::WorkspaceBackend
     + ExposureBackend
     + ExposureFileBackend
     + ExposureFileViewBackend
+    + ExposureTaskBackend
 
     + ProfileBackend
     + ViewTaskTemplateBackend

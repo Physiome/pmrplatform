@@ -68,17 +68,51 @@ CREATE UNIQUE INDEX IF NOT EXISTS exposure_file_view__exposure_file_id_task_view
 -- be choosen arbitrarily, it may be possible that this results in a
 -- conflict on which view gets assigned.
 
+-- The task template is attached to the exposure file to store the work-
+-- in-progress template usage for the file, in order to facilitate the
+-- declaration of the intent to use those view task templates for the
+-- generation of the views.
+CREATE TABLE IF NOT EXISTS exposure_file_view_task_template (
+    id INTEGER PRIMARY KEY NOT NULL,
+    exposure_file_id INTEGER NOT NULL,
+    view_task_template_id INTEGER NOT NULL,
+    FOREIGN KEY(exposure_file_id) REFERENCES exposure_file(id),
+    FOREIGN KEY(view_task_template_id) REFERENCES view_task_template(id)
+);
+
 CREATE TABLE IF NOT EXISTS exposure_file_view_task (
     id INTEGER PRIMARY KEY NOT NULL,
     exposure_file_view_id INTEGER NOT NULL,
     -- To ensure the task has the correct reference.
     view_task_template_id INTEGER NOT NULL,
     -- This references the task that resides on the pmrtqs platform.
-    task_id INTEGER NOT NULL,
+    -- Currently, this design does NOT track all past tasks that have
+    -- been spawned using this task entry, but rather it acts like an
+    -- intention to spawn one of these tasks using the template.
+    -- The rationale to not focus on tracking of this is because the
+    -- task is ultimately managed by the pmrtqs system (as opposed to
+    -- this one, pmrapp), and given that all the task entities reside
+    -- there, it has the separate set of metadata that are managed
+    -- under that system - they will have the lower level information
+    -- that loosely correlate to the ones here at a particular point
+    -- in time (e.g. the working_dir at the time for that task), which
+    -- may actually be irrelevant after some time.
+    -- Should the design need to changed to track this detailed info,
+    -- the anchoring id should be on exposure_file_task_template(id)
+    -- and a separate entry to point to the result exposure_file_view(id)
+    -- that got produced.
+    -- For the prototype, this seems too much work already for something
+    -- that is getting rather deep into the weeds so this is getting
+    -- punted to be decided later
+    -- *** So for now, this is a big entry that tracks a particular view
+    -- with its latest associated task/template that created it, not to
+    -- serve as a comprehensive log of every creation process that
+    -- happened.
+    task_id INTEGER,
     -- Track the creation timestamp to ensure that this record is still
     -- relevant - should it be before the updated_ts then this task
     -- should be considered invalidated.
-    created_ts INTEGER NOT NULL,
+    created_ts INTEGER,
     -- No need to store when the underlying task was done, just mark it
     -- as ready when the underlying task is completed successfully.
     ready BOOLEAN NOT NULL,
