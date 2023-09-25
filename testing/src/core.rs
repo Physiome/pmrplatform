@@ -117,6 +117,10 @@ mock! {
         // ) -> Result<(), BackendError>
         // where
         //     I: Iterator<Item = i64> + Send + 'static;
+        async fn exposure_task_get_file_templates(
+            &self,
+            exposure_file_id: i64,
+        ) -> Result<Vec<ViewTaskTemplate>, BackendError>;
     }
 
     #[async_trait]
@@ -339,5 +343,11 @@ impl ExposureTaskBackend for MockPlatform {
         //     task_template_ids,
         // ).await
         unimplemented!()
+    }
+    async fn get_file_templates(
+        &self,
+        exposure_file_id: i64,
+    ) -> Result<Vec<ViewTaskTemplate>, BackendError> {
+        self.exposure_task_get_file_templates(exposure_file_id).await
     }
 }
