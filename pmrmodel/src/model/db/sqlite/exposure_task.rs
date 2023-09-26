@@ -153,6 +153,15 @@ mod tests {
             &backend, exposure_file_2).await?;
         assert_eq!(templates2.len(), 2);
 
+        // TODO include following test for delete
+
+        // ExposureTaskBackend::set_file_templates(
+        //     &backend, exposure_file_1, [v2, v4].into_iter()
+        // ).await?;
+        // let templates1 = ExposureTaskBackend::get_file_templates(
+        //     &backend, exposure_file_1).await?;
+        // assert_eq!(templates1.len(), 2);
+
         Ok(())
     }
 }

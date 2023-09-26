@@ -1,5 +1,11 @@
 use pmrcore::{
-    exposure::traits::Exposure,
+    exposure::{
+        task::traits::ExposureTaskBackend,
+        traits::{
+            Exposure,
+            ExposureFile,
+        },
+    },
     task::{
         Task,
         traits::TaskBackend,
@@ -182,6 +188,75 @@ async fn test_platform_create_exposure_file_view_task() -> anyhow::Result<()> {
     // TODO actually tying the task back to the exposure file and thus
     // the appropriate view - this test really is a current proof of
     // concept while figuring stuff out.
+
+    Ok(())
+}
+
+#[async_std::test]
+async fn test_platform_get_file_templates_for_exposure_file() -> anyhow::Result<()> {
+    let (_reporoot, platform) = create_sqlite_platform().await?;
+    let vt1 = platform.adds_view_task_template(
+        serde_json::from_str(r#"{
+            "view_key": "example_view1",
+            "description": "",
+            "task_template": {
+                "bin_path": "/usr/local/bin/example1",
+                "version_id": "1.0.0",
+                "args": [
+                    {
+                        "flag": null,
+                        "flag_joined": false,
+                        "prompt": "Example prompt",
+                        "default": null,
+                        "choice_fixed": false,
+                        "choice_source": null,
+                        "choices": []
+                    }
+                ]
+            }
+        }"#)?
+    ).await?;
+    let vt2 = platform.adds_view_task_template(
+        serde_json::from_str(r#"{
+            "view_key": "example_view2",
+            "description": "",
+            "task_template": {
+                "bin_path": "/usr/local/bin/example",
+                "version_id": "1.0.0",
+                "args": []
+            }
+        }"#)?
+    ).await?;
+
+    let exposure = platform.create_exposure(
+        1,
+        "083b775d81ec9b66796edbbdce4d714bb2ddc355",
+    ).await?;
+    let exposure_file_id = exposure.create_file("if1").await?
+        .exposure_file
+        .id();
+
+    let vtt = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
+    assert_eq!(vtt.len(), 0);
+
+    ExposureTaskBackend::set_file_templates(
+        &platform.mc_platform,
+        exposure_file_id,
+        [vt1].into_iter(),
+    ).await?;
+
+    let vtt = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
+    assert_eq!(vtt.len(), 1);
+    assert_eq!(vtt[0]
+        .task_template
+        .as_ref()
+        .expect("task_template defined")
+        .args
+        .as_ref()
+        .expect("task_template.args defined")
+        .len(),
+        1,
+    );
 
     Ok(())
 }
