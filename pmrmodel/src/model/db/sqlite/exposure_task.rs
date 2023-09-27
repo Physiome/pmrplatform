@@ -9,26 +9,43 @@ use crate::{
     backend::db::SqliteBackend,
 };
 
-async fn insert_exposure_file_view_task_template_sqlite(
+async fn set_exposure_file_view_task_template_sqlite(
     sqlite: &SqliteBackend,
     exposure_file_id: i64,
-    view_task_template_id: i64,
-) -> Result<i64, BackendError> {
-    let id = sqlx::query!(
+    mut view_task_template_ids: impl Iterator<Item = i64> + Send,
+) -> Result<(), BackendError> {
+    // TODO is there a way to insert/delete just the delta?
+    let mut tx = sqlite.pool.begin().await?;
+    sqlx::query!(
         r#"
+DELETE FROM
+    exposure_file_view_task_template
+WHERE
+    exposure_file_id = ?1
+        "#,
+        exposure_file_id,
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    while let Some(vtti) = view_task_template_ids.next() {
+        sqlx::query!(
+            r#"
 INSERT INTO exposure_file_view_task_template (
     exposure_file_id,
     view_task_template_id
 )
 VALUES ( ?1, ?2 )
-        "#,
-        exposure_file_id,
-        view_task_template_id,
-    )
-    .execute(&*sqlite.pool)
-    .await?
-    .last_insert_rowid();
-    Ok(id)
+            "#,
+            exposure_file_id,
+            vtti,
+        )
+        .execute(&mut *tx)
+        .await?;
+    };
+
+    tx.commit().await?;
+    Ok(())
 }
 
 async fn select_exposure_file_view_task_template_sqlite(
@@ -76,16 +93,14 @@ impl ExposureTaskBackend for SqliteBackend {
     async fn set_file_templates(
         &self,
         exposure_file_id: i64,
-        mut view_task_template_ids: impl Iterator<Item = i64> + Send,
+        view_task_template_ids: impl Iterator<Item = i64> + Send,
     ) -> Result<(), BackendError> {
         // TODO delete old templates
-        while let Some(view_task_template_id) = view_task_template_ids.next() {
-            insert_exposure_file_view_task_template_sqlite(
-                &self,
-                exposure_file_id,
-                view_task_template_id,
-            ).await?;
-        };
+        set_exposure_file_view_task_template_sqlite(
+            &self,
+            exposure_file_id,
+            view_task_template_ids,
+        ).await?;
         Ok(())
     }
 
@@ -155,12 +170,12 @@ mod tests {
 
         // TODO include following test for delete
 
-        // ExposureTaskBackend::set_file_templates(
-        //     &backend, exposure_file_1, [v2, v4].into_iter()
-        // ).await?;
-        // let templates1 = ExposureTaskBackend::get_file_templates(
-        //     &backend, exposure_file_1).await?;
-        // assert_eq!(templates1.len(), 2);
+        ExposureTaskBackend::set_file_templates(
+            &backend, exposure_file_1, [v2, v4].into_iter()
+        ).await?;
+        let templates1 = ExposureTaskBackend::get_file_templates(
+            &backend, exposure_file_1).await?;
+        assert_eq!(templates1.len(), 2);
 
         Ok(())
     }

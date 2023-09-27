@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nDELETE FROM\n    exposure_file_view_task_template\nWHERE\n    exposure_file_id = ?1\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "02d344d0d4eeb7a9b9cafc3a08bfacad37940185eb3e471724aa2c44027fa7a1"
+}

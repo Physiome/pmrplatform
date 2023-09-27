@@ -244,7 +244,6 @@ async fn test_platform_get_file_templates_for_exposure_file() -> anyhow::Result<
         exposure_file_id,
         [vt1].into_iter(),
     ).await?;
-
     let vtt = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
     assert_eq!(vtt.len(), 1);
     assert_eq!(vtt[0]
@@ -256,6 +255,26 @@ async fn test_platform_get_file_templates_for_exposure_file() -> anyhow::Result<
         .expect("task_template.args defined")
         .len(),
         1,
+    );
+    assert_eq!(vtt[0].view_key, "example_view1");
+
+    ExposureTaskBackend::set_file_templates(
+        &platform.mc_platform,
+        exposure_file_id,
+        [vt2].into_iter(),
+    ).await?;
+    let vtt = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
+    assert_eq!(vtt.len(), 1);
+    assert_eq!(vtt[0].view_key, "example_view2");
+    assert_eq!(vtt[0]
+        .task_template
+        .as_ref()
+        .expect("task_template defined")
+        .args
+        .as_ref()
+        .expect("task_template.args defined")
+        .len(),
+        0,
     );
 
     Ok(())
