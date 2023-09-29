@@ -18,6 +18,7 @@ use pmrcore::{
     profile::ViewTaskTemplates,
 };
 use pmrmodel::{
+    error::BuildArgError,
     model::task_template::{
         TaskBuilder,
         UserArgBuilder,
@@ -369,11 +370,11 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
         exposure_file_id,
         [vtts[0], vtts[3]].into_iter(),
     ).await?;
-    let vtt = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
+    let efvtts = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
     let registry = make_choice_registry(&exposure)?;
     let cache = ChoiceRegistryCache::from(&registry as &dyn ChoiceRegistry<_>);
     let user_arg_refs = UserArgBuilder::from((
-        vtt.as_slice(),
+        efvtts.as_slice(),
         &cache,
     )).collect::<Vec<_>>();
     assert_eq!(user_arg_refs.len(), 2);
@@ -386,6 +387,67 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     assert_eq!(user_args[1].prompt, "Prompt for alternative file");
     // TODO test for alternative ID remaps via manual deletes/updates to the
     // underlying linkage between ViewTaskTemplate and TaskTemplate
+
+    let user_input = UserInputMap::from([
+        (1, "Example answer".to_string()),
+        (3, "README".to_string()),
+    ]);
+
+    // TODO implement this for real (as impl on the templates?)
+    // TODO this implementation will need error checking, e.g. per field.
+    let tasks = efvtts
+        .iter()
+        .map(|efvtt| Ok(Task::from(TaskBuilder::try_from((
+            &user_input,
+            efvtt.task_template
+                .as_ref()
+                .expect("task_template must have been provided"),
+            &cache,
+        ))?)))
+        .collect::<Result<Vec<_>, BuildArgError>>()?;
+
+    // TODO update serde defaults for Task and friends.
+    let answers: Vec<Task> = serde_json::from_str(r#"
+    [
+        {
+            "id": 0,
+            "task_template_id": 1,
+            "bin_path": "/usr/local/bin/example1",
+            "pid": null,
+            "created_ts": 0,
+            "start_ts": null,
+            "stop_ts": null,
+            "exit_status": null,
+            "basedir": "",
+            "args": [
+                {
+                    "id": 0,
+                    "task_id": 0,
+                    "arg": "Example answer"
+                }
+            ]
+        },
+        {
+            "id": 0,
+            "task_template_id": 4,
+            "bin_path": "/usr/local/bin/example3",
+            "pid": null,
+            "created_ts": 0,
+            "start_ts": null,
+            "stop_ts": null,
+            "exit_status": null,
+            "basedir": "",
+            "args": [
+                {
+                    "id": 0,
+                    "task_id": 0,
+                    "arg": "--file2=README"
+                }
+            ]
+        }
+    ]
+    "#)?;
+    assert_eq!(&answers, &tasks);
 
     Ok(())
 }
