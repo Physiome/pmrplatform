@@ -334,8 +334,8 @@ impl ExposureFileViewBackend for MockPlatform {
 impl ExposureTaskBackend for MockPlatform {
     async fn set_file_templates(
         &self,
-        exposure_file_id: i64,
-        task_template_ids: impl Iterator<Item = i64> + Send,
+        _exposure_file_id: i64,
+        _task_template_ids: impl Iterator<Item = i64> + Send,
     ) -> Result<(), BackendError> {
         // see note above in the commented version of this helper
         // self.exposure_task_set_file_templates(

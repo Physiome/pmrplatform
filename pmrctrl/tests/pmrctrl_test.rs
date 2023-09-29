@@ -11,6 +11,11 @@ use pmrcore::{
         traits::TaskBackend,
     },
     task_template::UserArg,
+    platform::{
+        MCPlatform,
+        TMPlatform,
+    },
+    profile::ViewTaskTemplates,
 };
 use pmrmodel::{
     model::task_template::{
@@ -23,7 +28,10 @@ use pmrmodel::{
         ChoiceRegistryCache,
     },
 };
-use pmrctrl::registry::make_choice_registry;
+use pmrctrl::{
+    platform::Platform,
+    registry::make_choice_registry,
+};
 
 use test_pmr::ctrl::create_sqlite_platform;
 
@@ -192,10 +200,15 @@ async fn test_platform_create_exposure_file_view_task() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
-async fn test_platform_get_file_templates_for_exposure_file() -> anyhow::Result<()> {
-    let (_reporoot, platform) = create_sqlite_platform().await?;
-    let vt1 = platform.adds_view_task_template(
+async fn make_example_view_tasks<'a, M, T>(
+    platform: &'a Platform<'a, M, T>
+) -> anyhow::Result<Vec<i64>>
+where
+    M: MCPlatform + Sized + Sync,
+    T: TMPlatform + Sized + Sync,
+{
+    let mut result: Vec<i64> = Vec::new();
+    result.push(platform.adds_view_task_template(
         serde_json::from_str(r#"{
             "view_key": "example_view1",
             "description": "",
@@ -215,8 +228,8 @@ async fn test_platform_get_file_templates_for_exposure_file() -> anyhow::Result<
                 ]
             }
         }"#)?
-    ).await?;
-    let vt2 = platform.adds_view_task_template(
+    ).await?);
+    result.push(platform.adds_view_task_template(
         serde_json::from_str(r#"{
             "view_key": "example_view2",
             "description": "",
@@ -226,8 +239,56 @@ async fn test_platform_get_file_templates_for_exposure_file() -> anyhow::Result<
                 "args": []
             }
         }"#)?
-    ).await?;
+    ).await?);
+    result.push(platform.adds_view_task_template(
+        serde_json::from_str(r#"{
+            "view_key": "example_view3",
+            "description": "",
+            "task_template": {
+                "bin_path": "/usr/local/bin/example3",
+                "version_id": "1.0.0",
+                "args": [
+                    {
+                        "flag": "--file1=",
+                        "flag_joined": true,
+                        "prompt": "Prompt for file",
+                        "default": null,
+                        "choice_fixed": true,
+                        "choice_source": "files",
+                        "choices": []
+                    }
+                ]
+            }
+        }"#)?
+    ).await?);
+    result.push(platform.adds_view_task_template(
+        serde_json::from_str(r#"{
+            "view_key": "example_view4",
+            "description": "",
+            "task_template": {
+                "bin_path": "/usr/local/bin/example3",
+                "version_id": "1.0.0",
+                "args": [
+                    {
+                        "flag": "--file2=",
+                        "flag_joined": true,
+                        "prompt": "Prompt for alternative file",
+                        "default": null,
+                        "choice_fixed": true,
+                        "choice_source": "files",
+                        "choices": []
+                    }
+                ]
+            }
+        }"#)?
+    ).await?);
+    Ok(result)
+}
 
+#[async_std::test]
+async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> {
+    let (_reporoot, platform) = create_sqlite_platform().await?;
+    let vtts = make_example_view_tasks(&platform).await?;
     let exposure = platform.create_exposure(
         1,
         "083b775d81ec9b66796edbbdce4d714bb2ddc355",
@@ -242,7 +303,7 @@ async fn test_platform_get_file_templates_for_exposure_file() -> anyhow::Result<
     ExposureTaskBackend::set_file_templates(
         &platform.mc_platform,
         exposure_file_id,
-        [vt1].into_iter(),
+        [vtts[0]].into_iter(),
     ).await?;
     let vtt = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
     assert_eq!(vtt.len(), 1);
@@ -261,10 +322,10 @@ async fn test_platform_get_file_templates_for_exposure_file() -> anyhow::Result<
     ExposureTaskBackend::set_file_templates(
         &platform.mc_platform,
         exposure_file_id,
-        [vt2].into_iter(),
+        [vtts[1], vtts[2]].into_iter(),
     ).await?;
     let vtt = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
-    assert_eq!(vtt.len(), 1);
+    assert_eq!(vtt.len(), 2);
     assert_eq!(vtt[0].view_key, "example_view2");
     assert_eq!(vtt[0]
         .task_template
@@ -276,6 +337,55 @@ async fn test_platform_get_file_templates_for_exposure_file() -> anyhow::Result<
         .len(),
         0,
     );
+
+    let registry = make_choice_registry(&exposure)?;
+    let cache = ChoiceRegistryCache::from(&registry as &dyn ChoiceRegistry<_>);
+    let user_arg_refs = UserArgBuilder::from((
+        vtt.as_slice(),
+        &cache,
+    )).collect::<Vec<_>>();
+    assert_eq!(user_arg_refs.len(), 1);
+    let user_args: Vec<UserArg> = serde_json::from_str(
+        &serde_json::to_string(&user_arg_refs)?
+    )?;
+    assert_eq!(user_args[0].prompt, "Prompt for file");
+    Ok(())
+}
+
+#[async_std::test]
+async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
+    let (_reporoot, platform) = create_sqlite_platform().await?;
+    let vtts = make_example_view_tasks(&platform).await?;
+    let exposure = platform.create_exposure(
+        1,
+        "083b775d81ec9b66796edbbdce4d714bb2ddc355",
+    ).await?;
+    let exposure_file_id = exposure.create_file("if1").await?
+        .exposure_file
+        .id();
+
+    ExposureTaskBackend::set_file_templates(
+        &platform.mc_platform,
+        exposure_file_id,
+        [vtts[0], vtts[3]].into_iter(),
+    ).await?;
+    let vtt = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
+    let registry = make_choice_registry(&exposure)?;
+    let cache = ChoiceRegistryCache::from(&registry as &dyn ChoiceRegistry<_>);
+    let user_arg_refs = UserArgBuilder::from((
+        vtt.as_slice(),
+        &cache,
+    )).collect::<Vec<_>>();
+    assert_eq!(user_arg_refs.len(), 2);
+    let user_args: Vec<UserArg> = serde_json::from_str(
+        &serde_json::to_string(&user_arg_refs)?
+    )?;
+    assert_eq!(user_args[0].id, 1);
+    assert_eq!(user_args[0].prompt, "Example prompt");
+    assert_eq!(user_args[1].id, 3);
+    assert_eq!(user_args[1].prompt, "Prompt for alternative file");
+    // TODO test for alternative ID remaps via manual deletes/updates to the
+    // underlying linkage between ViewTaskTemplate and TaskTemplate
 
     Ok(())
 }

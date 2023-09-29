@@ -80,6 +80,9 @@ CREATE TABLE IF NOT EXISTS exposure_file_view_task_template (
     FOREIGN KEY(view_task_template_id) REFERENCES view_task_template(id)
 );
 
+-- TODO implement a table for temporary answers so that all work-in-
+-- progress answers can be stored, including non-validated submissions.
+
 CREATE TABLE IF NOT EXISTS exposure_file_view_task (
     id INTEGER PRIMARY KEY NOT NULL,
     exposure_file_view_id INTEGER NOT NULL,

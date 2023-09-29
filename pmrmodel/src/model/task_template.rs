@@ -1,16 +1,22 @@
-use pmrcore::task::{
-    Task,
-    TaskArg,
-};
-use pmrcore::task_template::{
-    MapToArgRef,
-    TaskTemplate,
-    TaskTemplateArg,
-    TaskTemplateArgs,
+use pmrcore::{
+    profile::ViewTaskTemplate,
+    task::{
+        Task,
+        TaskArg,
+    },
+    task_template::{
+        MapToArgRef,
+        TaskTemplate,
+        TaskTemplateArg,
+        TaskTemplateArgs,
+    },
 };
 use std::{
     collections::HashMap,
-    iter::Flatten,
+    iter::{
+        FlatMap,
+        Flatten,
+    },
     ops::Deref,
     slice::Iter,
     vec::IntoIter,
@@ -53,8 +59,8 @@ pub struct UserArgRef<'a> {
     choices: Option<Vec<&'a str>>,
 }
 
-pub struct UserArgBuilder<'a, T> {
-    args: Iter<'a, TaskTemplateArg>,
+pub struct UserArgBuilder<'a, I, T> {
+    args: I,
     choice_registry_cache: &'a ChoiceRegistryCache<'a, T>,
 }
 
@@ -82,19 +88,18 @@ impl<'a> TaskBuilder<'a> {
     }
 }
 
-impl<'a, T> UserArgBuilder<'a, T> {
+impl<'a, I, T> UserArgBuilder<'a, I, T> {
     fn new(
-        task_template: &'a TaskTemplate,
+        args: I,
         choice_registry_cache: &'a ChoiceRegistryCache<'a, T>,
     ) -> Self {
         Self {
-            args: (&task_template.args.as_ref())
-                .expect("args must have been provided with the template")
-                .iter(),
+            args,
             choice_registry_cache,
         }
     }
 }
+
 
 impl From<TaskBuilder<'_>> for Task {
     fn from(item: TaskBuilder<'_>) -> Self {
@@ -111,9 +116,48 @@ impl<'a> From<(ArgChunk<'a>, &'a TaskTemplateArg)> for TaskArgBuilder<'a> {
 impl<'a, T> From<(
     &'a TaskTemplate,
     &'a ChoiceRegistryCache<'a, T>,
-)> for UserArgBuilder<'a, T> {
+)> for UserArgBuilder<'a, Iter<'a, TaskTemplateArg>, T> {
     fn from(item: (&'a TaskTemplate, &'a ChoiceRegistryCache<'a, T>)) -> Self {
-        Self::new(item.0, item.1)
+        UserArgBuilder::new(
+            (&item.0.args.as_ref())
+                .expect("args must have been provided with the template")
+                .iter(),
+            item.1,
+        )
+    }
+}
+
+fn vtt_helper(vtt: &ViewTaskTemplate) -> Iter<TaskTemplateArg> {
+    (&vtt.task_template)
+        .as_ref()
+        .expect("task_template must be provided with view_task_template")
+        .args.as_ref()
+        .expect("args must have been provided with the template")
+        .iter()
+}
+
+impl<'a, T> From<(
+    &'a [ViewTaskTemplate],
+    &'a ChoiceRegistryCache<'a, T>,
+)> for UserArgBuilder<
+    'a,
+    FlatMap<
+        Iter<'a, ViewTaskTemplate>,
+        Iter<'a, TaskTemplateArg>,
+        for<'b> fn(&'b ViewTaskTemplate) -> Iter<'b, TaskTemplateArg>
+    >,
+    T
+> {
+    fn from(
+        item: (&'a [ViewTaskTemplate], &'a ChoiceRegistryCache<'a, T>)
+    ) -> Self {
+        Self {
+            args: (&item.0)
+                .iter()
+                .flat_map(vtt_helper)
+            ,
+            choice_registry_cache: item.1,
+        }
     }
 }
 
@@ -145,7 +189,7 @@ impl<'a> Iterator for TaskArgBuilders<'a> {
     }
 }
 
-impl<'a, T> Iterator for UserArgBuilder<'a, T> {
+impl<'a, I: Iterator<Item=&'a TaskTemplateArg>, T> Iterator for UserArgBuilder<'a, I, T> {
     type Item = UserArgRef<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -839,7 +883,6 @@ mod test {
         TaskArgBuilder,
         TaskArgBuilders,
         TaskBuilder,
-        UserArgRef,
         UserInputMap,
         UserArgBuilder,
     };
