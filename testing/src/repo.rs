@@ -184,16 +184,29 @@ pub fn create_repodata() -> (
     (gix::Repository, Vec<gix::ObjectId>),
     (gix::Repository, Vec<gix::ObjectId>),
 ) {
+    let tempdir = TempDir::new().unwrap();
+    let (import1, import2, repodata) = inject_repodata(&tempdir.path());
+    (
+        tempdir,
+        import1,
+        import2,
+        repodata,
+    )
+}
+
+pub(crate) fn inject_repodata(repo_path: &Path) -> (
+    (gix::Repository, Vec<gix::ObjectId>),
+    (gix::Repository, Vec<gix::ObjectId>),
+    (gix::Repository, Vec<gix::ObjectId>),
+) {
     use crate::repo::GitObj::{
         Blob,
         Commit,
         Tree,
     };
-
-    let tempdir = TempDir::new().unwrap();
     // import1
     let (_, import1) = crate::repo::repo_init(
-        None, Some(&tempdir.path().join("1")), Some(1111010101)).unwrap();
+        None, Some(&repo_path.join("1")), Some(1111010101)).unwrap();
     let mut import1_oids = <Vec<gix::ObjectId>>::new();
     let mut import2_oids = <Vec<gix::ObjectId>>::new();
     let mut repodata_oids = <Vec<gix::ObjectId>>::new();
@@ -216,7 +229,7 @@ pub fn create_repodata() -> (
 
     // import2
     let (_, import2) = crate::repo::repo_init(
-        None, Some(&tempdir.path().join("2")), Some(1111020202)).unwrap();
+        None, Some(&repo_path.join("2")), Some(1111020202)).unwrap();
     import2_oids.push(crate::repo::append_commit_from_objects(
         &import2, Some(1222020220), Some("readme for import2"), vec![
         Blob("README", dedent!("
@@ -244,7 +257,7 @@ pub fn create_repodata() -> (
 
     // repodata
     let (_, repodata) = crate::repo::repo_init(
-        None, Some(&tempdir.path().join("3")), Some(1654321000)).unwrap();
+        None, Some(&repo_path.join("3")), Some(1654321000)).unwrap();
     repodata_oids.push(crate::repo::append_commit_from_objects(
         &repodata, Some(1666666700), Some("Initial commit of repodata"), vec![
         Blob("file1", dedent!("
@@ -335,7 +348,6 @@ pub fn create_repodata() -> (
     ]).unwrap());
 
     (
-        tempdir,
         (import1, import1_oids),
         (import2, import2_oids),
         (repodata, repodata_oids),

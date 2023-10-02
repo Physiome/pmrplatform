@@ -4,7 +4,10 @@ use pmrcore::platform::{
 };
 use pmrrepo::backend::Backend;
 use std::{
-    path::PathBuf,
+    path::{
+        Path,
+        PathBuf,
+    },
     sync::OnceLock,
 };
 
@@ -15,9 +18,18 @@ impl<
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
 > Platform<'a, MCP, TMP> {
-    pub fn new(mc_platform: MCP, tm_platform: TMP, repo_root: PathBuf) -> Self {
+    pub fn new(
+        mc_platform: MCP,
+        tm_platform: TMP,
+        data_root: PathBuf,
+        repo_root: PathBuf,
+    ) -> Self {
         let repo_backend = OnceLock::new();
-        Self { mc_platform, tm_platform, repo_root, repo_backend }
+        Self { mc_platform, tm_platform, data_root, repo_root, repo_backend }
+    }
+
+    pub fn data_root(&self) -> &Path {
+        self.data_root.as_ref()
     }
 
     pub fn repo_backend(

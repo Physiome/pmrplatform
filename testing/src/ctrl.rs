@@ -6,13 +6,18 @@ use pmrmodel::backend::db::{
 };
 use tempfile::TempDir;
 
-use crate::repo::create_repodata;
+use crate::repo::inject_repodata;
 
 pub async fn create_blank_sqlite_platform<'a>() -> anyhow::Result<(
     TempDir,
     Platform<'a, SqliteBackend, SqliteBackend>,
 )> {
     let tempdir = TempDir::new()?;
+    let repo_root = tempdir.path().join("repo").to_path_buf();
+    let data_root = tempdir.path().join("data").to_path_buf();
+    std::fs::create_dir_all(&repo_root)?;
+    std::fs::create_dir_all(&data_root)?;
+
     let platform = Platform::new(
         SqliteBackend::from_url("sqlite::memory:")
             .await?
@@ -22,7 +27,8 @@ pub async fn create_blank_sqlite_platform<'a>() -> anyhow::Result<(
             .await?
             .run_migration_profile(Profile::Pmrtqs)
             .await?,
-        tempdir.path().to_path_buf(),
+        data_root,
+        repo_root,
     );
     Ok((tempdir, platform))
 }
@@ -31,7 +37,14 @@ pub async fn create_sqlite_platform<'a>() -> anyhow::Result<(
     TempDir,
     Platform<'a, SqliteBackend, SqliteBackend>,
 )> {
-    let (tempdir, _, _, _) = create_repodata();
+    let tempdir = TempDir::new()?;
+    let repo_root = tempdir.path().join("repo").to_path_buf();
+    let data_root = tempdir.path().join("data").to_path_buf();
+    std::fs::create_dir_all(&repo_root)?;
+    std::fs::create_dir_all(&data_root)?;
+
+    inject_repodata(repo_root.as_ref());
+
     let mc = SqliteBackend::from_url("sqlite::memory:")
         .await?
         .run_migration_profile(Profile::Pmrapp)
@@ -58,7 +71,12 @@ pub async fn create_sqlite_platform<'a>() -> anyhow::Result<(
         "".into(),
     ).await?;
 
-    let platform = Platform::new(mc, tm, tempdir.path().to_path_buf());
+    let platform = Platform::new(
+        mc,
+        tm,
+        data_root,
+        repo_root,
+    );
     Ok((tempdir, platform))
 }
 

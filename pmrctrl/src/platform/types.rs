@@ -15,6 +15,7 @@ pub struct Platform<
 > {
     pub mc_platform: MCP,
     pub tm_platform: TMP,
+    pub(super) data_root: PathBuf,
     pub(super) repo_root: PathBuf,
     pub(super) repo_backend: OnceLock<Backend<'a, MCP>>,
 }

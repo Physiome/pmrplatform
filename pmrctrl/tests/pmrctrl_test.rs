@@ -406,7 +406,6 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
         ))?)))
         .collect::<Result<Vec<_>, BuildArgError>>()?;
 
-    // TODO update serde defaults for Task and friends.
     let answers: Vec<Task> = serde_json::from_str(r#"
     [
         {
