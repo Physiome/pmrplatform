@@ -29,3 +29,8 @@ pub enum BuildArgError {
     #[error(transparent)]
     LookupError(#[from] LookupError),
 }
+
+#[derive(Debug, PartialEq, Error, Deserialize, Serialize)]
+pub struct BuildArgErrors(pub(crate) Vec<BuildArgError>);
+
+mod display;

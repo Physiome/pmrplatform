@@ -10,6 +10,7 @@ edition = "2021"
 async-trait = "0.1.50"
 chrono = "0.4.26"
 futures = "0.3"
+itertools = "0.11"
 log = { version = "0.4", features = ["std", "serde"] }
 parking_lot = "0.12"
 pmrcore = { version = "0.1", features = ["sqlx", "display"] }

@@ -1,3 +1,7 @@
+use itertools::{
+    Either,
+    Itertools,
+};
 use pmrcore::{
     profile::ViewTaskTemplate,
     task::{
@@ -25,8 +29,9 @@ use std::{
 use crate::registry::ChoiceRegistryCache;
 use crate::error::{
     ArgumentError,
-    LookupError,
     BuildArgError,
+    BuildArgErrors,
+    LookupError,
 };
 
 type ArgChunk<'a> = [Option<&'a str>; 2];
@@ -257,19 +262,31 @@ fn task_build_arg_chunk<'a, T>(
     user_input: &'a UserInputMap,
     task_template: &'a TaskTemplate,
     choice_registry_cache: &'a ChoiceRegistryCache<'a, T>,
-) -> Result<TaskArgBuilders<'a>, BuildArgError> {
+) -> Result<TaskArgBuilders<'a>, BuildArgErrors> {
     Ok(TaskArgBuilders((match task_template.args {
-        Some(ref args) => args.iter()
-            .map(|arg| {
-                Ok(arg_build_arg_chunk(
-                    user_input.get(&arg.id).map(|x| x.as_str()),
-                    &arg,
-                    choice_registry_cache,
-                )?)
-            })
-            .collect::<Result<Vec<_>, BuildArgError>>()?,
-        None => [].into()
-    }).into_iter().flatten()))
+        Some(ref args) => {
+            let (builders, errors): (Vec<_>, Vec<BuildArgError>) = args.iter()
+                .map(|arg| {
+                    arg_build_arg_chunk(
+                        user_input.get(&arg.id).map(|x| x.as_str()),
+                        &arg,
+                        choice_registry_cache,
+                    )
+                })
+                .partition_map(|r| {
+                    match r {
+                        Ok(v) => Either::Left(v),
+                        Err(v) => Either::Right(v),
+                    }
+                });
+            if errors.len() > 0 {
+                Err(BuildArgErrors(errors))
+            } else {
+                Ok(builders)
+            }
+        }
+        None => Ok([].into())
+    })?.into_iter().flatten()))
 }
 
 type InputTaskLookup<'a, T> = (
@@ -279,21 +296,17 @@ type InputTaskLookup<'a, T> = (
 );
 
 impl<'a, T> TryFrom<InputTaskLookup<'a, T>> for TaskArgBuilders<'a> {
-    type Error = BuildArgError;
+    type Error = BuildArgErrors;
 
-    fn try_from(
-        item: InputTaskLookup<'a, T>,
-    ) -> Result<TaskArgBuilders<'a>, BuildArgError> {
+    fn try_from(item: InputTaskLookup<'a, T>) -> Result<Self, Self::Error> {
         task_build_arg_chunk(item.0, item.1, item.2)
     }
 }
 
 impl<'a, T> TryFrom<InputTaskLookup<'a, T>> for TaskBuilder<'a> {
-    type Error = BuildArgError;
+    type Error = BuildArgErrors;
 
-    fn try_from(
-        item: InputTaskLookup<'a, T>,
-    ) -> Result<Self, BuildArgError> {
+    fn try_from(item: InputTaskLookup<'a, T>) -> Result<Self, Self::Error> {
         Ok(Self {
             task_template: item.1,
             arg_builders: task_build_arg_chunk(item.0, item.1, item.2)?,
@@ -1549,6 +1562,100 @@ mod test {
         assert_eq!(6, task.args.unwrap().len());
         assert_eq!(task.bin_path, task_template.bin_path);
         assert_eq!(task.task_template_id, task_template.id);
+    }
+
+    #[test]
+    fn test_process_fail_validation_user_inputs() {
+        let user_input = UserInputMap::from([
+            (1, "invalid_choice1".to_string()),
+            (2, "invalid_choice2".to_string()),
+            (3, "valid".to_string()),
+        ]);
+        let task_template = TaskTemplate {
+            id: 3,
+            bin_path: "/usr/local/bin/model-processor".into(),
+            version_id: "1.3.2".into(),
+            created_ts: 1686715614,
+            final_task_template_arg_id: Some(4242),
+            superceded_by_id: None,
+            args: Some([
+                TaskTemplateArg {
+                    id: 1,
+                    task_template_id: 3,
+                    flag: None,
+                    flag_joined: false,
+                    prompt: Some("Some path".into()),
+                    default: None,
+                    choice_fixed: true,
+                    choice_source: Some("git_repo".into()),
+                    choices: None,
+                },
+                TaskTemplateArg {
+                    id: 2,
+                    task_template_id: 3,
+                    flag: None,
+                    flag_joined: false,
+                    prompt: Some("Some other path".into()),
+                    default: None,
+                    choice_fixed: true,
+                    choice_source: Some("git_repo".into()),
+                    choices: None,
+                },
+                TaskTemplateArg {
+                    id: 3,
+                    task_template_id: 3,
+                    flag: None,
+                    flag_joined: false,
+                    prompt: Some("Dry run".into()),
+                    default: Some("no".into()),
+                    choice_fixed: true,
+                    choice_source: Some("".into()),
+                    choices: serde_json::from_str(r#"[
+                        {
+                            "to_arg": "--dry-run",
+                            "label": "valid"
+                        }
+                    ]"#).unwrap(),
+                },
+                TaskTemplateArg {
+                    id: 4,
+                    task_template_id: 3,
+                    flag: None,
+                    flag_joined: false,
+                    prompt: Some("Required".into()),
+                    default: None,
+                    choice_fixed: false,
+                    choice_source: None,
+                    choices: None,
+                },
+            ].into()),
+        };
+
+        let files: Vec<String> = vec![
+            "src/README.md".into(),
+            "src/main/example.model".into(),
+        ];
+        let mut registry = PreparedChoiceRegistry::new();
+        registry.register("git_repo", files.into());
+        let cache = ChoiceRegistryCache::from(
+            &registry as &dyn ChoiceRegistry<_>);
+        let processed = TaskArgBuilders::try_from((
+            &user_input,
+            &task_template,
+            &cache,
+        ));
+
+        assert_eq!(processed.unwrap_err().0.as_slice(), &[
+            BuildArgError::LookupError(
+                LookupError::InvalidChoice(1, "invalid_choice1".to_string())
+            ),
+            BuildArgError::LookupError(
+                LookupError::InvalidChoice(2, "invalid_choice2".to_string())
+            ),
+            BuildArgError::LookupError(
+                LookupError::TaskTemplateArgNoDefault(4)
+            ),
+        ]);
     }
 
 }

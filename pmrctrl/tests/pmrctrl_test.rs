@@ -18,7 +18,7 @@ use pmrcore::{
     profile::ViewTaskTemplates,
 };
 use pmrmodel::{
-    error::BuildArgError,
+    error::BuildArgErrors,
     model::task_template::{
         TaskBuilder,
         UserArgBuilder,
@@ -404,7 +404,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
                 .expect("task_template must have been provided"),
             &cache,
         ))?)))
-        .collect::<Result<Vec<_>, BuildArgError>>()?;
+        .collect::<Result<Vec<_>, BuildArgErrors>>()?;
 
     let answers: Vec<Task> = serde_json::from_str(r#"
     [
