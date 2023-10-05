@@ -29,12 +29,10 @@ CREATE INDEX IF NOT EXISTS exposure_file__exposure_id_workspace_file_path ON exp
 CREATE TABLE IF NOT EXISTS exposure_file_view (
     id INTEGER PRIMARY KEY NOT NULL,
     exposure_file_id INTEGER NOT NULL,
-    -- Originally there was an idea that a single view could be composed
-    -- together by multiple tasks, but that's complexity that should be
-    -- exported to the task itself - if the task need to run multiple
-    -- things, then provide the entry point there and let that task do
-    -- the spawning of additional tasks.
-    view_task_template_id INTEGER NOT NULL,
+    -- This is additional information that is only associated with the
+    -- underlying task, and for now in the name of simplicity this is
+    -- only a one-to-one relationship defined here.
+    exposure_file_view_task_id INTEGER,
     -- The view_key functions as the suffix to access the data presented
     -- at that /{view} end point, and is set when the task spawned via
     -- the task template completes.
@@ -47,22 +45,22 @@ CREATE TABLE IF NOT EXISTS exposure_file_view (
     -- While the goal is to ensure existing things keep working, there
     -- may be a situation where the third-party thing breaks completely
     -- and this might be the way to indicate that.
+    -- TODO determine how to make view_key UNIQUE, and policy on how
+    -- this can be empty (e.g. on initialization/deletion)
     view_key TEXT,
     -- Should the reference to the view_task_template is updated, this
     -- need to be set, so to discriminate against tasks that have been
     -- completed prior to the update.
     updated_ts INTEGER NOT NULL,
     -- the views are then implemented by the underlying framework
-    -- TODO remove this
-    FOREIGN KEY(exposure_file_id) REFERENCES exposure_file(id)
-    -- TODO uncomment these
-    -- FOREIGN KEY(exposure_file_id) REFERENCES exposure_file(id),
-    -- FOREIGN KEY(view_task_template_id) REFERENCES view_task_template(id)
+    FOREIGN KEY(exposure_file_id) REFERENCES exposure_file(id),
+    FOREIGN KEY(exposure_file_view_task_id)
+        REFERENCES exposure_file_view_task(id)
 );
 
 -- To ensure that there is a one-to-one binding of the file view to the
 -- underlying task_template.
-CREATE UNIQUE INDEX IF NOT EXISTS exposure_file_view__exposure_file_id_task_view_template_id ON exposure_file_view(exposure_file_id, view_task_template_id);
+CREATE UNIQUE INDEX IF NOT EXISTS exposure_file_view__exposure_file_id_task_view_task_id ON exposure_file_view(exposure_file_id, exposure_file_view_task_id);
 -- TODO determine if the view_key also need to be unique for the given
 -- exposure_file_id - as multiple tasks defined for another profile can
 -- be choosen arbitrarily, it may be possible that this results in a
@@ -85,8 +83,13 @@ CREATE TABLE IF NOT EXISTS exposure_file_view_task_template (
 
 CREATE TABLE IF NOT EXISTS exposure_file_view_task (
     id INTEGER PRIMARY KEY NOT NULL,
-    exposure_file_view_id INTEGER NOT NULL,
     -- To ensure the task has the correct reference.
+    --
+    -- Originally there was an idea that a single view could be composed
+    -- together by multiple tasks, but that's complexity that should be
+    -- exported to the task itself - if the task need to run multiple
+    -- things, then provide the entry point there and let that task do
+    -- the spawning of additional tasks.
     view_task_template_id INTEGER NOT NULL,
     -- This references the task that resides on the pmrtqs platform.
     -- Currently, this design does NOT track all past tasks that have
@@ -119,7 +122,6 @@ CREATE TABLE IF NOT EXISTS exposure_file_view_task (
     -- No need to store when the underlying task was done, just mark it
     -- as ready when the underlying task is completed successfully.
     ready BOOLEAN NOT NULL,
-    FOREIGN KEY(exposure_file_view_id) REFERENCES exposure_file_view(id),
     FOREIGN KEY(view_task_template_id) REFERENCES view_task_template(id)
 );
 

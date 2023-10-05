@@ -19,20 +19,20 @@ use crate::{
 async fn insert_exposure_file_view_sqlite(
     sqlite: &SqliteBackend,
     exposure_file_id: i64,
-    view_task_template_id: i64,
+    exposure_file_view_task_id: Option<i64>,
 ) -> Result<i64, BackendError> {
     let updated_ts = Utc::now().timestamp();
     let id = sqlx::query!(
         r#"
 INSERT INTO exposure_file_view (
     exposure_file_id,
-    view_task_template_id,
+    exposure_file_view_task_id,
     updated_ts
 )
 VALUES ( ?1, ?2, ?3 )
         "#,
         exposure_file_id,
-        view_task_template_id,
+        exposure_file_view_task_id,
         updated_ts,
     )
     .execute(&*sqlite.pool)
@@ -49,7 +49,7 @@ async fn get_exposure_file_view_by_id_sqlite(
 SELECT
     id,
     exposure_file_id,
-    view_task_template_id,
+    exposure_file_view_task_id,
     view_key,
     updated_ts
 FROM exposure_file_view
@@ -60,7 +60,7 @@ WHERE id = ?1
     .map(|row| ExposureFileView {
         id: row.id,
         exposure_file_id: row.exposure_file_id,
-        view_task_template_id: row.view_task_template_id,
+        exposure_file_view_task_id: row.exposure_file_view_task_id,
         view_key: row.view_key,
         updated_ts: row.updated_ts,
     })
@@ -77,7 +77,7 @@ async fn list_exposure_file_views_for_exposure_file_sqlite(
 SELECT
     id,
     exposure_file_id,
-    view_task_template_id,
+    exposure_file_view_task_id,
     view_key,
     updated_ts
 FROM exposure_file_view
@@ -88,7 +88,7 @@ WHERE exposure_file_id = ?1
     .map(|row| ExposureFileView {
         id: row.id,
         exposure_file_id: row.exposure_file_id,
-        view_task_template_id: row.view_task_template_id,
+        exposure_file_view_task_id: row.exposure_file_view_task_id,
         view_key: row.view_key,
         updated_ts: row.updated_ts,
     })
@@ -125,12 +125,12 @@ impl ExposureFileViewBackend for SqliteBackend {
     async fn insert(
         &self,
         exposure_file_id: i64,
-        view_task_template_id: i64,
+        exposure_file_view_task_id: Option<i64>,
     ) -> Result<i64, BackendError>{
         insert_exposure_file_view_sqlite(
             &self,
             exposure_file_id,
-            view_task_template_id,
+            exposure_file_view_task_id,
         ).await
     }
 
@@ -195,12 +195,12 @@ pub(crate) mod testing {
     pub(crate) async fn make_example_exposure_file_view(
         backend: &dyn ExposureFileViewBackend,
         exposure_file_id: i64,
-        view_task_template_id: i64,
+        exposure_file_view_task_id: Option<i64>,
         view_key: &str,
     ) -> anyhow::Result<i64> {
         let id = backend.insert(
             exposure_file_id,
-            view_task_template_id,
+            exposure_file_view_task_id,
         ).await?;
         backend.update_view_key(id, view_key).await?;
         Ok(id)
@@ -223,12 +223,12 @@ pub(crate) mod testing {
             "README.md"
         ).await?;
         let id = make_example_exposure_file_view(
-            &backend, exposure_file_id, 1, "some_view",
+            &backend, exposure_file_id, None, "some_view",
         ).await?;
         let exposure_file_view = efvb.get_id(id).await?;
         assert_eq!(exposure_file_view, ExposureFileView {
             id: 1,
-            view_task_template_id: 1,
+            exposure_file_view_task_id: None,
             exposure_file_id: 1,
             view_key: Some("some_view".into()),
             updated_ts: 1234567890,
@@ -250,14 +250,14 @@ pub(crate) mod testing {
         let e2 = make_example_exposure(&backend, w1).await?;
         let e2f1 = make_example_exposure_file(&backend, e2, "README.md").await?;
         let e2f1v1 = make_example_exposure_file_view(
-            &backend, e2f1, 1, "view").await?;
+            &backend, e2f1, None, "view").await?;
 
         let e2f2 = make_example_exposure_file(
             &backend, e2, "model.cellml").await?;
-        make_example_exposure_file_view(&backend, e2f2, 1, "model").await?;
-        make_example_exposure_file_view(&backend, e2f2, 2, "math").await?;
-        make_example_exposure_file_view(&backend, e2f2, 3, "code").await?;
-        make_example_exposure_file_view(&backend, e2f2, 4, "sim").await?;
+        make_example_exposure_file_view(&backend, e2f2, None, "model").await?;
+        make_example_exposure_file_view(&backend, e2f2, None, "math").await?;
+        make_example_exposure_file_view(&backend, e2f2, None, "code").await?;
+        make_example_exposure_file_view(&backend, e2f2, None, "sim").await?;
         let results = efvb.list_for_exposure_file(e2f2).await?;
         assert_eq!(4, results.len());
         let mut views = results.iter()
