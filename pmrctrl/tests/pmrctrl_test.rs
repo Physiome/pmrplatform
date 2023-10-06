@@ -1,6 +1,6 @@
 use pmrcore::{
     exposure::{
-        task::traits::ExposureTaskBackend,
+        task::traits::ExposureTaskTemplateBackend,
         traits::{
             Exposure,
             ExposureFile,
@@ -301,7 +301,7 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
     let vtt = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
     assert_eq!(vtt.len(), 0);
 
-    ExposureTaskBackend::set_file_templates(
+    ExposureTaskTemplateBackend::set_file_templates(
         &platform.mc_platform,
         exposure_file_id,
         [vtts[0]].into_iter(),
@@ -320,7 +320,7 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
     );
     assert_eq!(vtt[0].view_key, "example_view1");
 
-    ExposureTaskBackend::set_file_templates(
+    ExposureTaskTemplateBackend::set_file_templates(
         &platform.mc_platform,
         exposure_file_id,
         [vtts[1], vtts[2]].into_iter(),
@@ -365,7 +365,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
         .exposure_file
         .id();
 
-    ExposureTaskBackend::set_file_templates(
+    ExposureTaskTemplateBackend::set_file_templates(
         &platform.mc_platform,
         exposure_file_id,
         [vtts[0], vtts[3]].into_iter(),

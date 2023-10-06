@@ -14,7 +14,7 @@ use pmrcore::{
             ExposureFileBackend,
             ExposureFileViewBackend,
         },
-        task::traits::ExposureTaskBackend,
+        task::traits::ExposureTaskTemplateBackend,
     },
     workspace::{
         Workspace,
@@ -331,7 +331,7 @@ impl ExposureFileViewBackend for MockPlatform {
 }
 
 #[async_trait]
-impl ExposureTaskBackend for MockPlatform {
+impl ExposureTaskTemplateBackend for MockPlatform {
     async fn set_file_templates(
         &self,
         _exposure_file_id: i64,

@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[async_trait]
-pub trait ExposureTaskBackend {
+pub trait ExposureTaskTemplateBackend {
     async fn set_file_templates(
         &self,
         exposure_file_id: i64,

@@ -1,6 +1,6 @@
 use futures::future;
 use pmrcore::{
-    exposure::task::traits::ExposureTaskBackend,
+    exposure::task::traits::ExposureTaskTemplateBackend,
     platform::{
         MCPlatform,
         TMPlatform,
@@ -28,7 +28,7 @@ impl<
         &'a self,
         exposure_file_id: i64,
     ) -> Result<Vec<ViewTaskTemplate>, PlatformError> {
-        let mut vtts = ExposureTaskBackend::get_file_templates(
+        let mut vtts = ExposureTaskTemplateBackend::get_file_templates(
             &self.mc_platform,
             exposure_file_id,
         ).await?;

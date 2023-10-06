@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use pmrcore::{
     error::BackendError,
-    exposure::task::traits::ExposureTaskBackend,
+    exposure::task::traits::ExposureTaskTemplateBackend,
     profile::ViewTaskTemplate,
 };
 
@@ -89,7 +89,7 @@ WHERE
 }
 
 #[async_trait]
-impl ExposureTaskBackend for SqliteBackend {
+impl ExposureTaskTemplateBackend for SqliteBackend {
     async fn set_file_templates(
         &self,
         exposure_file_id: i64,
@@ -153,27 +153,27 @@ mod tests {
         let exposure_file_2 = make_example_exposure_file(
             &backend, exposure_id, "some_other_demo_file").await?;
 
-        ExposureTaskBackend::set_file_templates(
+        ExposureTaskTemplateBackend::set_file_templates(
             &backend, exposure_file_1, [v1, v2, v3].into_iter()
         ).await?;
-        ExposureTaskBackend::set_file_templates(
+        ExposureTaskTemplateBackend::set_file_templates(
             &backend, exposure_file_2, [v2, v4].into_iter()
         ).await?;
 
-        let templates1 = ExposureTaskBackend::get_file_templates(
+        let templates1 = ExposureTaskTemplateBackend::get_file_templates(
             &backend, exposure_file_1).await?;
         assert_eq!(templates1.len(), 3);
 
-        let templates2 = ExposureTaskBackend::get_file_templates(
+        let templates2 = ExposureTaskTemplateBackend::get_file_templates(
             &backend, exposure_file_2).await?;
         assert_eq!(templates2.len(), 2);
 
         // TODO include following test for delete
 
-        ExposureTaskBackend::set_file_templates(
+        ExposureTaskTemplateBackend::set_file_templates(
             &backend, exposure_file_1, [v2, v4].into_iter()
         ).await?;
-        let templates1 = ExposureTaskBackend::get_file_templates(
+        let templates1 = ExposureTaskTemplateBackend::get_file_templates(
             &backend, exposure_file_1).await?;
         assert_eq!(templates1.len(), 2);
 

@@ -32,6 +32,10 @@ CREATE TABLE IF NOT EXISTS exposure_file_view (
     -- This is additional information that is only associated with the
     -- underlying task, and for now in the name of simplicity this is
     -- only a one-to-one relationship defined here.
+    --
+    -- The other entity will have a reverse reference to this id, but
+    -- that is not the canonical reference as it won't have its foreign
+    -- key defined to refer to this entity.
     exposure_file_view_task_id INTEGER,
     -- The view_key functions as the suffix to access the data presented
     -- at that /{view} end point, and is set when the task spawned via
@@ -80,9 +84,15 @@ CREATE TABLE IF NOT EXISTS exposure_file_view_task_template (
 
 -- TODO implement a table for temporary answers so that all work-in-
 -- progress answers can be stored, including non-validated submissions.
+-- Given the typical usage as a key-value store per each id, the schema
+-- could be as simple as an id - json.
 
 CREATE TABLE IF NOT EXISTS exposure_file_view_task (
     id INTEGER PRIMARY KEY NOT NULL,
+    -- This records the previous attempts to spawn tasks.  SHould refer
+    -- to an existing view at the time of creation, but given this is a
+    -- record of some view, this won't have a foreign key reference.
+    exposure_file_view_id INTEGER NOT NULL,
     -- To ensure the task has the correct reference.
     --
     -- Originally there was an idea that a single view could be composed

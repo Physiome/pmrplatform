@@ -1,7 +1,7 @@
 mod exposure;
 mod exposure_file;
 mod exposure_file_view;
-mod exposure_task;
+mod exposure_file_view_task_template;
 
 mod profile;
 

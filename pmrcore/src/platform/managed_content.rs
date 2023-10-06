@@ -5,7 +5,7 @@ use crate::{
         self,
         task::{
             self,
-            traits::ExposureTaskBackend,
+            traits::ExposureTaskTemplateBackend,
         },
         traits::{
             ExposureBackend,
@@ -41,7 +41,7 @@ pub trait MCPlatform: WorkspaceBackend
     + ExposureBackend
     + ExposureFileBackend
     + ExposureFileViewBackend
-    + ExposureTaskBackend
+    + ExposureTaskTemplateBackend
 
     + ProfileBackend
     + ViewTaskTemplateBackend
@@ -152,7 +152,7 @@ impl<P: workspace::traits::WorkspaceBackend
     + ExposureBackend
     + ExposureFileBackend
     + ExposureFileViewBackend
-    + ExposureTaskBackend
+    + ExposureTaskTemplateBackend
 
     + ProfileBackend
     + ViewTaskTemplateBackend

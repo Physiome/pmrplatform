@@ -42,13 +42,6 @@ pub struct ExposureFileView {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ExposureFileViews(Vec<ExposureFileView>);
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct ExposureFileViewTask {
-    pub id: i64,
-    pub exposure_file_view_id: i64,
-    pub task_id: i64,
-}
-
 #[cfg(feature = "display")]
 mod display;
 mod impls;
