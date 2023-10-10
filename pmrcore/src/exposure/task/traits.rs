@@ -1,9 +1,7 @@
 use async_trait::async_trait;
 use crate::{
-    error::{
-        BackendError,
-        ValueError,
-    },
+    error::BackendError,
+    exposure::task::ExposureFileViewTask,
     profile::ViewTaskTemplate,
 };
 
@@ -18,4 +16,18 @@ pub trait ExposureTaskTemplateBackend {
         &self,
         exposure_file_id: i64,
     ) -> Result<Vec<ViewTaskTemplate>, BackendError>;
+}
+
+#[async_trait]
+pub trait ExposureTaskBackend {
+    async fn insert_task(
+        &self,
+        exposure_file_view_id: i64,
+        view_task_template_id: i64,
+        task_id: Option<i64>,
+    ) -> Result<i64, BackendError>;
+    async fn select_task_for_view(
+        &self,
+        exposure_file_id: i64,
+    ) -> Result<ExposureFileViewTask, BackendError>;
 }
