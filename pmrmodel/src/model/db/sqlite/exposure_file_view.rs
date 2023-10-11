@@ -103,7 +103,7 @@ WHERE exposure_file_id = ?1
 async fn update_exposure_file_view_key_by_id_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
-    view_key: &str,
+    view_key: Option<&str>,
 ) -> Result<bool, BackendError> {
     let rows_affected = sqlx::query!(r#"
 UPDATE exposure_file_view
@@ -157,7 +157,7 @@ impl ExposureFileViewBackend for SqliteBackend {
     async fn update_view_key(
         &self,
         id: i64,
-        view_key: &str,
+        view_key: Option<&str>,
     ) -> Result<bool, BackendError> {
         update_exposure_file_view_key_by_id_sqlite(
             &self,
@@ -196,7 +196,7 @@ pub(crate) mod testing {
         backend: &dyn ExposureFileViewBackend,
         exposure_file_id: i64,
         exposure_file_view_task_id: Option<i64>,
-        view_key: &str,
+        view_key: Option<&str>,
     ) -> anyhow::Result<i64> {
         let id = backend.insert(
             exposure_file_id,
@@ -223,7 +223,7 @@ pub(crate) mod testing {
             "README.md"
         ).await?;
         let id = make_example_exposure_file_view(
-            &backend, exposure_file_id, None, "some_view",
+            &backend, exposure_file_id, None, Some("some_view"),
         ).await?;
         let exposure_file_view = efvb.get_id(id).await?;
         assert_eq!(exposure_file_view, ExposureFileView {
@@ -250,14 +250,14 @@ pub(crate) mod testing {
         let e2 = make_example_exposure(&backend, w1).await?;
         let e2f1 = make_example_exposure_file(&backend, e2, "README.md").await?;
         let e2f1v1 = make_example_exposure_file_view(
-            &backend, e2f1, None, "view").await?;
+            &backend, e2f1, None, Some("view")).await?;
 
         let e2f2 = make_example_exposure_file(
             &backend, e2, "model.cellml").await?;
-        make_example_exposure_file_view(&backend, e2f2, None, "model").await?;
-        make_example_exposure_file_view(&backend, e2f2, None, "math").await?;
-        make_example_exposure_file_view(&backend, e2f2, None, "code").await?;
-        make_example_exposure_file_view(&backend, e2f2, None, "sim").await?;
+        make_example_exposure_file_view(&backend, e2f2, None, Some("model")).await?;
+        make_example_exposure_file_view(&backend, e2f2, None, Some("math")).await?;
+        make_example_exposure_file_view(&backend, e2f2, None, Some("code")).await?;
+        make_example_exposure_file_view(&backend, e2f2, None, Some("sim")).await?;
         let results = efvb.list_for_exposure_file(e2f2).await?;
         assert_eq!(4, results.len());
         let mut views = results.iter()

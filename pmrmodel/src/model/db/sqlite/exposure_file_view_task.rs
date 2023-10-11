@@ -120,6 +120,7 @@ mod tests {
     use crate::model::db::sqlite::{
         exposure::testing::make_example_exposure,
         exposure_file::testing::make_example_exposure_file,
+        exposure_file_view::testing::make_example_exposure_file_view,
         workspace::testing::make_example_workspace,
     };
 
@@ -135,10 +136,10 @@ mod tests {
 
         let workspace_id = make_example_workspace(&backend).await?;
         let exposure_id = make_example_exposure(&backend, workspace_id).await?;
-        let exposure_file_1 = make_example_exposure_file(
+        let exposure_file_id = make_example_exposure_file(
             &backend, exposure_id, "some_demo_file").await?;
-        let exposure_file_2 = make_example_exposure_file(
-            &backend, exposure_id, "some_other_demo_file").await?;
+        let exposure_file_view_id = make_example_exposure_file_view(
+            &backend, exposure_file_id, None, None).await?;
 
         // TODO actually complete the rest of this test.
         Ok(())

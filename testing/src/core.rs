@@ -100,10 +100,10 @@ mock! {
             &self,
             id: i64,
         ) -> Result<ExposureFileView, BackendError>;
-        async fn exposure_file_view_update_view_key(
-            &self,
+        async fn exposure_file_view_update_view_key<'a>(
+            &'a self,
             id: i64,
-            view_key: &str,
+            view_key: Option<&'a str>,
         ) -> Result<bool, BackendError>;
         // Due to conflicting lifetime and mockall seeminging do not
         // support impl in argument position, and that this mock is
@@ -324,7 +324,7 @@ impl ExposureFileViewBackend for MockPlatform {
     async fn update_view_key(
         &self,
         id: i64,
-        view_key: &str,
+        view_key: Option<&str>,
     ) -> Result<bool, BackendError> {
         self.exposure_file_view_update_view_key(id, view_key).await
     }

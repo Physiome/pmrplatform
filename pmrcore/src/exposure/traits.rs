@@ -139,6 +139,6 @@ pub trait ExposureFileViewBackend {
     async fn update_view_key(
         &self,
         id: i64,
-        view_key: &str,
+        view_key: Option<&str>,
     ) -> Result<bool, BackendError>;
 }
