@@ -89,9 +89,12 @@ CREATE TABLE IF NOT EXISTS exposure_file_view_task_template (
 
 CREATE TABLE IF NOT EXISTS exposure_file_view_task (
     id INTEGER PRIMARY KEY NOT NULL,
-    -- This records the previous attempts to spawn tasks.  SHould refer
+    -- This records the previous attempts to spawn tasks.  Should refer
     -- to an existing view at the time of creation, but given this is a
     -- record of some view, this won't have a foreign key reference.
+    --
+    -- The reverse direction will have a foreign key declaration to this
+    -- entity.
     exposure_file_view_id INTEGER NOT NULL,
     -- To ensure the task has the correct reference.
     --

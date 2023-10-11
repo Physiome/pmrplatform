@@ -20,7 +20,7 @@ pub trait ExposureTaskTemplateBackend {
 
 #[async_trait]
 pub trait ExposureTaskBackend {
-    async fn insert_task(
+    async fn create_task_for_view(
         &self,
         exposure_file_view_id: i64,
         view_task_template_id: i64,
@@ -29,5 +29,5 @@ pub trait ExposureTaskBackend {
     async fn select_task_for_view(
         &self,
         exposure_file_id: i64,
-    ) -> Result<ExposureFileViewTask, BackendError>;
+    ) -> Result<Option<ExposureFileViewTask>, BackendError>;
 }
