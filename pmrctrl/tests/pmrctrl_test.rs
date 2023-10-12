@@ -201,7 +201,7 @@ async fn test_platform_create_exposure_file_view_task() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn make_example_view_tasks<'a, M, T>(
+async fn make_example_view_task_templates<'a, M, T>(
     platform: &'a Platform<'a, M, T>
 ) -> anyhow::Result<Vec<i64>>
 where
@@ -289,7 +289,7 @@ where
 #[async_std::test]
 async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
-    let vtts = make_example_view_tasks(&platform).await?;
+    let vtts = make_example_view_task_templates(&platform).await?;
     let exposure = platform.create_exposure(
         1,
         "083b775d81ec9b66796edbbdce4d714bb2ddc355",
@@ -298,7 +298,8 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
         .exposure_file
         .id();
 
-    let vtt = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
+    let vttc = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
+    let vtt: &ViewTaskTemplates = (&vttc).into();
     assert_eq!(vtt.len(), 0);
 
     ExposureTaskTemplateBackend::set_file_templates(
@@ -306,7 +307,8 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
         exposure_file_id,
         [vtts[0]].into_iter(),
     ).await?;
-    let vtt = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
+    let vttc = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
+    let vtt: &ViewTaskTemplates = (&vttc).into();
     assert_eq!(vtt.len(), 1);
     assert_eq!(vtt[0]
         .task_template
@@ -325,7 +327,8 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
         exposure_file_id,
         [vtts[1], vtts[2]].into_iter(),
     ).await?;
-    let vtt = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
+    let vttc = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
+    let vtt: &ViewTaskTemplates = (&vttc).into();
     assert_eq!(vtt.len(), 2);
     assert_eq!(vtt[0].view_key, "example_view2");
     assert_eq!(vtt[0]
@@ -356,7 +359,7 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
 #[async_std::test]
 async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
-    let vtts = make_example_view_tasks(&platform).await?;
+    let vtts = make_example_view_task_templates(&platform).await?;
     let exposure = platform.create_exposure(
         1,
         "083b775d81ec9b66796edbbdce4d714bb2ddc355",
@@ -370,7 +373,9 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
         exposure_file_id,
         [vtts[0], vtts[3]].into_iter(),
     ).await?;
-    let efvtts = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
+    let efvttsc = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
+    let efvtts: &ViewTaskTemplates = (&efvttsc).into();
+
     let registry = make_choice_registry(&exposure)?;
     let cache = ChoiceRegistryCache::from(&registry as &dyn ChoiceRegistry<_>);
     let user_arg_refs = UserArgBuilder::from((
@@ -393,18 +398,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
         (3, "README".to_string()),
     ]);
 
-    // TODO implement this for real (as impl on the templates?)
-    // TODO this implementation will need error checking, e.g. per field.
-    let tasks = efvtts
-        .iter()
-        .map(|efvtt| Ok(Task::from(TaskBuilder::try_from((
-            &user_input,
-            efvtt.task_template
-                .as_ref()
-                .expect("task_template must have been provided"),
-            &cache,
-        ))?)))
-        .collect::<Result<Vec<_>, BuildArgErrors>>()?;
+    let tasks = efvttsc.create_tasks_from_input(&user_input).await?;
 
     let answers: Vec<Task> = serde_json::from_str(r#"
     [

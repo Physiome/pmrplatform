@@ -3,6 +3,7 @@ use pmrcore::error::{
     ValueError,
     task::TaskError,
 };
+use pmrmodel::error::BuildArgErrors;
 use pmrrepo::error::PmrRepoError;
 use thiserror::Error;
 
@@ -10,6 +11,8 @@ use thiserror::Error;
 pub enum PlatformError {
     #[error(transparent)]
     BackendError(#[from] BackendError),
+    #[error(transparent)]
+    BuildArgErrors(#[from] BuildArgErrors),
     #[error(transparent)]
     PmrRepoError(#[from] PmrRepoError),
     #[error(transparent)]
