@@ -374,14 +374,8 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
         [vtts[0], vtts[3]].into_iter(),
     ).await?;
     let efvttsc = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
-    let efvtts: &ViewTaskTemplates = (&efvttsc).into();
 
-    let registry = make_choice_registry(&exposure)?;
-    let cache = ChoiceRegistryCache::from(&registry as &dyn ChoiceRegistry<_>);
-    let user_arg_refs = UserArgBuilder::from((
-        efvtts.as_slice(),
-        &cache,
-    )).collect::<Vec<_>>();
+    let user_arg_refs = efvttsc.create_user_arg_refs().await?;
     assert_eq!(user_arg_refs.len(), 2);
     let user_args: Vec<UserArg> = serde_json::from_str(
         &serde_json::to_string(&user_arg_refs)?

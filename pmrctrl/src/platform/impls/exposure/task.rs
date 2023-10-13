@@ -51,11 +51,11 @@ impl<
         })).await?;
         let exposure_file = self.mc_platform.get_exposure_file(
             exposure_file_id).await?;
-        Ok(ViewTaskTemplatesCtrl {
-            platform: &self,
+        Ok(ViewTaskTemplatesCtrl::new(
+            &self,
             exposure_file,
-            view_task_templates: vtts.into(),
-        })
+            vtts.into(),
+        ))
     }
 
     pub async fn create_tasks<T>(

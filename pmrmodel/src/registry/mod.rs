@@ -11,6 +11,8 @@ pub trait ChoiceRegistry<T> {
     fn lookup<'a>(&'a self, name: &str) -> Option<MapToArgRef<'a>>;
 }
 
+pub type PreparedChoiceRegistryCache<'a> = ChoiceRegistryCache<'a, prepared::SizedMapToArgRef>;
+
 #[cfg(test)]
 mod test {
     use pmrcore::task_template::TaskTemplateArg;

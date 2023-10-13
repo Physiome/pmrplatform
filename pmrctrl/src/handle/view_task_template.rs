@@ -6,6 +6,11 @@ use pmrcore::{
     },
     profile::ViewTaskTemplates,
 };
+use pmrmodel::registry::{
+    PreparedChoiceRegistry,
+    PreparedChoiceRegistryCache,
+};
+use std::sync::OnceLock;
 
 use crate::platform::Platform;
 
@@ -14,9 +19,11 @@ pub struct ViewTaskTemplatesCtrl<
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
 > {
-    pub(crate) platform: &'db Platform<'db, MCP, TMP>,
-    pub(crate) exposure_file: ExposureFileRef<'db, MCP>,
-    pub(crate) view_task_templates: ViewTaskTemplates,
+    platform: &'db Platform<'db, MCP, TMP>,
+    exposure_file: ExposureFileRef<'db, MCP>,
+    view_task_templates: ViewTaskTemplates,
+    choice_registry: OnceLock<PreparedChoiceRegistry>,
+    choice_registry_cache: OnceLock<PreparedChoiceRegistryCache<'db>>,
 }
 
 mod impls;

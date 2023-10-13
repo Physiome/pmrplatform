@@ -1,6 +1,9 @@
 use async_trait::async_trait;
 use pmrcore::{
-    exposure::traits::ExposureFile,
+    exposure::{
+        ExposureFileRef,
+        traits::ExposureFile,
+    },
     task::Task,
     platform::{
         MCPlatform,
@@ -19,12 +22,16 @@ use pmrmodel::{
     registry::{
         ChoiceRegistry,
         ChoiceRegistryCache,
+        PreparedChoiceRegistry,
+        PreparedChoiceRegistryCache,
     },
 };
+use std::sync::OnceLock;
 
 use crate::{
     error::PlatformError,
     handle::ViewTaskTemplatesCtrl,
+    platform::Platform,
     registry::make_choice_registry,
 };
 
@@ -33,36 +40,78 @@ impl<
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
 > ViewTaskTemplatesCtrl<'db, MCP, TMP> {
+    pub(crate) fn new(
+        platform: &'db Platform<'db, MCP, TMP>,
+        exposure_file: ExposureFileRef<'db, MCP>,
+        view_task_templates: ViewTaskTemplates,
+    ) -> Self {
+        Self {
+            platform,
+            exposure_file,
+            view_task_templates,
+            choice_registry: OnceLock::new(),
+            choice_registry_cache: OnceLock::new(),
+        }
+    }
 
-    // TODO make impl From?
-    // TODO re-evaluate the referenced version because we will need to store
-    // the registry as a OnceLock or something like that here...
-    // ... which may actually be fine?
-    /*
-    pub async fn create_user_args(
+    async fn get_registry(
+        &'db self
+    ) -> Result<&PreparedChoiceRegistry, PlatformError> {
+        Ok(match self.choice_registry.get() {
+            Some(registry) => Ok::<_, PlatformError>(registry),
+            None => {
+                let exposure = self.platform.get_exposure(
+                    self.exposure_file.exposure_id()
+                ).await?;
+                self.choice_registry.set(
+                    make_choice_registry(&exposure)?
+                ).unwrap_or_else(|_| log::warn!(
+                    "concurrent call to the same \
+                    ViewTaskTemplateCtrl.registry_cache()"
+                ));
+                Ok(self.choice_registry.get()
+                    .expect("choice_registry just been set!"))
+            }
+        }?)
+    }
+
+    async fn get_registry_cache(
+        &'db self
+    ) -> Result<&PreparedChoiceRegistryCache, PlatformError> {
+        Ok(match self.choice_registry_cache.get() {
+            Some(registry_cache) => Ok::<_, PlatformError>(registry_cache),
+            None => {
+                let exposure = self.platform.get_exposure(
+                    self.exposure_file.exposure_id()
+                ).await?;
+                let registry = self.get_registry().await?;
+                self.choice_registry_cache.set(
+                    ChoiceRegistryCache::from(registry as &dyn ChoiceRegistry<_>),
+                ).unwrap_or_else(|_| log::warn!(
+                    "concurrent call to the same \
+                    ViewTaskTemplateCtrl.choice_registry_cache()"
+                ));
+                Ok(self.choice_registry_cache.get()
+                    .expect("choice_registry_cache just been set!"))
+            }
+        }?)
+    }
+
+    pub async fn create_user_arg_refs(
         &'db self,
     ) -> Result<Vec<UserArgRef>, PlatformError> {
-        let exposure = self.platform.get_exposure(
-            self.exposure_file.exposure_id()
-        ).await?;
-        let registry = make_choice_registry(&exposure)?;
-        let cache = ChoiceRegistryCache::from(&registry as &dyn ChoiceRegistry<_>);
+        let cache = self.get_registry_cache().await?;
         Ok(UserArgBuilder::from((
             self.view_task_templates.as_slice(),
-            &cache,
+            cache,
         )).collect::<Vec<_>>())
     }
-    */
 
     pub async fn create_tasks_from_input(
         &'db self,
-        user_input: &UserInputMap,
+        user_input: &'db UserInputMap,
     ) -> Result<Vec<Task>, PlatformError> {
-        let exposure = self.platform.get_exposure(
-            self.exposure_file.exposure_id()
-        ).await?;
-        let registry = make_choice_registry(&exposure)?;
-        let cache = ChoiceRegistryCache::from(&registry as &dyn ChoiceRegistry<_>);
+        let cache = self.get_registry_cache().await?;
 
         let tasks = self
             .view_task_templates
@@ -72,7 +121,7 @@ impl<
                 efvtt.task_template
                     .as_ref()
                     .expect("task_template must have been provided"),
-                &cache,
+                cache,
             ))?)))
             .collect::<Result<Vec<_>, BuildArgErrors>>()?;
 
