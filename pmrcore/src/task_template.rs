@@ -96,6 +96,9 @@ pub struct UserArg {
     pub choices: Option<Vec<String>>,
 }
 
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct UserArgs(Vec<UserArg>);
+
 /*
 // TODO figure out if putting the ref version here is best - currently,
 // the pmrmodel package holds this struct because the details of its

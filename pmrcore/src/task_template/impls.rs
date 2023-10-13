@@ -113,3 +113,29 @@ impl<'a> From<MapToArgRef<'a>> for Vec<&'a str> {
         result
     }
 }
+
+impl From<Vec<UserArg>> for UserArgs {
+    fn from(args: Vec<UserArg>) -> Self {
+        Self(args)
+    }
+}
+
+impl<const N: usize> From<[UserArg; N]> for UserArgs {
+    fn from(args: [UserArg; N]) -> Self {
+        Self(args.into())
+    }
+}
+
+impl Deref for UserArgs {
+    type Target = Vec<UserArg>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for UserArgs {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}

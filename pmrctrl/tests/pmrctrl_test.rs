@@ -376,10 +376,10 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     let efvttsc = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
 
     let user_arg_refs = efvttsc.create_user_arg_refs().await?;
+    let user_args: Vec<UserArg> = user_arg_refs.iter()
+        .map(|a| a.into())
+        .collect();
     assert_eq!(user_arg_refs.len(), 2);
-    let user_args: Vec<UserArg> = serde_json::from_str(
-        &serde_json::to_string(&user_arg_refs)?
-    )?;
     assert_eq!(user_args[0].id, 1);
     assert_eq!(user_args[0].prompt, "Example prompt");
     assert_eq!(user_args[1].id, 3);

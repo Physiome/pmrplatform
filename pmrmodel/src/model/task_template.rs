@@ -13,6 +13,8 @@ use pmrcore::{
         TaskTemplate,
         TaskTemplateArg,
         TaskTemplateArgs,
+        UserArg,
+        UserArgs,
     },
 };
 use std::{
@@ -59,8 +61,10 @@ pub struct UserArgRef<'a> {
     prompt: &'a str,
     default: Option<&'a str>,
     choice_fixed: bool,
-    // ideal is to have a reference but just clone to punt the lifetime
-    // issues to later.
+    // ideal is to have a single reference to a slice, but for now just
+    // have a vec of references, punt dealing with the lifetime of that
+    // reference to later when we have a better idea on where the slice
+    // actually lives.
     choices: Option<Vec<&'a str>>,
 }
 
@@ -104,7 +108,6 @@ impl<'a, I, T> UserArgBuilder<'a, I, T> {
         }
     }
 }
-
 
 impl From<TaskBuilder<'_>> for Task {
     fn from(item: TaskBuilder<'_>) -> Self {
@@ -255,6 +258,24 @@ impl<'a, T> TryFrom<InputArgLookup<'a, T>> for TaskArgBuilder<'a> {
         item: InputArgLookup<'a, T>,
     ) -> Result<TaskArgBuilder<'a>, BuildArgError> {
         arg_build_arg_chunk(item.0, item.1, item.2)
+    }
+}
+
+impl From<&UserArgRef<'_>> for UserArg {
+    fn from(item: &UserArgRef<'_>) -> Self {
+        Self {
+            id: item.id,
+            prompt: item.prompt.to_string(),
+            default: item.default.map(|s| s.to_string()),
+            choice_fixed: item.choice_fixed,
+            choices: item.choices
+                .as_ref()
+                .map(|choices| choices
+                    .iter()
+                    .map(|choice| choice.to_string())
+                    .collect::<Vec<_>>()
+                ),
+        }
     }
 }
 
