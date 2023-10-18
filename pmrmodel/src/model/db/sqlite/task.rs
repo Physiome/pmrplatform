@@ -152,8 +152,8 @@ mod tests {
                     arg: a.to_string(),
                     .. Default::default()
                 })
-                    .collect::<Vec<_>>()
-                    .into()),
+                .collect::<Vec<_>>()
+                .into()),
             .. Default::default()
         };
 

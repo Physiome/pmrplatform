@@ -33,6 +33,7 @@ use pmrctrl::{
     platform::Platform,
     registry::make_choice_registry,
 };
+use std::collections::HashMap;
 
 use test_pmr::ctrl::create_sqlite_platform;
 
@@ -208,6 +209,12 @@ where
     M: MCPlatform + Sized + Sync,
     T: TMPlatform + Sized + Sync,
 {
+    use pmrcore::task_template::traits::TaskTemplateBackend;
+    // force insertion of a dummy task template that should shift the
+    // id for the ExposureFileTaskTemplate vs TaskTemplate.
+    let ttb: &dyn TaskTemplateBackend = &platform.tm_platform;
+    ttb.add_task_template("/bin/dummy", "1.0.0").await?;
+
     let mut result: Vec<i64> = Vec::new();
     result.push(platform.adds_view_task_template(
         serde_json::from_str(r#"{
@@ -373,6 +380,8 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
         exposure_file_id,
         [vtts[0], vtts[3]].into_iter(),
     ).await?;
+    assert_eq!(vtts[0], 1);
+    assert_eq!(vtts[3], 4);
     let efvttsc = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
 
     let user_arg_refs = efvttsc.create_user_arg_refs().await?;
@@ -394,11 +403,11 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
 
     let tasks = efvttsc.create_tasks_from_input(&user_input).await?;
 
-    let answers: Vec<Task> = serde_json::from_str(r#"
-    [
-        {
+    let answers: HashMap<i64, Task> = serde_json::from_str(r#"
+    {
+        "1": {
             "id": 0,
-            "task_template_id": 1,
+            "task_template_id": 2,
             "bin_path": "/usr/local/bin/example1",
             "pid": null,
             "created_ts": 0,
@@ -414,9 +423,9 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
                 }
             ]
         },
-        {
+        "4": {
             "id": 0,
-            "task_template_id": 4,
+            "task_template_id": 5,
             "bin_path": "/usr/local/bin/example3",
             "pid": null,
             "created_ts": 0,
@@ -432,7 +441,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
                 }
             ]
         }
-    ]
+    }
     "#)?;
     assert_eq!(&answers, &tasks);
 

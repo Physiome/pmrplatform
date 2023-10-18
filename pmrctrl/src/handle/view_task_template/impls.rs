@@ -26,7 +26,10 @@ use pmrmodel::{
         PreparedChoiceRegistryCache,
     },
 };
-use std::sync::OnceLock;
+use std::{
+    collections::HashMap,
+    sync::OnceLock,
+};
 
 use crate::{
     error::PlatformError,
@@ -107,23 +110,29 @@ impl<
         )).collect::<Vec<_>>())
     }
 
+    /// This creates a mapping from the ViewTaskTemplates that are being
+    /// controlled by this handle.  The mapping goes from each element's
+    /// id to the task that it should be spawnning.
     pub async fn create_tasks_from_input(
         &'db self,
         user_input: &'db UserInputMap,
-    ) -> Result<Vec<Task>, PlatformError> {
+    ) -> Result<HashMap<i64, Task>, PlatformError> {
         let cache = self.get_registry_cache().await?;
 
         let tasks = self
             .view_task_templates
             .iter()
-            .map(|efvtt| Ok(Task::from(TaskBuilder::try_from((
-                user_input,
-                efvtt.task_template
-                    .as_ref()
-                    .expect("task_template must have been provided"),
-                cache,
-            ))?)))
-            .collect::<Result<Vec<_>, BuildArgErrors>>()?;
+            .map(|efvtt| Ok((
+                efvtt.id,
+                Task::from(TaskBuilder::try_from((
+                    user_input,
+                    efvtt.task_template
+                        .as_ref()
+                        .expect("task_template must have been provided"),
+                    cache,
+                ))?),
+            )))
+            .collect::<Result<HashMap<i64, Task>, BuildArgErrors>>()?;
 
         // TODO figure out consequence of doing insertion directly here
         // without the intermediate step - maybe provide this method,
@@ -135,7 +144,19 @@ impl<
         // to provide the insertion or something else?)
         //
         // for now just return this
+
+        // TODO this really should be exposure file view tasks?
+        // However, maybe exposure_file_view should provide a way to bind
+        // the task?
         Ok(tasks)
+    }
+
+    pub async fn adds_tasks_from_input(
+        &'db self,
+        user_input: &'db UserInputMap,
+    ) -> Result<Vec<Task>, PlatformError> {
+        let tasks = self.create_tasks_from_input(user_input).await?;
+        todo!()
     }
 
 }
