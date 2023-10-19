@@ -90,7 +90,8 @@ mock! {
         async fn exposure_file_view_insert(
             &self,
             exposure_file_id: i64,
-            view_task_template_id: Option<i64>,
+            view_task_template_id: i64,
+            exposure_file_view_task_id: Option<i64>,
         ) -> Result<i64, BackendError>;
         async fn exposure_file_view_list_for_exposure_file(
             &self,
@@ -305,9 +306,14 @@ impl ExposureFileViewBackend for MockPlatform {
     async fn insert(
         &self,
         exposure_file_id: i64,
-        view_task_template_id: Option<i64>,
+        view_task_template_id: i64,
+        exposure_file_view_task_id: Option<i64>,
     ) -> Result<i64, BackendError> {
-        self.exposure_file_view_insert(exposure_file_id, view_task_template_id).await
+        self.exposure_file_view_insert(
+            exposure_file_id,
+            view_task_template_id,
+            exposure_file_view_task_id,
+        ).await
     }
     async fn list_for_exposure_file(
         &self,

@@ -174,15 +174,16 @@ mod tests {
             .run_migration_profile(Pmrapp)
             .await?;
 
-        let vttb: &dyn ViewTaskTemplateBackend = &backend;
-        let v1 = vttb.insert_view_task_template("view1", "", 1).await?;
+        // this is now done by `make_example_exposure_file_view`
+        // let vttb: &dyn ViewTaskTemplateBackend = &backend;
+        // let v1 = vttb.insert_view_task_template("view1", "", 1).await?;
 
         let workspace_id = make_example_workspace(&backend).await?;
         let exposure_id = make_example_exposure(&backend, workspace_id).await?;
         let exposure_file_id = make_example_exposure_file(
             &backend, exposure_id, "some_demo_file").await?;
-        let exposure_file_view_id = make_example_exposure_file_view(
-            &backend, exposure_file_id, None, None).await?;
+        let (exposure_file_view_id, v1) = make_example_exposure_file_view(
+            &backend, exposure_file_id, None, "view1").await?;
         let exposure_file_view_task_id = make_example_exposure_file_view_task(
             &backend, exposure_file_view_id, v1, None).await?;
 

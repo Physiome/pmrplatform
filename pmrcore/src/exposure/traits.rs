@@ -116,6 +116,7 @@ pub trait ExposureFileViewBackend {
     async fn insert(
         &self,
         exposure_file_id: i64,
+        view_task_template_id: i64,
         exposure_file_view_task_id: Option<i64>,
     ) -> Result<i64, BackendError>;
 

@@ -34,6 +34,7 @@ pub struct ExposureFiles(Vec<ExposureFile>);
 pub struct ExposureFileView {
     pub id: i64,
     pub exposure_file_id: i64,
+    pub view_task_template_id: i64,
     pub exposure_file_view_task_id: Option<i64>,
     pub view_key: Option<String>,
     pub updated_ts: i64,

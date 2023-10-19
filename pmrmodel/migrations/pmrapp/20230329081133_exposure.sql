@@ -29,6 +29,9 @@ CREATE INDEX IF NOT EXISTS exposure_file__exposure_id_workspace_file_path ON exp
 CREATE TABLE IF NOT EXISTS exposure_file_view (
     id INTEGER PRIMARY KEY NOT NULL,
     exposure_file_id INTEGER NOT NULL,
+    -- This tracks which view task template is assigned to this
+    -- particular view
+    view_task_template_id INTEGER NOT NULL,
     -- This is additional information that is only associated with the
     -- underlying task, and for now in the name of simplicity this is
     -- only a one-to-one relationship defined here.
