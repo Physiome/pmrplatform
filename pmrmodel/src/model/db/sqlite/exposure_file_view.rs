@@ -74,6 +74,40 @@ WHERE id = ?1
     Ok(rec)
 }
 
+async fn get_exposure_file_view_by_file_view_template_sqlite(
+    sqlite: &SqliteBackend,
+    exposure_file_id: i64,
+    view_task_template_id: i64,
+) -> Result<ExposureFileView, BackendError> {
+    let rec = sqlx::query!(r#"
+SELECT
+    id,
+    exposure_file_id,
+    view_task_template_id,
+    exposure_file_view_task_id,
+    view_key,
+    updated_ts
+FROM exposure_file_view
+WHERE
+    exposure_file_id = ?1 AND
+    view_task_template_id = ?2
+"#,
+        exposure_file_id,
+        view_task_template_id,
+    )
+    .map(|row| ExposureFileView {
+        id: row.id,
+        exposure_file_id: row.exposure_file_id,
+        view_task_template_id: row.view_task_template_id,
+        exposure_file_view_task_id: row.exposure_file_view_task_id,
+        view_key: row.view_key,
+        updated_ts: row.updated_ts,
+    })
+    .fetch_one(&*sqlite.pool)
+    .await?;
+    Ok(rec)
+}
+
 async fn list_exposure_file_views_for_exposure_file_sqlite(
     sqlite: &SqliteBackend,
     exposure_file_id: i64,
@@ -163,6 +197,18 @@ impl ExposureFileViewBackend for SqliteBackend {
         ).await
     }
 
+    async fn get_by_file_view_template(
+        &self,
+        exposure_file_id: i64,
+        view_task_template_id: i64,
+    ) -> Result<ExposureFileView, BackendError> {
+        get_exposure_file_view_by_file_view_template_sqlite(
+            &self,
+            exposure_file_id,
+            view_task_template_id,
+        ).await
+    }
+
     async fn update_view_key(
         &self,
         id: i64,
@@ -245,15 +291,21 @@ pub(crate) mod testing {
         let (id, _) = make_example_exposure_file_view(
             &backend, exposure_file_id, None, "some_view",
         ).await?;
-        let exposure_file_view = efvb.get_id(id).await?;
-        assert_eq!(exposure_file_view, ExposureFileView {
+        let answer = ExposureFileView {
             id: 1,
             exposure_file_view_task_id: None,
             view_task_template_id: 1,
             exposure_file_id: 1,
             view_key: Some("some_view".into()),
             updated_ts: 1234567890,
-        });
+        };
+
+        let exposure_file_view = efvb.get_id(id).await?;
+        assert_eq!(exposure_file_view, answer);
+
+        let exposure_file_view = efvb.get_by_file_view_template(1, 1).await?;
+        assert_eq!(exposure_file_view, answer);
+
         Ok(())
     }
 
@@ -307,6 +359,41 @@ pub(crate) mod testing {
         assert_eq!(v.view_key(), Some("model"));
         assert_eq!(v.exposure_file().await?.id(), e2);
 
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn test_exposure_file_view_dupe_template() -> anyhow::Result<()> {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await?
+            .run_migration_profile(Profile::Pmrapp)
+            .await?;
+        let w1 = make_example_workspace(&backend).await?;
+        let e1 = make_example_exposure(&backend, w1).await?;
+        let f1 = make_example_exposure_file(&backend, e1, "README.md").await?;
+        let (v1, vt1) = make_example_exposure_file_view(
+            &backend, f1, None, "view").await?;
+        let backend: &dyn ExposureFileViewBackend = &backend;
+        let id = backend.insert(f1, vt1, None).await;
+        // should fail with unique constraint failed
+        assert!(id.is_err());
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn test_exposure_file_vtt_required() -> anyhow::Result<()> {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await?
+            .run_migration_profile(Profile::Pmrapp)
+            .await?;
+        let w1 = make_example_workspace(&backend).await?;
+        let e1 = make_example_exposure(&backend, w1).await?;
+        let f1 = make_example_exposure_file(&backend, e1, "README.md").await?;
+        let backend: &dyn ExposureFileViewBackend = &backend;
+        let no_such_template = 123;
+        let id = backend.insert(f1, no_such_template, None).await;
+        // should fail with FOREIGN KEY constraint failed
+        assert!(id.is_err());
         Ok(())
     }
 

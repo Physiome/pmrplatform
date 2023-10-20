@@ -61,9 +61,10 @@ CREATE TABLE IF NOT EXISTS exposure_file_view (
     updated_ts INTEGER NOT NULL,
     -- the views are then implemented by the underlying framework
     FOREIGN KEY(exposure_file_id) REFERENCES exposure_file(id),
-    FOREIGN KEY(exposure_file_view_task_id)
-        REFERENCES exposure_file_view_task(id)
+    FOREIGN KEY(view_task_template_id) REFERENCES view_task_template(id),
+    FOREIGN KEY(exposure_file_view_task_id) REFERENCES exposure_file_view_task(id)
 );
+CREATE UNIQUE INDEX IF NOT EXISTS exposure_file_view__exposure_file_id_view_task_template_id ON exposure_file_view(exposure_file_id, view_task_template_id);
 
 -- To ensure that there is a one-to-one binding of the file view to the
 -- underlying task_template.

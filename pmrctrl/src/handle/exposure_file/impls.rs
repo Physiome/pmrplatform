@@ -31,13 +31,17 @@ impl<
         // TODO write proper tests for this to verify the whole workflow between
         // all the related moving pieces.
         let efvb: &dyn ExposureFileViewBackend = &self.platform.mc_platform;
-        let exposure_file_view = self.platform.mc_platform.get_exposure_file_view(
-            efvb.insert(
-                self.exposure_file.id(),
-                view_task_template_id,
-                None,
-            ).await?
-        ).await?;
+        let exposure_file_view = self
+            .platform
+            .mc_platform
+            .get_exposure_file_view(
+                efvb.insert(
+                    self.exposure_file.id(),
+                    view_task_template_id,
+                    None,
+                ).await?
+            )
+            .await?;
         Ok(ExposureFileViewCtrl {
             platform: self.platform,
             exposure_file_view,

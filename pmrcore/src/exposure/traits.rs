@@ -132,6 +132,14 @@ pub trait ExposureFileViewBackend {
         id: i64,
     ) -> Result<exposure::ExposureFileView, BackendError>;
 
+    /// Returns the `ExposureFileView` for the given `exposure_file_id`
+    /// and the view_task_template_id
+    async fn get_by_file_view_template(
+        &self,
+        exposure_file_id: i64,
+        view_task_template_id: i64,
+    ) -> Result<exposure::ExposureFileView, BackendError>;
+
     /// Update the view_key for `ExposureFileView` under the given `id`.
     ///
     /// When the full task management is done, this may become an

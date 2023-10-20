@@ -101,6 +101,11 @@ mock! {
             &self,
             id: i64,
         ) -> Result<ExposureFileView, BackendError>;
+        async fn exposure_file_view_get_by_file_view_template(
+            &self,
+            exposure_file_id: i64,
+            view_task_template_id: i64,
+        ) -> Result<ExposureFileView, BackendError>;
         async fn exposure_file_view_update_view_key<'a>(
             &'a self,
             id: i64,
@@ -326,6 +331,16 @@ impl ExposureFileViewBackend for MockPlatform {
         id: i64,
     ) -> Result<ExposureFileView, BackendError> {
         self.exposure_file_view_get_id(id).await
+    }
+    async fn get_by_file_view_template(
+        &self,
+        exposure_file_id: i64,
+        view_task_template_id: i64,
+    ) -> Result<ExposureFileView, BackendError> {
+        self.exposure_file_view_get_by_file_view_template(
+            exposure_file_id,
+            view_task_template_id,
+        ).await
     }
     async fn update_view_key(
         &self,
