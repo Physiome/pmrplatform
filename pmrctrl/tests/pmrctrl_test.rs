@@ -400,7 +400,10 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
         (3, "README".to_string()),
     ]);
 
-    let tasks = efvttsc.create_tasks_from_input(&user_input).await?;
+    let tasks = efvttsc.create_tasks_from_input(&user_input).await?
+        .into_iter()
+        .map(<(i64, Task)>::from)
+        .collect::<Vec<_>>();
 
     let answers: Vec<(i64, Task)> = serde_json::from_str(r#"
     [

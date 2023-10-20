@@ -5,6 +5,7 @@ use pmrcore::{
         TMPlatform,
     },
     profile::ViewTaskTemplates,
+    task::Task,
 };
 use pmrmodel::registry::{
     PreparedChoiceRegistry,
@@ -24,6 +25,12 @@ pub struct ViewTaskTemplatesCtrl<
     view_task_templates: ViewTaskTemplates,
     choice_registry: OnceLock<PreparedChoiceRegistry>,
     choice_registry_cache: OnceLock<PreparedChoiceRegistryCache<'db>>,
+}
+
+/// These are for task that spawned off a ViewTaskTemplatesCtrl
+pub struct VTTCTask {
+    pub(crate) view_task_template_id: i64,
+    pub(crate) task: Task,
 }
 
 mod impls;

@@ -34,6 +34,7 @@ use crate::{
     platform::Platform,
     registry::make_choice_registry,
 };
+use super::VTTCTask;
 
 impl<
     'db,
@@ -113,23 +114,23 @@ impl<
     pub async fn create_tasks_from_input(
         &'db self,
         user_input: &'db UserInputMap,
-    ) -> Result<Vec<(i64, Task)>, PlatformError> {
+    ) -> Result<Vec<VTTCTask>, PlatformError> {
         let cache = self.get_registry_cache().await?;
 
         let tasks = self
             .view_task_templates
             .iter()
-            .map(|efvtt| Ok((
-                efvtt.id,
-                Task::from(TaskBuilder::try_from((
+            .map(|efvtt| Ok(VTTCTask {
+                view_task_template_id: efvtt.id,
+                task: Task::from(TaskBuilder::try_from((
                     user_input,
                     efvtt.task_template
                         .as_ref()
                         .expect("task_template must have been provided"),
                     cache,
                 ))?),
-            )))
-            .collect::<Result<Vec<(i64, Task)>, BuildArgErrors>>()?;
+            }))
+            .collect::<Result<Vec<_>, BuildArgErrors>>()?;
 
         // TODO figure out consequence of doing insertion directly here
         // without the intermediate step - maybe provide this method,
@@ -165,5 +166,14 @@ impl<
 > From<&'db ViewTaskTemplatesCtrl<'db, MCP, TMP>> for &'db ViewTaskTemplates {
     fn from(item: &'db ViewTaskTemplatesCtrl<'db, MCP, TMP>) -> Self {
         &item.view_task_templates
+    }
+}
+
+impl From<VTTCTask> for (i64, Task) {
+    fn from(item: VTTCTask) -> Self {
+        (
+            item.view_task_template_id,
+            item.task,
+        )
     }
 }
