@@ -26,10 +26,7 @@ use pmrmodel::{
         PreparedChoiceRegistryCache,
     },
 };
-use std::{
-    collections::HashMap,
-    sync::OnceLock,
-};
+use std::sync::OnceLock;
 
 use crate::{
     error::PlatformError,
@@ -116,7 +113,7 @@ impl<
     pub async fn create_tasks_from_input(
         &'db self,
         user_input: &'db UserInputMap,
-    ) -> Result<HashMap<i64, Task>, PlatformError> {
+    ) -> Result<Vec<(i64, Task)>, PlatformError> {
         let cache = self.get_registry_cache().await?;
 
         let tasks = self
@@ -132,7 +129,7 @@ impl<
                     cache,
                 ))?),
             )))
-            .collect::<Result<HashMap<i64, Task>, BuildArgErrors>>()?;
+            .collect::<Result<Vec<(i64, Task)>, BuildArgErrors>>()?;
 
         // TODO figure out consequence of doing insertion directly here
         // without the intermediate step - maybe provide this method,

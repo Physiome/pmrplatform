@@ -33,7 +33,6 @@ use pmrctrl::{
     platform::Platform,
     registry::make_choice_registry,
 };
-use std::collections::HashMap;
 
 use test_pmr::ctrl::create_sqlite_platform;
 
@@ -403,9 +402,9 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
 
     let tasks = efvttsc.create_tasks_from_input(&user_input).await?;
 
-    let answers: HashMap<i64, Task> = serde_json::from_str(r#"
-    {
-        "1": {
+    let answers: Vec<(i64, Task)> = serde_json::from_str(r#"
+    [
+        [1, {
             "id": 0,
             "task_template_id": 2,
             "bin_path": "/usr/local/bin/example1",
@@ -422,8 +421,8 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
                     "arg": "Example answer"
                 }
             ]
-        },
-        "4": {
+        }],
+        [4, {
             "id": 0,
             "task_template_id": 5,
             "bin_path": "/usr/local/bin/example3",
@@ -440,8 +439,8 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
                     "arg": "--file2=README"
                 }
             ]
-        }
-    }
+        }]
+    ]
     "#)?;
     assert_eq!(&answers, &tasks);
 
