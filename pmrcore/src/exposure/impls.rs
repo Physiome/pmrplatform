@@ -310,6 +310,9 @@ impl<'a> traits::ExposureFileView<'a, ExposureFile> for ExposureFileView {
     fn exposure_file_id(&self) -> i64 {
         self.exposure_file_id
     }
+    fn view_task_template_id(&self) -> i64 {
+        self.view_task_template_id
+    }
     fn exposure_file_view_task_id(&self) -> Option<i64> {
         self.exposure_file_view_task_id
     }
@@ -332,11 +335,14 @@ for ExposureFileViewRef<'a, P> {
     fn id(&self) -> i64 {
         self.inner.id
     }
-    fn exposure_file_view_task_id(&self) -> Option<i64> {
-        self.inner.exposure_file_view_task_id
-    }
     fn exposure_file_id(&self) -> i64 {
         self.inner.exposure_file_id
+    }
+    fn view_task_template_id(&self) -> i64 {
+        self.inner.view_task_template_id
+    }
+    fn exposure_file_view_task_id(&self) -> Option<i64> {
+        self.inner.exposure_file_view_task_id
     }
     fn view_key(&self) -> Option<&str> {
         self.inner.view_key.as_ref().map(|x| x.as_ref())

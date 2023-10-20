@@ -32,8 +32,9 @@ pub trait ExposureFile<'a, S, P> {
 #[async_trait]
 pub trait ExposureFileView<'a, P> {
     fn id(&self) -> i64;
-    fn exposure_file_view_task_id(&self) -> Option<i64>;
     fn exposure_file_id(&self) -> i64;
+    fn view_task_template_id(&self) -> i64;
+    fn exposure_file_view_task_id(&self) -> Option<i64>;
     fn view_key(&self) -> Option<&str>;
     fn updated_ts(&self) -> i64;
     // TODO enable this for ExposureFileViewTask

@@ -14,7 +14,13 @@ use pmrcore::{
             ExposureFileBackend,
             ExposureFileViewBackend,
         },
-        task::traits::ExposureTaskTemplateBackend,
+        task::{
+            ExposureFileViewTask,
+            traits::{
+                ExposureTaskBackend,
+                ExposureTaskTemplateBackend,
+            },
+        },
     },
     workspace::{
         Workspace,
@@ -239,6 +245,20 @@ mock! {
             &self,
             profile_id: i64,
         ) -> Result<ViewTaskTemplateProfile, BackendError>;
+    }
+
+    #[async_trait]
+    impl ExposureTaskBackend for Platform {
+        async fn create_task_for_view(
+            &self,
+            exposure_file_view_id: i64,
+            view_task_template_id: i64,
+            task_id: Option<i64>,
+        ) -> Result<i64, BackendError>;
+        async fn select_task_for_view(
+            &self,
+            exposure_file_id: i64,
+        ) -> Result<Option<ExposureFileViewTask>, BackendError>;
     }
 
 }
