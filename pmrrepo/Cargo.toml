@@ -29,4 +29,4 @@ async-trait = "0.1.50"
 mockall = "0.10.2"
 tempfile = "3.1.0"
 textwrap-macros = "0.3.0"
-test-pmr = { path = "../testing" }
+test-pmr = { path = "../testing", features = ["repo"] }

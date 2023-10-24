@@ -19,4 +19,4 @@ anyhow = "1.0.0"
 async-std = { version = "1.5.0", features = [ "attributes" ] }
 serde_json = "1.0.59"
 tempfile = "3.1.0"
-test-pmr = { path = "../testing" }
+test-pmr = { path = "../testing", features = ["platform"] }

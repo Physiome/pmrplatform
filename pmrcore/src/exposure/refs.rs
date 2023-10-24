@@ -1,4 +1,5 @@
 use std::sync::OnceLock;
+use crate::error::BackendError;
 use crate::exposure::{
     Exposure,
     Exposures,
@@ -7,6 +8,7 @@ use crate::exposure::{
     ExposureFileView,
     ExposureFileViews,
 };
+use crate::exposure::traits::ExposureFileViewBackend;
 use crate::platform::MCPlatform;
 use crate::workspace::WorkspaceRef;
 
@@ -127,6 +129,50 @@ impl ExposureFileViews {
             .map(|v| v.bind(platform))
             .collect::<Vec<_>>()
             .into()
+    }
+}
+
+impl<'a, P: MCPlatform + Sized> ExposureFileViewRef<'a, P> {
+    pub async fn update_view_key(
+        &mut self,
+        view_key: Option<&'a str>,
+    ) -> Result<bool, BackendError> {
+        let backend: &dyn ExposureFileViewBackend = self.platform;
+        let result = backend.update_view_key(
+            self.inner.id,
+            view_key,
+        ).await?;
+        if !result {
+            return Err(BackendError::AppInvariantViolation(
+                format!(
+                    "Underlying ExposureFileView is gone (id: {})",
+                    self.inner.id
+                )
+            ))
+        }
+        self.inner.view_key = view_key.map(|s| s.to_string());
+        Ok(result)
+    }
+
+    pub async fn update_exposure_file_view_task_id(
+        &mut self,
+        exposure_file_view_task_id: Option<i64>,
+    ) -> Result<bool, BackendError> {
+        let backend: &dyn ExposureFileViewBackend = self.platform;
+        let result = backend.update_exposure_file_view_task_id(
+            self.inner.id,
+            exposure_file_view_task_id,
+        ).await?;
+        if !result {
+            return Err(BackendError::AppInvariantViolation(
+                format!(
+                    "Underlying ExposureFileView is gone (id: {})",
+                    self.inner.id
+                )
+            ))
+        }
+        self.inner.exposure_file_view_task_id = exposure_file_view_task_id;
+        Ok(result)
     }
 }
 
