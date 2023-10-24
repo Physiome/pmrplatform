@@ -161,6 +161,26 @@ WHERE id = ?1
     Ok(rows_affected > 0)
 }
 
+async fn update_exposure_file_view_task_id_by_id_sqlite(
+    sqlite: &SqliteBackend,
+    id: i64,
+    exposure_file_view_task_id: Option<i64>,
+) -> Result<bool, BackendError> {
+    let rows_affected = sqlx::query!(r#"
+UPDATE exposure_file_view
+SET
+    exposure_file_view_task_id = ?2
+WHERE id = ?1
+"#,
+        id,
+        exposure_file_view_task_id,
+    )
+    .execute(&*sqlite.pool)
+    .await?
+    .rows_affected();
+    Ok(rows_affected > 0)
+}
+
 #[async_trait]
 impl ExposureFileViewBackend for SqliteBackend {
     async fn insert(
@@ -218,6 +238,18 @@ impl ExposureFileViewBackend for SqliteBackend {
             &self,
             id,
             view_key,
+        ).await
+    }
+
+    async fn update_exposure_file_view_task_id(
+        &self,
+        id: i64,
+        exposure_file_view_task_id: Option<i64>,
+    ) -> Result<bool, BackendError> {
+        update_exposure_file_view_task_id_by_id_sqlite(
+            &self,
+            id,
+            exposure_file_view_task_id,
         ).await
     }
 }
@@ -308,6 +340,65 @@ pub(crate) mod testing {
 
         Ok(())
     }
+
+    #[async_std::test]
+    async fn test_updates() -> anyhow::Result<()> {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await?
+            .run_migration_profile(Profile::Pmrapp)
+            .await?;
+        let efvb: &dyn ExposureFileViewBackend = &backend;
+
+        let exposure_file_id = make_example_exposure_file(
+            &backend,
+            make_example_exposure(
+                &backend,
+                make_example_workspace(&backend).await?,
+            ).await?,
+            "README.md"
+        ).await?;
+        let (id, _) = make_example_exposure_file_view(
+            &backend, exposure_file_id, None, "foo",
+        ).await?;
+
+        assert!(backend.update_view_key(id, None).await?);
+        assert_eq!(
+            efvb.get_id(id)
+                .await?
+                .view_key,
+            None,
+        );
+
+        assert!(backend.update_exposure_file_view_task_id(id, None).await?);
+        assert_eq!(
+            efvb.get_id(id)
+                .await?
+                .exposure_file_view_task_id,
+            None,
+        );
+
+        // not hooking this up to the actual task system, this is just
+        // a run currently, the two tests only show that the function
+        // ran, and the first will fail with foreign key constraint.
+        assert!(backend
+            .update_exposure_file_view_task_id(id, Some(123))
+            .await
+            .is_err()
+        );
+        assert!(backend
+            .update_exposure_file_view_task_id(id, None)
+            .await?
+        );
+        assert_eq!(
+            efvb.get_id(id)
+                .await?
+                .exposure_file_view_task_id,
+            None,
+        );
+
+        Ok(())
+    }
+
 
     #[async_std::test]
     async fn test_using_exposure_file_view() -> anyhow::Result<()> {

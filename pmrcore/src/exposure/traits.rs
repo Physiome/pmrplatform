@@ -142,13 +142,16 @@ pub trait ExposureFileViewBackend {
     ) -> Result<exposure::ExposureFileView, BackendError>;
 
     /// Update the view_key for `ExposureFileView` under the given `id`.
-    ///
-    /// When the full task management is done, this may become an
-    /// unnecessary backdoor.
-    /// TODO determine whether this backdoor is kept.
     async fn update_view_key(
         &self,
         id: i64,
         view_key: Option<&str>,
+    ) -> Result<bool, BackendError>;
+
+    /// Update the exposure_file_view_task_id for `ExposureFileView` under the given `id`.
+    async fn update_exposure_file_view_task_id(
+        &self,
+        id: i64,
+        exposure_file_view_task_id: Option<i64>,
     ) -> Result<bool, BackendError>;
 }

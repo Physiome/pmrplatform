@@ -52,84 +52,89 @@ use pmrcore::{
 
 mock! {
     pub Platform {
-        async fn exposure_insert(
+        pub async fn exposure_insert(
             &self,
             workspace_id: i64,
             workspace_tag_id: Option<i64>,
             commit_id: &str,
             default_file_id: Option<i64>,
         ) -> Result<i64, BackendError>;
-        async fn exposure_list_for_workspace(
+        pub async fn exposure_list_for_workspace(
             &self,
             workspace_id: i64,
         ) -> Result<Exposures, BackendError>;
-        async fn exposure_get_id(
+        pub async fn exposure_get_id(
             &self,
             id: i64,
         ) -> Result<Exposure, BackendError>;
-        async fn exposure_set_default_file(
+        pub async fn exposure_set_default_file(
             &self,
             id: i64,
             file_id: i64,
         ) -> Result<bool, BackendError>;
 
-        async fn exposure_file_insert(
+        pub async fn exposure_file_insert(
             &self,
             exposure_id: i64,
             workspace_file_path: &str,
             default_view_id: Option<i64>,
         ) -> Result<i64, BackendError>;
-        async fn exposure_file_list_for_exposure(
+        pub async fn exposure_file_list_for_exposure(
             &self,
             exposure_id: i64,
         ) -> Result<ExposureFiles, BackendError>;
-        async fn exposure_file_get_id(
+        pub async fn exposure_file_get_id(
             &self,
             id: i64,
         ) -> Result<ExposureFile, BackendError>;
-        async fn exposure_file_set_default_view(
+        pub async fn exposure_file_set_default_view(
             &self,
             id: i64,
             file_id: i64,
         ) -> Result<bool, BackendError>;
 
-        async fn exposure_file_view_insert(
+        pub async fn exposure_file_view_insert(
             &self,
             exposure_file_id: i64,
             view_task_template_id: i64,
             exposure_file_view_task_id: Option<i64>,
         ) -> Result<i64, BackendError>;
-        async fn exposure_file_view_list_for_exposure_file(
+        pub async fn exposure_file_view_list_for_exposure_file(
             &self,
             exposure_file_id: i64,
         ) -> Result<ExposureFileViews, BackendError>;
-        async fn exposure_file_view_get_id(
+        pub async fn exposure_file_view_get_id(
             &self,
             id: i64,
         ) -> Result<ExposureFileView, BackendError>;
-        async fn exposure_file_view_get_by_file_view_template(
+        pub async fn exposure_file_view_get_by_file_view_template(
             &self,
             exposure_file_id: i64,
             view_task_template_id: i64,
         ) -> Result<ExposureFileView, BackendError>;
-        async fn exposure_file_view_update_view_key<'a>(
+        pub async fn exposure_file_view_update_view_key<'a>(
             &'a self,
             id: i64,
             view_key: Option<&'a str>,
+        ) -> Result<bool, BackendError>;
+        pub async fn exposure_file_view_update_exposure_file_view_task_id(
+            &self,
+            id: i64,
+            exposure_file_view_task_id: Option<i64>,
         ) -> Result<bool, BackendError>;
         // Due to conflicting lifetime and mockall seeminging do not
         // support impl in argument position, and that this mock is
         // really only a placeholder for only a certain few calls, just
         // disable this and provide the unimplemented version and be
         // done with it
-        // async fn exposure_task_set_file_templates<I>(
+        // pub async fn exposure_task_set_file_templates<I>(
         //     &self,
         //     exposure_file_id: i64,
         //     task_template_ids: I,
         // ) -> Result<(), BackendError>
         // where
         //     I: Iterator<Item = i64> + Send + 'static;
-        async fn exposure_task_get_file_templates(
+        pub async fn exposure_task_get_file_templates(
             &self,
             exposure_file_id: i64,
         ) -> Result<Vec<ViewTaskTemplate>, BackendError>;
@@ -368,6 +373,16 @@ impl ExposureFileViewBackend for MockPlatform {
         view_key: Option<&str>,
     ) -> Result<bool, BackendError> {
         self.exposure_file_view_update_view_key(id, view_key).await
+    }
+    async fn update_exposure_file_view_task_id(
+        &self,
+        id: i64,
+        exposure_file_view_task_id: Option<i64>,
+    ) -> Result<bool, BackendError> {
+        self.exposure_file_view_update_exposure_file_view_task_id(
+            id,
+            exposure_file_view_task_id,
+        ).await
     }
 }
 

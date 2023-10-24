@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nUPDATE exposure_file_view\nSET\n    exposure_file_view_task_id = ?2\nWHERE id = ?1\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "1daf15234cfc618747d2f5e9b8022ad86bfae6eeafbeffabf552656df9115107"
+}
