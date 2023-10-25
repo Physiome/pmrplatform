@@ -18,6 +18,7 @@ use pmrcore::{
     profile::ViewTaskTemplates,
 };
 use pmrmodel::{
+    backend::db::SqliteBackend,
     error::BuildArgErrors,
     model::task_template::{
         TaskBuilder,
@@ -30,6 +31,10 @@ use pmrmodel::{
     },
 };
 use pmrctrl::{
+    handle::{
+        ExposureFileCtrl,
+        ViewTaskTemplatesCtrl,
+    },
     platform::Platform,
     registry::make_choice_registry,
 };
@@ -364,13 +369,21 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
 
 #[async_std::test]
 async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
+    // these variables must be defined here to avoid borrow checker from
+    // being angry about these being dropped while still borrowed as the
+    // destructor for the ExposureFileCtrl (declared later) runs.
+    let efvttsc: ViewTaskTemplatesCtrl<SqliteBackend, SqliteBackend>;
+    let user_input: UserInputMap;
+
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let vtts = make_example_view_task_templates(&platform).await?;
     let exposure = platform.create_exposure(
         1,
         "083b775d81ec9b66796edbbdce4d714bb2ddc355",
     ).await?;
-    let exposure_file_id = exposure.create_file("if1").await?
+    // this apparently triggers the destructor failure
+    let efc = exposure.create_file("if1").await?;
+    let exposure_file_id = efc
         .exposure_file
         .id();
 
@@ -381,8 +394,14 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     ).await?;
     assert_eq!(vtts[0], 1);
     assert_eq!(vtts[3], 4);
-    let efvttsc = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
+    efvttsc = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
 
+    // If the ExposureFileViewTemplatesCtrl is borrowed, the borrow
+    // checker will become angry if the declarations weren't made at
+    // the top and if the ExposureFileCtrl isn't dropped here...
+    // drop(efc);
+
+    // ... before efvttsc gets borrowed here.
     let user_arg_refs = efvttsc.create_user_arg_refs().await?;
     let user_args: Vec<UserArg> = user_arg_refs.iter()
         .map(|a| a.into())
@@ -395,7 +414,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     // TODO test for alternative ID remaps via manual deletes/updates to the
     // underlying linkage between ViewTaskTemplate and TaskTemplate
 
-    let user_input = UserInputMap::from([
+    user_input = UserInputMap::from([
         (1, "Example answer".to_string()),
         (3, "README".to_string()),
     ]);
@@ -446,6 +465,12 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     ]
     "#)?;
     assert_eq!(&answers, &tasks);
+
+    // going to actually queue this one
+    let tasks = efvttsc.create_tasks_from_input(&user_input).await?;
+    // TODO will need to implement the discriminator at the ExposureFile level
+    // as it is responsible for pulling out the correct ExposureFileView (or
+    // create the fresh one) for this task.
 
     Ok(())
 }
