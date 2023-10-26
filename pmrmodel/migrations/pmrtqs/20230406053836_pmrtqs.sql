@@ -22,7 +22,7 @@
 
 CREATE TABLE IF NOT EXISTS task (
     id INTEGER PRIMARY KEY NOT NULL,
-    task_template_id NOT NULL,
+    task_template_id INTEGER NOT NULL,
     bin_path TEXT NOT NULL,
     pid INTEGER,
     created_ts INTEGER NOT NULL,

@@ -32,7 +32,7 @@ impl<
     ///
     /// This consumes the incoming task.
     pub async fn queue_task(
-        &'db self,
+        &mut self,
         vttc_task: VTTCTask,
     ) -> Result<i64, PlatformError> {
         // The reason why this consumes the incoming item is because the
@@ -48,8 +48,9 @@ impl<
             vtt_id,
             Some(task.id),
         ).await?;
-        // FIXME this does NOT currently associate the spawned task to
-        // the exposure.
+        self.exposure_file_view
+            .update_exposure_file_view_task_id(Some(efv_id))
+            .await?;
         Ok(efv_id)
     }
 }

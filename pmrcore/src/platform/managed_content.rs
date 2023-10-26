@@ -111,6 +111,24 @@ pub trait MCPlatform: WorkspaceBackend
             .map(|v| v.bind(self))
     }
 
+    /// get the `ExposureFileViewRef` by the provided `exposure_file_id`
+    /// and the `view_task_template_id`.
+    async fn get_exposure_file_view_by_file_template<'a>(
+        &'a self,
+        exposure_file_id: i64,
+        view_task_template_id: i64,
+    ) -> Result<exposure::ExposureFileViewRef<'a, Self>, BackendError>
+        where Self: Sized
+    {
+        ExposureFileViewBackend::get_by_file_view_template(
+                self,
+                exposure_file_id,
+                view_task_template_id,
+            )
+            .await
+            .map(|v| v.bind(self))
+    }
+
     /// get all `ExposureFileViewRefs` for the provided `exposure_file_id`
     async fn get_exposure_file_views<'a>(
         &'a self,

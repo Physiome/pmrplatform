@@ -1,6 +1,9 @@
 use pmrcore::{
     exposure::{
-        task::traits::ExposureTaskTemplateBackend,
+        task::traits::{
+            ExposureTaskTemplateBackend,
+            ExposureTaskBackend,
+        },
         traits::{
             Exposure,
             ExposureFile,
@@ -466,11 +469,48 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     "#)?;
     assert_eq!(&answers, &tasks);
 
-    // going to actually queue this one
+    // since the one above was consumed for inspection, repeat that call
+    // and pass the new one for processing.
     let tasks = efvttsc.create_tasks_from_input(&user_input).await?;
-    // TODO will need to implement the discriminator at the ExposureFile level
-    // as it is responsible for pulling out the correct ExposureFileView (or
-    // create the fresh one) for this task.
+    let result = efc.process_vttc_tasks(tasks).await?;
+    assert_eq!(result.len(), 2);
+
+    // TODO finalize the ExposureFileViewTask handling via the platform
+    // but for now just use the underlying and find out whether the
+    // tasks have been correctly queued.
+
+    let etb: &dyn ExposureTaskBackend = &platform.mc_platform;
+    let et1 = etb.select_task_for_view(result[0]).await?
+        .unwrap();
+    assert_eq!(et1.id, 1);
+    assert_eq!(et1.exposure_file_view_id, 1);
+    assert_eq!(et1.view_task_template_id, 1);
+    assert_eq!(et1.ready, false);
+
+    let tb: &dyn TaskBackend = &platform.tm_platform;
+    let task1 = tb.gets_task(et1.task_id.unwrap()).await?;
+    let mut answer: Task = serde_json::from_str(r#"
+    {
+        "id": 1,
+        "task_template_id": 2,
+        "bin_path": "/usr/local/bin/example1",
+        "pid": null,
+        "created_ts": 0,
+        "start_ts": null,
+        "stop_ts": null,
+        "exit_status": null,
+        "basedir": "",
+        "args": [
+            {
+                "id": 1,
+                "task_id": 1,
+                "arg": "Example answer"
+            }
+        ]
+    }
+    "#)?;
+    answer.created_ts = task1.created_ts;
+    assert_eq!(answer, task1);
 
     Ok(())
 }

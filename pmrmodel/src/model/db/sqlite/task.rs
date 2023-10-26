@@ -99,6 +99,68 @@ VALUES ( ?1, ?2 )\
     Ok(result)
 }
 
+async fn gets_task_sqlite(
+    sqlite: &SqliteBackend,
+    id: i64,
+) -> Result<Task, BackendError> {
+    let mut result = sqlx::query!(
+        "
+SELECT
+    id,
+    task_template_id,
+    bin_path,
+    pid,
+    created_ts,
+    start_ts,
+    stop_ts,
+    exit_status,
+    basedir
+FROM
+    task
+WHERE
+    id = ?1
+        ",
+        id,
+    )
+        .map(|row| Task {
+            id: row.id,
+            task_template_id: row.task_template_id,
+            bin_path: row.bin_path,
+            pid: row.pid,
+            created_ts: row.created_ts,
+            start_ts: row.start_ts,
+            stop_ts: row.stop_ts,
+            exit_status: row.exit_status,
+            basedir: row.basedir,
+            args: None,
+        })
+        .fetch_one(&*sqlite.pool)
+        .await?;
+
+    result.args = Some(sqlx::query_as!(
+        TaskArg,
+        "
+SELECT
+    id,
+    task_id,
+    arg
+FROM
+    task_arg
+WHERE
+    task_id = ?1
+ORDER BY
+    id
+        ",
+        id,
+    )
+        .fetch_all(&*sqlite.pool)
+        .await?
+        .into()
+    );
+
+    Ok(result)
+}
+
 #[async_trait]
 impl TaskBackend for SqliteBackend {
     async fn adds_task(
@@ -106,6 +168,12 @@ impl TaskBackend for SqliteBackend {
         task: Task,
     ) -> Result<Task, TaskError> {
         adds_task_sqlite(&self, task).await
+    }
+    async fn gets_task(
+        &self,
+        id: i64,
+    ) -> Result<Task, BackendError> {
+        gets_task_sqlite(&self, id).await
     }
 }
 

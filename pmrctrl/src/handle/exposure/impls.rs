@@ -29,13 +29,10 @@ impl<
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
 > ExposureCtrl<'db, MCP, TMP> {
-    pub async fn create_file<'repo>(
+    pub async fn create_file(
         &'db self,
-        workspace_file_path: &'repo str,
-    ) -> Result<ExposureFileCtrl<'db, 'repo, MCP, TMP>, PlatformError>
-    where
-        'db: 'repo
-    {
+        workspace_file_path: &'db str,
+    ) -> Result<ExposureFileCtrl<'db, MCP, TMP>, PlatformError> {
         // quick failing here.
         let pathinfo = self.git_handle.pathinfo(
             Some(self.exposure.commit_id()),
