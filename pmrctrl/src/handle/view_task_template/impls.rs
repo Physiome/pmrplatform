@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use pmrcore::{
     exposure::{
         ExposureFileRef,
@@ -82,9 +81,6 @@ impl<
         Ok(match self.choice_registry_cache.get() {
             Some(registry_cache) => Ok::<_, PlatformError>(registry_cache),
             None => {
-                let exposure = self.platform.get_exposure(
-                    self.exposure_file.exposure_id()
-                ).await?;
                 let registry = self.get_registry().await?;
                 self.choice_registry_cache.set(
                     ChoiceRegistryCache::from(registry as &dyn ChoiceRegistry<_>),
@@ -132,31 +128,8 @@ impl<
             }))
             .collect::<Result<Vec<_>, BuildArgErrors>>()?;
 
-        // TODO figure out consequence of doing insertion directly here
-        // without the intermediate step - maybe provide this method,
-        // plus an insertion method (elsewhere) and another one here
-        // that will insert the whole mess?
-        //
-        // there is a TaskCtrl that will be implemented, so how much
-        // this relate to that needs to be figured out (is that going
-        // to provide the insertion or something else?)
-        //
-        // for now just return this
-
-        // TODO this really should be exposure file view tasks?
-        // However, maybe exposure_file_view should provide a way to bind
-        // the task?
         Ok(tasks)
     }
-
-    pub async fn adds_tasks_from_input(
-        &'db self,
-        user_input: &'db UserInputMap,
-    ) -> Result<Vec<Task>, PlatformError> {
-        let tasks = self.create_tasks_from_input(user_input).await?;
-        todo!()
-    }
-
 }
 
 impl<

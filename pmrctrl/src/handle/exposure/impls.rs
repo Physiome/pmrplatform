@@ -1,8 +1,5 @@
-use async_trait::async_trait;
 use pmrcore::{
-    error::ValueError,
     exposure::{
-        ExposureFileRefs,
         traits::{
             Exposure,
             ExposureFile,
@@ -13,7 +10,6 @@ use pmrcore::{
         MCPlatform,
         TMPlatform,
     },
-    workspace::WorkspaceRef,
 };
 
 use crate::{
@@ -74,40 +70,3 @@ impl<
     }
 
 }
-
-/*
-// It would have been nice if this was possible, but due to how the ctrl
-// type holds a git handle which references the Repository which is
-// !Sync, the following is not possible.  The inner field was then
-// converted to a pub field.
-
-#[async_trait]
-impl<'db, MCP: MCPlatform + Sized + Sync, TMP: TMPlatform + Sized + Sync>
-    Exposure<'db, ExposureFileRefs<'db, MCP>, WorkspaceRef<'db, MCP>>
-for ExposureCtrl<'db, MCP, TMP> {
-    fn id(&self) -> i64 {
-        self.inner.id()
-    }
-    fn workspace_id(&self) -> i64 {
-        self.inner.workspace_id()
-    }
-    fn workspace_tag_id(&self) -> Option<i64> {
-        self.inner.workspace_tag_id()
-    }
-    fn commit_id(&self) -> &str {
-        self.inner.commit_id()
-    }
-    fn created_ts(&self) -> i64 {
-        self.inner.created_ts()
-    }
-    fn default_file_id(&self) -> Option<i64> {
-        self.inner.default_file_id()
-    }
-    async fn files(&'db self) -> Result<&'db ExposureFileRefs<'db, MCP>, ValueError> {
-        self.inner.files()
-    }
-    async fn workspace(&'db self) -> Result<&'db WorkspaceRef<'db, MCP>, ValueError> {
-        self.inner.workspace()
-    }
-}
-*/

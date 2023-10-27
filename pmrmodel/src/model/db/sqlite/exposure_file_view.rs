@@ -462,7 +462,7 @@ pub(crate) mod testing {
         let w1 = make_example_workspace(&backend).await?;
         let e1 = make_example_exposure(&backend, w1).await?;
         let f1 = make_example_exposure_file(&backend, e1, "README.md").await?;
-        let (v1, vt1) = make_example_exposure_file_view(
+        let (_, vt1) = make_example_exposure_file_view(
             &backend, f1, None, "view").await?;
         let backend: &dyn ExposureFileViewBackend = &backend;
         let id = backend.insert(f1, vt1, None).await;

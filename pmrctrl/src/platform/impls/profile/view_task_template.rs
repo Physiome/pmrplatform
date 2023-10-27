@@ -11,7 +11,6 @@ use pmrcore::{
 };
 use crate::{
     error::PlatformError,
-    handle::ExposureCtrl,
     platform::Platform,
 };
 
@@ -59,13 +58,6 @@ impl<
 
 #[cfg(test)]
 mod testing {
-    use pmrmodel::backend::db::{
-        Profile::{
-            Pmrapp,
-            Pmrtqs,
-        },
-        SqliteBackend,
-    };
     use test_pmr::ctrl::create_blank_sqlite_platform;
 
     #[async_std::test]

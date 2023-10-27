@@ -118,10 +118,7 @@ impl ExposureTaskTemplateBackend for SqliteBackend {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pmrcore::profile::{
-        ViewTaskTemplate,
-        traits::ViewTaskTemplateBackend,
-    };
+    use pmrcore::profile::traits::ViewTaskTemplateBackend;
     use crate::backend::db::{
         Profile::Pmrapp,
         SqliteBackend,

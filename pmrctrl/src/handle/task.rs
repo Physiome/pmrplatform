@@ -13,8 +13,8 @@ pub struct TaskCtrl<
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
 > {
-    pub(crate) platform: &'a Platform<'a, MCP, TMP>,
-    pub(crate) task: Task,
+    pub(crate) _platform: &'a Platform<'a, MCP, TMP>,
+    pub(crate) _task: Task,
 }
 
 mod impls;

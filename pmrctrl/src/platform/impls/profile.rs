@@ -6,7 +6,6 @@ use pmrcore::{
 };
 use crate::{
     error::PlatformError,
-    handle::ExposureCtrl,
     platform::Platform,
 };
 
@@ -16,14 +15,14 @@ impl<
     TMP: TMPlatform + Sized + Sync,
 > Platform<'a, MCP, TMP> {
     pub async fn create_view_profile(
-        &'a self,
+        &self,
     ) -> Result<(), PlatformError> {
         todo!()
     }
 
     pub async fn get_profile(
-        &'a self,
-        id: i64,
+        &self,
+        _id: i64,
     ) -> Result<(), PlatformError> {
         // TODO assuming this will return the templates associated with this profile
         // also figure out how to formulate the question

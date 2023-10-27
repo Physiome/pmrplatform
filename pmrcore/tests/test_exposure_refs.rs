@@ -3,10 +3,7 @@ use pmrcore::{
     error::BackendError,
     exposure::{
         ExposureFileView,
-        traits::{
-            ExposureFileView as _,
-            ExposureFileViewBackend,
-        },
+        traits::ExposureFileView as _,
     },
     platform::MCPlatform,
 };

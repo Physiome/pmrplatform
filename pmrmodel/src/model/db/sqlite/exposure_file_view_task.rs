@@ -9,7 +9,6 @@ use pmrcore::{
         ExposureFileViewTask,
         traits::ExposureTaskBackend,
     },
-    profile::ViewTaskTemplate,
 };
 
 use crate::{
@@ -137,11 +136,7 @@ impl ExposureTaskBackend for SqliteBackend {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pmrcore::profile::{
-        ViewTaskTemplate,
-        traits::ViewTaskTemplateBackend,
-    };
-    use sqlx::Row;
+    use pmrcore::profile::traits::ViewTaskTemplateBackend;
     use crate::backend::db::{
         Profile::Pmrapp,
         SqliteBackend,
@@ -184,7 +179,7 @@ mod tests {
             &backend, exposure_id, "some_demo_file").await?;
         let (exposure_file_view_id, v1) = make_example_exposure_file_view(
             &backend, exposure_file_id, None, "view1").await?;
-        let exposure_file_view_task_id = make_example_exposure_file_view_task(
+        let _ = make_example_exposure_file_view_task(
             &backend, exposure_file_view_id, v1, None).await?;
 
         let etb: &dyn ExposureTaskBackend = &backend;
@@ -199,12 +194,12 @@ mod tests {
         }));
 
         // add a few more tasks
-        let exposure_file_view_task_id = make_example_exposure_file_view_task(
+        let _ = make_example_exposure_file_view_task(
             &backend, exposure_file_view_id, v1, None).await?;
         let et = etb.select_task_for_view(exposure_file_view_id).await?;
         assert_eq!(et.map(|et| et.id), Some(2));
 
-        let exposure_file_view_task_id = make_example_exposure_file_view_task(
+        let _ = make_example_exposure_file_view_task(
             &backend, exposure_file_view_id, v1, None).await?;
         let et = etb.select_task_for_view(exposure_file_view_id).await?;
         assert_eq!(et.map(|et| et.id), Some(3));

@@ -13,7 +13,7 @@ use crate::{
 impl ViewTaskTemplateProfileBackend for SqliteBackend {
     async fn get_view_task_template_profile(
         &self,
-        profile_id: i64,
+        _profile_id: i64,
     ) -> Result<ViewTaskTemplateProfile, BackendError> {
         todo!()
     }

@@ -22,7 +22,6 @@ use pmrcore::{
 };
 use pmrmodel::{
     backend::db::SqliteBackend,
-    error::BuildArgErrors,
     model::task_template::{
         TaskBuilder,
         UserArgBuilder,
@@ -34,10 +33,7 @@ use pmrmodel::{
     },
 };
 use pmrctrl::{
-    handle::{
-        ExposureFileCtrl,
-        ViewTaskTemplatesCtrl,
-    },
+    handle::ViewTaskTemplatesCtrl,
     platform::Platform,
     registry::make_choice_registry,
 };

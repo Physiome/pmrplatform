@@ -10,6 +10,7 @@ use pmrcore::{
         TMPlatform,
     },
 };
+use pmrrepo::handle::GitHandleResult;
 
 use super::ExposureFileCtrl;
 use crate::{
@@ -101,7 +102,6 @@ impl<
         &self,
         vttc_tasks: Vec<VTTCTask>,
     ) -> Result<Vec<i64>, PlatformError> {
-        let exposure_file_id = self.exposure_file.id();
         let mut iter = vttc_tasks.into_iter();
         let mut results: Vec<i64> = Vec::new();
         // TODO determine if benefits of sequential insertion is
@@ -113,5 +113,9 @@ impl<
             results.push(efv_ctrl.queue_task(vttc_task).await?);
         }
         Ok(results)
+    }
+
+    pub fn pathinfo(&'db self) -> &GitHandleResult<'db, 'db, MCP> {
+        &self.pathinfo
     }
 }

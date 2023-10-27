@@ -12,9 +12,7 @@ use pmrcore::{
         MapToArgRef,
         TaskTemplate,
         TaskTemplateArg,
-        TaskTemplateArgs,
         UserArg,
-        UserArgs,
     },
 };
 use std::{

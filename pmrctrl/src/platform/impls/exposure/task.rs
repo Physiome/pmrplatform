@@ -5,24 +5,11 @@ use pmrcore::{
         MCPlatform,
         TMPlatform,
     },
-    profile::{
-        ViewTaskTemplates,
-        traits::ViewTaskTemplateBackend,
-    },
-    task::Task,
     task_template::traits::TaskTemplateBackend
-};
-use pmrmodel::{
-    error::BuildArgErrors,
-    model::task_template::UserInputMap,
-    registry::ChoiceRegistryCache,
 };
 use crate::{
     error::PlatformError,
-    handle::{
-        ExposureCtrl,
-        ViewTaskTemplatesCtrl,
-    },
+    handle::ViewTaskTemplatesCtrl,
     platform::Platform,
 };
 
@@ -56,24 +43,5 @@ impl<
             exposure_file,
             vtts.into(),
         ))
-    }
-
-    pub async fn create_tasks<T>(
-        &'db self,
-        view_task_templates: &ViewTaskTemplates,
-        user_input: &UserInputMap,
-        cache: ChoiceRegistryCache<'_, T>
-    ) -> Result<Vec<Task>, BuildArgErrors> {
-        // While I originally thought the ViewTaskTemplates could provide
-        // an impl for doing this, it unfortunately sits at the pmrcore while
-        // the types it need to bind to are at pmrmodel which lies downstream,
-        // so the types wouldn't be available in pmrcore and the impl can't
-        // be done in pmrmodel due to orphan rule, but really what's needed
-        // for now is the ability to put the task into the database, so we
-        // are just going to do that here right away.
-        // TODO figure out if a task handle should be provided - it will
-        // provide a means to inspect the task and some fn commit to bring
-        // the final task into the database.
-        todo!();
     }
 }

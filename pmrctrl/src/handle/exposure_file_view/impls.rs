@@ -1,11 +1,7 @@
 use pmrcore::{
     exposure::{
-        ExposureFileView,
         task::traits::ExposureTaskBackend,
-        traits::{
-            ExposureFileView as _,
-            ExposureFileViewBackend,
-        },
+        traits::ExposureFileView as _,
     },
     platform::{
         MCPlatform,

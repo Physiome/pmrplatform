@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use pmrcore::{
     platform::{
         MCPlatform,
@@ -8,7 +7,7 @@ use pmrcore::{
 
 use crate::{
     handle::TaskCtrl,
-    error::PlatformError,
+    // error::PlatformError,
 };
 
 impl<

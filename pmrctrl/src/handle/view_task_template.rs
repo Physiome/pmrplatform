@@ -1,3 +1,5 @@
+// TODO this module prbably should be a submodule to exposure?
+// though given only the struct is exported this isn't too critical.
 use pmrcore::{
     exposure::ExposureFileRef,
     platform::{
