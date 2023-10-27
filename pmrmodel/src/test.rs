@@ -9,7 +9,7 @@ pub struct Utc;
 
 impl Utc {
     pub fn now() -> DateTime<chrono::Utc> {
-        DateTime::<chrono::Utc>::from_utc(
+        DateTime::<chrono::Utc>::from_naive_utc_and_offset(
             TIMESTAMP.with(|timestamp| NaiveDateTime::from_timestamp_opt(
                 timestamp.get(),
                 0,

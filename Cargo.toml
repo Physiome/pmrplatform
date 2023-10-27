@@ -17,6 +17,7 @@ default-members = [
     "pmrtqs",
     "testing",
 ]
+resolver = "2"
 
 [patch.crates-io]
 pmrapp_client = { path = "./pmrapp_client" }
