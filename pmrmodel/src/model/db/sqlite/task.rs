@@ -227,6 +227,53 @@ RETURNING
     Ok(result)
 }
 
+async fn run_task_sqlite(
+    sqlite: &SqliteBackend,
+    id: i64,
+    pid: i64,
+) -> Result<bool, BackendError> {
+    let rows_affected = sqlx::query!(
+        "
+UPDATE
+    task
+SET
+    pid = ?2
+WHERE id = ?1
+        ",
+        id,
+        pid,
+    )
+        .execute(&*sqlite.pool)
+        .await?
+        .rows_affected();
+    Ok(rows_affected > 0)
+}
+
+async fn complete_task_sqlite(
+    sqlite: &SqliteBackend,
+    id: i64,
+    exit_status: i64,
+) -> Result<bool, BackendError> {
+    let stop_ts = Utc::now().timestamp();
+    let rows_affected = sqlx::query!(
+        "
+UPDATE
+    task
+SET
+    stop_ts = ?2,
+    exit_status = ?3
+WHERE id = ?1
+        ",
+        id,
+        stop_ts,
+        exit_status,
+    )
+        .execute(&*sqlite.pool)
+        .await?
+        .rows_affected();
+    Ok(rows_affected > 0)
+}
+
 
 #[async_trait]
 impl TaskBackend for SqliteBackend {
@@ -246,6 +293,20 @@ impl TaskBackend for SqliteBackend {
         &self,
     ) -> Result<Option<Task>, BackendError> {
         start_task_sqlite(&self).await
+    }
+    async fn run(
+        &self,
+        id: i64,
+        pid: i64,
+    ) -> Result<bool, BackendError> {
+        run_task_sqlite(&self, id, pid).await
+    }
+    async fn complete(
+        &self,
+        id: i64,
+        exit_status: i64,
+    ) -> Result<bool, BackendError> {
+        complete_task_sqlite(&self, id, exit_status).await
     }
 }
 
@@ -405,4 +466,56 @@ mod tests {
         Ok(())
     }
 
+    #[async_std::test]
+    async fn test_task_complete_flow() -> anyhow::Result<()> {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await?
+            .run_migration_profile(Profile::Pmrtqs)
+            .await?;
+        let (id, _) = TaskTemplateBackend::add_task_template(
+            &backend, "/bin/true", "1.0.0",
+        ).await?;
+        TaskTemplateBackend::finalize_new_task_template(
+            &backend, id,
+        ).await?;
+        let task = TaskBackend::adds_task(
+            &backend,
+            Task {
+                task_template_id: id,
+                bin_path: "/bin/demo".into(),
+                basedir: "/tmp".into(),
+                args: Some(["--format=test", "-t", "standard" ].iter()
+                    .map(|a| TaskArg {
+                        arg: a.to_string(),
+                        .. Default::default()
+                    })
+                    .collect::<Vec<_>>()
+                    .into()),
+                .. Default::default()
+            }
+        ).await?;
+
+        let started_task = TaskBackend::start(&backend)
+            .await?
+            .expect("a task has started");
+
+        assert!(TaskBackend::run(&backend, task.id, 123)
+            .await?
+        );
+        let running_task = TaskBackend::gets_task(
+            &backend, task.id
+        ).await?;
+        assert_eq!(running_task.pid, Some(123));
+
+        assert!(TaskBackend::complete(&backend, task.id, 0)
+            .await?
+        );
+        let completed_task = TaskBackend::gets_task(
+            &backend, task.id
+        ).await?;
+        assert_eq!(completed_task.pid, Some(123));
+        assert_eq!(completed_task.exit_status, Some(0));
+
+        Ok(())
+    }
 }

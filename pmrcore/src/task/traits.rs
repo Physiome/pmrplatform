@@ -28,5 +28,17 @@ pub trait TaskBackend {
     async fn start(
         &self,
     ) -> Result<Option<Task>, BackendError>;
+    /// Mark the task by id with the running pid.
+    async fn run(
+        &self,
+        id: i64,
+        pid: i64,
+    ) -> Result<bool, BackendError>;
+    /// Exit a task by id, with an exit status for the related process.
+    async fn complete(
+        &self,
+        id: i64,
+        exit_status: i64,
+    ) -> Result<bool, BackendError>;
 }
 
