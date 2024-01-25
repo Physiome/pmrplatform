@@ -1,0 +1,68 @@
+{
+  "db_name": "SQLite",
+  "query": "\nUPDATE\n    task\nSET\n    start_ts = ?1\nWHERE id = (\n    SELECT\n        id\n    FROM\n        task\n    WHERE\n        start_ts IS NULL\n    ORDER BY\n        id\n    LIMIT 1\n)\nRETURNING\n    id,\n    task_template_id,\n    bin_path,\n    pid,\n    created_ts,\n    start_ts,\n    stop_ts,\n    exit_status,\n    basedir\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "task_template_id",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "bin_path",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "pid",
+        "ordinal": 3,
+        "type_info": "Int64"
+      },
+      {
+        "name": "created_ts",
+        "ordinal": 4,
+        "type_info": "Int64"
+      },
+      {
+        "name": "start_ts",
+        "ordinal": 5,
+        "type_info": "Int64"
+      },
+      {
+        "name": "stop_ts",
+        "ordinal": 6,
+        "type_info": "Int64"
+      },
+      {
+        "name": "exit_status",
+        "ordinal": 7,
+        "type_info": "Int64"
+      },
+      {
+        "name": "basedir",
+        "ordinal": 8,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "087efcaf925952c0e481d1214494f93ab43532885c643d57c56a57e0a1f77527"
+}

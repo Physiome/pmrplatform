@@ -9,6 +9,7 @@ use pmrcore::{
     task::{
         Task,
         TaskArg,
+        TaskArgs,
         traits::TaskBackend,
     },
 };
@@ -99,6 +100,32 @@ VALUES ( ?1, ?2 )\
     Ok(result)
 }
 
+async fn gets_task_args_sqlite(
+    sqlite: &SqliteBackend,
+    id: i64,
+) -> Result<TaskArgs, BackendError> {
+    Ok(sqlx::query_as!(
+        TaskArg,
+        "
+SELECT
+    id,
+    task_id,
+    arg
+FROM
+    task_arg
+WHERE
+    task_id = ?1
+ORDER BY
+    id
+        ",
+        id,
+    )
+        .fetch_all(&*sqlite.pool)
+        .await?
+        .into()
+    )
+}
+
 async fn gets_task_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
@@ -136,30 +163,70 @@ WHERE
         })
         .fetch_one(&*sqlite.pool)
         .await?;
-
-    result.args = Some(sqlx::query_as!(
-        TaskArg,
-        "
-SELECT
-    id,
-    task_id,
-    arg
-FROM
-    task_arg
-WHERE
-    task_id = ?1
-ORDER BY
-    id
-        ",
-        id,
-    )
-        .fetch_all(&*sqlite.pool)
-        .await?
-        .into()
-    );
+    result.args = Some(gets_task_args_sqlite(sqlite, id).await?);
 
     Ok(result)
 }
+
+async fn start_task_sqlite(
+    sqlite: &SqliteBackend,
+) -> Result<Option<Task>, BackendError> {
+    let start_ts = Utc::now().timestamp();
+    // the query assumes the id is auto-incremented to have the earliest
+    // task has the lowest id.
+    let mut result = sqlx::query!(
+        "
+UPDATE
+    task
+SET
+    start_ts = ?1
+WHERE id = (
+    SELECT
+        id
+    FROM
+        task
+    WHERE
+        start_ts IS NULL
+    ORDER BY
+        id
+    LIMIT 1
+)
+RETURNING
+    id,
+    task_template_id,
+    bin_path,
+    pid,
+    created_ts,
+    start_ts,
+    stop_ts,
+    exit_status,
+    basedir
+        ",
+        start_ts,
+    )
+        .map(|row| Task {
+            id: row.id,
+            task_template_id: row.task_template_id,
+            bin_path: row.bin_path,
+            pid: row.pid,
+            created_ts: row.created_ts,
+            start_ts: row.start_ts,
+            stop_ts: row.stop_ts,
+            exit_status: row.exit_status,
+            basedir: row.basedir,
+            args: None,
+        })
+        .fetch_optional(&*sqlite.pool)
+        .await?;
+    match result.as_mut() {
+        Some(mut result) => result.args = Some(
+            gets_task_args_sqlite(sqlite, result.id).await?
+        ),
+        None => (),
+    }
+    Ok(result)
+}
+
 
 #[async_trait]
 impl TaskBackend for SqliteBackend {
@@ -174,6 +241,11 @@ impl TaskBackend for SqliteBackend {
         id: i64,
     ) -> Result<Task, BackendError> {
         gets_task_sqlite(&self, id).await
+    }
+    async fn start(
+        &self,
+    ) -> Result<Option<Task>, BackendError> {
+        start_task_sqlite(&self).await
     }
 }
 
@@ -191,26 +263,27 @@ mod tests {
     };
 
     #[async_std::test]
-    async fn test_adds_task() {
+    async fn test_adds_task() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
-            .await
-            .unwrap()
+            .await?
             .run_migration_profile(Profile::Pmrtqs)
-            .await
-            .unwrap();
+            .await?;
 
+        // Need the task template to provide a valid reference for the
+        // Task that follow this.
         let (id, _) = TaskTemplateBackend::add_task_template(
             &backend, "/bin/true", "1.0.0",
-        ).await
-            .unwrap();
+        ).await?;
         TaskTemplateBackend::finalize_new_task_template(
             &backend, id,
-        ).await.unwrap();
+        ).await?;
 
-        // note that no arguments were added to the task template, but
-        // arguments are injected here - the model API should be used to
-        // create the following normally so validation should have done
-        // there.
+        // Create a Task manually, bypassing the standard helpers that
+        // would have required setting up the task template which isn't
+        // the focus of the test.
+        //
+        // Normal usage should go through the relevant APIs for normal
+        // error checking and validation.
         let task = Task {
             task_template_id: id,
             bin_path: "/bin/demo".into(),
@@ -227,8 +300,7 @@ mod tests {
 
         let task = TaskBackend::adds_task(
             &backend, task,
-        ).await
-            .unwrap();
+        ).await?;
 
         // additional assigned ids/values are all in place.
         assert_eq!(task.id, 1);
@@ -251,7 +323,86 @@ mod tests {
                 "task_id": 1,
                 "arg": "standard"
             }
-        ]"#).unwrap()));
+        ]"#)?));
 
+        Ok(())
     }
+
+    #[async_std::test]
+    async fn test_start_task() -> anyhow::Result<()> {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await?
+            .run_migration_profile(Profile::Pmrtqs)
+            .await?;
+        let (id, _) = TaskTemplateBackend::add_task_template(
+            &backend, "/bin/true", "1.0.0",
+        ).await?;
+        TaskTemplateBackend::finalize_new_task_template(
+            &backend, id,
+        ).await?;
+
+        // No tasks added.
+        assert!(TaskBackend::start(&backend).await?.is_none());
+
+        let task = TaskBackend::adds_task(
+            &backend,
+            Task {
+                task_template_id: id,
+                bin_path: "/bin/demo".into(),
+                basedir: "/tmp".into(),
+                args: Some(["--format=test", "-t", "standard" ].iter()
+                    .map(|a| TaskArg {
+                        arg: a.to_string(),
+                        .. Default::default()
+                    })
+                    .collect::<Vec<_>>()
+                    .into()),
+                .. Default::default()
+            }
+        ).await?;
+
+        // the only outstanding task should be returned.
+        let started_task = TaskBackend::start(&backend)
+            .await?
+            .expect("a task has started");
+        assert_eq!(started_task.id, task.id);
+        assert_eq!(started_task.start_ts, Some(1234567890));
+
+        // No outstanding task, so no task can be started.
+        assert!(TaskBackend::start(&backend).await?.is_none());
+
+        let task2 = TaskBackend::adds_task(
+            &backend,
+            Task {
+                task_template_id: id,
+                bin_path: "/bin/demo".into(),
+                basedir: "/tmp".into(),
+                .. Default::default()
+            }
+        ).await?;
+
+        let task3 = TaskBackend::adds_task(
+            &backend,
+            Task {
+                task_template_id: id,
+                bin_path: "/bin/demo".into(),
+                basedir: "/tmp".into(),
+                .. Default::default()
+            }
+        ).await?;
+
+        let start2 = TaskBackend::start(&backend)
+            .await?
+            .expect("second task has started");
+        assert_eq!(start2.id, task2.id);
+
+        let start3 = TaskBackend::start(&backend)
+            .await?
+            .expect("third task has started");
+        assert_eq!(start3.id, task3.id);
+        assert_eq!(start3.start_ts, Some(1234567890));
+
+        Ok(())
+    }
+
 }

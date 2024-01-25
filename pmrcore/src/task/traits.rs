@@ -19,5 +19,14 @@ pub trait TaskBackend {
         &self,
         id: i64,
     ) -> Result<Task, BackendError>;
+    /// Start a task. This should pick the oldest task that was added,
+    /// and atomically update its start_ts and return the complete task
+    /// instance.
+    ///
+    /// Returns some complete task instance, or none if no such task is
+    /// found.
+    async fn start(
+        &self,
+    ) -> Result<Option<Task>, BackendError>;
 }
 
