@@ -219,7 +219,7 @@ RETURNING
         .fetch_optional(&*sqlite.pool)
         .await?;
     match result.as_mut() {
-        Some(mut result) => result.args = Some(
+        Some(result) => result.args = Some(
             gets_task_args_sqlite(sqlite, result.id).await?
         ),
         None => (),
@@ -495,7 +495,7 @@ mod tests {
             }
         ).await?;
 
-        let started_task = TaskBackend::start(&backend)
+        TaskBackend::start(&backend)
             .await?
             .expect("a task has started");
 
