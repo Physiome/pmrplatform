@@ -1,7 +1,10 @@
 use async_trait::async_trait;
 use mockall::mock;
 use pmrcore::{
-    error::BackendError,
+    error::{
+        BackendError,
+        task::TaskError,
+    },
     exposure::{
         Exposure,
         Exposures,
@@ -21,6 +24,16 @@ use pmrcore::{
                 ExposureTaskTemplateBackend,
             },
         },
+    },
+    task::{
+        Task,
+        traits::TaskBackend,
+    },
+    task_template::{
+        TaskTemplate,
+        TaskTemplateArg,
+        TaskTemplateArgChoice,
+        traits::TaskTemplateBackend,
     },
     workspace::{
         Workspace,
@@ -266,6 +279,31 @@ mock! {
         ) -> Result<Option<ExposureFileViewTask>, BackendError>;
     }
 
+    #[async_trait]
+    impl TaskBackend for Platform {
+        async fn adds_task(
+            &self,
+            task: Task,
+        ) -> Result<Task, TaskError>;
+        async fn gets_task(
+            &self,
+            id: i64,
+        ) -> Result<Task, BackendError>;
+        async fn start(
+            &self,
+        ) -> Result<Option<Task>, BackendError>;
+        async fn run(
+            &self,
+            id: i64,
+            pid: i64,
+        ) -> Result<bool, BackendError>;
+        async fn complete(
+            &self,
+            id: i64,
+            exit_status: i64,
+        ) -> Result<bool, BackendError>;
+    }
+
 }
 
 #[async_trait]
@@ -405,5 +443,72 @@ impl ExposureTaskTemplateBackend for MockPlatform {
         exposure_file_id: i64,
     ) -> Result<Vec<ViewTaskTemplate>, BackendError> {
         self.exposure_task_get_file_templates(exposure_file_id).await
+    }
+}
+
+#[async_trait]
+impl TaskTemplateBackend for MockPlatform {
+    async fn add_task_template(
+        &self,
+        _bin_path: &str,
+        _version_id: &str,
+    ) -> Result<(i64, i64), BackendError> {
+        unimplemented!()
+    }
+    async fn finalize_new_task_template(
+        &self,
+        _id: i64,
+    ) -> Result<Option<i64>, BackendError> {
+        unimplemented!()
+    }
+    async fn add_task_template_arg(
+        &self,
+        _task_template_id: i64,
+        _flag: Option<&str>,
+        _flag_joined: bool,
+        _prompt: Option<&str>,
+        _default: Option<&str>,
+        _choice_fixed: bool,
+        _choice_source: Option<&str>,
+    ) -> Result<i64, BackendError> {
+        unimplemented!()
+    }
+    async fn delete_task_template_arg_by_id(
+        &self,
+        _id: i64,
+    ) -> Result<Option<TaskTemplateArg>, BackendError> {
+        unimplemented!()
+    }
+    async fn add_task_template_arg_choice(
+        &self,
+        _task_template_arg_id: i64,
+        _to_arg: Option<&str>,
+        _label: &str,
+    ) -> Result<i64, BackendError> {
+        unimplemented!()
+    }
+    async fn get_task_template_arg_by_id(
+        &self,
+        _id: i64,
+    ) -> Result<Option<TaskTemplateArg>, BackendError> {
+        unimplemented!()
+    }
+    async fn delete_task_template_arg_choice_by_id(
+        &self,
+        _id: i64,
+    ) -> Result<Option<TaskTemplateArgChoice>, BackendError> {
+        unimplemented!()
+    }
+    async fn get_task_template_by_id(
+        &self,
+        _id: i64,
+    ) -> Result<TaskTemplate, BackendError> {
+        unimplemented!()
+    }
+    async fn get_task_template_by_arg_id(
+        &self,
+        _id: i64,
+    ) -> Result<TaskTemplate, BackendError> {
+        unimplemented!()
     }
 }
