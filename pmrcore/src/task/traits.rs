@@ -41,4 +41,3 @@ pub trait TaskBackend {
         exit_status: i64,
     ) -> Result<bool, BackendError>;
 }
-

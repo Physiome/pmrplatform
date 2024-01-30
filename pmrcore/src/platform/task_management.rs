@@ -1,5 +1,10 @@
+use async_trait::async_trait;
 use crate::{
-    task::traits::TaskBackend,
+    error::BackendError,
+    task::{
+        TaskRef,
+        traits::TaskBackend,
+    },
     task_template::traits::TaskTemplateBackend,
 };
 
@@ -10,9 +15,20 @@ use crate::{
 ///
 /// This trait is applicable to everything that correctly implements the
 /// relevant backends that compose this trait.
+#[async_trait]
 pub trait TMPlatform: TaskBackend
     + TaskTemplateBackend
 {
+    async fn start_task(
+        &self,
+    ) -> Result<Option<TaskRef<Self>>, BackendError>
+    where Self: Sized
+    {
+        Ok(TaskBackend::start(self)
+            .await?
+            .map(|task| task.bind(self))
+        )
+    }
 }
 
 impl<P: TaskBackend
