@@ -25,5 +25,5 @@ jobs:
         cargo build --bin pmrapp_server --package pmrapp_server
     - name: Run tests
       run: |
-        cargo test
+        cargo test --all-features
         cargo test --package pmrapp_server --package pmrapp_client

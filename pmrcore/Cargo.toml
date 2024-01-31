@@ -15,17 +15,20 @@ num_enum = "0.6.1"
 serde = { version = "1.0.59", features = ["serde_derive"] }
 serde_json = "1.0.59"
 sqlx = { version = "0.7.0", features = ["sqlite"], optional = true }
+tokio = { version = "1.35", features = ["process", "rt", "macros"], optional = true }
 thiserror = "1.0"
 
 [dev-dependencies]
 anyhow = "1.0.0"
 async-std = { version = "1.5.0", features = [ "attributes" ] }
 mockall = "0.10.2"
+test-binary = "3.0.2"
 test-pmr = { path = "../testing" }
 
 [features]
 git = ["dep:gix", "dep:mime_guess"]
 display = ["dep:chrono"]
 sqlx = ["dep:sqlx"]
+tokio = ["dep:tokio"]
 
 [lib]
