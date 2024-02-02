@@ -1,7 +1,10 @@
 use pmrcore::{
     exposure::{
         ExposureFileRef,
-        traits::ExposureFile,
+        traits::{
+            Exposure,
+            ExposureFile,
+        },
     },
     task::Task,
     platform::{
@@ -25,7 +28,10 @@ use pmrmodel::{
         PreparedChoiceRegistryCache,
     },
 };
-use std::sync::OnceLock;
+use std::{
+    path::PathBuf,
+    sync::OnceLock,
+};
 
 use crate::{
     error::PlatformError,
@@ -113,19 +119,35 @@ impl<
     ) -> Result<Vec<VTTCTask>, PlatformError> {
         let cache = self.get_registry_cache().await?;
 
+        let exposure = self.exposure_file.exposure().await?;
+
+        let mut basedir = self.platform.data_root.clone();
+        basedir.push("exposure");
+        basedir.push(exposure.id().to_string());
+        basedir.push(self.exposure_file.id().to_string());
+
         let tasks = self
             .view_task_templates
             .iter()
-            .map(|efvtt| Ok(VTTCTask {
-                view_task_template_id: efvtt.id,
-                task: Task::from(TaskBuilder::try_from((
+            .map(|efvtt| {
+                let mut task = Task::from(TaskBuilder::try_from((
                     user_input,
                     efvtt.task_template
                         .as_ref()
                         .expect("task_template must have been provided"),
                     cache,
-                ))?),
-            }))
+                ))?);
+                // this would be the output dir
+                // TODO need to figure out how to communicate the workspace
+                // extraction
+                // TODO probably at the start a VTTCTasks could be created
+                // such that it contains a reference to the git archive.
+                task.basedir = basedir.as_path().display().to_string();
+                Ok(VTTCTask {
+                    view_task_template_id: efvtt.id,
+                    task: task,
+                })
+            })
             .collect::<Result<Vec<_>, BuildArgErrors>>()?;
 
         Ok(tasks)

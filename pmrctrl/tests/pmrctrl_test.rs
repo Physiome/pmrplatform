@@ -37,6 +37,7 @@ use pmrctrl::{
     platform::Platform,
     registry::make_choice_registry,
 };
+use std::path::PathBuf;
 
 use test_pmr::ctrl::create_sqlite_platform;
 
@@ -375,6 +376,13 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     let user_input: UserInputMap;
 
     let (_reporoot, platform) = create_sqlite_platform().await?;
+    let mut exposure_file_basedir = PathBuf::new();
+    exposure_file_basedir.push(platform.data_root());
+    exposure_file_basedir.push("exposure");
+    exposure_file_basedir.push("1");
+    exposure_file_basedir.push("1");
+    let exposure_file_basedir = exposure_file_basedir.display();
+
     let vtts = make_example_view_task_templates(&platform).await?;
     let exposure = platform.create_exposure(
         1,
@@ -423,9 +431,9 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
         .map(<(i64, Task)>::from)
         .collect::<Vec<_>>();
 
-    let answers: Vec<(i64, Task)> = serde_json::from_str(r#"
+    let answers: Vec<(i64, Task)> = serde_json::from_str(&format!(r#"
     [
-        [1, {
+        [1, {{
             "id": 0,
             "task_template_id": 2,
             "bin_path": "/usr/local/bin/example1",
@@ -434,16 +442,16 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
             "start_ts": null,
             "stop_ts": null,
             "exit_status": null,
-            "basedir": "",
+            "basedir": "{exposure_file_basedir}",
             "args": [
-                {
+                {{
                     "id": 0,
                     "task_id": 0,
                     "arg": "Example answer"
-                }
+                }}
             ]
-        }],
-        [4, {
+        }}],
+        [4, {{
             "id": 0,
             "task_template_id": 5,
             "bin_path": "/usr/local/bin/example3",
@@ -452,17 +460,17 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
             "start_ts": null,
             "stop_ts": null,
             "exit_status": null,
-            "basedir": "",
+            "basedir": "{exposure_file_basedir}",
             "args": [
-                {
+                {{
                     "id": 0,
                     "task_id": 0,
                     "arg": "--file2=README"
-                }
+                }}
             ]
-        }]
+        }}]
     ]
-    "#)?;
+    "#))?;
     assert_eq!(&answers, &tasks);
 
     // since the one above was consumed for inspection, repeat that call
@@ -485,8 +493,8 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
 
     let tb: &dyn TaskBackend = &platform.tm_platform;
     let task1 = tb.gets_task(et1.task_id.unwrap()).await?;
-    let mut answer: Task = serde_json::from_str(r#"
-    {
+    let mut answer: Task = serde_json::from_str(&format!(r#"
+    {{
         "id": 1,
         "task_template_id": 2,
         "bin_path": "/usr/local/bin/example1",
@@ -495,16 +503,16 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
         "start_ts": null,
         "stop_ts": null,
         "exit_status": null,
-        "basedir": "",
+        "basedir": "{exposure_file_basedir}",
         "args": [
-            {
+            {{
                 "id": 1,
                 "task_id": 1,
                 "arg": "Example answer"
-            }
+            }}
         ]
-    }
-    "#)?;
+    }}
+    "#))?;
     answer.created_ts = task1.created_ts;
     assert_eq!(answer, task1);
 

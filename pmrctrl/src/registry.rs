@@ -23,6 +23,9 @@ where
     // TODO figure out how to expose/define this registration in a more
     // agnostic context?
     registry.register("files", handle.list_files()?.into());
+    // TODO figure out if we want to reuse the registry for the required
+    // data, i.e. the current exposure file associated with the task and
+    // the commit
 
     Ok(registry)
 }
