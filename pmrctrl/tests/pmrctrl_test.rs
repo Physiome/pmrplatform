@@ -30,12 +30,12 @@ use pmrmodel::{
     registry::{
         ChoiceRegistry,
         ChoiceRegistryCache,
+        PreparedChoiceRegistry,
     },
 };
 use pmrctrl::{
     handle::ViewTaskTemplatesCtrl,
     platform::Platform,
-    registry::make_choice_registry,
 };
 use std::path::PathBuf;
 
@@ -144,7 +144,7 @@ async fn test_platform_create_exposure_file_view_task() -> anyhow::Result<()> {
         2,
     );
 
-    let registry = make_choice_registry(&exposure)?;
+    let registry: PreparedChoiceRegistry = (&exposure).try_into()?;
     let cache = ChoiceRegistryCache::from(&registry as &dyn ChoiceRegistry<_>);
     let task_template = vtt.task_template
         .as_ref()
@@ -353,7 +353,7 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
         0,
     );
 
-    let registry = make_choice_registry(&exposure)?;
+    let registry: PreparedChoiceRegistry = (&exposure).try_into()?;
     let cache = ChoiceRegistryCache::from(&registry as &dyn ChoiceRegistry<_>);
     let user_arg_refs = UserArgBuilder::from((
         vtt.as_slice(),

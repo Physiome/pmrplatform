@@ -37,7 +37,6 @@ use crate::{
     error::PlatformError,
     handle::ViewTaskTemplatesCtrl,
     platform::Platform,
-    registry::make_choice_registry,
 };
 use super::VTTCTask;
 
@@ -70,7 +69,7 @@ impl<
                     self.exposure_file.exposure_id()
                 ).await?;
                 self.choice_registry.set(
-                    make_choice_registry(&exposure)?
+                    (&exposure).try_into()?
                 ).unwrap_or_else(|_| log::warn!(
                     "concurrent call to the same \
                     ViewTaskTemplateCtrl.registry_cache()"
