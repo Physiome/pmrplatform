@@ -4,6 +4,8 @@ use gix::{
     Repository,
     actor::SignatureRef,
     object::Kind,
+    objs::tree::EntryMode,
+    traverse::tree::Recorder,
 };
 use std::path::Path;
 use crate::{
@@ -186,4 +188,22 @@ pub(crate) fn fetch_or_clone(
         }
     }
     Ok(())
+}
+
+pub(super) fn files(
+    commit: &Commit<'_>,
+) -> Result<Vec<String>, PmrRepoError> {
+    let tree = commit.tree().map_err(GixError::from)?;
+    let mut recorder = Recorder::default();
+    tree.traverse()
+        .breadthfirst(&mut recorder).map_err(GixError::from)?;
+    let mut results = recorder.records.iter()
+        .filter(|entry| entry.mode != EntryMode::Tree)
+        .filter_map(
+            |entry| std::str::from_utf8(entry.filepath.as_ref()).ok()
+        )
+        .map(|x| x.to_string())
+        .collect::<Vec<_>>();
+    results.sort();
+    Ok(results)
 }

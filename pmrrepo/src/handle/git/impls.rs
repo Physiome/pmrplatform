@@ -10,7 +10,6 @@ use gix::{
         tree::EntryMode,
     },
     traverse::commit::Sorting,
-    traverse::tree::Recorder,
 };
 use pmrcore::{
     git::PathObject,
@@ -285,19 +284,7 @@ impl<'a, P: MCPlatform + Sync> GitHandle<'a, P> {
     ) -> Result<Vec<String>, PmrRepoError> {
         let workspace_id = self.workspace.id();
         let commit = get_commit(&self.repo, workspace_id, commit_id)?;
-        let tree = commit.tree().map_err(GixError::from)?;
-        let mut recorder = Recorder::default();
-        tree.traverse()
-            .breadthfirst(&mut recorder).map_err(GixError::from)?;
-        let mut results = recorder.records.iter()
-            .filter(|entry| entry.mode != EntryMode::Tree)
-            .filter_map(
-                |entry| std::str::from_utf8(entry.filepath.as_ref()).ok()
-            )
-            .map(|x| x.to_string())
-            .collect::<Vec<_>>();
-        results.sort();
-        Ok(results)
+        files(&commit)
     }
 
 }
@@ -337,6 +324,14 @@ impl<'a, 'b, P: MCPlatform + Sync> GitHandleResult<'a, 'b, P> {
                 git_result.stream_blob(writer).await
             },
         }
+    }
+
+    /// Return the list of files associated with the commit that this
+    /// `GitHandleResult` is associated with.
+    pub fn files(
+        &self,
+    ) -> Result<Vec<String>, PmrRepoError> {
+        files(&self.commit)
     }
 }
 
