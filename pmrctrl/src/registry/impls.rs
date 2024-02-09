@@ -8,7 +8,10 @@ use pmrmodel::registry::{
 };
 use crate::{
     error::PlatformError,
-    handle::ExposureCtrl,
+    handle::{
+        ExposureCtrl,
+        ExposureFileCtrl,
+    },
 };
 
 impl<
@@ -32,4 +35,18 @@ impl<
     }
 }
 
-// TODO impls for exposure_file
+impl<
+    'a,
+    MCP: MCPlatform + Sized + Sync,
+    TMP: TMPlatform + Sized + Sync,
+> TryFrom<&ExposureFileCtrl<'a, MCP, TMP>> for PreparedChoiceRegistry {
+    type Error = PlatformError;
+
+    fn try_from(
+        handle: &ExposureFileCtrl<'a, MCP, TMP>,
+    ) -> Result<Self, Self::Error> {
+        let mut registry = PreparedChoiceRegistry::new();
+        registry.register("files", handle.pathinfo.files()?.into());
+        Ok(registry)
+    }
+}
