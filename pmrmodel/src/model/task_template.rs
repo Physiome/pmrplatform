@@ -200,25 +200,26 @@ impl<'a, I: Iterator<Item=&'a TaskTemplateArg>, T> Iterator for UserArgBuilder<'
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(arg) = self.args.next() {
-            if arg.prompt.is_none() {
-                continue
-            } else {
-                return Some(UserArgRef {
-                    id: arg.id,
-                    prompt: arg.prompt.as_deref()
-                        .expect("tested not to be none"),
-                    default: arg.default.as_deref(),
-                    choice_fixed: arg.choice_fixed,
-                    choices: self.choice_registry_cache.list(&arg)
-                        .ok()
-                        .as_deref()
-                        .map(|r| r
-                            .as_ref()
-                            .map(|v| v.clone())
-                            // known empty remains empty
-                            .unwrap_or(vec![])
-                        )
-                })
+            match arg.prompt.as_deref() {
+                None => continue,
+                Some("") => continue,
+                Some(prompt) => {
+                    return Some(UserArgRef {
+                        id: arg.id,
+                        prompt: prompt,
+                        default: arg.default.as_deref(),
+                        choice_fixed: arg.choice_fixed,
+                        choices: self.choice_registry_cache.list(&arg)
+                            .ok()
+                            .as_deref()
+                            .map(|r| r
+                                .as_ref()
+                                .map(|v| v.clone())
+                                // known empty remains empty
+                                .unwrap_or(vec![])
+                            )
+                    })
+                }
             }
         }
         None
@@ -339,19 +340,21 @@ fn value_to_argtuple<'a>(
 ) -> Result<ArgChunk<'a>, ArgumentError> {
     if arg.choice_source.is_some() {
         match (
-            arg.prompt.is_some(),
+            arg.prompt.as_deref(),
             &arg.flag,
             value,
         ) {
-            (false, _, Some(_)) =>
+            (None, _, Some(_)) =>
                 Err(ArgumentError::UnexpectedValue(arg.id)),
             (_, None, None) =>
                 Ok([None, None]),
-            (true, None, Some(value)) =>
+            (Some(""), _, None) =>
+                Err(ArgumentError::ValueExpected(arg.id)),
+            (Some(_), None, Some(value)) =>
                 Ok([None, Some(value)]),
             (_, Some(flag), None) =>
                 Ok([Some(flag), None]),
-            (true, Some(flag), Some(value)) =>
+            (Some(_), Some(flag), Some(value)) =>
                 Ok([Some(flag), Some(value)]),
         }
     }
@@ -626,9 +629,12 @@ fn value_from_choices<'a>(
         Some(value) => value,
         None => match &arg.default {
             Some(value) => value,
-            None => return match arg.prompt.is_none() {
-                true => Ok(None),
-                false => Err(LookupError::TaskTemplateArgNoDefault(arg.id)),
+            None => return match arg.prompt.as_deref() {
+                None => Ok(None),
+                // TODO figure out if the empty prompt should also report the
+                // no default error, or something else?
+                // Some("") => ?
+                Some(_) => Err(LookupError::TaskTemplateArgNoDefault(arg.id)),
             },
         }
     };
@@ -894,11 +900,50 @@ fn test_choice_without_prompt() {
     );
 }
 
+#[test]
+fn test_choice_prompt_empty_string() -> anyhow::Result<()> {
+    let prompt_choices = TaskTemplateArg {
+        prompt: Some("".into()),
+        choice_source: Some("choices".into()),
+        default: Some("default".into()),
+        .. Default::default()
+    };
+
+    let good_choices: Vec<String> = vec![
+        "default".into(),
+    ];
+    assert_eq!(
+        Ok(Some("default")),
+        value_from_choices(
+            None,
+            &prompt_choices,
+            &Some((&good_choices).into()),
+        ),
+    );
+
+    // This will then flow onto value_to_argtuple and result in an
+    // value expected error.
+    let bad_choices: pmrcore::task_template::TaskTemplateArgChoices = serde_json::from_str(r#"[{
+        "to_arg": null,
+        "label": "default"
+    }]"#)?;
+    assert_eq!(
+        Ok(None),
+        value_from_choices(
+            Some("default"),
+            &prompt_choices,
+            &Some((&bad_choices).into()),
+        ),
+    );
+    Ok(())
+}
+
 #[cfg(test)]
 mod test {
     use pmrcore::task_template::{
         TaskTemplate,
         TaskTemplateArg,
+        TaskTemplateArgChoices,
         UserArg,
     };
     use pmrcore::task::{
@@ -1238,7 +1283,7 @@ mod test {
     }
 
     #[test]
-    fn test_prompt_user_inputs_none() {
+    fn test_prompt_user_inputs_prompts_none() {
         let task_template = TaskTemplate {
             id: 1,
             bin_path: "/usr/local/bin/example".into(),
@@ -1251,6 +1296,36 @@ mod test {
                     id: 999,
                     task_template_id: 3,
                     flag: Some("build".into()),
+                    .. Default::default()
+                },
+            ].into()),
+        };
+        let registry = PreparedChoiceRegistry::new();
+        let cache = ChoiceRegistryCache::from(
+            &registry as &dyn ChoiceRegistry<_>);
+
+        let user_prompts = UserArgBuilder::from((
+            &task_template,
+            &cache,
+        )).collect::<Vec<_>>();
+        assert_eq!(user_prompts.len(), 0);
+    }
+
+    #[test]
+    fn test_prompt_user_inputs_prompts_empty_string() {
+        let task_template = TaskTemplate {
+            id: 1,
+            bin_path: "/usr/local/bin/example".into(),
+            version_id: "1.0.0".into(),
+            created_ts: 1234567890,
+            final_task_template_arg_id: Some(999),
+            superceded_by_id: None,
+            args: Some([
+                TaskTemplateArg {
+                    id: 999,
+                    task_template_id: 3,
+                    flag: Some("build".into()),
+                    prompt: Some("".into()),
                     .. Default::default()
                 },
             ].into()),
@@ -1676,5 +1751,160 @@ mod test {
             ),
         ]);
     }
+
+    #[test]
+    fn test_process_fail_validation_none_prompt_with_choice() -> anyhow::Result<()> {
+        let user_input = UserInputMap::from([]);
+        let task_template = TaskTemplate {
+            id: 1,
+            bin_path: "/bin/demo".into(),
+            version_id: "1.3.2".into(),
+            created_ts: 1686715614,
+            final_task_template_arg_id: Some(1),
+            superceded_by_id: None,
+            args: Some([
+                TaskTemplateArg {
+                    id: 1,
+                    task_template_id: 1,
+                    flag: Some("-a".into()),
+                    flag_joined: false,
+                    prompt: None,
+                    default: Some("validation".into()),
+                    choice_fixed: true,
+                    choice_source: Some("validation".into()),
+                    choices: None,
+                },
+            ].into()),
+        };
+
+        {
+            let validation: TaskTemplateArgChoices = serde_json::from_str(r#"[{
+                "to_arg": null,
+                "label": "validation"
+            }]"#)?;
+            let mut registry = PreparedChoiceRegistry::new();
+            registry.register("validation", validation.into());
+
+            let cache = ChoiceRegistryCache::from(
+                &registry as &dyn ChoiceRegistry<_>);
+            let user_prompts = UserArgBuilder::from((
+                &task_template,
+                &cache,
+            )).collect::<Vec<_>>();
+            assert_eq!(user_prompts.len(), 0);
+
+            let args: Vec<String> = TaskArgBuilders::try_from((
+                    &user_input,
+                    &task_template,
+                    &cache,
+                ))?
+                .map(|a| a.arg.clone())
+                .collect();
+            assert_eq!(&args, &["-a"]);
+        }
+
+        {
+            let validation: TaskTemplateArgChoices = serde_json::from_str(r#"[{
+                "to_arg": "failed",
+                "label": "validation"
+            }]"#)?;
+            let mut registry = PreparedChoiceRegistry::new();
+            registry.register("validation", validation.into());
+
+            let cache = ChoiceRegistryCache::from(
+                &registry as &dyn ChoiceRegistry<_>);
+
+            let processed = TaskArgBuilders::try_from((
+                &user_input,
+                &task_template,
+                &cache,
+            ));
+            assert_eq!(processed.unwrap_err().0.as_slice(), &[
+                BuildArgError::ArgumentError(
+                    ArgumentError::UnexpectedValue(1)
+                ),
+            ]);
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_process_fail_validation_empty_prompt_with_choice() -> anyhow::Result<()> {
+        let user_input = UserInputMap::from([]);
+        let task_template = TaskTemplate {
+            id: 1,
+            bin_path: "/bin/demo".into(),
+            version_id: "1.3.2".into(),
+            created_ts: 1686715614,
+            final_task_template_arg_id: Some(1),
+            superceded_by_id: None,
+            args: Some([
+                TaskTemplateArg {
+                    id: 1,
+                    task_template_id: 1,
+                    flag: Some("-a".into()),
+                    flag_joined: false,
+                    prompt: Some("".into()),
+                    default: Some("validation".into()),
+                    choice_fixed: true,
+                    choice_source: Some("validation".into()),
+                    choices: None,
+                },
+            ].into()),
+        };
+
+        {
+            let validation: TaskTemplateArgChoices = serde_json::from_str(r#"[{
+                "to_arg": "passed",
+                "label": "validation"
+            }]"#)?;
+            let mut registry = PreparedChoiceRegistry::new();
+            registry.register("validation", validation.into());
+
+            let cache = ChoiceRegistryCache::from(
+                &registry as &dyn ChoiceRegistry<_>);
+            let user_prompts = UserArgBuilder::from((
+                &task_template,
+                &cache,
+            )).collect::<Vec<_>>();
+            assert_eq!(user_prompts.len(), 0);
+
+            let args: Vec<String> = TaskArgBuilders::try_from((
+                    &user_input,
+                    &task_template,
+                    &cache,
+                ))?
+                .map(|a| a.arg.clone())
+                .collect();
+            assert_eq!(&args, &["-a", "passed"]);
+        }
+
+        {
+            let validation: TaskTemplateArgChoices = serde_json::from_str(r#"[{
+                "to_arg": null,
+                "label": "validation"
+            }]"#)?;
+            let mut registry = PreparedChoiceRegistry::new();
+            registry.register("validation", validation.into());
+
+            let cache = ChoiceRegistryCache::from(
+                &registry as &dyn ChoiceRegistry<_>);
+
+            let processed = TaskArgBuilders::try_from((
+                &user_input,
+                &task_template,
+                &cache,
+            ));
+            assert_eq!(processed.unwrap_err().0.as_slice(), &[
+                BuildArgError::ArgumentError(
+                    ArgumentError::ValueExpected(1)
+                ),
+            ]);
+        }
+
+        Ok(())
+    }
+
 
 }
