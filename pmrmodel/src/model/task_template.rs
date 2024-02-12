@@ -626,14 +626,18 @@ fn value_from_choices<'a>(
     choices: impl Deref<Target = Option<MapToArgRef<'a>>>,
 ) -> Result<Option<&'a str>, LookupError> {
     let value = match value {
+        // This function will NOT handle the situation where a value is
+        // provided for a prompt that is either none or empty.
+        // TODO document the validation workflow that check against this.
         Some(value) => value,
+        // if no user value is provided...
         None => match &arg.default {
+            // ... use the default if that's provided
             Some(value) => value,
+            // ... otherwise, if there are no prompts, shouldn't require
+            // a default value.
             None => return match arg.prompt.as_deref() {
-                None => Ok(None),
-                // TODO figure out if the empty prompt should also report the
-                // no default error, or something else?
-                // Some("") => ?
+                None | Some("") => Ok(None),
                 Some(_) => Err(LookupError::TaskTemplateArgNoDefault(arg.id)),
             },
         }
@@ -703,6 +707,36 @@ fn test_validate_choice_value_standard() {
         value_from_choices(
             Some("invalid choice"), &arg, &None),
     );
+}
+
+#[test]
+fn test_validate_choice_value_prompt_empty_or_none() {
+    fn choices() -> Option<MapToArgRef<'static>> {
+        Some(HashMap::from([
+            ("default value", Some("default value")),
+        ]).into())
+    }
+
+    let empty_prompt_arg = TaskTemplateArg {
+        prompt: Some("".into()),
+        .. Default::default()
+    };
+    assert_eq!(
+        Ok(None),
+        value_from_choices(
+            None, &empty_prompt_arg, &choices()),
+    );
+
+    let none_prompt_arg = TaskTemplateArg {
+        prompt: None,
+        .. Default::default()
+    };
+    assert_eq!(
+        Ok(None),
+        value_from_choices(
+            None, &none_prompt_arg, &choices()),
+    );
+
 }
 
 #[test]
@@ -901,7 +935,47 @@ fn test_choice_without_prompt() {
 }
 
 #[test]
-fn test_choice_prompt_empty_string() -> anyhow::Result<()> {
+fn test_choice_prompt_empty_string_no_default() -> anyhow::Result<()> {
+    let prompt_choices = TaskTemplateArg {
+        prompt: Some("".into()),
+        choice_source: Some("choices".into()),
+        .. Default::default()
+    };
+
+    let good_choices: Vec<String> = vec![
+        "default".into(),
+    ];
+    // this case shouldn't normally happen because no prompt should be
+    // generated and thus no way for the user to normally provide this
+    assert_eq!(
+        Ok(Some("default")),
+        value_from_choices(
+            Some("default"),
+            &prompt_choices,
+            &Some((&good_choices).into()),
+        ),
+    );
+
+    // This will then flow onto value_to_argtuple and result in an
+    // value expected error.
+    let bad_choices: pmrcore::task_template::TaskTemplateArgChoices = serde_json::from_str(r#"[{
+        "to_arg": null,
+        "label": "default"
+    }]"#)?;
+    assert_eq!(
+        Ok(None),
+        value_from_choices(
+            None,
+            &prompt_choices,
+            &Some((&bad_choices).into()),
+        ),
+    );
+    Ok(())
+}
+
+
+#[test]
+fn test_choice_prompt_empty_string_default() -> anyhow::Result<()> {
     let prompt_choices = TaskTemplateArg {
         prompt: Some("".into()),
         choice_source: Some("choices".into()),
