@@ -6,6 +6,10 @@ use thiserror::Error;
 
 #[derive(Debug, PartialEq, Error, Deserialize, Serialize)]
 pub enum ArgumentError {
+    /// This is generally caused by unexpected user input on empty
+    /// prompts, or the case where choice with a provided default value
+    /// was resolved into an invalid value for the type of empty prompt
+    /// attached to the argument.
     #[error("unexpected value provided for argument id: {0}")]
     UnexpectedValue(i64),
     #[error("value expected but missing for argument id: {0}")]

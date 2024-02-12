@@ -234,7 +234,10 @@ fn arg_build_arg_chunk<'a, T>(
     Ok(TaskArgBuilder::from((
         value_to_argtuple(
             value_from_choices(
-                user_input,
+                value_from_arg_prompt(
+                    user_input,
+                    &task_template_arg,
+                )?,
                 &task_template_arg,
                 choice_registry_cache.lookup(&task_template_arg)?,
             )?,
@@ -620,15 +623,17 @@ fn test_value_to_taskarg_standard_choices() {
 
 }
 
+// TODO this function originally tries to resolve the incoming value to
+// the actual value provided by choices, but now the first let actually
+// does quite a bit and may benefit a move to another function, but it
+// is rather well tested as a complete unit so leave it alone for now?
 fn value_from_choices<'a>(
     value: Option<&'a str>,
     arg: &'a TaskTemplateArg,
     choices: impl Deref<Target = Option<MapToArgRef<'a>>>,
 ) -> Result<Option<&'a str>, LookupError> {
+    // this ignores the argument prompt; validation is done elsewhere.
     let value = match value {
-        // This function will NOT handle the situation where a value is
-        // provided for a prompt that is either none or empty.
-        // TODO document the validation workflow that check against this.
         Some(value) => value,
         // if no user value is provided...
         None => match &arg.default {
@@ -973,7 +978,6 @@ fn test_choice_prompt_empty_string_no_default() -> anyhow::Result<()> {
     Ok(())
 }
 
-
 #[test]
 fn test_choice_prompt_empty_string_default() -> anyhow::Result<()> {
     let prompt_choices = TaskTemplateArg {
@@ -1010,6 +1014,61 @@ fn test_choice_prompt_empty_string_default() -> anyhow::Result<()> {
         ),
     );
     Ok(())
+}
+
+// this does initial validation - if prompt is none or empty string, fail
+fn value_from_arg_prompt<'a>(
+    value: Option<&'a str>,
+    arg: &'a TaskTemplateArg,
+) -> Result<Option<&'a str>, ArgumentError> {
+    match value {
+        None => Ok(value),
+        Some(_) => match arg.prompt.as_deref() {
+            None | Some("") => Err(ArgumentError::UnexpectedValue(arg.id)),
+            _ => Ok(value),
+        }
+    }
+}
+
+#[test]
+fn test_value_from_arg_prompt_standard() {
+    let arg = TaskTemplateArg {
+        prompt: Some("prompt".into()),
+        .. Default::default()
+    };
+    let input = Some("arg");
+    assert_eq!(
+        value_from_arg_prompt(input, &arg),
+        Ok(input),
+    );
+}
+
+#[test]
+fn test_value_from_arg_prompt_none() {
+    let arg = TaskTemplateArg {
+        id: 1234,
+        prompt: None,
+        .. Default::default()
+    };
+    let input = Some("arg");
+    assert_eq!(
+        value_from_arg_prompt(input, &arg),
+        Err(ArgumentError::UnexpectedValue(1234)),
+    );
+}
+
+#[test]
+fn test_value_from_arg_prompt_empty() {
+    let arg = TaskTemplateArg {
+        id: 4321,
+        prompt: Some("".into()),
+        .. Default::default()
+    };
+    let input = Some("arg");
+    assert_eq!(
+        value_from_arg_prompt(input, &arg),
+        Err(ArgumentError::UnexpectedValue(4321)),
+    );
 }
 
 #[cfg(test)]
@@ -1828,6 +1887,12 @@ mod test {
 
     #[test]
     fn test_process_fail_validation_none_prompt_with_choice() -> anyhow::Result<()> {
+        // Use case for having a choice source set up for an argument
+        // without a prompt (i.e. prompt: None) with a default choice
+        // is so that the default can be a label that states what the
+        // intended usage is, and that the to_arg in the choice should
+        // be a none so that this passes - failure will be some string
+        // value as that will also fail to generate a task.
         let user_input = UserInputMap::from([]);
         let task_template = TaskTemplate {
             id: 1,
@@ -1851,6 +1916,7 @@ mod test {
             ].into()),
         };
 
+        // demonstrate the successful validation case.
         {
             let validation: TaskTemplateArgChoices = serde_json::from_str(r#"[{
                 "to_arg": null,
@@ -1877,6 +1943,8 @@ mod test {
             assert_eq!(&args, &["-a"]);
         }
 
+        // demonstrate the failure validation case - see the choice has
+        // a failure message.
         {
             let validation: TaskTemplateArgChoices = serde_json::from_str(r#"[{
                 "to_arg": "failed",
@@ -1900,11 +1968,53 @@ mod test {
             ]);
         }
 
+        // The situation where somehow an argument was supplied as user
+        // input - it should be ignored.
+        {
+            let user_input = UserInputMap::from([
+                (1, "invalid".to_string()),
+            ]);
+            let validation: TaskTemplateArgChoices = serde_json::from_str(r#"[
+                {
+                    "to_arg": "should_fail",
+                    "label": "validation"
+                },
+                {
+                    "to_arg": null,
+                    "label": "invalid"
+                }
+            ]"#)?;
+            let mut registry = PreparedChoiceRegistry::new();
+            registry.register("validation", validation.into());
+
+            let cache = ChoiceRegistryCache::from(
+                &registry as &dyn ChoiceRegistry<_>);
+
+            let processed = TaskArgBuilders::try_from((
+                &user_input,
+                &task_template,
+                &cache,
+            ));
+            assert_eq!(processed.unwrap_err().0.as_slice(), &[
+                BuildArgError::ArgumentError(
+                    ArgumentError::UnexpectedValue(1)
+                ),
+            ]);
+        }
+
         Ok(())
     }
 
     #[test]
     fn test_process_fail_validation_empty_prompt_with_choice() -> anyhow::Result<()> {
+        // This sets up an argument that has a choice source that will
+        // provide fixed values.  The prompt being an empty string
+        // denotes that it must provide an argument, and the default
+        // value should point to a label that provide the target value
+        // that will be the argument passed to the program backed by
+        // the task to be generated.
+        //
+        // The empty string prompt will hide it from the end user.
         let user_input = UserInputMap::from([]);
         let task_template = TaskTemplate {
             id: 1,
@@ -1928,6 +2038,8 @@ mod test {
             ].into()),
         };
 
+        // The successful path where the choice source has added the
+        // intended argument.
         {
             let validation: TaskTemplateArgChoices = serde_json::from_str(r#"[{
                 "to_arg": "passed",
@@ -1954,6 +2066,8 @@ mod test {
             assert_eq!(&args, &["-a", "passed"]);
         }
 
+        // The failure path where the choice source cannot resolve the
+        // intended argument for the program, triggering a missing error.
         {
             let validation: TaskTemplateArgChoices = serde_json::from_str(r#"[{
                 "to_arg": null,
@@ -1973,6 +2087,40 @@ mod test {
             assert_eq!(processed.unwrap_err().0.as_slice(), &[
                 BuildArgError::ArgumentError(
                     ArgumentError::ValueExpected(1)
+                ),
+            ]);
+        }
+
+        // The situation where somehow an argument was supplied as user
+        // input - it should be ignored.
+        {
+            let user_input = UserInputMap::from([
+                (1, "invalid".to_string()),
+            ]);
+            let validation: TaskTemplateArgChoices = serde_json::from_str(r#"[
+                {
+                    "to_arg": "should_pass",
+                    "label": "validation"
+                },
+                {
+                    "to_arg": null,
+                    "label": "invalid"
+                }
+            ]"#)?;
+            let mut registry = PreparedChoiceRegistry::new();
+            registry.register("validation", validation.into());
+
+            let cache = ChoiceRegistryCache::from(
+                &registry as &dyn ChoiceRegistry<_>);
+
+            let processed = TaskArgBuilders::try_from((
+                &user_input,
+                &task_template,
+                &cache,
+            ));
+            assert_eq!(processed.unwrap_err().0.as_slice(), &[
+                BuildArgError::ArgumentError(
+                    ArgumentError::UnexpectedValue(1)
                 ),
             ]);
         }
