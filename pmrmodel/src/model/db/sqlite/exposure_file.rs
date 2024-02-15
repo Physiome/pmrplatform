@@ -64,6 +64,36 @@ WHERE id = ?1
     Ok(rec)
 }
 
+async fn get_exposure_file_by_exposure_filepath_sqlite(
+    sqlite: &SqliteBackend,
+    exposure_id: i64,
+    workspace_file_path: &str,
+) -> Result<ExposureFile, BackendError> {
+    let rec = sqlx::query!(r#"
+SELECT
+    id,
+    exposure_id,
+    workspace_file_path,
+    default_view_id
+FROM exposure_file
+WHERE exposure_id = ?1
+    AND workspace_file_path = ?2
+"#,
+        exposure_id,
+        workspace_file_path,
+    )
+    .map(|row| ExposureFile {
+        id: row.id,
+        exposure_id: row.exposure_id,
+        workspace_file_path: row.workspace_file_path,
+        default_view_id: row.default_view_id,
+        views: None,
+    })
+    .fetch_one(&*sqlite.pool)
+    .await?;
+    Ok(rec)
+}
+
 async fn list_exposure_files_for_exposure_sqlite(
     sqlite: &SqliteBackend,
     workspace_id: i64,
@@ -148,6 +178,18 @@ impl ExposureFileBackend for SqliteBackend {
         get_exposure_file_by_id_sqlite(
             &self,
             id,
+        ).await
+    }
+
+    async fn get_by_exposure_filepath(
+        &self,
+        exposure_id: i64,
+        workspace_file_path: &str,
+    ) -> Result<ExposureFile, BackendError> {
+        get_exposure_file_by_exposure_filepath_sqlite(
+            &self,
+            exposure_id,
+            workspace_file_path,
         ).await
     }
 
@@ -283,6 +325,26 @@ pub(crate) mod testing {
                 .collect::<Vec<_>>(),
         );
         assert_eq!(exposure.id(), exposure_files[0].exposure().await?.id());
+
+        let model_cellml = exposure.get_file("model.cellml").await?;
+        assert_eq!(model_cellml.id(), exposure_files[1].id());
+        assert_eq!(model_cellml.workspace_file_path(), exposure_files[1].workspace_file_path());
+
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn test_exposure_file_dupe() -> anyhow::Result<()> {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await?
+            .run_migration_profile(Profile::Pmrapp)
+            .await?;
+        let id = make_example_exposure(
+            &backend,
+            make_example_workspace(&backend).await?,
+        ).await?;
+        make_example_exposure_file(&backend, id, "README.md").await?;
+        assert!(make_example_exposure_file(&backend, id, "README.md").await.is_err());
 
         Ok(())
     }

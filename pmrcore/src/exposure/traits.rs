@@ -100,6 +100,14 @@ pub trait ExposureFileBackend {
         id: i64,
     ) -> Result<exposure::ExposureFile, BackendError>;
 
+    /// Returns an existing `ExposureFile` entry by the exposure id and
+    /// the `workspace_file_path`.
+    async fn get_by_exposure_filepath(
+        &self,
+        exposure_id: i64,
+        workspace_file_path: &str,
+    ) -> Result<exposure::ExposureFile, BackendError>;
+
     /// For the given `ExposureFile` identified by its `id`, set the
     /// default `ExposureFileView` via its `id`.
     async fn set_default_view(

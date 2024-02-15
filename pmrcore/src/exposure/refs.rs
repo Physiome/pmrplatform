@@ -72,6 +72,22 @@ impl<P: MCPlatform + Sized> ExposureRef<'_, P> {
     }
 }
 
+impl<'a, P: MCPlatform + Sized> ExposureRef<'a, P> {
+    pub async fn get_file(
+        &self,
+        path: &str,
+    ) -> Result<ExposureFileRef<'a, P>, BackendError> {
+        Ok(
+            self.platform.get_by_exposure_filepath(
+                self.inner.id,
+                path,
+            )
+                .await?
+                .bind(&self.platform)
+        )
+    }
+}
+
 impl ExposureFile {
     pub(crate) fn bind<'a, P: MCPlatform + Sized>(
         self,

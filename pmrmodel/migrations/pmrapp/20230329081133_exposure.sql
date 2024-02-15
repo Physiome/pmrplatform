@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS exposure_file (
 );
 
 CREATE INDEX IF NOT EXISTS exposure_file__exposure_id ON exposure_file(exposure_id);
-CREATE INDEX IF NOT EXISTS exposure_file__exposure_id_workspace_file_path ON exposure_file(exposure_id, workspace_file_path);
+CREATE UNIQUE INDEX IF NOT EXISTS exposure_file__exposure_id_workspace_file_path ON exposure_file(exposure_id, workspace_file_path);
 
 CREATE TABLE IF NOT EXISTS exposure_file_view (
     id INTEGER PRIMARY KEY NOT NULL,

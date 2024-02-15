@@ -100,6 +100,11 @@ mock! {
             &self,
             id: i64,
         ) -> Result<ExposureFile, BackendError>;
+        pub async fn exposure_file_get_by_exposure_filepath(
+            &self,
+            exposure_id: i64,
+            workspace_file_path: &str,
+        ) -> Result<ExposureFile, BackendError>;
         pub async fn exposure_file_set_default_view(
             &self,
             id: i64,
@@ -359,6 +364,13 @@ impl ExposureFileBackend for MockPlatform {
         id: i64,
     ) -> Result<ExposureFile, BackendError> {
         self.exposure_file_get_id(id).await
+    }
+    async fn get_by_exposure_filepath(
+        &self,
+        exposure_id: i64,
+        workspace_file_path: &str,
+    ) -> Result<ExposureFile, BackendError> {
+        self.exposure_file_get_by_exposure_filepath(exposure_id, workspace_file_path).await
     }
     async fn set_default_view(
         &self,
