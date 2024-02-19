@@ -23,6 +23,8 @@ pub struct ViewTaskTemplatesCtrl<
     TMP: TMPlatform + Sized + Sync,
 > {
     platform: &'db Platform<'db, MCP, TMP>,
+    // TODO how to make this a ExposureFileCtrl
+    // should this even be one?
     exposure_file: ExposureFileRef<'db, MCP>,
     view_task_templates: ViewTaskTemplates,
     choice_registry: OnceLock<PreparedChoiceRegistry>,

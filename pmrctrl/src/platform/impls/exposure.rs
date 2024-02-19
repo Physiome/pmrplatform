@@ -8,6 +8,8 @@ use pmrcore::{
         TMPlatform,
     },
 };
+use std::collections::HashMap;
+
 use crate::{
     error::PlatformError,
     handle::ExposureCtrl,
@@ -48,11 +50,11 @@ impl<
             ).await?
         ).await?;
         let platform = self;
-        Ok(ExposureCtrl {
+        Ok(ExposureCtrl::new(
             platform,
             git_handle,
             exposure,
-        })
+        ))
     }
 
     pub async fn get_exposure(
@@ -64,30 +66,16 @@ impl<
             .repo_backend()
             .git_handle(exposure.workspace_id()).await?;
         let platform = self;
-        Ok(ExposureCtrl {
+        Ok(ExposureCtrl::new(
             platform,
             git_handle,
             exposure,
-        })
+        ))
     }
 
-    // TODO implement this directly on the platform?
-    // The other option is to rely on the ExposureCtrl and chain down,
-    // but maybe that's cumbersome?
-    /*
-    pub async fn get_exposure_file(
-        &'a self,
-        id: i64,
-    ) -> Result<ExposureCtrl<'a, MCP, TMP>, PlatformError> {
-        let exposure = self.mc_platform.get_exposure(id).await?;
-        let platform = self;
-        Ok(ExposureCtrl {
-            platform,
-            git_handle,
-            exposure,
-        })
-    }
-    */
+    // Note that there is NO impls for returning an ExposureFileCtrl
+    // directly as it tracks a GitHandleResult which requires GitHandle
+    // held somewhere, which currently is typically from the Exposure.
 
 }
 

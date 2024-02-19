@@ -1,3 +1,7 @@
+use parking_lot::{
+    Mutex,
+    MutexGuard,
+};
 use pmrcore::{
     exposure::{
         traits::{
@@ -5,11 +9,19 @@ use pmrcore::{
             ExposureFile,
             ExposureFileBackend,
         },
+        ExposureRef,
+        ExposureFileRef,
     },
     platform::{
         MCPlatform,
         TMPlatform,
     },
+};
+use pmrrepo::handle::GitHandle;
+use std::{
+    collections::HashMap,
+    ops::Deref,
+    sync::Arc,
 };
 
 use crate::{
@@ -18,6 +30,7 @@ use crate::{
         ExposureFileCtrl,
     },
     error::PlatformError,
+    platform::Platform,
 };
 
 impl<
@@ -25,6 +38,19 @@ impl<
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
 > ExposureCtrl<'db, MCP, TMP> {
+    pub fn new(
+        platform: &'db Platform<'db, MCP, TMP>,
+        git_handle: GitHandle<'db, MCP>,
+        exposure: ExposureRef<'db, MCP>,
+    ) -> Self {
+        Self {
+            platform,
+            git_handle,
+            exposure,
+            exposure_files: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
     pub async fn create_file(
         &'db self,
         workspace_file_path: &'db str,
@@ -43,13 +69,22 @@ impl<
                 None,
             ).await?
         ).await?;
+
+        let exposure_file = MutexGuard::map(
+            self.exposure_files.lock(),
+            |exposure_files| exposure_files
+                .entry(workspace_file_path)
+                .or_insert(exposure_file)
+        );
+
         let platform = self.platform;
         // maybe return the id that would produce this from the platform?
-        Ok(ExposureFileCtrl {
+        let result = Ok(ExposureFileCtrl {
             platform,
             pathinfo,
             exposure_file,
-        })
+        });
+        result
     }
 
     /// List all files associated with this exposure.

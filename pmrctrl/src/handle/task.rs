@@ -3,7 +3,7 @@ use pmrcore::{
         MCPlatform,
         TMPlatform,
     },
-    task::Task,
+    task::TaskRef,
 };
 
 use crate::platform::Platform;
@@ -13,8 +13,8 @@ pub struct TaskCtrl<
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
 > {
-    pub(crate) _platform: &'a Platform<'a, MCP, TMP>,
-    pub(crate) _task: Task,
+    pub(crate) platform: &'a Platform<'a, MCP, TMP>,
+    pub(crate) task: TaskRef<'a, TMP>,
 }
 
 mod impls;

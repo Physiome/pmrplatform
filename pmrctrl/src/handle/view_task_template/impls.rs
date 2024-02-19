@@ -53,6 +53,9 @@ impl<
         Self {
             platform,
             exposure_file,
+            // TODO figure out how to include and OnceLock the
+            // exposure_file_ctrl,
+            // ... only if it's meant to be one
             view_task_templates,
             choice_registry: OnceLock::new(),
             choice_registry_cache: OnceLock::new(),
@@ -111,7 +114,7 @@ impl<
 
     /// This creates a mapping from the ViewTaskTemplates that are being
     /// controlled by this handle.  The mapping goes from each element's
-    /// id to the task that it should be spawnning.
+    /// id to the task that it should be spawning.
     pub async fn create_tasks_from_input(
         &'db self,
         user_input: &'db UserInputMap,
@@ -120,9 +123,13 @@ impl<
 
         let exposure = self.exposure_file.exposure().await?;
 
+        // TODO figure out how to prepare this directory
+        // TODO figure out how to get the source data into here
+        //      maybe a trait for workspace?  the workspace checkout controller?
         let mut basedir = self.platform.data_root.clone();
         basedir.push("exposure");
         basedir.push(exposure.id().to_string());
+        // the view identifier
         basedir.push(self.exposure_file.id().to_string());
 
         let tasks = self
