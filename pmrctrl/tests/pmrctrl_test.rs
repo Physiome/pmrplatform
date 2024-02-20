@@ -305,9 +305,14 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
         1,
         "083b775d81ec9b66796edbbdce4d714bb2ddc355",
     ).await?;
-    let exposure_file_id = exposure.create_file("if1").await?
-        .exposure_file
-        .id();
+    // this is now needed to avoid borrow checker getting confused about
+    // the order of which vttc is fred (before exposure_file_ctrl, ensure
+    // that we drop that.
+    let exposure_file_id = {
+        let exposure_file_ctrl = exposure.create_file("if1").await?;
+        let exposure_file_ref = exposure_file_ctrl.exposure_file();
+        exposure_file_ref.id()
+    };
 
     let vttc = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
     let vtt: &ViewTaskTemplates = (&vttc).into();
@@ -391,7 +396,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     // this apparently triggers the destructor failure
     let efc = exposure.create_file("if1").await?;
     let exposure_file_id = efc
-        .exposure_file
+        .exposure_file()
         .id();
 
     ExposureTaskTemplateBackend::set_file_templates(

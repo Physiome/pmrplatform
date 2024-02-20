@@ -1,9 +1,10 @@
 use pmrcore::{
     exposure::{
         traits::{
-            ExposureFile,
+            ExposureFile as _,
             ExposureFileViewBackend,
         },
+        ExposureFileRef,
     },
     platform::{
         MCPlatform,
@@ -11,6 +12,7 @@ use pmrcore::{
     },
 };
 use pmrrepo::handle::GitHandleResult;
+use std::ops::Deref;
 
 use super::ExposureFileCtrl;
 use crate::{
@@ -117,5 +119,9 @@ impl<
 
     pub fn pathinfo(&'db self) -> &GitHandleResult<'db, 'db, MCP> {
         &self.pathinfo
+    }
+
+    pub fn exposure_file(&self) -> impl Deref<Target = ExposureFileRef<'db, MCP>> + '_ {
+        self.exposure_file.deref()
     }
 }
