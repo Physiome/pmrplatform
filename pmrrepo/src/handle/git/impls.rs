@@ -10,6 +10,8 @@ use gix::{
         tree::EntryMode,
     },
     traverse::commit::Sorting,
+    Commit,
+    Repository,
 };
 use pmrcore::{
     git::PathObject,
@@ -106,6 +108,14 @@ impl<'a, P: MCPlatform + Sync> GitHandle<'a, P> {
             .open(&repo_dir)?
             .to_thread_local();
         Ok(Self { backend, workspace, repo })
+    }
+
+    pub fn workspace(&'a self) -> &'a WorkspaceRef<'a, P> {
+        &self.workspace
+    }
+
+    pub fn repo(&'a self) -> &'a Repository {
+        &self.repo
     }
 
     pub async fn index_tags(&self) -> Result<(), GixError> {
@@ -289,7 +299,27 @@ impl<'a, P: MCPlatform + Sync> GitHandle<'a, P> {
 
 }
 
-impl<'a, 'b, P: MCPlatform + Sync> GitHandleResult<'a, 'b, P> {
+impl<'db, 'repo, P: MCPlatform + Sync> GitHandleResult<'db, 'repo, P> {
+    pub fn repo(&'repo self) -> &'repo Repository {
+        self.repo
+    }
+
+    pub fn commit(&'repo self) -> &'repo Commit<'repo> {
+        &self.commit
+    }
+
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+
+    pub fn target(&'repo self) -> &GitResultTarget<'repo> {
+        &self.target
+    }
+
+    pub fn workspace(&'db self) -> &WorkspaceRef<'db, P> {
+        &self.workspace
+    }
+
     #[async_recursion(?Send)]
     pub async fn stream_blob(
         &self,

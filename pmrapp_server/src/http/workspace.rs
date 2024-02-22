@@ -122,7 +122,7 @@ async fn raw_workspace_pathinfo_workspace_id_commit_id_path(
             // handle.stream_result_blob(&mut blob, &result).await?;
             // Ok(blob)
 
-            match &result.target {
+            match &result.target() {
                 GitResultTarget::Object(object) => {
                     let info: PathObjectInfo = object.into();
                     match info {

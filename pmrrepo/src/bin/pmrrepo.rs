@@ -109,11 +109,11 @@ fn stream_git_result_default<P: MCPlatform + Sync>(
         have git_object {:?}
         have path_object_info {:?}
         \n",
-        item.repo.path(),
-        &item.commit.id(),
-        &item.commit,
-        item.path,
-        &item.target,
+        item.repo().path(),
+        &item.commit().id(),
+        &item.commit(),
+        item.path(),
+        &item.target(),
         <PathObjectInfo>::from(item),
     ).as_bytes())
 }
@@ -209,7 +209,7 @@ async fn main(args: Args) -> anyhow::Result<()> {
         }
         Some(Command::Blob { workspace_id, obj_id }) => {
             let handle = backend.git_handle(workspace_id).await?;
-            let obj = handle.repo.rev_parse_single(obj_id.deref())?.object()?;
+            let obj = handle.repo().rev_parse_single(obj_id.deref())?.object()?;
             log::info!("Found object {} {}", obj.kind, obj.id);
             // info!("{:?}", object_to_info(&obj));
         }
