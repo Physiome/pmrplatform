@@ -24,7 +24,7 @@ pub struct GitHandleResult<'db, 'repo, P: MCPlatform + Sync> {
     pub(super) backend: &'db Backend<'db, P>,
     pub repo: &'repo Repository,
     pub commit: Commit<'repo>,
-    pub path: &'repo str,
+    pub path: String,
     pub target: GitResultTarget<'repo>,
     pub workspace: &'repo WorkspaceRef<'db, P>,
 }

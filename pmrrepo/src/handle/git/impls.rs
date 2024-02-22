@@ -230,7 +230,7 @@ impl<'a, P: MCPlatform + Sync> GitHandle<'a, P> {
             backend: &self.backend,
             repo: &self.repo,
             commit: commit,
-            path: path,
+            path: path.to_string(),
             target: target,
             workspace: &self.workspace,
         };
