@@ -21,6 +21,7 @@ serde = "1.0.59"
 serde_json = "1.0.59"
 sqlx = { version = "0.7.0", features = ["sqlite"] }
 stderrlog = "0.5.1"
+thiserror = "1.0"
 
 [dev-dependencies]
 mockall = "0.10.2"
