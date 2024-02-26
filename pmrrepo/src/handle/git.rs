@@ -8,9 +8,9 @@ use gix::{
     Repository,
 };
 
-pub struct GitHandle<'a, P: MCPlatform + Sync> {
-    pub(super) backend: &'a Backend<'a, P>,
-    pub(super) workspace: WorkspaceRef<'a, P>,
+pub struct GitHandle<'db, 'repo, P: MCPlatform + Sync> {
+    pub(super) backend: &'repo Backend<'db, P>,
+    pub(super) workspace: WorkspaceRef<'db, P>,
     pub(super) repo: Repository,
 }
 
@@ -21,7 +21,7 @@ pub enum GitResultTarget<'a> {
 }
 
 pub struct GitHandleResult<'db, 'repo, P: MCPlatform + Sync> {
-    pub(super) backend: &'db Backend<'db, P>,
+    pub(super) backend: &'repo Backend<'db, P>,
     pub(super) repo: &'repo Repository,
     pub(super) commit: Commit<'repo>,
     pub(super) path: String,

@@ -80,10 +80,10 @@ impl<P: MCPlatform + Sync> From<GitHandleResult<'_, '_, P>> for RepoResult {
     }
 }
 
-impl<'a, P: MCPlatform + Sync> TryFrom<Handle<'a, P>> for GitHandle<'a, P> {
+impl<'handle, 'db, P: MCPlatform + Sync> TryFrom<Handle<'handle, 'db, P>> for GitHandle<'handle, 'db, P> {
     type Error = GixError;
 
-    fn try_from(item: Handle<'a, P>) -> Result<Self, GixError> {
+    fn try_from(item: Handle<'handle, 'db, P>) -> Result<Self, GixError> {
         let repo = gix::open::Options::isolated()
             .open_path_as_is(true)
             .open(&item.repo_dir)?
@@ -96,11 +96,11 @@ impl<'a, P: MCPlatform + Sync> TryFrom<Handle<'a, P>> for GitHandle<'a, P> {
     }
 }
 
-impl<'a, P: MCPlatform + Sync> GitHandle<'a, P> {
+impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
     pub(crate) fn new(
-        backend: &'a Backend<P>,
+        backend: &'repo Backend<'db, P>,
         repo_root: PathBuf,
-        workspace: WorkspaceRef<'a, P>,
+        workspace: WorkspaceRef<'db, P>,
     ) -> Result<Self, GixError> {
         let repo_dir = repo_root.join(workspace.id().to_string());
         let repo = gix::open::Options::isolated()
@@ -110,11 +110,11 @@ impl<'a, P: MCPlatform + Sync> GitHandle<'a, P> {
         Ok(Self { backend, workspace, repo })
     }
 
-    pub fn workspace(&'a self) -> &'a WorkspaceRef<'a, P> {
+    pub fn workspace(&'repo self) -> &'repo WorkspaceRef<'db, P> {
         &self.workspace
     }
 
-    pub fn repo(&'a self) -> &'a Repository {
+    pub fn repo(&'repo self) -> &'repo Repository {
         &self.repo
     }
 
@@ -162,11 +162,11 @@ impl<'a, P: MCPlatform + Sync> GitHandle<'a, P> {
     }
 
     // commit_id/path should be a pathinfo struct?
-    pub fn pathinfo<'b>(
-        &'b self,
-        commit_id: Option<&'b str>,
-        path: Option<&'b str>,
-    ) -> Result<GitHandleResult<'a, 'b, P>, PmrRepoError> {
+    pub fn pathinfo(
+        &'repo self,
+        commit_id: Option<&'repo str>,
+        path: Option<&'repo str>,
+    ) -> Result<GitHandleResult<'db, 'repo, P>, PmrRepoError> {
         let workspace_id = self.workspace.id();
         let commit = get_commit(&self.repo, workspace_id, commit_id)?;
         let tree = commit
@@ -250,7 +250,7 @@ impl<'a, P: MCPlatform + Sync> GitHandle<'a, P> {
     pub fn loginfo(
         &self,
         commit_id: Option<&str>,
-        path: Option<&'a str>,
+        path: Option<&'repo str>,
         count: Option<usize>,
     ) -> Result<LogInfo, PmrRepoError> {
         let workspace_id = self.workspace.id();

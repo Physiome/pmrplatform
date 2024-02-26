@@ -40,7 +40,7 @@ impl<
 > ExposureCtrl<'db, MCP, TMP> {
     pub fn new(
         platform: &'db Platform<'db, MCP, TMP>,
-        git_handle: GitHandle<'db, MCP>,
+        git_handle: GitHandle<'db, 'db, MCP>,
         exposure: ExposureRef<'db, MCP>,
     ) -> Self {
         Self {

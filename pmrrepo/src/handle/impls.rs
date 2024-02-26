@@ -19,17 +19,22 @@ use super::{
     GitHandle,
 };
 
-impl<'a, P: MCPlatform + Sync> Handle<'a, P> {
+impl<'handle, 'db, P: MCPlatform + Sync> Handle<'handle, 'db, P> {
     pub(crate) fn new(
-        backend: &'a Backend<P>,
+        backend: &'handle Backend<'db, P>,
         repo_root: PathBuf,
-        workspace: WorkspaceRef<'a, P>,
+        workspace: WorkspaceRef<'db, P>,
     ) -> Self {
         let repo_dir = repo_root.join(workspace.id().to_string());
         Self { backend, repo_dir, workspace }
     }
 
-    pub(crate) async fn sync_workspace(self) -> Result<GitHandle<'a, P>, PmrRepoError> {
+    pub(crate) async fn sync_workspace(
+        self,
+    ) -> Result<GitHandle<'handle, 'db, P>, PmrRepoError>
+    where
+        'handle: 'db
+    {
         let ticket = self.workspace.begin_sync().await?;
         let repo_dir = &self.repo_dir.as_ref();
         let url = self.workspace.url();
@@ -41,7 +46,7 @@ impl<'a, P: MCPlatform + Sync> Handle<'a, P> {
         match super::git::util::fetch_or_clone(repo_dir, &url) {
             Ok(_) => {
                 ticket.complete_sync().await?;
-                let handle: GitHandle<'a, P> = self.try_into()?;
+                let handle: GitHandle<'handle, 'db, P> = self.try_into()?;
                 handle.index_tags().await?;
                 Ok(handle)
             }

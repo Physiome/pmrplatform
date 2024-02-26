@@ -5,10 +5,10 @@ use pmrcore::{
 use std::path::PathBuf;
 use crate::backend::Backend;
 
-pub(crate) struct Handle<'a, P: MCPlatform + Sync> {
-    backend: &'a Backend<'a, P>,
+pub(crate) struct Handle<'handle, 'db, P: MCPlatform + Sync> {
+    backend: &'handle Backend<'db, P>,
     pub(crate) repo_dir: PathBuf,
-    pub(crate) workspace: WorkspaceRef<'a, P>,
+    pub(crate) workspace: WorkspaceRef<'db, P>,
 }
 
 mod impls;

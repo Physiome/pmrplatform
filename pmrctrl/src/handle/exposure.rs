@@ -25,7 +25,7 @@ pub struct ExposureCtrl<
     pub(crate) platform: &'a Platform<'a, MCP, TMP>,
     // TODO maybe this could also follow the OnceLock pattern for on-demand
     // usage?
-    pub(crate) git_handle: GitHandle<'a, MCP>,
+    pub(crate) git_handle: GitHandle<'a, 'a, MCP>,
     pub exposure: ExposureRef<'a, MCP>,
     pub(crate) exposure_files: Arc<Mutex<HashMap<&'a str, ExposureFileRef<'a, MCP>>>>,
     // TODO need a workspace loader?
