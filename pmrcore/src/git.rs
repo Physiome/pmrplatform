@@ -1,5 +1,6 @@
 use gix::{
     Object,
+    ObjectDetached,
     objs::CommitRef,
 };
 pub use gix::object::Kind;
@@ -13,6 +14,12 @@ pub use gix::object::Kind;
 pub struct PathObject<'a> {
     pub path: String,
     pub object: Object<'a>,
+}
+
+#[derive(Debug)]
+pub struct PathObjectDetached {
+    pub path: String,
+    pub object: ObjectDetached,
 }
 
 #[derive(Debug)]

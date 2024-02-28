@@ -41,12 +41,16 @@ use crate::{
 use super::VTTCTask;
 
 impl<
+    'p,
     'db,
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
-> ViewTaskTemplatesCtrl<'db, MCP, TMP> {
+> ViewTaskTemplatesCtrl<'p, 'db, MCP, TMP>
+where
+    'p: 'db
+{
     pub(crate) fn new(
-        platform: &'db Platform<'db, MCP, TMP>,
+        platform: &'p Platform<'db, MCP, TMP>,
         exposure_file: ExposureFileRef<'db, MCP>,
         view_task_templates: ViewTaskTemplates,
     ) -> Self {
@@ -63,7 +67,7 @@ impl<
     }
 
     async fn get_registry(
-        &'db self
+        &'p self
     ) -> Result<&PreparedChoiceRegistry, PlatformError> {
         Ok(match self.choice_registry.get() {
             Some(registry) => Ok::<_, PlatformError>(registry),
@@ -84,7 +88,7 @@ impl<
     }
 
     async fn get_registry_cache(
-        &'db self
+        &'p self
     ) -> Result<&PreparedChoiceRegistryCache, PlatformError> {
         Ok(match self.choice_registry_cache.get() {
             Some(registry_cache) => Ok::<_, PlatformError>(registry_cache),
@@ -103,7 +107,7 @@ impl<
     }
 
     pub async fn create_user_arg_refs(
-        &'db self,
+        &'p self,
     ) -> Result<Vec<UserArgRef>, PlatformError> {
         let cache = self.get_registry_cache().await?;
         Ok(UserArgBuilder::from((
@@ -116,7 +120,7 @@ impl<
     /// controlled by this handle.  The mapping goes from each element's
     /// id to the task that it should be spawning.
     pub async fn create_tasks_from_input(
-        &'db self,
+        &'p self,
         user_input: &'db UserInputMap,
     ) -> Result<Vec<VTTCTask>, PlatformError> {
         let cache = self.get_registry_cache().await?;
@@ -161,11 +165,15 @@ impl<
 }
 
 impl<
+    'p,
     'db,
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
-> From<&'db ViewTaskTemplatesCtrl<'db, MCP, TMP>> for &'db ViewTaskTemplates {
-    fn from(item: &'db ViewTaskTemplatesCtrl<'db, MCP, TMP>) -> Self {
+> From<&'p ViewTaskTemplatesCtrl<'p, 'db, MCP, TMP>> for &'p ViewTaskTemplates
+where
+    'p: 'db
+{
+    fn from(item: &'p ViewTaskTemplatesCtrl<'p, 'db, MCP, TMP>) -> Self {
         &item.view_task_templates
     }
 }

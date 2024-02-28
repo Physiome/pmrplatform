@@ -15,19 +15,24 @@ use std::{
     sync::Arc,
 };
 
-use crate::platform::Platform;
+use crate::{
+    platform::Platform,
+    handle::ExposureFileCtrl,
+};
 
 pub struct ExposureCtrl<
-    'a,
+    'p,
+    'mcp_db,
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
 > {
-    pub(crate) platform: &'a Platform<'a, MCP, TMP>,
+    pub(crate) platform: &'p Platform<'mcp_db, MCP, TMP>,
     // TODO maybe this could also follow the OnceLock pattern for on-demand
     // usage?
-    pub(crate) git_handle: GitHandle<'a, 'a, MCP>,
-    pub exposure: ExposureRef<'a, MCP>,
-    pub(crate) exposure_files: Arc<Mutex<HashMap<&'a str, ExposureFileRef<'a, MCP>>>>,
+    pub(crate) git_handle: GitHandle<'mcp_db, 'mcp_db, MCP>,
+    // FIXME this should be pub(crate)
+    pub exposure: ExposureRef<'mcp_db, MCP>,
+    pub(crate) exposure_file_ctrls: Arc<Mutex<HashMap<String, ExposureFileCtrl<'mcp_db, 'mcp_db, MCP, TMP>>>>,
     // TODO need a workspace loader?
     //      - the platform does provide a root, this can facilitate the copy
     //        to disk method

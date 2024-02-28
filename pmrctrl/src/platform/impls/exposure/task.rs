@@ -23,7 +23,7 @@ impl<
     pub async fn get_file_templates_for_exposure_file(
         &'db self,
         exposure_file_id: i64,
-    ) -> Result<ViewTaskTemplatesCtrl<'_, MCP, TMP>, PlatformError> {
+    ) -> Result<ViewTaskTemplatesCtrl<'_, '_, MCP, TMP>, PlatformError> {
         let mut vtts = ExposureTaskTemplateBackend::get_file_templates(
             &self.mc_platform,
             exposure_file_id,

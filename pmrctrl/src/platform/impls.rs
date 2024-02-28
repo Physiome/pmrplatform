@@ -14,10 +14,10 @@ use std::{
 use crate::platform::Platform;
 
 impl<
-    'a,
+    'db,
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
-> Platform<'a, MCP, TMP> {
+> Platform<'db, MCP, TMP> {
     pub fn new(
         mc_platform: MCP,
         tm_platform: TMP,
@@ -33,8 +33,8 @@ impl<
     }
 
     pub fn repo_backend(
-        &'a self
-    ) -> &'a Backend<'a, MCP> {
+        &'db self
+    ) -> &'db Backend<'db, MCP> {
         match self.repo_backend.get() {
             Some(repo_backend) => repo_backend,
             None => {

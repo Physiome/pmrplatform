@@ -14,7 +14,7 @@ use gix::{
     Repository,
 };
 use pmrcore::{
-    git::PathObject,
+    git::PathObjectDetached,
     repo::{
         LogEntryInfo,
         LogInfo,
@@ -177,7 +177,7 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
             Some("") | Some("/") | None => {
                 info!("No path provided; using root tree entry");
                 GitResultTarget::Object(
-                    PathObject::new("".to_string(), tree),
+                    PathObjectDetached::new("".to_string(), tree.into()),
                 )
             },
             Some(s) => {
@@ -229,7 +229,7 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
                 match object {
                     Some(object) =>
                         GitResultTarget::Object(
-                            PathObject::new(path.to_string(), object)
+                            PathObjectDetached::new(path.to_string(), object.into())
                         ),
                     None =>
                         // Only way object is None is have target set.
@@ -240,7 +240,7 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
         let item = GitHandleResult {
             backend: &self.backend,
             repo: &self.repo,
-            commit: commit,
+            commit: commit.into(),
             target: target,
             workspace: &self.workspace,
         };
@@ -304,8 +304,8 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandleResult<'db, 'repo, P> {
         self.repo
     }
 
-    pub fn commit(&'repo self) -> &'repo Commit<'repo> {
-        &self.commit
+    pub fn commit(&'repo self) -> Commit<'repo> {
+        self.commit.clone().attach(self.repo).into_commit()
     }
 
     pub fn path(&self) -> &str {
@@ -315,7 +315,9 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandleResult<'db, 'repo, P> {
         }
     }
 
-    pub fn target(&'repo self) -> &GitResultTarget<'repo> {
+    // TODO could use an TryInto<PathObject<'repo>> or something along that line
+    // for getting the final result.
+    pub fn target(&'repo self) -> &GitResultTarget {
         &self.target
     }
 
@@ -333,7 +335,7 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandleResult<'db, 'repo, P> {
                 Kind::Blob => Ok(writer.write(&object.object.data)?),
                 _ => Err(ContentError::Invalid {
                     workspace_id: self.workspace.id(),
-                    oid: self.commit.id().to_string(),
+                    oid: self.commit.id.to_string(),
                     path: self.path().to_string(),
                     msg: format!("expected to be a blob"),
                 }.into())
@@ -364,7 +366,7 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandleResult<'db, 'repo, P> {
     pub fn files(
         &self,
     ) -> Result<Vec<String>, PmrRepoError> {
-        files(&self.commit)
+        files(&self.commit())
     }
 }
 

@@ -34,27 +34,35 @@ use crate::{
 };
 
 impl<
-    'db,
+    'p,
+    'mcp_db,
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
-> ExposureCtrl<'db, MCP, TMP> {
+> ExposureCtrl<'p, 'mcp_db, MCP, TMP>
+{
     pub fn new(
-        platform: &'db Platform<'db, MCP, TMP>,
-        git_handle: GitHandle<'db, 'db, MCP>,
-        exposure: ExposureRef<'db, MCP>,
+        platform: &'p Platform<'mcp_db, MCP, TMP>,
+        git_handle: GitHandle<'p, 'mcp_db, MCP>,
+        exposure: ExposureRef<'mcp_db, MCP>,
     ) -> Self {
         Self {
             platform,
             git_handle,
             exposure,
-            exposure_files: Arc::new(Mutex::new(HashMap::new())),
+            exposure_file_ctrls: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
     pub async fn create_file(
-        &'db self,
-        workspace_file_path: &'db str,
-    ) -> Result<ExposureFileCtrl<'db, MCP, TMP>, PlatformError> {
+        &'p self,
+        workspace_file_path: &'mcp_db str,
+    ) -> Result<
+        impl Deref<Target=ExposureFileCtrl<'p, 'mcp_db, MCP, TMP>>,
+        PlatformError
+    >
+    where
+        'p: 'mcp_db
+    {
         // quick failing here.
         let pathinfo = self.git_handle.pathinfo(
             Some(self.exposure.commit_id()),
@@ -71,20 +79,22 @@ impl<
         ).await?;
 
         let exposure_file = MutexGuard::map(
-            self.exposure_files.lock(),
-            |exposure_files| exposure_files
-                .entry(workspace_file_path)
-                .or_insert(exposure_file)
+            self.exposure_file_ctrls.lock(),
+            |exposure_files| {
+                let platform = self.platform;
+                let result = ExposureFileCtrl {
+                    platform,
+                    pathinfo,
+                    exposure_file,
+                };
+
+                exposure_files
+                    .entry(workspace_file_path.to_string())
+                    .or_insert(result)
+            }
         );
 
-        let platform = self.platform;
-        // maybe return the id that would produce this from the platform?
-        let result = Ok(ExposureFileCtrl {
-            platform,
-            pathinfo,
-            exposure_file,
-        });
-        result
+        Ok(exposure_file)
     }
 
     /// List all files associated with this exposure.
@@ -93,7 +103,7 @@ impl<
     }
 
     /// List the files that have a corresponding exposure file
-    pub async fn list_exposure_files(&'db self) -> Result<Vec<String>, PlatformError> {
+    pub async fn list_exposure_files(&'mcp_db self) -> Result<Vec<String>, PlatformError> {
         // TODO don't use these inefficient abstractions
         // TODO make better abstraction that only pull from the column
         Ok(self.exposure.files().await?

@@ -24,10 +24,14 @@ use crate::{
 };
 
 impl<
+    'p,
     'db,
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
-> ExposureFileCtrl<'db, MCP, TMP> {
+> ExposureFileCtrl<'p, 'db, MCP, TMP>
+where
+    'p: 'db
+{
     /// Create a view from template
     ///
     /// Returns an ExposureFileViewCtrl for the view that just got
@@ -121,7 +125,7 @@ impl<
         &self.pathinfo
     }
 
-    pub fn exposure_file(&self) -> impl Deref<Target = ExposureFileRef<'db, MCP>> + '_ {
-        self.exposure_file.deref()
+    pub fn exposure_file(&self) -> &ExposureFileRef<'db, MCP> {
+        &self.exposure_file
     }
 }

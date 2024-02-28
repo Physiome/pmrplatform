@@ -9,7 +9,7 @@ use std::{
 };
 
 pub struct Platform<
-    'a,
+    'mcp_db,
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
 > {
@@ -17,5 +17,5 @@ pub struct Platform<
     pub tm_platform: TMP,
     pub(crate) data_root: PathBuf,
     pub(crate) repo_root: PathBuf,
-    pub(crate) repo_backend: OnceLock<Backend<'a, MCP>>,
+    pub(crate) repo_backend: OnceLock<Backend<'mcp_db, MCP>>,
 }

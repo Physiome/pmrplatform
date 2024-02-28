@@ -1,10 +1,10 @@
 use super::*;
 use pmrcore::{
-    git::PathObject,
+    git::PathObjectDetached,
     repo::RemoteInfo,
 };
 use gix::{
-    Commit,
+    ObjectDetached,
     Repository,
 };
 
@@ -15,16 +15,16 @@ pub struct GitHandle<'db, 'repo, P: MCPlatform + Sync> {
 }
 
 #[derive(Debug)]
-pub enum GitResultTarget<'a> {
-    Object(PathObject<'a>),
+pub enum GitResultTarget {
+    Object(PathObjectDetached),
     RemoteInfo(RemoteInfo),
 }
 
 pub struct GitHandleResult<'db, 'repo, P: MCPlatform + Sync> {
     pub(super) backend: &'repo Backend<'db, P>,
     pub(super) repo: &'repo Repository,
-    pub(super) commit: Commit<'repo>,
-    pub(super) target: GitResultTarget<'repo>,
+    pub(super) commit: ObjectDetached,
+    pub(super) target: GitResultTarget,
     pub(super) workspace: &'repo WorkspaceRef<'db, P>,
 }
 

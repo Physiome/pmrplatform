@@ -11,15 +11,16 @@ use pmrrepo::handle::GitHandleResult;
 use crate::platform::Platform;
 
 pub struct ExposureFileCtrl<
+    'p,
     'db,
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
 > {
-    pub(crate) platform: &'db Platform<'db, MCP, TMP>,
+    pub(crate) platform: &'p Platform<'db, MCP, TMP>,
     // Given that the GitHandleResult in this struct contains things
     // typically owned by the GitHandle inside the ExposureCtrl that
     // spawned this, it makes sense to also have this owned by that
-    pub(crate) exposure_file: MappedMutexGuard<'db, ExposureFileRef<'db, MCP>>,
+    pub(crate) exposure_file: ExposureFileRef<'db, MCP>,
     pub(crate) pathinfo: GitHandleResult<'db, 'db, MCP>,
 }
 

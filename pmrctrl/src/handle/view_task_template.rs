@@ -18,11 +18,12 @@ use std::sync::OnceLock;
 use crate::platform::Platform;
 
 pub struct ViewTaskTemplatesCtrl<
+    'p,
     'db,
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
 > {
-    platform: &'db Platform<'db, MCP, TMP>,
+    platform: &'p Platform<'db, MCP, TMP>,
     // TODO how to make this a ExposureFileCtrl
     // should this even be one?
     exposure_file: ExposureFileRef<'db, MCP>,

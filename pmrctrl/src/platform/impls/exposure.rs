@@ -17,18 +17,22 @@ use crate::{
 };
 
 impl<
-    'a,
+    'p,
+    'db,
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
-> Platform<'a, MCP, TMP> {
+> Platform<'db, MCP, TMP>
+where
+    'p: 'db
+{
     /// Creates an exposure with all the relevant data validated.
     ///
     /// Returns a `ExposureCtrl` handle.
     pub async fn create_exposure(
-        &'a self,
+        &'p self,
         workspace_id: i64,
         commit_id: &str,
-    ) -> Result<ExposureCtrl<'a, MCP, TMP>, PlatformError> {
+    ) -> Result<ExposureCtrl<'p, 'db, MCP, TMP>, PlatformError> {
         // TODO verify that failing like so will be enough via thiserror
         let git_handle = self
             .repo_backend()
@@ -58,9 +62,9 @@ impl<
     }
 
     pub async fn get_exposure(
-        &'a self,
+        &'p self,
         id: i64,
-    ) -> Result<ExposureCtrl<'a, MCP, TMP>, PlatformError> {
+    ) -> Result<ExposureCtrl<'p, 'db, MCP, TMP>, PlatformError> {
         let exposure = self.mc_platform.get_exposure(id).await?;
         let git_handle = self
             .repo_backend()
