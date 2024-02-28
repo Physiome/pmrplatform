@@ -316,7 +316,7 @@ mod tests {
         expect_workspace(&mut platform, 10, td.path().to_str().unwrap());
         let backend = Backend::new(&platform, repo_root.path().to_path_buf());
         let handle = backend.git_handle(10).await?;
-        let result = handle.pathinfo(None, None).unwrap();
+        let result = handle.pathinfo::<String>(None, None).unwrap();
         assert_eq!(result.path(), "");
         assert_eq!(result.workspace.description(), Some("Workspace 10"));
         Ok(())
@@ -658,7 +658,7 @@ mod tests {
         let backend = Backend::new(&platform, repo_root.path().to_path_buf());
         let handle = backend.git_handle(3).await?;
         {
-            let _ = handle.pathinfo(None, None);
+            let _ = handle.pathinfo::<String>(None, None);
         }
         let _ = handle.workspace.into_inner();
         Ok(())

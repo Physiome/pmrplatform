@@ -39,6 +39,8 @@ impl<
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
 > ExposureCtrl<'p, 'mcp_db, MCP, TMP>
+where
+    'p: 'mcp_db
 {
     pub fn new(
         platform: &'p Platform<'mcp_db, MCP, TMP>,
@@ -59,10 +61,7 @@ impl<
     ) -> Result<
         impl Deref<Target=ExposureFileCtrl<'p, 'mcp_db, MCP, TMP>>,
         PlatformError
-    >
-    where
-        'p: 'mcp_db
-    {
+    > {
         // quick failing here.
         let pathinfo = self.git_handle.pathinfo(
             Some(self.exposure.commit_id()),
@@ -87,9 +86,42 @@ impl<
                     pathinfo,
                     exposure_file,
                 };
-
                 exposure_files
                     .entry(workspace_file_path.to_string())
+                    .or_insert(result)
+            }
+        );
+
+        Ok(exposure_file)
+    }
+
+    pub async fn ctrl_file(
+        &'p self,
+        exposure_file_ref: ExposureFileRef<'mcp_db, MCP>,
+    ) -> Result<
+        impl Deref<Target=ExposureFileCtrl<'p, 'mcp_db, MCP, TMP>>,
+        PlatformError
+    > {
+        let workspace_file_path = {
+            exposure_file_ref
+                .workspace_file_path()
+                .to_string()
+        };
+        let pathinfo = self.git_handle.pathinfo(
+            Some(self.exposure.commit_id()),
+            Some(workspace_file_path.clone()),
+        )?;
+        let exposure_file = MutexGuard::map(
+            self.exposure_file_ctrls.lock(),
+            |exposure_files| {
+                let platform = self.platform;
+                let result = ExposureFileCtrl {
+                    platform,
+                    pathinfo,
+                    exposure_file: exposure_file_ref,
+                };
+                exposure_files
+                    .entry(workspace_file_path)
                     .or_insert(result)
             }
         );

@@ -43,7 +43,7 @@ pub async fn api_workspace_top(
 ) -> Result<Json<RepoResult>> {
     let backend = Backend::new(&ctx.db, (&ctx.config.pmr_git_root).into());
     let handle = backend.git_handle(workspace_id).await?;
-    let pathinfo = handle.pathinfo(None, None)?;
+    let pathinfo = handle.pathinfo::<String>(None, None)?;
     Ok(Json(pathinfo.into()))
 }
 

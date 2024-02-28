@@ -162,10 +162,10 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
     }
 
     // commit_id/path should be a pathinfo struct?
-    pub fn pathinfo(
+    pub fn pathinfo<S: AsRef<str>>(
         &'repo self,
         commit_id: Option<&'repo str>,
-        path: Option<&'repo str>,
+        path: Option<S>,
     ) -> Result<GitHandleResult<'db, 'repo, P>, PmrRepoError> {
         let workspace_id = self.workspace.id();
         let commit = get_commit(&self.repo, workspace_id, commit_id)?;
@@ -173,7 +173,7 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
             .tree_id().map_err(GixError::from)?
             .object().map_err(GixError::from)?;
 
-        let target = match path {
+        let target = match path.as_ref().map(|s| s.as_ref()) {
             Some("") | Some("/") | None => {
                 info!("No path provided; using root tree entry");
                 GitResultTarget::Object(
