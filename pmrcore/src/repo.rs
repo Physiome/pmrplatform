@@ -52,6 +52,8 @@ pub struct RemoteInfo {
     /// The commit id of the interested target.
     pub commit: String,
     /// The path of the interested target.
+    pub subpath: String,
+    /// The original path that resolved this.
     pub path: String,
 }
 

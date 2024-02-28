@@ -317,7 +317,7 @@ mod tests {
         let backend = Backend::new(&platform, repo_root.path().to_path_buf());
         let handle = backend.git_handle(10).await?;
         let result = handle.pathinfo(None, None).unwrap();
-        assert_eq!(result.path, "".to_string());
+        assert_eq!(result.path(), "");
         assert_eq!(result.workspace.description(), Some("Workspace 10"));
         Ok(())
     }
@@ -355,8 +355,8 @@ mod tests {
         ).unwrap();
 
         assert_eq!(
-            pathinfo.path,
-            "ext/import1/README".to_string());
+            pathinfo.path(),
+            "ext/import1/README");
         let GitResultTarget::RemoteInfo(target) = pathinfo.target else {
             unreachable!()
         };
@@ -367,7 +367,8 @@ mod tests {
                     .to_string(),
                 commit: "01b952d14a0a33d22a0aa465fe763e5d17b15d46"
                     .to_string(),
-                path: "README".to_string(),
+                subpath: "README".to_string(),
+                path: "ext/import1/README".to_string(),
             },
         );
 
@@ -376,8 +377,8 @@ mod tests {
             Some("ext/import2/import1/if1"),
         ).unwrap();
         assert_eq!(
-            pathinfo.path,
-            "ext/import2/import1/if1".to_string());
+            pathinfo.path(),
+            "ext/import2/import1/if1");
         let GitResultTarget::RemoteInfo(target) = pathinfo.target else{
             unreachable!()
         };
@@ -388,7 +389,8 @@ mod tests {
                     .to_string(),
                 commit: "0ab8a26a0e85a033bea0388216667d83cc0dc1dd"
                     .to_string(),
-                path: "import1/if1".to_string(),
+                subpath: "import1/if1".to_string(),
+                path: "ext/import2/import1/if1".to_string(),
             },
         );
 
@@ -636,6 +638,9 @@ mod tests {
                 "file1",
             ]
         );
+
+        let pathinfo = handle.pathinfo(None, Some("dir1/nested/file_a"))?;
+        assert_eq!(pathinfo.path(), "dir1/nested/file_a");
 
         Ok(())
     }

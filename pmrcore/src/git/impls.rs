@@ -19,7 +19,7 @@ use super::{
 use super::util::*;
 
 impl<'a> PathObject<'a> {
-    pub fn new(path: Option<&'a str>, object: Object<'a>) -> Self {
+    pub fn new(path: String, object: Object<'a>) -> Self {
         Self { path, object }
     }
 }
@@ -157,7 +157,7 @@ fn object_to_info(git_object: &Object) -> ObjectInfo {
 fn pathobject_to_info(item: &PathObject) -> ObjectInfo {
     match item.object.kind {
         Kind::Blob => ObjectInfo::FileInfo(
-            obj_blob_to_fileinfo(&item.object, item.path),
+            obj_blob_to_fileinfo(&item.object, Some(&item.path)),
         ),
         Kind::Tree => ObjectInfo::TreeInfo(
             obj_tree_to_treeinfo(&item.object),
@@ -169,7 +169,7 @@ fn pathobject_to_info(item: &PathObject) -> ObjectInfo {
 fn pathobject_to_pathobjectinfo(item: &PathObject) -> PathObjectInfo {
     match item.object.kind {
         Kind::Blob => PathObjectInfo::FileInfo(
-            obj_blob_to_fileinfo(&item.object, item.path),
+            obj_blob_to_fileinfo(&item.object, Some(&item.path)),
         ),
         Kind::Tree => PathObjectInfo::TreeInfo(
             obj_tree_to_treeinfo(&item.object),

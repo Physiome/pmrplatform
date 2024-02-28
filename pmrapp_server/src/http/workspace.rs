@@ -142,10 +142,10 @@ async fn raw_workspace_pathinfo_workspace_id_commit_id_path(
                         }
                     }
                 }
-                GitResultTarget::RemoteInfo(RemoteInfo { location, commit, path }) => {
+                GitResultTarget::RemoteInfo(RemoteInfo { location, commit, subpath, .. }) => {
                     // XXX this should be a redirect
                     Ok(Redirect::temporary(
-                        &format!("{}/raw/{}/{}", location, commit, path)
+                        &format!("{}/raw/{}/{}", location, commit, subpath)
                     ).into_response())
                 },
             }

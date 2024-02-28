@@ -11,7 +11,7 @@ pub use gix::object::Kind;
 
 #[derive(Debug)]
 pub struct PathObject<'a> {
-    pub path: Option<&'a str>,
+    pub path: String,
     pub object: Object<'a>,
 }
 

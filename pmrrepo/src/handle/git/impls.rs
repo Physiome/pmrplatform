@@ -73,9 +73,9 @@ impl<P: MCPlatform + Sync> From<GitHandleResult<'_, '_, P>> for RepoResult {
         RepoResult {
             target: (&item).into(),
             workspace: item.workspace.clone_inner(),
+            path: item.path().to_string(),
             commit: item.commit.try_into()
                 .expect("commit should have been parsed during processing"),
-            path: item.path.to_string(),
         }
     }
 }
@@ -173,12 +173,12 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
             .tree_id().map_err(GixError::from)?
             .object().map_err(GixError::from)?;
 
-        let (path, target) = match path {
+        let target = match path {
             Some("") | Some("/") | None => {
                 info!("No path provided; using root tree entry");
-                ("".as_ref(), GitResultTarget::Object(
-                    PathObject::new(Some("".as_ref()), tree),
-                ))
+                GitResultTarget::Object(
+                    PathObject::new("".to_string(), tree),
+                )
             },
             Some(s) => {
                 let path = s.strip_prefix('/').unwrap_or(&s);
@@ -213,7 +213,8 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
                             target = Some(GitResultTarget::RemoteInfo(RemoteInfo {
                                 location: location,
                                 commit: entry.id().to_string(),
-                                path: comps.as_path().to_str().unwrap().to_string(),
+                                subpath: comps.as_path().to_str().unwrap().to_string(),
+                                path: path.to_string(),
                             }));
                             object = None;
                             break;
@@ -227,12 +228,12 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
                 };
                 match object {
                     Some(object) =>
-                        (path, GitResultTarget::Object(
-                            PathObject::new(Some(path), object)
-                        )),
+                        GitResultTarget::Object(
+                            PathObject::new(path.to_string(), object)
+                        ),
                     None =>
                         // Only way object is None is have target set.
-                        (path, target.expect("to be a RemoteInfo")),
+                        target.expect("to be a RemoteInfo"),
                 }
             },
         };
@@ -240,7 +241,6 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
             backend: &self.backend,
             repo: &self.repo,
             commit: commit,
-            path: path.to_string(),
             target: target,
             workspace: &self.workspace,
         };
@@ -309,7 +309,10 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandleResult<'db, 'repo, P> {
     }
 
     pub fn path(&self) -> &str {
-        &self.path
+        match &self.target {
+            GitResultTarget::Object(object) => &object.path,
+            GitResultTarget::RemoteInfo(remote_info) => &remote_info.path,
+        }
     }
 
     pub fn target(&'repo self) -> &GitResultTarget<'repo> {
@@ -331,11 +334,11 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandleResult<'db, 'repo, P> {
                 _ => Err(ContentError::Invalid {
                     workspace_id: self.workspace.id(),
                     oid: self.commit.id().to_string(),
-                    path: self.path.to_string(),
+                    path: self.path().to_string(),
                     msg: format!("expected to be a blob"),
                 }.into())
             },
-            GitResultTarget::RemoteInfo(RemoteInfo { location, commit, path }) => {
+            GitResultTarget::RemoteInfo(RemoteInfo { location, commit, subpath, .. }) => {
                 let workspaces = WorkspaceBackend::list_workspace_by_url(
                     self.backend.db_platform, &location,
                 ).await?;
@@ -350,7 +353,7 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandleResult<'db, 'repo, P> {
                 // TODO figure out how to acquire the git_handle using the url
                 // instead?
                 let handle = self.backend.git_handle(workspaces[0].id).await?;
-                let git_result = handle.pathinfo(Some(&commit), Some(&path))?;
+                let git_result = handle.pathinfo(Some(&commit), Some(&subpath))?;
                 git_result.stream_blob(writer).await
             },
         }
