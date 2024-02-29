@@ -121,7 +121,7 @@ where
         Ok(results)
     }
 
-    pub fn pathinfo(&'db self) -> &GitHandleResult<'db, 'db, MCP> {
+    pub fn pathinfo(&self) -> &GitHandleResult<'p, 'db, MCP> {
         &self.pathinfo
     }
 

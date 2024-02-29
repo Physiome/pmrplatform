@@ -68,6 +68,29 @@ async fn test_platform_create_exposure_list_files() -> anyhow::Result<()> {
 }
 
 #[async_std::test]
+async fn test_platform_exposure_ctrl_attach_file() -> anyhow::Result<()> {
+    let (_reporoot, platform) = create_sqlite_platform().await?;
+    let exposure = platform.create_exposure(
+        1,
+        "083b775d81ec9b66796edbbdce4d714bb2ddc355",
+    ).await?;
+    let exposure_file_id = {
+        let exposure_file_ctrl = exposure.create_file("if1").await?;
+        exposure_file_ctrl.exposure_file().id()
+    };
+
+    let ef_ref = platform.mc_platform
+        .get_exposure_file(exposure_file_id)
+        .await?;
+
+    let efctrl = exposure.ctrl_file(ef_ref).await?;
+    let pathinfo = efctrl.pathinfo();
+    assert_eq!(pathinfo.path(), "if1");
+
+    Ok(())
+}
+
+#[async_std::test]
 async fn test_platform_create_exposure_bad_commit() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let exposure = platform.create_exposure(
@@ -306,7 +329,7 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
         "083b775d81ec9b66796edbbdce4d714bb2ddc355",
     ).await?;
     // this is now needed to avoid borrow checker getting confused about
-    // the order of which vttc is fred (before exposure_file_ctrl, ensure
+    // the order of which vttc is freed (before exposure_file_ctrl, ensure
     // that we drop that.
     let exposure_file_id = {
         let exposure_file_ctrl = exposure.create_file("if1").await?;
