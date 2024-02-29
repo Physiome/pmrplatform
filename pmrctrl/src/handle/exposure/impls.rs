@@ -102,11 +102,9 @@ where
         impl Deref<Target=ExposureFileCtrl<'p, 'mcp_db, MCP, TMP>>,
         PlatformError
     > {
-        let workspace_file_path = {
-            exposure_file_ref
-                .workspace_file_path()
-                .to_string()
-        };
+        let workspace_file_path = exposure_file_ref
+            .workspace_file_path()
+            .to_string();
         let pathinfo = self.git_handle.pathinfo(
             Some(self.exposure.commit_id()),
             Some(workspace_file_path.clone()),
@@ -129,19 +127,19 @@ where
         Ok(exposure_file)
     }
 
-    /// List all files associated with this exposure.
+    /// List all underlying files associated with the workspace at the
+    /// commit id for this exposure.
     pub fn list_files(&self) -> Result<Vec<String>, PlatformError> {
         Ok(self.git_handle.files(Some(&self.exposure.commit_id()))?)
     }
 
-    /// List the files that have a corresponding exposure file
-    pub async fn list_exposure_files(&'mcp_db self) -> Result<Vec<String>, PlatformError> {
-        // TODO don't use these inefficient abstractions
-        // TODO make better abstraction that only pull from the column
+    /// List all files that have a corresponding exposure file
+    pub async fn list_exposure_files(&'p self) -> Result<Vec<&'mcp_db str>, PlatformError> {
+        // FIXME this might not be accurate if we later create a new file.
+        // using create_file after this call.
         Ok(self.exposure.files().await?
             .iter()
-            // TODO cloning here is doubly inefficient
-            .map(|f| f.workspace_file_path().to_string())
+            .map(|f| f.workspace_file_path())
             .collect::<Vec<_>>()
         )
     }
