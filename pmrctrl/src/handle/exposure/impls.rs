@@ -133,6 +133,32 @@ where
         Ok(self.git_handle.files(Some(&self.exposure.commit_id()))?)
     }
 
+    /// Returns a mapping of paths to actual files on the filesystem.
+    pub fn map_files_fs(
+        &self,
+    ) -> Result<HashMap<String, String>, PlatformError> {
+        // TODO this should call a helper to return the root, as it could
+        // be configured to provide dynamically allocated roots, e.g. use
+        // of a yet to be written FUSE plugin.
+        let mut result = HashMap::new();
+        self.git_handle
+            .files(Some(&self.exposure.commit_id()))?
+            .iter()
+            .for_each(|path| {
+                let mut root = self.platform.data_root.join("exposure");
+                root.push(self.exposure.id().to_string());
+                root.push("files");
+                result.insert(
+                    path.to_string(),
+                    // TODO maybe split and join? not sure if backslashes
+                    // will make a difference on Windows, but we don't care
+                    // about Windows for the prototype.
+                    root.join(path).display().to_string(),
+                );
+            });
+        Ok(result)
+    }
+
     /// List all files that have a corresponding exposure file
     pub async fn list_exposure_files(&'p self) -> Result<Vec<&'mcp_db str>, PlatformError> {
         // FIXME this might not be accurate if we later create a new file.

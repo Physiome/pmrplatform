@@ -68,6 +68,34 @@ async fn test_platform_create_exposure_list_files() -> anyhow::Result<()> {
 }
 
 #[async_std::test]
+async fn test_platform_create_exposure_map_files_fs() -> anyhow::Result<()> {
+    let (reporoot, platform) = create_sqlite_platform().await?;
+    let exposure = platform.create_exposure(
+        1,
+        "083b775d81ec9b66796edbbdce4d714bb2ddc355",
+    ).await?;
+
+    let filemap = exposure.map_files_fs()?;
+    assert_eq!(
+        filemap.get("README").expect("path present"),
+        &reporoot.path().join("data/exposure/1/files/README").display().to_string(),
+    );
+
+    let exposure = platform.create_exposure(
+        3,
+        "8ae6e9af37c8bd78614545d0ab807348fc46dcab",
+    ).await?;
+
+    let filemap = exposure.map_files_fs()?;
+    assert_eq!(
+        filemap.get("dir1/nested/file_a").expect("path present"),
+        &reporoot.path().join("data/exposure/2/files/dir1/nested/file_a").display().to_string(),
+    );
+
+    Ok(())
+}
+
+#[async_std::test]
 async fn test_platform_exposure_ctrl_attach_file() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let exposure = platform.create_exposure(
@@ -513,21 +541,22 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
 
     let etb: &dyn ExposureTaskBackend = &platform.mc_platform;
     let et1 = etb.select_task_for_view(result[0]).await?
-        .unwrap();
+        .expect("not none");
     assert_eq!(et1.id, 1);
     assert_eq!(et1.exposure_file_view_id, 1);
     assert_eq!(et1.view_task_template_id, 1);
     assert_eq!(et1.ready, false);
 
     let tb: &dyn TaskBackend = &platform.tm_platform;
-    let task1 = tb.gets_task(et1.task_id.unwrap()).await?;
-    let mut answer: Task = serde_json::from_str(&format!(r#"
+    let task1 = tb.gets_task(et1.task_id.expect("not none")).await?;
+    let created_ts = task1.created_ts;
+    let answer: Task = serde_json::from_str(&format!(r#"
     {{
         "id": 1,
         "task_template_id": 2,
         "bin_path": "/usr/local/bin/example1",
         "pid": null,
-        "created_ts": 0,
+        "created_ts": {created_ts},
         "start_ts": null,
         "stop_ts": null,
         "exit_status": null,
@@ -541,7 +570,6 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
         ]
     }}
     "#))?;
-    answer.created_ts = task1.created_ts;
     assert_eq!(answer, task1);
 
     Ok(())
