@@ -21,6 +21,7 @@ use pmrrepo::handle::GitHandle;
 use std::{
     collections::HashMap,
     ops::Deref,
+    path::PathBuf,
     sync::Arc,
 };
 
@@ -137,17 +138,12 @@ where
     pub fn map_files_fs(
         &self,
     ) -> Result<HashMap<String, String>, PlatformError> {
-        // TODO this should call a helper to return the root, as it could
-        // be configured to provide dynamically allocated roots, e.g. use
-        // of a yet to be written FUSE plugin.
         let mut result = HashMap::new();
+        let root = self.ensure_fs()?;
         self.git_handle
             .files(Some(&self.exposure.commit_id()))?
             .iter()
             .for_each(|path| {
-                let mut root = self.platform.data_root.join("exposure");
-                root.push(self.exposure.id().to_string());
-                root.push("files");
                 result.insert(
                     path.to_string(),
                     // TODO maybe split and join? not sure if backslashes
@@ -157,6 +153,25 @@ where
                 );
             });
         Ok(result)
+    }
+
+    /// This ensures there is filesystem level access to the underlying
+    /// files for this exposure (backed by the relevant workspace at the
+    /// specified commit_id).
+    ///
+    /// Currently, the implementation is done here directly, but in the
+    /// future this should be delegated to the platform as it should be
+    /// able to determine what to offer from configuration, e.g. via a
+    /// simple checkout like it's currently done, through a central
+    /// location offered via fuse or distributed via some other manner.
+    pub fn ensure_fs(
+        &self,
+    ) -> Result<PathBuf, PlatformError> {
+        let mut root = self.platform.data_root.join("exposure");
+        root.push(self.exposure.id().to_string());
+        root.push("files");
+        // TODO verify the existence of the checkout.
+        Ok(root)
     }
 
     /// List all files that have a corresponding exposure file
