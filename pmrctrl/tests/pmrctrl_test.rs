@@ -37,7 +37,10 @@ use pmrctrl::{
     handle::ViewTaskTemplatesCtrl,
     platform::Platform,
 };
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    fs::read_to_string,
+};
 
 use test_pmr::ctrl::create_sqlite_platform;
 
@@ -68,6 +71,40 @@ async fn test_platform_create_exposure_list_files() -> anyhow::Result<()> {
 }
 
 #[async_std::test]
+async fn test_exposurectrl_ensure_fs() -> anyhow::Result<()> {
+    let (reporoot, platform) = create_sqlite_platform().await?;
+    let exposure = platform.create_exposure(
+        1,
+        "083b775d81ec9b66796edbbdce4d714bb2ddc355",
+    ).await?;
+    let path1 = reporoot.path()
+        .join("data/exposure/1/files/README");
+    // cheat by creating the underlying dir
+    let expected_dir = reporoot.path().join("data/exposure/1/files");
+    std::fs::create_dir_all(&expected_dir)?;
+    assert_eq!(
+        exposure.ensure_fs()?,
+        expected_dir,
+    );
+    assert!(!path1.exists());
+
+    let exposure = platform.create_exposure(
+        1,
+        "083b775d81ec9b66796edbbdce4d714bb2ddc355",
+    ).await?;
+    let path2 = reporoot.path()
+        .join("data/exposure/2/files/README");
+    // no cheating this time.
+    exposure.ensure_fs()?;
+    assert_eq!(
+        &read_to_string(path2)?,
+        "The readme for import1.\n",
+    );
+
+    Ok(())
+}
+
+#[async_std::test]
 async fn test_platform_create_exposure_map_files_fs() -> anyhow::Result<()> {
     let (reporoot, platform) = create_sqlite_platform().await?;
     let exposure = platform.create_exposure(
@@ -76,9 +113,13 @@ async fn test_platform_create_exposure_map_files_fs() -> anyhow::Result<()> {
     ).await?;
 
     let filemap = exposure.map_files_fs()?;
+    let path1 = reporoot.path()
+        .join("data/exposure/1/files/README")
+        .display()
+        .to_string();
     assert_eq!(
         filemap.get("README").expect("path present"),
-        &reporoot.path().join("data/exposure/1/files/README").display().to_string(),
+        &path1,
     );
 
     let exposure = platform.create_exposure(
@@ -87,9 +128,17 @@ async fn test_platform_create_exposure_map_files_fs() -> anyhow::Result<()> {
     ).await?;
 
     let filemap = exposure.map_files_fs()?;
+    let path2 = reporoot.path()
+        .join("data/exposure/2/files/dir1/nested/file_a")
+        .display()
+        .to_string();
     assert_eq!(
         filemap.get("dir1/nested/file_a").expect("path present"),
-        &reporoot.path().join("data/exposure/2/files/dir1/nested/file_a").display().to_string(),
+        &path2,
+    );
+    assert_eq!(
+        &read_to_string(path2)?,
+        "file_a is new",
     );
 
     Ok(())

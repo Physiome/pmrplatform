@@ -14,6 +14,8 @@ pub enum PlatformError {
     #[error(transparent)]
     BuildArgErrors(#[from] BuildArgErrors),
     #[error(transparent)]
+    IOError(#[from] std::io::Error),
+    #[error(transparent)]
     PmrRepoError(#[from] PmrRepoError),
     #[error(transparent)]
     TaskError(#[from] TaskError),

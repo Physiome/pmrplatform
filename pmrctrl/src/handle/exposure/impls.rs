@@ -170,7 +170,12 @@ where
         let mut root = self.platform.data_root.join("exposure");
         root.push(self.exposure.id().to_string());
         root.push("files");
-        // TODO verify the existence of the checkout.
+        if root.is_dir() {
+            // assume the root is checked out already
+            return Ok(root);
+        }
+        std::fs::create_dir_all(&root)?;
+        self.git_handle.checkout(Some(self.exposure.commit_id()), &root)?;
         Ok(root)
     }
 
