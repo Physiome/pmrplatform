@@ -297,6 +297,16 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
         files(&commit)
     }
 
+    pub fn checkout(
+        &self,
+        commit_id: Option<&str>,
+        dest_dir: &Path,
+    ) -> Result<(), PmrRepoError> {
+        let workspace_id = self.workspace.id();
+        let commit = get_commit(&self.repo, workspace_id, commit_id)?;
+        checkout(&self.repo, &commit, dest_dir)
+    }
+
 }
 
 impl<'db, 'repo, P: MCPlatform + Sync> GitHandleResult<'db, 'repo, P> {

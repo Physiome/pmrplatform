@@ -207,3 +207,35 @@ pub(super) fn files(
     results.sort();
     Ok(results)
 }
+
+pub(crate) fn checkout(
+    repo: &Repository,
+    commit: &Commit<'_>,
+    dest_dir: &Path,
+) -> Result<(), PmrRepoError> {
+    let git_dir = repo.path();
+    let odb = gix::odb::at(git_dir.join("objects"))?
+        .into_inner()
+        .into_arc()?;
+    let mut index = gix::index::State::from_tree(
+        &commit
+            .tree().map_err(GixError::from)?
+            .id(),
+        &odb
+    ).map_err(GixError::from)?;
+    let opts = gix::worktree::state::checkout::Options {
+        fs: gix::fs::Capabilities::probe(dest_dir),
+        destination_is_initially_empty: true,
+        .. Default::default()
+    };
+    gix::worktree::state::checkout(
+        &mut index,
+        dest_dir,
+        odb,
+        &gix::features::progress::Discard,
+        &gix::features::progress::Discard,
+        &std::sync::atomic::AtomicBool::default(),
+        opts
+    ).map_err(GixError::from)?;
+    Ok(())
+}

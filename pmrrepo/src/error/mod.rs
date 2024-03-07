@@ -27,6 +27,8 @@ pub enum GixError {
     #[error(transparent)]
     HashDecode(#[from] gix::hash::decode::Error),
     #[error(transparent)]
+    IndexFileInit(#[from] gix::index::file::init::Error),
+    #[error(transparent)]
     ObjectCommit(#[from] gix::object::commit::Error),
     #[error(transparent)]
     ObjectDecode(#[from] gix::objs::decode::Error),
@@ -48,6 +50,8 @@ pub enum GixError {
     TraverseCommitAncestors(#[from] gix::traverse::commit::ancestors::Error),
     #[error(transparent)]
     TraverseTreeBreadthfirst(#[from] gix::traverse::tree::breadthfirst::Error),
+    #[error(transparent)]
+    WorktreeStateCheckout(#[from] gix::worktree::state::checkout::Error),
 }
 
 #[derive(Debug, PartialEq, Error, Deserialize, Serialize)]

@@ -226,6 +226,22 @@ pub(crate) fn inject_repodata(repo_path: &Path) -> (
         The readme for import1.
         ")),
     ]).unwrap());
+    import1_oids.push(crate::repo::append_commit_from_objects(
+        &import1, Some(1111011000), Some("adding branch"), vec![
+        Tree("branch", vec![
+            Blob("alpha", "this is alpha"),
+            Blob("beta", "this is beta"),
+        ]),
+    ]).unwrap());
+    import1_oids.push(crate::repo::append_commit_from_objects(
+        &import1, Some(1111011000), Some("adding branch/leaf"), vec![
+        Tree("branch", vec![
+            Tree("leaf", vec![
+                Blob("z1", "new z1"),
+                Blob("z2", "new z2"),
+            ]),
+        ]),
+    ]).unwrap());
 
     // import2
     let (_, import2) = crate::repo::repo_init(
@@ -463,7 +479,9 @@ mod testing {
         let (_, (_, import1), (_, import2), (_, repodata)) = create_repodata();
         assert_oids(import1, &[
             "01b952d14a0a33d22a0aa465fe763e5d17b15d46",
-            "083b775d81ec9b66796edbbdce4d714bb2ddc355"
+            "083b775d81ec9b66796edbbdce4d714bb2ddc355",
+            "42845247d1a2af1bf5a0f09c85e254ba78992c2f",
+            "8dd710b6b5cf607711bc44f5ca0204565bf7cc35",
         ]);
         assert_oids(import2, &[
             "f45998e0a944759385381d0a8dc7d432a2f54dca",

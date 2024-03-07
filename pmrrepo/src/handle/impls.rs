@@ -664,4 +664,42 @@ mod tests {
         Ok(())
     }
 
+    #[async_std::test]
+    async fn test_checkout() -> anyhow::Result<()> {
+        let (
+            repo_root,
+            _, // (import1, import1_oids),
+            _, // (import2, import2_oids),
+            _, // (repodata, repodata_oids)
+        ) = test_pmr::repo::create_repodata();
+        let mut platform = MockPlatform::new();
+        expect_workspace(&mut platform, 1, "http://models.example.com/");
+        let backend = Backend::new(&platform, repo_root.path().to_path_buf());
+        let handle = backend.git_handle(1).await?;
+
+        let checkout_root = TempDir::new()?;
+        let target = checkout_root.path();
+        handle.checkout(
+            Some("42845247d1a2af1bf5a0f09c85e254ba78992c2f"),
+            target.as_ref(),
+        )?;
+        let dir_branch = target.join("branch");
+        let dir_leaf = dir_branch.join("leaf");
+        assert!(dir_branch.is_dir());
+        assert!(!dir_leaf.is_dir());
+
+        let checkout_root = TempDir::new()?;
+        let target = checkout_root.path();
+        handle.checkout(
+            None,
+            target.as_ref(),
+        )?;
+        let dir_branch = target.join("branch");
+        let dir_leaf = dir_branch.join("leaf");
+        assert!(dir_branch.is_dir());
+        assert!(dir_leaf.is_dir());
+
+        Ok(())
+    }
+
 }
