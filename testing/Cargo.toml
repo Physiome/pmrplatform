@@ -7,7 +7,7 @@ edition = "2021"
 anyhow = "1.0"
 async-trait = "0.1.50"
 git2 = "0.13"
-gix = "^0.48"
+gix = "^0.58"
 mockall = "0.10.2"
 pmrcore = "0.1.0"
 pmrctrl = { version = "0.1.0", optional = true }

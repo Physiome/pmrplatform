@@ -7,7 +7,7 @@ use gix::{
     object::Kind,
     objs::{
         CommitRef,
-        tree::EntryMode,
+        tree::EntryKind,
     },
     traverse::commit::Sorting,
     Commit,
@@ -191,7 +191,7 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
                     let entry = object
                         .expect("iteration has this set or look breaked")
                         .try_into_tree().map_err(GixError::from)?
-                        .lookup_entry_by_path(
+                        .peel_to_entry_by_path(
                             Path::new(&component)
                         ).map_err(GixError::from)?
                         .ok_or_else(
@@ -203,7 +203,7 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
                         )?;
                     curr_path.push(component);
                     match entry.mode() {
-                        EntryMode::Commit => {
+                        k if (k == EntryKind::Commit.into()) => {
                             info!("entry {:?} is a commit", entry.id());
                             let location = get_submodule_target(
                                 &commit,

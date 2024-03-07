@@ -4,7 +4,7 @@ use gix::{
     Repository,
     actor::SignatureRef,
     object::Kind,
-    objs::tree::EntryMode,
+    objs::tree::EntryKind,
     traverse::tree::Recorder,
 };
 use std::path::Path;
@@ -109,7 +109,7 @@ pub(crate) fn get_submodule_target(
         .tree_id().map_err(GixError::from)?
         .object().map_err(GixError::from)?
         .try_into_tree().map_err(GixError::from)?
-        .lookup_entry_by_path(
+        .peel_to_entry_by_path(
             Path::new(".gitmodules")).map_err(GixError::from)?
         .ok_or_else(|| PmrRepoError::from(PathError::NoSuchPath {
             workspace_id: workspace_id,
@@ -198,7 +198,7 @@ pub(super) fn files(
     tree.traverse()
         .breadthfirst(&mut recorder).map_err(GixError::from)?;
     let mut results = recorder.records.iter()
-        .filter(|entry| entry.mode != EntryMode::Tree)
+        .filter(|entry| entry.mode != EntryKind::Tree.into())
         .filter_map(
             |entry| std::str::from_utf8(entry.filepath.as_ref()).ok()
         )

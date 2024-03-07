@@ -158,7 +158,13 @@ fn obj_tree_to_treeinfo(git_object: &Object) -> TreeInfo {
     TreeInfo {
         filecount: tree.entries.len() as u64,
         entries: tree.entries.iter().map(|entry| TreeEntryInfo {
-            filemode: std::str::from_utf8(entry.mode.as_bytes()).unwrap().to_string(),
+            filemode: std::str::from_utf8(
+                entry.mode
+                    .kind()
+                    .as_octal_str()
+            )
+                .expect("these are standard ascii numbers")
+                .to_string(),
             kind: entry.oid.kind().to_string(),
             id: entry.oid.to_string(),
             name: entry.filename.to_string(),
@@ -172,7 +178,13 @@ fn objd_tree_to_treeinfo(git_object: &ObjectDetached) -> TreeInfo {
     TreeInfo {
         filecount: tree.entries.len() as u64,
         entries: tree.entries.iter().map(|entry| TreeEntryInfo {
-            filemode: std::str::from_utf8(entry.mode.as_bytes()).unwrap().to_string(),
+            filemode: std::str::from_utf8(
+                entry.mode
+                    .kind()
+                    .as_octal_str()
+            )
+                .expect("these are standard ascii numbers")
+                .to_string(),
             kind: entry.oid.kind().to_string(),
             id: entry.oid.to_string(),
             name: entry.filename.to_string(),

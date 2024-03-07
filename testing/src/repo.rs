@@ -91,7 +91,7 @@ fn append_tree_from_objects<'a>(
                 let oid = repo.write_blob(
                     contents.trim_start_matches('\n').as_bytes()).unwrap().into();
                 tree.entries.push(tree::Entry {
-                    mode: tree::EntryMode::Blob,
+                    mode: tree::EntryKind::Blob.into(),
                     oid: oid,
                     filename: name.into(),
                 });
@@ -99,7 +99,7 @@ fn append_tree_from_objects<'a>(
             },
             GitObj::Commit(name, contents) => {
                 tree.entries.push(tree::Entry {
-                    mode: tree::EntryMode::Commit,
+                    mode: tree::EntryKind::Commit.into(),
                     oid: gix::ObjectId::from_str(contents).unwrap(),
                     filename: name.into(),
                 });
@@ -123,7 +123,7 @@ fn append_tree_from_objects<'a>(
                     objects
                 )?;
                 tree.entries.push(tree::Entry {
-                    mode: tree::EntryMode::Tree,
+                    mode: tree::EntryKind::Tree.into(),
                     oid: oid,
                     filename: name.into(),
                 })

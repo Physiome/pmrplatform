@@ -33,7 +33,7 @@ pub enum GixError {
     #[error(transparent)]
     ObjectTryInto(#[from] gix::object::try_into::Error),
     #[error(transparent)]
-    OdbFindExisting(#[from] gix::odb::find::existing::Error<gix::odb::store::find::Error>),
+    OdbFindExisting(#[from] gix::object::find::existing::Error),
     #[error(transparent)]
     Open(#[from] gix::open::Error),
     #[error(transparent)]
