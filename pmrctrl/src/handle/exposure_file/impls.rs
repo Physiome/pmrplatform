@@ -43,7 +43,7 @@ where
         let efvb: &dyn ExposureFileViewBackend = &self.platform.mc_platform;
         self.get_view(
             efvb.insert(
-                self.exposure_file.id(),
+                self.exposure_file().id(),
                 view_task_template_id,
                 None,
             ).await?
@@ -81,11 +81,11 @@ where
         let exposure_file_view = self.platform
             .mc_platform
             .get_exposure_file_view_by_file_template(
-                self.exposure_file
+                self.exposure_file()
                     .id(),
                 efvb
                     .insert(
-                        self.exposure_file.id(),
+                        self.exposure_file().id(),
                         view_task_template_id,
                         None,
                     )
@@ -122,10 +122,10 @@ where
     }
 
     pub fn pathinfo(&self) -> &GitHandleResult<'p, 'db, MCP> {
-        &self.pathinfo
+        &self.data.pathinfo
     }
 
     pub fn exposure_file(&self) -> &ExposureFileRef<'db, MCP> {
-        &self.exposure_file
+        &self.data.exposure_file
     }
 }

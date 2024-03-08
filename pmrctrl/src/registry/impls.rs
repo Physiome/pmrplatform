@@ -9,7 +9,11 @@ use pmrmodel::registry::{
     ChoiceRegistry,
     PreparedChoiceRegistry,
 };
-use std::ops::Deref;
+use std::{
+    collections::HashMap,
+    ops::Deref,
+};
+
 use crate::{
     error::PlatformError,
     handle::{
@@ -53,27 +57,25 @@ impl<
     'db,
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
-> TryFrom<&ExposureFileCtrl<'p, 'db, MCP, TMP>> for PreparedChoiceRegistry {
+> TryFrom<&ExposureFileCtrl<'p, 'db, MCP, TMP>> for PreparedChoiceRegistry
+where
+    'p: 'db
+{
     type Error = PlatformError;
 
     fn try_from(
         handle: &ExposureFileCtrl<'p, 'db, MCP, TMP>,
     ) -> Result<Self, Self::Error> {
         let mut registry = PreparedChoiceRegistry::new();
-        registry.register("files", handle.pathinfo.files()?.into());
-        registry.register("workspace_file_path", vec![
-            handle
-                .exposure_file
-                .workspace_file_path()
-                .to_string()
-        ].into());
-        // TODO figure out how to find roughly this
-        // let file_on_fs = handle.platform.working_dir.join(
-        //     "workspace",
-        //     handle.exposure.workspace_id,
-        //     handle.exposure.commit_id,
-        //     handle.pathinfo.path
-        // )
+        registry.register("files", handle.exposure.map_files_fs()?.into());
+        let workspace_file_path = handle.exposure.ensure_fs()?.join(handle
+            .exposure_file()
+            .workspace_file_path()
+            .to_string()
+        ).display().to_string();
+        registry.register("workspace_file_path", HashMap::from([
+            ("workspace_file_path".to_string(), workspace_file_path),
+        ]).into());
         Ok(registry)
     }
 }

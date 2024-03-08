@@ -30,6 +30,7 @@ use crate::{
         ExposureCtrl,
         ExposureFileCtrl,
     },
+    handle::exposure_file::EFCData,
     error::PlatformError,
     platform::Platform,
 };
@@ -52,7 +53,7 @@ where
             platform,
             git_handle,
             exposure,
-            exposure_file_ctrls: Arc::new(Mutex::new(HashMap::new())),
+            efc_data: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -60,9 +61,10 @@ where
         &'p self,
         workspace_file_path: &'mcp_db str,
     ) -> Result<
-        impl Deref<Target=ExposureFileCtrl<'p, 'mcp_db, MCP, TMP>>,
+        ExposureFileCtrl<'p, 'mcp_db, MCP, TMP>,
         PlatformError
     > {
+        // FIXME should fail with already exists if already created
         // quick failing here.
         let pathinfo = self.git_handle.pathinfo(
             Some(self.exposure.commit_id()),
@@ -77,21 +79,19 @@ where
                 None,
             ).await?
         ).await?;
-
-        let exposure_file = MutexGuard::map(
-            self.exposure_file_ctrls.lock(),
-            |exposure_files| {
-                let platform = self.platform;
-                let result = ExposureFileCtrl {
-                    platform,
-                    pathinfo,
-                    exposure_file,
-                };
-                exposure_files
+        let exposure_file = ExposureFileCtrl {
+            platform: self.platform,
+            exposure: self,
+            data: MutexGuard::map(
+            self.efc_data.lock(),
+                |efc_datum| efc_datum
                     .entry(workspace_file_path.to_string())
-                    .or_insert(result)
-            }
-        );
+                    .or_insert(EFCData {
+                        pathinfo,
+                        exposure_file,
+                    })
+            ),
+        };
 
         Ok(exposure_file)
     }
@@ -100,30 +100,32 @@ where
         &'p self,
         exposure_file_ref: ExposureFileRef<'mcp_db, MCP>,
     ) -> Result<
-        impl Deref<Target=ExposureFileCtrl<'p, 'mcp_db, MCP, TMP>>,
+        ExposureFileCtrl<'p, 'mcp_db, MCP, TMP>,
         PlatformError
     > {
         let workspace_file_path = exposure_file_ref
             .workspace_file_path()
             .to_string();
+
+        // FIXME first verify that this entry is already present
         let pathinfo = self.git_handle.pathinfo(
             Some(self.exposure.commit_id()),
             Some(workspace_file_path.clone()),
         )?;
-        let exposure_file = MutexGuard::map(
-            self.exposure_file_ctrls.lock(),
-            |exposure_files| {
-                let platform = self.platform;
-                let result = ExposureFileCtrl {
-                    platform,
-                    pathinfo,
-                    exposure_file: exposure_file_ref,
-                };
-                exposure_files
-                    .entry(workspace_file_path)
-                    .or_insert(result)
-            }
-        );
+
+        let exposure_file = ExposureFileCtrl {
+            platform: self.platform,
+            exposure: self,
+            data: MutexGuard::map(
+            self.efc_data.lock(),
+                |efc_datum| efc_datum
+                    .entry(workspace_file_path.to_string())
+                    .or_insert(EFCData {
+                        pathinfo,
+                        exposure_file: exposure_file_ref,
+                    })
+            ),
+        };
 
         Ok(exposure_file)
     }
