@@ -53,17 +53,35 @@ impl DerefMut for TaskTemplateArgChoices {
     }
 }
 
+impl<'a> Deref for MapToArgRef<'a> {
+    type Target = HashMap<&'a str, Option<&'a str>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl<'a> From<HashMap<&'a str, Option<&'a str>>> for MapToArgRef<'a> {
     fn from(value: HashMap<&'a str, Option<&'a str>>) -> Self {
         Self(value)
     }
 }
 
-impl<'a> Deref for MapToArgRef<'a> {
-    type Target = HashMap<&'a str, Option<&'a str>>;
+impl<'a> From<&'a HashMap<String, String>> for MapToArgRef<'a> {
+    fn from(value: &'a HashMap<String, String>) -> Self {
+        value.iter()
+            .map(|(key, val)| (key.as_ref(), Some(val.as_ref())))
+            .collect::<HashMap<&'_ str, Option<&'_ str>>>()
+            .into()
+    }
+}
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl<'a> From<&'a HashMap<String, Option<String>>> for MapToArgRef<'a> {
+    fn from(value: &'a HashMap<String, Option<String>>) -> Self {
+        value.iter()
+            .map(|(key, val)| (key.as_ref(), val.as_ref().map(|s| s.as_ref())))
+            .collect::<HashMap<&'_ str, Option<&'_ str>>>()
+            .into()
     }
 }
 

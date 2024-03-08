@@ -18,6 +18,13 @@ use crate::{
     },
 };
 
+// TODO figure out how to define a registry for registration, i.e. there
+// needs to be a mapping of registry names to the relevant items, done
+// in a more definition driven manner.
+//
+// An idea for this might be a default method and the impl TryFrom for
+// each of them would flag the relevant ones on or off.
+
 impl<
     'p,
     'db,
@@ -33,10 +40,7 @@ where
         handle: &ExposureCtrl<'p, 'db, MCP, TMP>,
     ) -> Result<Self, Self::Error> {
         let mut registry = PreparedChoiceRegistry::new();
-        // TODO figure out how to expose/define this registration in a more
-        // agnostic context?
-        // TODO need a version that point to the absolute path on the filesystem
-        registry.register("files", handle.list_files()?.into());
+        registry.register("files", handle.map_files_fs()?.into());
         // TODO figure out if we want to reuse the registry for the required
         // data, i.e. the current exposure file associated with the task and
         // the commit

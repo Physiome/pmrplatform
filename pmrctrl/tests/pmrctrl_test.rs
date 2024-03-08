@@ -481,12 +481,14 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     let user_input: UserInputMap;
 
     let (_reporoot, platform) = create_sqlite_platform().await?;
-    let mut exposure_file_basedir = PathBuf::new();
-    exposure_file_basedir.push(platform.data_root());
-    exposure_file_basedir.push("exposure");
-    exposure_file_basedir.push("1");
-    exposure_file_basedir.push("1");
+    let mut exposure_basedir = PathBuf::new();
+    exposure_basedir.push(platform.data_root());
+    exposure_basedir.push("exposure");
+    exposure_basedir.push("1");
+    let exposure_file_basedir = exposure_basedir.join("1");
     let exposure_file_basedir = exposure_file_basedir.display();
+    let exposure_basedir_readme = exposure_basedir.join("files/README");
+    let exposure_basedir_readme = exposure_basedir_readme.display();
 
     let vtts = make_example_view_task_templates(&platform).await?;
     let exposure = platform.create_exposure(
@@ -570,7 +572,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
                 {{
                     "id": 0,
                     "task_id": 0,
-                    "arg": "--file2=README"
+                    "arg": "--file2={exposure_basedir_readme}"
                 }}
             ]
         }}]

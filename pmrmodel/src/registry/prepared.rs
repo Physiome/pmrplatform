@@ -8,6 +8,8 @@ use crate::registry::ChoiceRegistry;
 
 pub enum SizedMapToArgRef {
     ArgChoices(TaskTemplateArgChoices),
+    HashMapStringOptionString(HashMap<String, Option<String>>),
+    HashMapStringString(HashMap<String, String>),
     VecString(Vec<String>),
     VecStaticStr(Vec<&'static str>),
 }
@@ -16,6 +18,8 @@ impl<'a> From<&'a SizedMapToArgRef> for MapToArgRef<'a> {
     fn from(value: &'a SizedMapToArgRef) -> Self {
         match value {
             SizedMapToArgRef::ArgChoices(v) => v.into(),
+            SizedMapToArgRef::HashMapStringOptionString(v) => v.into(),
+            SizedMapToArgRef::HashMapStringString(v) => v.into(),
             SizedMapToArgRef::VecString(v) => v.into(),
             SizedMapToArgRef::VecStaticStr(v) => v.into(),
         }
@@ -25,6 +29,18 @@ impl<'a> From<&'a SizedMapToArgRef> for MapToArgRef<'a> {
 impl From<TaskTemplateArgChoices> for SizedMapToArgRef {
     fn from(value: TaskTemplateArgChoices) -> Self {
         Self::ArgChoices(value)
+    }
+}
+
+impl From<HashMap<String, Option<String>>> for SizedMapToArgRef {
+    fn from(value: HashMap<String, Option<String>>) -> Self {
+        Self::HashMapStringOptionString(value)
+    }
+}
+
+impl From<HashMap<String, String>> for SizedMapToArgRef {
+    fn from(value: HashMap<String, String>) -> Self {
+        Self::HashMapStringString(value)
     }
 }
 
