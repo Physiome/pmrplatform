@@ -192,4 +192,8 @@ where
         )
     }
 
+    pub fn exposure(&self) -> &ExposureRef<'mcp_db, MCP> {
+        &self.exposure
+    }
+
 }

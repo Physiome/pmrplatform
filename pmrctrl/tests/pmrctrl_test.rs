@@ -63,7 +63,7 @@ async fn test_platform_create_exposure_list_files() -> anyhow::Result<()> {
     }
     // load a new copy
     {
-        let ex2 = platform.get_exposure(exposure.exposure.id()).await?;
+        let ex2 = platform.get_exposure(exposure.exposure().id()).await?;
         let files = ex2.list_exposure_files().await?;
         assert_eq!(files, &["if1"]);
     }
@@ -232,7 +232,7 @@ async fn test_platform_create_exposure_file_view_task() -> anyhow::Result<()> {
     ).await?;
     exposure.create_file("if1").await?;
 
-    let exposure = platform.get_exposure(exposure.exposure.id()).await?;
+    let exposure = platform.get_exposure(exposure.exposure().id()).await?;
     let vtt = platform.get_view_task_template(template_id).await?;
     assert_eq!((&vtt).task_template
         .as_ref()

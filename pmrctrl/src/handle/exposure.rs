@@ -29,8 +29,7 @@ pub struct ExposureCtrl<
 > {
     pub(crate) platform: &'p Platform<'mcp_db, MCP, TMP>,
     pub(crate) git_handle: GitHandle<'mcp_db, 'mcp_db, MCP>,
-    // FIXME this should be pub(crate)
-    pub exposure: ExposureRef<'mcp_db, MCP>,
+    pub(crate) exposure: ExposureRef<'mcp_db, MCP>,
     pub(crate) efc_data: Arc<Mutex<HashMap<String, EFCData<'mcp_db, MCP>>>>,
     // TODO need a workspace loader?
     //      - the platform does provide a root, this can facilitate the copy
