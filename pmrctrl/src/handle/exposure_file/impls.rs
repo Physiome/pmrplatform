@@ -39,7 +39,7 @@ where
     pub async fn create_view_from_template(
         &self,
         view_task_template_id: i64,
-    ) -> Result<ExposureFileViewCtrl<'db, MCP, TMP>, PlatformError> {
+    ) -> Result<ExposureFileViewCtrl<'p, 'db, MCP, TMP>, PlatformError> {
         let efvb: &dyn ExposureFileViewBackend = &self.platform.mc_platform;
         self.get_view(
             efvb.insert(
@@ -55,7 +55,7 @@ where
     pub async fn get_view(
         &self,
         exposure_file_view_id: i64,
-    ) -> Result<ExposureFileViewCtrl<'db, MCP, TMP>, PlatformError> {
+    ) -> Result<ExposureFileViewCtrl<'p, 'db, MCP, TMP>, PlatformError> {
         // TODO write proper tests for this to verify the whole workflow between
         // all the related moving pieces.
         let exposure_file_view = self
@@ -76,7 +76,7 @@ where
     pub async fn ensure_view_from_template(
         &self,
         view_task_template_id: i64,
-    ) -> Result<ExposureFileViewCtrl<'db, MCP, TMP>, PlatformError> {
+    ) -> Result<ExposureFileViewCtrl<'p, 'db, MCP, TMP>, PlatformError> {
         let efvb: &dyn ExposureFileViewBackend = &self.platform.mc_platform;
         let exposure_file_view = self.platform
             .mc_platform

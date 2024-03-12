@@ -29,7 +29,7 @@ pub struct ExposureFileCtrl<
 > {
     pub(crate) platform: &'p Platform<'db, MCP, TMP>,
     pub(crate) exposure: &'p ExposureCtrl<'db, 'db, MCP, TMP>,
-    pub(crate) data: MappedMutexGuard<'p, EFCData<'db, MCP>>,
+    pub(crate) data: MappedMutexGuard<'db, EFCData<'db, MCP>>,
 }
 
 mod impls;

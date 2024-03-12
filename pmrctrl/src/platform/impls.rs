@@ -32,9 +32,12 @@ impl<
         self.data_root.as_ref()
     }
 
-    pub fn repo_backend(
-        &'db self
-    ) -> &'db Backend<'db, MCP> {
+    pub fn repo_backend<'p>(
+        &'p self
+    ) -> &'p Backend<'db, MCP>
+    where
+        'p: 'db
+    {
         match self.repo_backend.get() {
             Some(repo_backend) => repo_backend,
             None => {

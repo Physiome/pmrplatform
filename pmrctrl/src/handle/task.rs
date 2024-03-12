@@ -9,12 +9,13 @@ use pmrcore::{
 use crate::platform::Platform;
 
 pub struct TaskCtrl<
-    'a,
+    'p,
+    'db,
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
 > {
-    pub(crate) platform: &'a Platform<'a, MCP, TMP>,
-    pub(crate) task: TaskRef<'a, TMP>,
+    pub(crate) platform: &'p Platform<'db, MCP, TMP>,
+    pub(crate) task: TaskRef<'db, TMP>,
 }
 
 mod impls;

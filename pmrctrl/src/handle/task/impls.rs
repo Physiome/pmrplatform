@@ -11,8 +11,9 @@ use crate::{
 };
 
 impl<
+    'p,
     'db,
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
-> TaskCtrl<'db, MCP, TMP> {
+> TaskCtrl<'p, 'db, MCP, TMP> {
 }

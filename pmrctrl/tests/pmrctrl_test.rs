@@ -306,12 +306,13 @@ async fn test_platform_create_exposure_file_view_task() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn make_example_view_task_templates<'a, M, T>(
-    platform: &'a Platform<'a, M, T>
+async fn make_example_view_task_templates<'p, 'db, M, T>(
+    platform: &'p Platform<'db, M, T>
 ) -> anyhow::Result<Vec<i64>>
 where
     M: MCPlatform + Sized + Sync,
     T: TMPlatform + Sized + Sync,
+    'p: 'db,
 {
     use pmrcore::task_template::traits::TaskTemplateBackend;
     // force insertion of a dummy task template that should shift the

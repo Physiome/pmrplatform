@@ -20,10 +20,11 @@ use crate::{
 };
 
 impl<
+    'p,
     'db,
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
-> ExposureFileViewCtrl<'db, MCP, TMP> {
+> ExposureFileViewCtrl<'p, 'db, MCP, TMP> {
     /// Queue a Task created by ViewTaskTemplateCtrl
     ///
     /// This consumes the incoming task.

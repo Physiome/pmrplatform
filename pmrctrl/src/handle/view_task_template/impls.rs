@@ -67,7 +67,7 @@ where
     }
 
     async fn get_registry(
-        &'p self
+        &self
     ) -> Result<&PreparedChoiceRegistry, PlatformError> {
         Ok(match self.choice_registry.get() {
             Some(registry) => Ok::<_, PlatformError>(registry),
@@ -169,11 +169,11 @@ impl<
     'db,
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
-> From<&'p ViewTaskTemplatesCtrl<'p, 'db, MCP, TMP>> for &'p ViewTaskTemplates
+> From<&'p ViewTaskTemplatesCtrl<'db, 'db, MCP, TMP>> for &'p ViewTaskTemplates
 where
     'p: 'db
 {
-    fn from(item: &'p ViewTaskTemplatesCtrl<'p, 'db, MCP, TMP>) -> Self {
+    fn from(item: &'p ViewTaskTemplatesCtrl<'db, 'db, MCP, TMP>) -> Self {
         &item.view_task_templates
     }
 }
