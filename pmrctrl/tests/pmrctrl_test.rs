@@ -626,3 +626,19 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[async_std::test]
+async fn test_multiple_exposure_files() -> anyhow::Result<()> {
+    let (_reporoot, platform) = create_sqlite_platform().await?;
+    let exposure = platform.create_exposure(
+        1,
+        "083b775d81ec9b66796edbbdce4d714bb2ddc355",
+    ).await?;
+    let efc1 = exposure.create_file("if1").await?;
+    let efc2 = exposure.create_file("README").await?;
+
+    assert_eq!(efc1.exposure_file().id(), 1);
+    assert_eq!(efc2.exposure_file().id(), 2);
+
+    Ok(())
+}

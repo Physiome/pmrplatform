@@ -82,14 +82,17 @@ where
         let exposure_file = ExposureFileCtrl {
             platform: self.platform,
             exposure: self,
-            data: MutexGuard::map(
-            self.efc_data.lock(),
-                |efc_datum| efc_datum
-                    .entry(workspace_file_path.to_string())
-                    .or_insert(EFCData {
-                        pathinfo,
-                        exposure_file,
-                    })
+            data: Arc::clone(
+                MutexGuard::map(
+                    self.efc_data.lock(),
+                    |efc_datum| efc_datum
+                        .entry(workspace_file_path.to_string())
+                        .or_insert(Arc::new(EFCData {
+                            pathinfo,
+                            exposure_file,
+                        }))
+                )
+                    .deref()
             ),
         };
 
@@ -116,14 +119,17 @@ where
         let exposure_file = ExposureFileCtrl {
             platform: self.platform,
             exposure: self,
-            data: MutexGuard::map(
-            self.efc_data.lock(),
-                |efc_datum| efc_datum
-                    .entry(workspace_file_path.to_string())
-                    .or_insert(EFCData {
-                        pathinfo,
-                        exposure_file: exposure_file_ref,
-                    })
+            data: Arc::clone(
+                MutexGuard::map(
+                    self.efc_data.lock(),
+                    |efc_datum| efc_datum
+                        .entry(workspace_file_path.to_string())
+                        .or_insert(Arc::new(EFCData {
+                            pathinfo,
+                            exposure_file: exposure_file_ref,
+                        }))
+                )
+                    .deref()
             ),
         };
 

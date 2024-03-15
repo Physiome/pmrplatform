@@ -1,4 +1,3 @@
-use parking_lot::MappedMutexGuard;
 use pmrcore::{
     exposure::ExposureFileRef,
     platform::{
@@ -7,6 +6,7 @@ use pmrcore::{
     },
 };
 use pmrrepo::handle::GitHandleResult;
+use std::sync::Arc;
 
 use crate::{
     platform::Platform,
@@ -29,7 +29,7 @@ pub struct ExposureFileCtrl<
 > {
     pub(crate) platform: &'p Platform<'db, MCP, TMP>,
     pub(crate) exposure: &'p ExposureCtrl<'db, 'db, MCP, TMP>,
-    pub(crate) data: MappedMutexGuard<'db, EFCData<'db, MCP>>,
+    pub(crate) data: Arc<EFCData<'db, MCP>>,
 }
 
 mod impls;

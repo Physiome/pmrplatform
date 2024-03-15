@@ -1,6 +1,7 @@
 use pmrcore::{
     exposure::{
         traits::{
+            Exposure as _,
             ExposureFile as _,
             ExposureFileViewBackend,
         },
@@ -12,7 +13,10 @@ use pmrcore::{
     },
 };
 use pmrrepo::handle::GitHandleResult;
-use std::ops::Deref;
+use std::{
+    ops::Deref,
+    path::PathBuf,
+};
 
 use super::ExposureFileCtrl;
 use crate::{
@@ -127,5 +131,12 @@ where
 
     pub fn exposure_file(&self) -> &ExposureFileRef<'db, MCP> {
         &self.data.exposure_file
+    }
+
+    pub fn data_root(&self) -> PathBuf {
+        let mut root = self.platform.data_root.join("exposure");
+        root.push(self.exposure.exposure.id().to_string());
+        root.push(self.data.exposure_file.id().to_string());
+        root
     }
 }
