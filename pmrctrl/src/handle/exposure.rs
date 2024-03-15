@@ -18,19 +18,18 @@ use std::{
 use crate::{
     platform::Platform,
     handle::ExposureFileCtrl,
-    handle::exposure_file::EFCData,
 };
 
 pub struct ExposureCtrl<
     'p,
-    'mcp_db,
+    'db,
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
 > {
-    pub(crate) platform: &'p Platform<'mcp_db, MCP, TMP>,
-    pub(crate) git_handle: GitHandle<'mcp_db, 'mcp_db, MCP>,
-    pub(crate) exposure: ExposureRef<'mcp_db, MCP>,
-    pub(crate) efc_data: Arc<Mutex<HashMap<String, Arc<EFCData<'mcp_db, MCP>>>>>,
+    pub(crate) platform: &'p Platform<'db, MCP, TMP>,
+    pub(crate) git_handle: GitHandle<'db, 'db, MCP>,
+    pub(crate) exposure: ExposureRef<'db, MCP>,
+    pub(crate) exposure_file_ctrls: Arc<Mutex<HashMap<String, Arc<ExposureFileCtrl<'p, 'db, MCP, TMP>>>>>,
     // TODO need a workspace loader?
     //      - the platform does provide a root, this can facilitate the copy
     //        to disk method

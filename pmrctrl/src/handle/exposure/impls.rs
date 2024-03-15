@@ -30,38 +30,37 @@ use crate::{
         ExposureCtrl,
         ExposureFileCtrl,
     },
-    handle::exposure_file::EFCData,
     error::PlatformError,
     platform::Platform,
 };
 
 impl<
     'p,
-    'mcp_db,
+    'db,
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
-> ExposureCtrl<'p, 'mcp_db, MCP, TMP>
+> ExposureCtrl<'p, 'db, MCP, TMP>
 where
-    'p: 'mcp_db
+    'p: 'db
 {
     pub fn new(
-        platform: &'p Platform<'mcp_db, MCP, TMP>,
-        git_handle: GitHandle<'p, 'mcp_db, MCP>,
-        exposure: ExposureRef<'mcp_db, MCP>,
+        platform: &'p Platform<'db, MCP, TMP>,
+        git_handle: GitHandle<'p, 'db, MCP>,
+        exposure: ExposureRef<'db, MCP>,
     ) -> Self {
         Self {
             platform,
             git_handle,
             exposure,
-            efc_data: Arc::new(Mutex::new(HashMap::new())),
+            exposure_file_ctrls: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
     pub async fn create_file(
         &'p self,
-        workspace_file_path: &'mcp_db str,
+        workspace_file_path: &'db str,
     ) -> Result<
-        ExposureFileCtrl<'p, 'mcp_db, MCP, TMP>,
+        Arc<ExposureFileCtrl<'p, 'db, MCP, TMP>>,
         PlatformError
     > {
         // FIXME should fail with already exists if already created
@@ -79,31 +78,30 @@ where
                 None,
             ).await?
         ).await?;
-        let exposure_file = ExposureFileCtrl {
+        let exposure_file = Arc::new(ExposureFileCtrl {
             platform: self.platform,
             exposure: self,
-            data: Arc::clone(
+            exposure_file,
+            pathinfo,
+        });
+        Ok(
+            Arc::clone(
                 MutexGuard::map(
-                    self.efc_data.lock(),
-                    |efc_datum| efc_datum
+                    self.exposure_file_ctrls.lock(),
+                    |efc| efc
                         .entry(workspace_file_path.to_string())
-                        .or_insert(Arc::new(EFCData {
-                            pathinfo,
-                            exposure_file,
-                        }))
+                        .or_insert(exposure_file)
                 )
                     .deref()
             ),
-        };
-
-        Ok(exposure_file)
+        )
     }
 
     pub async fn ctrl_file(
         &'p self,
-        exposure_file_ref: ExposureFileRef<'mcp_db, MCP>,
+        exposure_file_ref: ExposureFileRef<'db, MCP>,
     ) -> Result<
-        ExposureFileCtrl<'p, 'mcp_db, MCP, TMP>,
+        Arc<ExposureFileCtrl<'p, 'db, MCP, TMP>>,
         PlatformError
     > {
         let workspace_file_path = exposure_file_ref
@@ -116,24 +114,23 @@ where
             Some(workspace_file_path.clone()),
         )?;
 
-        let exposure_file = ExposureFileCtrl {
+        let exposure_file = Arc::new(ExposureFileCtrl {
             platform: self.platform,
             exposure: self,
-            data: Arc::clone(
+            exposure_file: exposure_file_ref,
+            pathinfo,
+        });
+        Ok(
+            Arc::clone(
                 MutexGuard::map(
-                    self.efc_data.lock(),
-                    |efc_datum| efc_datum
+                    self.exposure_file_ctrls.lock(),
+                    |efc| efc
                         .entry(workspace_file_path.to_string())
-                        .or_insert(Arc::new(EFCData {
-                            pathinfo,
-                            exposure_file: exposure_file_ref,
-                        }))
+                        .or_insert(exposure_file)
                 )
                     .deref()
             ),
-        };
-
-        Ok(exposure_file)
+        )
     }
 
     /// List all underlying files associated with the workspace at the
@@ -188,7 +185,7 @@ where
     }
 
     /// List all files that have a corresponding exposure file
-    pub async fn list_exposure_files(&'p self) -> Result<Vec<&'mcp_db str>, PlatformError> {
+    pub async fn list_exposure_files(&'p self) -> Result<Vec<&'db str>, PlatformError> {
         // FIXME this might not be accurate if we later create a new file.
         // using create_file after this call.
         Ok(self.exposure.files().await?
@@ -198,7 +195,7 @@ where
         )
     }
 
-    pub fn exposure(&self) -> &ExposureRef<'mcp_db, MCP> {
+    pub fn exposure(&self) -> &ExposureRef<'db, MCP> {
         &self.exposure
     }
 

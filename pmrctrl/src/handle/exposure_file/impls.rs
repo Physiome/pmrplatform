@@ -18,10 +18,10 @@ use std::{
     path::PathBuf,
 };
 
-use super::ExposureFileCtrl;
 use crate::{
     error::PlatformError,
     handle::{
+        ExposureFileCtrl,
         ExposureFileViewCtrl,
         view_task_template::VTTCTask,
     },
@@ -126,17 +126,17 @@ where
     }
 
     pub fn pathinfo(&self) -> &GitHandleResult<'p, 'db, MCP> {
-        &self.data.pathinfo
+        &self.pathinfo
     }
 
     pub fn exposure_file(&self) -> &ExposureFileRef<'db, MCP> {
-        &self.data.exposure_file
+        &self.exposure_file
     }
 
     pub fn data_root(&self) -> PathBuf {
         let mut root = self.platform.data_root.join("exposure");
         root.push(self.exposure.exposure.id().to_string());
-        root.push(self.data.exposure_file.id().to_string());
+        root.push(self.exposure_file.id().to_string());
         root
     }
 }

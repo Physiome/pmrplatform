@@ -13,14 +13,6 @@ use crate::{
     handle::ExposureCtrl,
 };
 
-pub(crate) struct EFCData<
-    'a,
-    MCP: MCPlatform + Sized + Sync,
-> {
-    pub(crate) exposure_file: ExposureFileRef<'a, MCP>,
-    pub(crate) pathinfo: GitHandleResult<'a, 'a, MCP>,
-}
-
 pub struct ExposureFileCtrl<
     'p,
     'db,
@@ -29,7 +21,8 @@ pub struct ExposureFileCtrl<
 > {
     pub(crate) platform: &'p Platform<'db, MCP, TMP>,
     pub(crate) exposure: &'p ExposureCtrl<'db, 'db, MCP, TMP>,
-    pub(crate) data: Arc<EFCData<'db, MCP>>,
+    pub(crate) exposure_file: ExposureFileRef<'db, MCP>,
+    pub(crate) pathinfo: GitHandleResult<'p, 'db, MCP>,
 }
 
 mod impls;
