@@ -20,7 +20,7 @@ use crate::{
     handle::ExposureFileCtrl,
 };
 
-pub struct ExposureCtrl<
+pub(crate) struct RawExposureCtrl<
     'p,
     'db,
     MCP: MCPlatform + Sized + Sync,
@@ -29,7 +29,7 @@ pub struct ExposureCtrl<
     pub(crate) platform: &'p Platform<'db, MCP, TMP>,
     pub(crate) git_handle: GitHandle<'db, 'db, MCP>,
     pub(crate) exposure: ExposureRef<'db, MCP>,
-    pub(crate) exposure_file_ctrls: Arc<Mutex<HashMap<String, Arc<ExposureFileCtrl<'p, 'db, MCP, TMP>>>>>,
+    pub(crate) exposure_file_ctrls: Arc<Mutex<HashMap<String, ExposureFileCtrl<'p, 'db, MCP, TMP>>>>,
     // TODO need a workspace loader?
     //      - the platform does provide a root, this can facilitate the copy
     //        to disk method
@@ -39,5 +39,12 @@ pub struct ExposureCtrl<
     //        form will be very useful; this may be done via a trait so that
     //        both copy/fuse version can be swapped into place?
 }
+
+pub struct ExposureCtrl<
+    'p,
+    'db,
+    MCP: MCPlatform + Sized + Sync,
+    TMP: TMPlatform + Sized + Sync,
+>(pub(crate) Arc<RawExposureCtrl<'p, 'db, MCP, TMP>>);
 
 mod impls;

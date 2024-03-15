@@ -29,10 +29,20 @@ use crate::{
     handle::{
         ExposureCtrl,
         ExposureFileCtrl,
+        exposure::RawExposureCtrl,
     },
     error::PlatformError,
     platform::Platform,
 };
+
+impl<
+    MCP: MCPlatform + Sized + Sync,
+    TMP: TMPlatform + Sized + Sync,
+> Clone for ExposureCtrl<'_, '_, MCP, TMP> {
+    fn clone(&self) -> Self {
+        Self(Arc::clone(&self.0))
+    }
+}
 
 impl<
     'p,
@@ -48,52 +58,51 @@ where
         git_handle: GitHandle<'p, 'db, MCP>,
         exposure: ExposureRef<'db, MCP>,
     ) -> Self {
-        Self {
+        Self(Arc::new(RawExposureCtrl {
             platform,
             git_handle,
             exposure,
             exposure_file_ctrls: Arc::new(Mutex::new(HashMap::new())),
-        }
+        }))
     }
 
     pub async fn create_file(
         &'p self,
         workspace_file_path: &'db str,
     ) -> Result<
-        Arc<ExposureFileCtrl<'p, 'db, MCP, TMP>>,
+        ExposureFileCtrl<'p, 'db, MCP, TMP>,
         PlatformError
     > {
         // FIXME should fail with already exists if already created
         // quick failing here.
-        let pathinfo = self.git_handle.pathinfo(
-            Some(self.exposure.commit_id()),
+        let pathinfo = self.0.git_handle.pathinfo(
+            Some(self.0.exposure.commit_id()),
             Some(workspace_file_path),
         )?;
         // path exists, so create the exposure file
-        let efb: &dyn ExposureFileBackend = &self.platform.mc_platform;
-        let exposure_file = self.platform.mc_platform.get_exposure_file(
+        let efb: &dyn ExposureFileBackend = &self.0.platform.mc_platform;
+        let exposure_file = self.0.platform.mc_platform.get_exposure_file(
             efb.insert(
-                self.exposure.id(),
+                self.0.exposure.id(),
                 workspace_file_path,
                 None,
             ).await?
         ).await?;
-        let exposure_file = Arc::new(ExposureFileCtrl {
-            platform: self.platform,
-            exposure: self,
+        let exposure_file = ExposureFileCtrl::new(
+            self.0.platform,
+            self.clone(),
             exposure_file,
             pathinfo,
-        });
+        );
         Ok(
-            Arc::clone(
-                MutexGuard::map(
-                    self.exposure_file_ctrls.lock(),
-                    |efc| efc
-                        .entry(workspace_file_path.to_string())
-                        .or_insert(exposure_file)
-                )
-                    .deref()
-            ),
+            MutexGuard::map(
+                self.0.exposure_file_ctrls.lock(),
+                |efc| efc
+                    .entry(workspace_file_path.to_string())
+                    .or_insert(exposure_file)
+            )
+                .deref()
+                .clone()
         )
     }
 
@@ -101,7 +110,7 @@ where
         &'p self,
         exposure_file_ref: ExposureFileRef<'db, MCP>,
     ) -> Result<
-        Arc<ExposureFileCtrl<'p, 'db, MCP, TMP>>,
+        ExposureFileCtrl<'p, 'db, MCP, TMP>,
         PlatformError
     > {
         let workspace_file_path = exposure_file_ref
@@ -109,34 +118,33 @@ where
             .to_string();
 
         // FIXME first verify that this entry is already present
-        let pathinfo = self.git_handle.pathinfo(
-            Some(self.exposure.commit_id()),
+        let pathinfo = self.0.git_handle.pathinfo(
+            Some(self.0.exposure.commit_id()),
             Some(workspace_file_path.clone()),
         )?;
 
-        let exposure_file = Arc::new(ExposureFileCtrl {
-            platform: self.platform,
-            exposure: self,
-            exposure_file: exposure_file_ref,
+        let exposure_file = ExposureFileCtrl::new(
+            self.0.platform,
+            self.clone(),
+            exposure_file_ref,
             pathinfo,
-        });
+        );
         Ok(
-            Arc::clone(
-                MutexGuard::map(
-                    self.exposure_file_ctrls.lock(),
-                    |efc| efc
-                        .entry(workspace_file_path.to_string())
-                        .or_insert(exposure_file)
-                )
-                    .deref()
-            ),
+            MutexGuard::map(
+                self.0.exposure_file_ctrls.lock(),
+                |efc| efc
+                    .entry(workspace_file_path.to_string())
+                    .or_insert(exposure_file)
+            )
+                .deref()
+                .clone()
         )
     }
 
     /// List all underlying files associated with the workspace at the
     /// commit id for this exposure.
     pub fn list_files(&self) -> Result<Vec<String>, PlatformError> {
-        Ok(self.git_handle.files(Some(&self.exposure.commit_id()))?)
+        Ok(self.0.git_handle.files(Some(&self.0.exposure.commit_id()))?)
     }
 
     /// Returns a mapping of paths to actual files on the filesystem.
@@ -145,8 +153,8 @@ where
     ) -> Result<HashMap<String, String>, PlatformError> {
         let mut result = HashMap::new();
         let root = self.ensure_fs()?;
-        self.git_handle
-            .files(Some(&self.exposure.commit_id()))?
+        self.0.git_handle
+            .files(Some(&self.0.exposure.commit_id()))?
             .iter()
             .for_each(|path| {
                 result.insert(
@@ -172,15 +180,15 @@ where
     pub fn ensure_fs(
         &self,
     ) -> Result<PathBuf, PlatformError> {
-        let mut root = self.platform.data_root.join("exposure");
-        root.push(self.exposure.id().to_string());
+        let mut root = self.0.platform.data_root.join("exposure");
+        root.push(self.0.exposure.id().to_string());
         root.push("files");
         if root.is_dir() {
             // assume the root is checked out already
             return Ok(root);
         }
         std::fs::create_dir_all(&root)?;
-        self.git_handle.checkout(Some(self.exposure.commit_id()), &root)?;
+        self.0.git_handle.checkout(Some(self.0.exposure.commit_id()), &root)?;
         Ok(root)
     }
 
@@ -188,7 +196,7 @@ where
     pub async fn list_exposure_files(&'p self) -> Result<Vec<&'db str>, PlatformError> {
         // FIXME this might not be accurate if we later create a new file.
         // using create_file after this call.
-        Ok(self.exposure.files().await?
+        Ok(self.0.exposure.files().await?
             .iter()
             .map(|f| f.workspace_file_path())
             .collect::<Vec<_>>()
@@ -196,7 +204,7 @@ where
     }
 
     pub fn exposure(&self) -> &ExposureRef<'db, MCP> {
-        &self.exposure
+        &self.0.exposure
     }
 
 }

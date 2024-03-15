@@ -67,8 +67,8 @@ where
         handle: &ExposureFileCtrl<'p, 'db, MCP, TMP>,
     ) -> Result<Self, Self::Error> {
         let mut registry = PreparedChoiceRegistry::new();
-        registry.register("files", handle.exposure.map_files_fs()?.into());
-        let workspace_file_path = handle.exposure.ensure_fs()?.join(handle
+        registry.register("files", handle.0.exposure.map_files_fs()?.into());
+        let workspace_file_path = handle.0.exposure.ensure_fs()?.join(handle
             .exposure_file()
             .workspace_file_path()
             .to_string()
