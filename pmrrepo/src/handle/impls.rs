@@ -318,7 +318,7 @@ mod tests {
         let handle = backend.git_handle(10).await?;
         let result = handle.pathinfo::<String>(None, None).unwrap();
         assert_eq!(result.path(), "");
-        assert_eq!(result.workspace.description(), Some("Workspace 10"));
+        assert_eq!(result.workspace().description(), Some("Workspace 10"));
         Ok(())
     }
 
@@ -660,7 +660,10 @@ mod tests {
         {
             let _ = handle.pathinfo::<String>(None, None);
         }
-        let _ = handle.workspace.into_inner();
+        // TODO figure out why we wanted a partial move here?
+        // let _ = handle.workspace.into_inner();
+        // will not work any more as the underlying became private...
+        let _ = handle.workspace();
         Ok(())
     }
 

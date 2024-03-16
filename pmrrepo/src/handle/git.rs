@@ -5,13 +5,13 @@ use pmrcore::{
 };
 use gix::{
     ObjectDetached,
-    Repository,
+    ThreadSafeRepository,
 };
 
 pub struct GitHandle<'db, 'repo, P: MCPlatform + Sync> {
     pub(super) backend: &'repo Backend<'db, P>,
     pub(super) workspace: WorkspaceRef<'db, P>,
-    pub(super) repo: Repository,
+    pub(super) repo: ThreadSafeRepository,
 }
 
 #[derive(Debug)]
@@ -22,7 +22,7 @@ pub enum GitResultTarget {
 
 pub struct GitHandleResult<'db, 'repo, P: MCPlatform + Sync> {
     pub(super) backend: &'repo Backend<'db, P>,
-    pub(super) repo: &'repo Repository,
+    pub(super) repo: &'repo ThreadSafeRepository,
     pub(super) commit: ObjectDetached,
     pub(super) target: GitResultTarget,
     pub(super) workspace: &'repo WorkspaceRef<'db, P>,

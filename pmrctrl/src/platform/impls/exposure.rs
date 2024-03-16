@@ -40,7 +40,7 @@ where
         // TODO replace this with a more simple call? Like get_commit()?
         // calling pathinfo may be doing more than necessary work.
         {
-            let _ = git_handle.pathinfo::<String>(Some(commit_id), None)?;
+            let _ = git_handle.pathinfo(Some(commit_id), None)?;
         }
 
         // workspace_id and commit verified, create the root exposure

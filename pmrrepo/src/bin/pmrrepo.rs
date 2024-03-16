@@ -101,6 +101,7 @@ fn stream_git_result_default<P: MCPlatform + Sync>(
 ) -> std::result::Result<usize, std::io::Error> {
     // TODO split off to a formatter version?
     // alternatively, produce some structured data?
+    let repo = item.repo();
     writer.write(format!("
         have repo at {:?}
         have commit {:?}
@@ -110,8 +111,8 @@ fn stream_git_result_default<P: MCPlatform + Sync>(
         have path_object_info {:?}
         \n",
         item.repo().path(),
-        &item.commit().id(),
-        &item.commit(),
+        &item.commit(&repo).id(),
+        &item.commit(&repo),
         item.path(),
         &item.target(),
         <PathObjectInfo>::from(item),
@@ -209,7 +210,8 @@ async fn main(args: Args) -> anyhow::Result<()> {
         }
         Some(Command::Blob { workspace_id, obj_id }) => {
             let handle = backend.git_handle(workspace_id).await?;
-            let obj = handle.repo().rev_parse_single(obj_id.deref())?.object()?;
+            let repo = handle.repo();
+            let obj = repo.rev_parse_single(obj_id.deref())?.object()?;
             log::info!("Found object {} {}", obj.kind, obj.id);
             // info!("{:?}", object_to_info(&obj));
         }

@@ -642,3 +642,10 @@ async fn test_multiple_exposure_files() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn test_send_sync_ctrl() {
+    fn is_send_sync<T: Send + Sync>() { }
+    is_send_sync::<pmrctrl::handle::ExposureCtrl<SqliteBackend, SqliteBackend>>();
+    is_send_sync::<pmrctrl::handle::ExposureFileCtrl<SqliteBackend, SqliteBackend>>();
+}

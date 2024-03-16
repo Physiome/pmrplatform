@@ -120,7 +120,7 @@ where
         // FIXME first verify that this entry is already present
         let pathinfo = self.0.git_handle.pathinfo(
             Some(self.0.exposure.commit_id()),
-            Some(workspace_file_path.clone()),
+            Some(&workspace_file_path),
         )?;
 
         let exposure_file = ExposureFileCtrl::new(

@@ -86,8 +86,7 @@ impl<'handle, 'db, P: MCPlatform + Sync> TryFrom<Handle<'handle, 'db, P>> for Gi
     fn try_from(item: Handle<'handle, 'db, P>) -> Result<Self, GixError> {
         let repo = gix::open::Options::isolated()
             .open_path_as_is(true)
-            .open(&item.repo_dir)?
-            .to_thread_local();
+            .open(&item.repo_dir)?;
         Ok(Self {
             backend: item.backend,
             workspace: item.workspace,
@@ -105,8 +104,7 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
         let repo_dir = repo_root.join(workspace.id().to_string());
         let repo = gix::open::Options::isolated()
             .open_path_as_is(true)
-            .open(&repo_dir)?
-            .to_thread_local();
+            .open(&repo_dir)?;
         Ok(Self { backend, workspace, repo })
     }
 
@@ -114,14 +112,16 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
         &self.workspace
     }
 
-    pub fn repo(&'repo self) -> &'repo Repository {
-        &self.repo
+    pub fn repo(&'repo self) -> Repository {
+        self.repo.to_thread_local()
     }
 
     pub async fn index_tags(&self) -> Result<(), GixError> {
         let platform = self.backend.db_platform;
         let workspace = &self.workspace;
-        self.repo.references()?.tags()?
+        self.repo()
+            .references()?
+            .tags()?
             .filter_map(|reference| {
                 match reference {
                     Ok(tag) => {
@@ -162,13 +162,18 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
     }
 
     // commit_id/path should be a pathinfo struct?
-    pub fn pathinfo<S: AsRef<str>>(
+    pub fn pathinfo<S: Into<String>>(
         &'repo self,
-        commit_id: Option<&'repo str>,
+        commit_id: Option<S>,
         path: Option<S>,
-    ) -> Result<GitHandleResult<'db, 'repo, P>, PmrRepoError> {
+    ) -> Result<GitHandleResult<'db, 'repo, P>, PmrRepoError>
+    {
+        let commit_id = commit_id.map(|s| s.into());
+        let path = path.map(|s| s.into());
+
         let workspace_id = self.workspace.id();
-        let commit = get_commit(&self.repo, workspace_id, commit_id)?;
+        let repo = self.repo();
+        let commit = get_commit(&repo, workspace_id, commit_id.as_deref())?;
         let tree = commit
             .tree_id().map_err(GixError::from)?
             .object().map_err(GixError::from)?;
@@ -254,10 +259,10 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
         count: Option<usize>,
     ) -> Result<LogInfo, PmrRepoError> {
         let workspace_id = self.workspace.id();
-        let commit = get_commit(&self.repo, workspace_id, commit_id)?;
-        let mut filter = PathFilter::new(&self.repo, path);
-        let log_entry_iter = self.repo
-            .rev_walk([commit.id])
+        let repo = self.repo();
+        let commit = get_commit(&repo, workspace_id, commit_id)?;
+        let mut filter = PathFilter::new(&repo, path);
+        let log_entry_iter = repo.rev_walk([commit.id])
             .sorting(Sorting::ByCommitTimeNewestFirst)
             .all().map_err(GixError::from)?
             .filter(|info| info.as_ref()
@@ -293,7 +298,8 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
         commit_id: Option<&str>,
     ) -> Result<Vec<String>, PmrRepoError> {
         let workspace_id = self.workspace.id();
-        let commit = get_commit(&self.repo, workspace_id, commit_id)?;
+        let repo = self.repo();
+        let commit = get_commit(&repo, workspace_id, commit_id)?;
         files(&commit)
     }
 
@@ -303,19 +309,20 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
         dest_dir: &Path,
     ) -> Result<(), PmrRepoError> {
         let workspace_id = self.workspace.id();
-        let commit = get_commit(&self.repo, workspace_id, commit_id)?;
-        checkout(&self.repo, &commit, dest_dir)
+        let repo = self.repo();
+        let commit = get_commit(&repo, workspace_id, commit_id)?;
+        checkout(&repo, &commit, dest_dir)
     }
 
 }
 
 impl<'db, 'repo, P: MCPlatform + Sync> GitHandleResult<'db, 'repo, P> {
-    pub fn repo(&'repo self) -> &'repo Repository {
-        self.repo
+    pub fn repo(&self) -> Repository {
+        self.repo.to_thread_local()
     }
 
-    pub fn commit(&'repo self) -> Commit<'repo> {
-        self.commit.clone().attach(self.repo).into_commit()
+    pub fn commit(&self, repo: &'repo Repository) -> Commit<'repo> {
+        self.commit.clone().attach(repo).into_commit()
     }
 
     pub fn path(&self) -> &str {
@@ -327,7 +334,7 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandleResult<'db, 'repo, P> {
 
     // TODO could use an TryInto<PathObject<'repo>> or something along that line
     // for getting the final result.
-    pub fn target(&'repo self) -> &GitResultTarget {
+    pub fn target(&self) -> &GitResultTarget {
         &self.target
     }
 
@@ -335,10 +342,10 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandleResult<'db, 'repo, P> {
         &self.workspace
     }
 
-    #[async_recursion(?Send)]
+    #[async_recursion]
     pub async fn stream_blob(
         &self,
-        mut writer: impl Write + 'async_recursion,
+        mut writer: impl Write + Send + 'async_recursion,
     ) -> Result<usize, PmrRepoError> {
         match &self.target {
             GitResultTarget::Object(object) => match object.object.kind {
@@ -365,7 +372,7 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandleResult<'db, 'repo, P> {
                 // TODO figure out how to acquire the git_handle using the url
                 // instead?
                 let handle = self.backend.git_handle(workspaces[0].id).await?;
-                let git_result = handle.pathinfo(Some(&commit), Some(&subpath))?;
+                let git_result = handle.pathinfo(Some(commit), Some(subpath))?;
                 git_result.stream_blob(writer).await
             },
         }
@@ -375,8 +382,9 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandleResult<'db, 'repo, P> {
     /// `GitHandleResult` is associated with.
     pub fn files(
         &self,
+        repo: &'repo Repository,
     ) -> Result<Vec<String>, PmrRepoError> {
-        files(&self.commit())
+        files(&self.commit(repo))
     }
 }
 
