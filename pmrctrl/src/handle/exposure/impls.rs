@@ -106,7 +106,7 @@ where
         )
     }
 
-    pub async fn ctrl_file(
+    pub fn ctrl_file(
         &'p self,
         exposure_file_ref: ExposureFileRef<'db, MCP>,
     ) -> Result<

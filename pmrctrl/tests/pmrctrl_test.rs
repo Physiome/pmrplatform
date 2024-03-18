@@ -160,7 +160,7 @@ async fn test_platform_exposure_ctrl_attach_file() -> anyhow::Result<()> {
         .get_exposure_file(exposure_file_id)
         .await?;
 
-    let efctrl = exposure.ctrl_file(ef_ref).await?;
+    let efctrl = exposure.ctrl_file(ef_ref)?;
     let pathinfo = efctrl.pathinfo();
     assert_eq!(pathinfo.path(), "if1");
 
