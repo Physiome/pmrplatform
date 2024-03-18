@@ -1,7 +1,6 @@
 // TODO this module prbably should be a submodule to exposure?
 // though given only the struct is exported this isn't too critical.
 use pmrcore::{
-    exposure::ExposureFileRef,
     platform::{
         MCPlatform,
         TMPlatform,
@@ -15,7 +14,10 @@ use pmrmodel::registry::{
 };
 use std::sync::OnceLock;
 
-use crate::platform::Platform;
+use crate::{
+    handle::ExposureFileCtrl,
+    platform::Platform,
+};
 
 pub struct ViewTaskTemplatesCtrl<
     'p,
@@ -24,9 +26,7 @@ pub struct ViewTaskTemplatesCtrl<
     TMP: TMPlatform + Sized + Sync,
 > {
     platform: &'p Platform<'db, MCP, TMP>,
-    // TODO how to make this a ExposureFileCtrl
-    // should this even be one?
-    exposure_file: ExposureFileRef<'db, MCP>,
+    exposure_file_ctrl: ExposureFileCtrl<'p, 'db, MCP, TMP>,
     view_task_templates: ViewTaskTemplates,
     choice_registry: OnceLock<PreparedChoiceRegistry>,
     choice_registry_cache: OnceLock<PreparedChoiceRegistryCache<'db>>,

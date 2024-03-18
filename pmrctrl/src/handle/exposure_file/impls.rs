@@ -1,5 +1,7 @@
+use futures::future;
 use pmrcore::{
     exposure::{
+        task::traits::ExposureTaskTemplateBackend,
         traits::{
             Exposure as _,
             ExposureFile as _,
@@ -11,6 +13,7 @@ use pmrcore::{
         MCPlatform,
         TMPlatform,
     },
+    task_template::traits::TaskTemplateBackend
 };
 use pmrrepo::handle::GitHandleResult;
 use std::{
@@ -25,6 +28,7 @@ use crate::{
         ExposureCtrl,
         ExposureFileCtrl,
         ExposureFileViewCtrl,
+        ViewTaskTemplatesCtrl,
         exposure_file::RawExposureFileCtrl,
         view_task_template::VTTCTask,
     },
@@ -133,7 +137,32 @@ where
         })
     }
 
-    /// Process tasks produced via `ViewTaskTemplateCtrl.create_tasks`
+    /// Build a ViewTaskTemplatesCtrl.
+    ///
+    /// This could be an impl on async TryFrom.
+    pub async fn build_vttc(
+        &'p self,
+    ) -> Result<ViewTaskTemplatesCtrl<'p, 'db, MCP, TMP>, PlatformError> {
+        let mut vtts = ExposureTaskTemplateBackend::get_file_templates(
+            &self.0.platform.mc_platform,
+            self.exposure_file().id(),
+        ).await?;
+        future::try_join_all(vtts.iter_mut().map(|vtt| async {
+            Ok::<(), PlatformError>(vtt.task_template = Some(
+                TaskTemplateBackend::get_task_template_by_id(
+                    &self.0.platform.tm_platform,
+                    vtt.task_template_id,
+                ).await?
+            ))
+        })).await?;
+        Ok(ViewTaskTemplatesCtrl::new(
+            &self.0.platform,
+            self.clone(),
+            vtts.into(),
+        ))
+    }
+
+    /// Process tasks produced via `ViewTaskTemplatesCtrl.create_tasks`
     /// into views
     pub async fn process_vttc_tasks(
         &self,

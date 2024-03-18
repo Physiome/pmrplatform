@@ -409,13 +409,13 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
     // this is now needed to avoid borrow checker getting confused about
     // the order of which vttc is freed (before exposure_file_ctrl, ensure
     // that we drop that.
+    let exposure_file_ctrl = exposure.create_file("if1").await?;
     let exposure_file_id = {
-        let exposure_file_ctrl = exposure.create_file("if1").await?;
         let exposure_file_ref = exposure_file_ctrl.exposure_file();
         exposure_file_ref.id()
     };
 
-    let vttc = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
+    let vttc = exposure_file_ctrl.build_vttc().await?;
     let vtt: &ViewTaskTemplates = (&vttc).into();
     assert_eq!(vtt.len(), 0);
 
@@ -424,7 +424,7 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
         exposure_file_id,
         [vtts[0]].into_iter(),
     ).await?;
-    let vttc = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
+    let vttc = exposure_file_ctrl.build_vttc().await?;
     let vtt: &ViewTaskTemplates = (&vttc).into();
     assert_eq!(vtt.len(), 1);
     assert_eq!(vtt[0]
@@ -444,7 +444,7 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
         exposure_file_id,
         [vtts[1], vtts[2]].into_iter(),
     ).await?;
-    let vttc = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
+    let vttc = exposure_file_ctrl.build_vttc().await?;
     let vtt: &ViewTaskTemplates = (&vttc).into();
     assert_eq!(vtt.len(), 2);
     assert_eq!(vtt[0].view_key, "example_view2");
@@ -509,7 +509,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     ).await?;
     assert_eq!(vtts[0], 1);
     assert_eq!(vtts[3], 4);
-    efvttsc = platform.get_file_templates_for_exposure_file(exposure_file_id).await?;
+    efvttsc = efc.build_vttc().await?;
 
     // If the ExposureFileViewTemplatesCtrl is borrowed, the borrow
     // checker will become angry if the declarations weren't made at

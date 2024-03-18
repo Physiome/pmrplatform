@@ -1,11 +1,5 @@
 use pmrcore::{
-    exposure::{
-        ExposureFileRef,
-        traits::{
-            Exposure,
-            ExposureFile,
-        },
-    },
+    exposure::traits::ExposureFile as _,
     task::Task,
     platform::{
         MCPlatform,
@@ -35,7 +29,10 @@ use std::{
 
 use crate::{
     error::PlatformError,
-    handle::ViewTaskTemplatesCtrl,
+    handle::{
+        ExposureFileCtrl,
+        ViewTaskTemplatesCtrl,
+    },
     platform::Platform,
 };
 use super::VTTCTask;
@@ -51,12 +48,12 @@ where
 {
     pub(crate) fn new(
         platform: &'p Platform<'db, MCP, TMP>,
-        exposure_file: ExposureFileRef<'db, MCP>,
+        exposure_file_ctrl: ExposureFileCtrl<'p, 'db, MCP, TMP>,
         view_task_templates: ViewTaskTemplates,
     ) -> Self {
         Self {
             platform,
-            exposure_file,
+            exposure_file_ctrl,
             // TODO figure out how to include and OnceLock the
             // exposure_file_ctrl,
             // ... only if it's meant to be one
@@ -73,13 +70,13 @@ where
             Some(registry) => Ok::<_, PlatformError>(registry),
             None => {
                 let exposure = self.platform.get_exposure(
-                    self.exposure_file.exposure_id()
+                    self.exposure_file_ctrl.exposure_file().exposure_id()
                 ).await?;
                 self.choice_registry.set(
                     (&exposure).try_into()?
                 ).unwrap_or_else(|_| log::warn!(
                     "concurrent call to the same \
-                    ViewTaskTemplateCtrl.registry_cache()"
+                    ViewTaskTemplateCtrls.registry_cache()"
                 ));
                 Ok(self.choice_registry.get()
                     .expect("choice_registry just been set!"))
@@ -98,7 +95,7 @@ where
                     ChoiceRegistryCache::from(registry as &dyn ChoiceRegistry<_>),
                 ).unwrap_or_else(|_| log::warn!(
                     "concurrent call to the same \
-                    ViewTaskTemplateCtrl.choice_registry_cache()"
+                    ViewTaskTemplateCtrls.choice_registry_cache()"
                 ));
                 Ok(self.choice_registry_cache.get()
                     .expect("choice_registry_cache just been set!"))
@@ -121,21 +118,10 @@ where
     /// id to the task that it should be spawning.
     pub async fn create_tasks_from_input(
         &'p self,
-        user_input: &'db UserInputMap,
+        user_input: &'p UserInputMap,
     ) -> Result<Vec<VTTCTask>, PlatformError> {
         let cache = self.get_registry_cache().await?;
-
-        let exposure = self.exposure_file.exposure().await?;
-
-        // TODO figure out how to prepare this directory
-        // TODO figure out how to get the source data into here
-        //      maybe a trait for workspace?  the workspace checkout controller?
-        let mut basedir = self.platform.data_root.clone();
-        basedir.push("exposure");
-        basedir.push(exposure.id().to_string());
-        // the view identifier
-        basedir.push(self.exposure_file.id().to_string());
-
+        let basedir = self.exposure_file_ctrl.data_root();
         let tasks = self
             .view_task_templates
             .iter()
