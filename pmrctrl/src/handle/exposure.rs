@@ -1,9 +1,6 @@
 use parking_lot::Mutex;
 use pmrcore::{
-    exposure::{
-        ExposureRef,
-        ExposureFileRef,
-    },
+    exposure::ExposureRef,
     platform::{
         MCPlatform,
         TMPlatform,

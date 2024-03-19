@@ -17,7 +17,6 @@ use pmrcore::{
 };
 use pmrrepo::handle::GitHandleResult;
 use std::{
-    ops::Deref,
     path::PathBuf,
     sync::Arc,
 };

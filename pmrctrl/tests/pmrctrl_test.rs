@@ -33,10 +33,7 @@ use pmrmodel::{
         PreparedChoiceRegistry,
     },
 };
-use pmrctrl::{
-    handle::ViewTaskTemplatesCtrl,
-    platform::Platform,
-};
+use pmrctrl::platform::Platform;
 use std::{
     path::PathBuf,
     fs::read_to_string,
@@ -475,12 +472,6 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
 
 #[async_std::test]
 async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
-    // these variables must be defined here to avoid borrow checker from
-    // being angry about these being dropped while still borrowed as the
-    // destructor for the ExposureFileCtrl (declared later) runs.
-    let efvttsc: ViewTaskTemplatesCtrl<SqliteBackend, SqliteBackend>;
-    let user_input: UserInputMap;
-
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let mut exposure_basedir = PathBuf::new();
     exposure_basedir.push(platform.data_root());
@@ -508,14 +499,8 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     ).await?;
     assert_eq!(vtts[0], 1);
     assert_eq!(vtts[3], 4);
-    efvttsc = efc.build_vttc().await?;
 
-    // If the ExposureFileViewTemplatesCtrl is borrowed, the borrow
-    // checker will become angry if the declarations weren't made at
-    // the top and if the ExposureFileCtrl isn't dropped here...
-    // drop(efc);
-
-    // ... before efvttsc gets borrowed here.
+    let efvttsc = efc.build_vttc().await?;
     let user_arg_refs = efvttsc.create_user_arg_refs().await?;
     let user_args: Vec<UserArg> = user_arg_refs.iter()
         .map(|a| a.into())
@@ -528,7 +513,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     // TODO test for alternative ID remaps via manual deletes/updates to the
     // underlying linkage between ViewTaskTemplate and TaskTemplate
 
-    user_input = UserInputMap::from([
+    let user_input = UserInputMap::from([
         (1, "Example answer".to_string()),
         (3, "README".to_string()),
     ]);

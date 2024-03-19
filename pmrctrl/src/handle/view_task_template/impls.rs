@@ -22,10 +22,7 @@ use pmrmodel::{
         PreparedChoiceRegistryCache,
     },
 };
-use std::{
-    path::PathBuf,
-    sync::OnceLock,
-};
+use std::sync::OnceLock;
 
 use crate::{
     error::PlatformError,
