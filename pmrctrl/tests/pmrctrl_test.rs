@@ -487,7 +487,6 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     exposure_basedir.push("exposure");
     exposure_basedir.push("1");
     let exposure_file_basedir = exposure_basedir.join("1");
-    let exposure_file_basedir = exposure_file_basedir.display();
     let exposure_basedir_readme = exposure_basedir.join("files/README");
     let exposure_basedir_readme = exposure_basedir_readme.display();
 
@@ -539,6 +538,15 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
         .map(<(i64, Task)>::from)
         .collect::<Vec<_>>();
 
+    let exposure_file_basedir_view1 = exposure_file_basedir
+        .join("example_view1")
+        .display()
+        .to_string();
+    let exposure_file_basedir_view4 = exposure_file_basedir
+        .join("example_view4")
+        .display()
+        .to_string();
+
     let answers: Vec<(i64, Task)> = serde_json::from_str(&format!(r#"
     [
         [1, {{
@@ -550,7 +558,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
             "start_ts": null,
             "stop_ts": null,
             "exit_status": null,
-            "basedir": "{exposure_file_basedir}",
+            "basedir": "{exposure_file_basedir_view1}",
             "args": [
                 {{
                     "id": 0,
@@ -568,7 +576,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
             "start_ts": null,
             "stop_ts": null,
             "exit_status": null,
-            "basedir": "{exposure_file_basedir}",
+            "basedir": "{exposure_file_basedir_view4}",
             "args": [
                 {{
                     "id": 0,
@@ -612,7 +620,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
         "start_ts": null,
         "stop_ts": null,
         "exit_status": null,
-        "basedir": "{exposure_file_basedir}",
+        "basedir": "{exposure_file_basedir_view1}",
         "args": [
             {{
                 "id": 1,

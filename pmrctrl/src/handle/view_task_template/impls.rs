@@ -54,9 +54,6 @@ where
         Self {
             platform,
             exposure_file_ctrl,
-            // TODO figure out how to include and OnceLock the
-            // exposure_file_ctrl,
-            // ... only if it's meant to be one
             view_task_templates,
             choice_registry: OnceLock::new(),
             choice_registry_cache: OnceLock::new(),
@@ -138,7 +135,7 @@ where
                 // extraction
                 // TODO probably at the start a VTTCTasks could be created
                 // such that it contains a reference to the git archive.
-                task.basedir = basedir.as_path().display().to_string();
+                task.basedir = basedir.join(&efvtt.view_key).as_path().display().to_string();
                 Ok(VTTCTask {
                     view_task_template_id: efvtt.id,
                     task: task,
