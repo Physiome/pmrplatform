@@ -16,7 +16,7 @@ use crate::error::LookupError;
 use crate::registry::ChoiceRegistry;
 
 pub struct ChoiceRegistryCache<'a, T> {
-    registry: &'a dyn ChoiceRegistry<T>,
+    registries: Vec<&'a dyn ChoiceRegistry<T>>,
     // punting the cache for the arg to the task_template_arg's unique id.
     arg_list: Arc<Mutex<HashMap<i64, Option<Vec<&'a str>>>>>,
     arg_map: Arc<Mutex<HashMap<i64, Option<MapToArgRef<'a>>>>>,
@@ -26,10 +26,10 @@ pub struct ChoiceRegistryCache<'a, T> {
     none_map: Arc<Mutex<Option<MapToArgRef<'a>>>>,
 }
 
-impl<'a, T> From<&'a dyn ChoiceRegistry<T>> for ChoiceRegistryCache<'a, T> {
-    fn from(registry: &'a dyn ChoiceRegistry<T>) -> Self {
+impl<'a, T> ChoiceRegistryCache<'a, T> {
+    fn new(registries: Vec<&'a dyn ChoiceRegistry<T>>) -> Self {
         Self {
-            registry: registry,
+            registries: registries,
             arg_list: Arc::new(Mutex::new(HashMap::new())),
             arg_map: Arc::new(Mutex::new(HashMap::new())),
             name_list: Arc::new(Mutex::new(HashMap::new())),
@@ -37,6 +37,32 @@ impl<'a, T> From<&'a dyn ChoiceRegistry<T>> for ChoiceRegistryCache<'a, T> {
             none_list: Arc::new(Mutex::new(None)),
             none_map: Arc::new(Mutex::new(None)),
         }
+    }
+}
+
+impl<'a, T> From<&'a dyn ChoiceRegistry<T>> for ChoiceRegistryCache<'a, T> {
+    fn from(registry: &'a dyn ChoiceRegistry<T>) -> Self {
+        Self::new(vec![registry])
+    }
+}
+
+impl<'a, T> From<Vec<&ChoiceRegistryCache<'a, T>>> for ChoiceRegistryCache<'a, T> {
+    fn from(item: Vec<&ChoiceRegistryCache<'a, T>>) -> Self {
+        Self::new(
+            item.into_iter()
+                .flat_map(|cache| cache.registries.clone().into_iter())
+                .collect::<Vec<_>>()
+        )
+    }
+}
+
+impl<'a, T, const N: usize> From<&[&ChoiceRegistryCache<'a, T>; N]> for ChoiceRegistryCache<'a, T> {
+    fn from(item: &[&ChoiceRegistryCache<'a, T>; N]) -> Self {
+        Self::new(
+            item.into_iter()
+                .flat_map(|cache| cache.registries.clone().into_iter())
+                .collect::<Vec<_>>()
+        )
     }
 }
 
@@ -71,8 +97,10 @@ impl<'a, T> ChoiceRegistryCache<'a, T> {
                     |name| name
                         .entry(source.to_string())
                         .or_insert_with(|| {
-                            self.registry.lookup(source)
-                                .map(|c| c.into())
+                            self.registries.iter().find_map(
+                                |registry| registry.lookup(source)
+                                    .map(|c| c.into())
+                            )
                         })
                 );
                 if result.as_ref().is_none() {
@@ -112,8 +140,10 @@ impl<'a, T> ChoiceRegistryCache<'a, T> {
                     |name| name
                         .entry(source.to_string())
                         .or_insert_with(|| {
-                            self.registry.lookup(source)
-                                .map(|c| c.into())
+                            self.registries.iter().find_map(
+                                |registry| registry.lookup(source)
+                                    .map(|c| c.into())
+                            )
                         })
                 );
                 if result.as_ref().is_none() {

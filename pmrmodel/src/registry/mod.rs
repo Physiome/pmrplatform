@@ -104,4 +104,54 @@ mod test {
                 .unwrap(),
         );
     }
+
+    #[test]
+    fn test_layered_registry_cache() -> anyhow::Result<()> {
+        let mut r1 = PreparedChoiceRegistry::new();
+        r1.register("layer", vec!["r1"].into());
+        let c1 = ChoiceRegistryCache::from(&r1 as &dyn ChoiceRegistry<_>);
+
+        let mut r2 = PreparedChoiceRegistry::new();
+        r2.register("layer", vec!["r2"].into());
+        let c2 = ChoiceRegistryCache::from(&r2 as &dyn ChoiceRegistry<_>);
+
+        let layer_checker = TaskTemplateArg {
+            id: 3,
+            choice_source: Some("layer".into()),
+            .. Default::default()
+        };
+
+        let c1_c2 = ChoiceRegistryCache::from(&[&c1, &c2]);
+        let c2_c1 = ChoiceRegistryCache::from(vec![&c2, &c1]);
+
+        // base test
+        assert_eq!(
+            &Some("r1"),
+            c1.lookup(&layer_checker).unwrap()
+                .as_ref().unwrap()
+                .get("r1").unwrap()
+        );
+        assert_eq!(
+            &Some("r2"),
+            c2.lookup(&layer_checker).unwrap()
+                .as_ref().unwrap()
+                .get("r2").unwrap()
+        );
+
+        // layered test
+        assert_eq!(
+            &Some("r1"),
+            c1_c2.lookup(&layer_checker).unwrap()
+                .as_ref().unwrap()
+                .get("r1").unwrap()
+        );
+        assert_eq!(
+            &Some("r2"),
+            c2_c1.lookup(&layer_checker).unwrap()
+                .as_ref().unwrap()
+                .get("r2").unwrap()
+        );
+
+        Ok(())
+    }
 }
