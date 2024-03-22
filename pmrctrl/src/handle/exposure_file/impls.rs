@@ -17,10 +17,7 @@ use pmrcore::{
 };
 use pmrrepo::handle::GitHandleResult;
 use std::{
-    path::{
-        Path,
-        PathBuf,
-    },
+    path::Path,
     sync::Arc,
 };
 
@@ -30,7 +27,7 @@ use crate::{
         ExposureCtrl,
         ExposureFileCtrl,
         ExposureFileViewCtrl,
-        ViewTaskTemplatesCtrl,
+        EFViewTaskTemplatesCtrl,
         exposure_file::RawExposureFileCtrl,
         view_task_template::VTTCTask,
     },
@@ -143,7 +140,7 @@ where
         })
     }
 
-    /// Build a ViewTaskTemplatesCtrl.
+    /// Build a EFViewTaskTemplatesCtrl.
     ///
     /// This could be an impl on async TryFrom.
     ///
@@ -151,7 +148,7 @@ where
     /// this particular instance of ExposureFileCtrl.
     pub async fn build_vttc(
         &'p self,
-    ) -> Result<ViewTaskTemplatesCtrl<'p, 'db, MCP, TMP>, PlatformError> {
+    ) -> Result<EFViewTaskTemplatesCtrl<'p, 'db, MCP, TMP>, PlatformError> {
         let mut vtts = ExposureTaskTemplateBackend::get_file_templates(
             &self.0.platform.mc_platform,
             self.exposure_file().id(),
@@ -164,7 +161,7 @@ where
                 ).await?
             ))
         })).await?;
-        Ok(ViewTaskTemplatesCtrl::new(
+        Ok(EFViewTaskTemplatesCtrl::new(
             &self.0.platform,
             self.clone(),
             vtts.into(),

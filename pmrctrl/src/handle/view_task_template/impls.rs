@@ -1,8 +1,4 @@
 use pmrcore::{
-    exposure::{
-        traits::ExposureFile as _,
-        task::ExposureFileViewTaskTemplate,
-    },
     task::Task,
     platform::{
         MCPlatform,
@@ -39,7 +35,7 @@ use crate::{
     error::PlatformError,
     handle::{
         ExposureFileCtrl,
-        ViewTaskTemplatesCtrl,
+        EFViewTaskTemplatesCtrl,
         view_task_template::EFViewTaskTemplateCtrl,
     },
     platform::Platform,
@@ -51,7 +47,7 @@ impl<
     'db,
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
-> ViewTaskTemplatesCtrl<'p, 'db, MCP, TMP>
+> EFViewTaskTemplatesCtrl<'p, 'db, MCP, TMP>
 where
     'p: 'db
 {
@@ -160,50 +156,10 @@ where
         &'p self,
         user_input: &'p UserInputMap,
     ) -> Result<Vec<VTTCTask>, PlatformError> {
-        // prepare the registry
         let _ = self.get_registry_cache().await?;
-        let basedir = self.exposure_file_ctrl.data_root();
-
-        // TODO how to store these ctrls temporarily but long enough to get
-        // the tasks returned?
         let tasks = self.get_efvttcs().into_iter()
             .map(|ctrl| ctrl.create_task_from_input(&user_input))
             .collect::<Result<Vec<_>, BuildArgErrors>>()?;
-
-        // let tasks = self
-        //     .view_task_templates
-        //     .iter()
-        //     .map(|efvtt| {
-        //         let view_basedir = basedir.join(&efvtt.view_key).as_path().display().to_string();
-        //         let mut reg_basedir = PreparedChoiceRegistry::new();
-        //         reg_basedir.register("working_dir", HashMap::from([
-        //             ("working_dir".to_string(), Some(view_basedir.clone())),
-        //         ]).into());
-        //         let reg_basedir_cache = ChoiceRegistryCache::from(
-        //             &reg_basedir as &dyn ChoiceRegistry<_>,
-        //         );
-        //         let view_cache = ChoiceRegistryCache::from(&[
-        //             &reg_basedir_cache,
-        //             cache,
-        //         ]);
-        //         let mut task = Task::from(TaskBuilder::try_from((
-        //             user_input,
-        //             efvtt.task_template
-        //                 .as_ref()
-        //                 .expect("task_template must have been provided"),
-        //             // &view_cache,
-        //             cache,
-        //         ))?);
-        //         // TODO how to actually inject this basedir as `working_dir`
-        //         // to the lookup cache above?  Maybe provide a layer on top?
-        //         task.basedir = view_basedir;
-        //         Ok(VTTCTask {
-        //             view_task_template_id: efvtt.id,
-        //             task: task,
-        //         })
-        //     })
-        //     .collect::<Result<Vec<_>, BuildArgErrors>>()?;
-
         Ok(tasks)
     }
 }
@@ -259,13 +215,6 @@ where
         &'p self,
         user_input: &'db UserInputMap,
     ) -> Result<VTTCTask, BuildArgErrors> {
-          // TODO resolve this value from the registry
-          let view_basedir = self.exposure_file_ctrl
-              .data_root()
-              .join(&self.efvtt.view_key)
-              .as_path()
-              .display()
-              .to_string();
           let cache = self.get_registry_cache();
           let mut task = Task::from(TaskBuilder::try_from((
               user_input,
@@ -274,7 +223,25 @@ where
                   .expect("task_template must have been provided"),
               cache,
           ))?);
-          task.basedir = view_basedir;
+          // for now we just re-calculate this value rather than the
+          // lookup because no idea which way is faster (nor does it
+          // really matter at this point)
+          task.basedir = self.exposure_file_ctrl
+              .data_root()
+              .join(&self.efvtt.view_key)
+              .as_path()
+              .display()
+              .to_string();
+          // if doing direct lookup from the registry
+          // lookup from cache cannot yet be done.
+          // task.basedir = self.choice_registry[1]
+          //     .as_ref()
+          //     .lookup("working_dir")
+          //     .expect("registered in registry")
+          //     .get("working_dir")
+          //     .expect("value registered")
+          //     .expect("not None")
+          //     .to_string();
           Ok(VTTCTask {
               view_task_template_id: self.efvtt.id,
               task: task,
@@ -287,11 +254,13 @@ impl<
     'db,
     MCP: MCPlatform + Sized + Sync,
     TMP: TMPlatform + Sized + Sync,
-> From<&'p ViewTaskTemplatesCtrl<'db, 'db, MCP, TMP>> for &'p ViewTaskTemplates
+> From<&'p EFViewTaskTemplatesCtrl<'db, 'db, MCP, TMP>>
+for
+    &'p ViewTaskTemplates
 where
     'p: 'db
 {
-    fn from(item: &'p ViewTaskTemplatesCtrl<'db, 'db, MCP, TMP>) -> Self {
+    fn from(item: &'p EFViewTaskTemplatesCtrl<'db, 'db, MCP, TMP>) -> Self {
         &item.view_task_templates
     }
 }

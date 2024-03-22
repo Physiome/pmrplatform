@@ -32,10 +32,10 @@ where
         workspace_id: i64,
         commit_id: &str,
     ) -> Result<ExposureCtrl<'p, 'db, MCP, TMP>, PlatformError> {
-        // TODO verify that failing like so will be enough via thiserror
         let git_handle = self
             .repo_backend()
             .git_handle(workspace_id).await?;
+        // This verifies the existence of the commit
         // TODO replace this with a more simple call? Like get_commit()?
         // calling pathinfo may be doing more than necessary work.
         {

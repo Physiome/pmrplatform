@@ -15,7 +15,7 @@ pub struct ExposureFileViewCtrl<
     TMP: TMPlatform + Sized + Sync,
 > {
     pub(crate) platform: &'p Platform<'db, MCP, TMP>,
-    // TODO need to figure out if reference to underlying repo is needed
+    // TODO there needs to be an Arc<ExposureFileCtrl> stored here
     pub exposure_file_view: ExposureFileViewRef<'db, MCP>,
 }
 

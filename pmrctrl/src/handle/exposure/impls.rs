@@ -187,6 +187,9 @@ where
             // assume the root is checked out already
             return Ok(root);
         }
+        // TODO if pmrgit-fuse does get done, this checkout will become
+        // very much optional
+        // Also does this depend on a WorkspaceCtrl that manage this?
         std::fs::create_dir_all(&root)?;
         self.0.git_handle.checkout(Some(self.0.exposure.commit_id()), &root)?;
         Ok(root)

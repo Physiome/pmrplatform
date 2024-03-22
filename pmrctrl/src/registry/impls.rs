@@ -21,7 +21,7 @@ use crate::{
 
 // TODO figure out how to define a registry for registration, i.e. there
 // needs to be a mapping of registry names to the relevant items, done
-// in a more definition driven manner.
+// in a more definition driven manner (registry of registries)
 //
 // An idea for this might be a default method and the impl TryFrom for
 // each of them would flag the relevant ones on or off.
