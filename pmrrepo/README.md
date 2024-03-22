@@ -72,7 +72,7 @@ $ ./target/release/pmrrepo sync 3
 Syncing commits for workspace with id 3...
 ```
 
-This would create a directory (defined by the `PMR_GIT_ROOT` environment
+This would create a directory (defined by the `PMR_REPO_ROOT` environment
 variable), and a clone of the workspaces (as a bare git repo) will be
 created for each of the ids.
 

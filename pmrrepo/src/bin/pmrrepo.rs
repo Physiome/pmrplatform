@@ -148,7 +148,7 @@ async fn main(args: Args) -> anyhow::Result<()> {
         .unwrap();
 
     // TODO make this be sourced from a configuration file of sort...
-    let git_root = PathBuf::from(fetch_envvar("PMR_GIT_ROOT")?);
+    let git_root = PathBuf::from(fetch_envvar("PMR_REPO_ROOT")?);
     let db_url = fetch_envvar("PMRAPP_DB_URL")?;
     if !Sqlite::database_exists(&db_url).await.unwrap_or(false) {
         log::warn!("database {} does not exist; creating...", &db_url);

@@ -6,7 +6,7 @@ pub struct Config {
 
     /// The root for the git repos
     #[clap(long, env)]
-    pub pmr_git_root: String,
+    pub pmr_repo_root: String,
 
     /// The http port for the server
     #[clap(long, env)]
