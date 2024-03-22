@@ -1,11 +1,17 @@
 use pmrcore::{
-    exposure::traits::ExposureFile as _,
+    exposure::{
+        traits::ExposureFile as _,
+        task::ExposureFileViewTaskTemplate,
+    },
     task::Task,
     platform::{
         MCPlatform,
         TMPlatform,
     },
-    profile::ViewTaskTemplates,
+    profile::{
+        ViewTaskTemplate,
+        ViewTaskTemplates,
+    },
 };
 use pmrmodel::{
     error::BuildArgErrors,
@@ -17,18 +23,24 @@ use pmrmodel::{
     },
     registry::{
         ChoiceRegistry,
-        ChoiceRegistryCache,
         PreparedChoiceRegistry,
         PreparedChoiceRegistryCache,
     },
 };
-use std::sync::OnceLock;
+use std::{
+    collections::HashMap,
+    sync::{
+        Arc,
+        OnceLock,
+    },
+};
 
 use crate::{
     error::PlatformError,
     handle::{
         ExposureFileCtrl,
         ViewTaskTemplatesCtrl,
+        view_task_template::EFViewTaskTemplateCtrl,
     },
     platform::Platform,
 };
@@ -54,6 +66,7 @@ where
             view_task_templates,
             choice_registry: OnceLock::new(),
             choice_registry_cache: OnceLock::new(),
+            efvttcs: OnceLock::new(),
         }
     }
 
@@ -63,12 +76,9 @@ where
         Ok(match self.choice_registry.get() {
             Some(registry) => Ok::<_, PlatformError>(registry),
             None => {
-                let exposure = self.platform.get_exposure(
-                    self.exposure_file_ctrl.exposure_file().exposure_id()
-                ).await?;
-                self.choice_registry.set(
-                    (&exposure).try_into()?
-                ).unwrap_or_else(|_| log::warn!(
+                self.choice_registry.set(Arc::new(
+                    (&self.exposure_file_ctrl).try_into()?
+                )).unwrap_or_else(|_| log::warn!(
                     "concurrent call to the same \
                     ViewTaskTemplateCtrls.registry_cache()"
                 ));
@@ -79,15 +89,15 @@ where
     }
 
     async fn get_registry_cache(
-        &'p self
+        &'db self
     ) -> Result<&PreparedChoiceRegistryCache, PlatformError> {
         Ok(match self.choice_registry_cache.get() {
             Some(registry_cache) => Ok::<_, PlatformError>(registry_cache),
             None => {
                 let registry = self.get_registry().await?;
-                self.choice_registry_cache.set(
-                    ChoiceRegistryCache::from(registry as &dyn ChoiceRegistry<_>),
-                ).unwrap_or_else(|_| log::warn!(
+                self.choice_registry_cache.set(Arc::new(
+                    (registry as &dyn ChoiceRegistry<_>).into()
+                )).unwrap_or_else(|_| log::warn!(
                     "concurrent call to the same \
                     ViewTaskTemplateCtrls.choice_registry_cache()"
                 ));
@@ -95,6 +105,42 @@ where
                     .expect("choice_registry_cache just been set!"))
             }
         }?)
+    }
+
+    fn get_efvttcs(
+        &'p self
+    ) -> &'p [EFViewTaskTemplateCtrl<MCP, TMP>] {
+        self.efvttcs.get_or_init(|| self.view_task_templates
+            .iter()
+            .map(|efvtt| {
+                let mut reg_basedir = PreparedChoiceRegistry::new();
+                reg_basedir.register("working_dir", HashMap::from([
+                    ("working_dir".to_string(), Some(
+                        self.exposure_file_ctrl
+                            .data_root()
+                            .join(efvtt.view_key.clone())
+                            .as_path()
+                            .display()
+                            .to_string()
+                    )),
+                ]).into());
+                let registry = vec![
+                    // need direct access to the Arc
+                    self.choice_registry.get()
+                        .expect("this should have been already set")
+                        .clone(),
+                    Arc::new(reg_basedir),
+                ];
+                let ctrl = EFViewTaskTemplateCtrl::new(
+                    self.platform,
+                    self.exposure_file_ctrl.clone(),
+                    efvtt,
+                    registry
+                );
+                ctrl
+            })
+            .collect::<Vec<_>>()
+        )
     }
 
     pub async fn create_user_arg_refs(
@@ -114,33 +160,125 @@ where
         &'p self,
         user_input: &'p UserInputMap,
     ) -> Result<Vec<VTTCTask>, PlatformError> {
-        let cache = self.get_registry_cache().await?;
+        // prepare the registry
+        let _ = self.get_registry_cache().await?;
         let basedir = self.exposure_file_ctrl.data_root();
-        let tasks = self
-            .view_task_templates
-            .iter()
-            .map(|efvtt| {
-                let mut task = Task::from(TaskBuilder::try_from((
-                    user_input,
-                    efvtt.task_template
-                        .as_ref()
-                        .expect("task_template must have been provided"),
-                    cache,
-                ))?);
-                // this would be the output dir
-                // TODO need to figure out how to communicate the workspace
-                // extraction
-                // TODO probably at the start a VTTCTasks could be created
-                // such that it contains a reference to the git archive.
-                task.basedir = basedir.join(&efvtt.view_key).as_path().display().to_string();
-                Ok(VTTCTask {
-                    view_task_template_id: efvtt.id,
-                    task: task,
-                })
-            })
+
+        // TODO how to store these ctrls temporarily but long enough to get
+        // the tasks returned?
+        let tasks = self.get_efvttcs().into_iter()
+            .map(|ctrl| ctrl.create_task_from_input(&user_input))
             .collect::<Result<Vec<_>, BuildArgErrors>>()?;
 
+        // let tasks = self
+        //     .view_task_templates
+        //     .iter()
+        //     .map(|efvtt| {
+        //         let view_basedir = basedir.join(&efvtt.view_key).as_path().display().to_string();
+        //         let mut reg_basedir = PreparedChoiceRegistry::new();
+        //         reg_basedir.register("working_dir", HashMap::from([
+        //             ("working_dir".to_string(), Some(view_basedir.clone())),
+        //         ]).into());
+        //         let reg_basedir_cache = ChoiceRegistryCache::from(
+        //             &reg_basedir as &dyn ChoiceRegistry<_>,
+        //         );
+        //         let view_cache = ChoiceRegistryCache::from(&[
+        //             &reg_basedir_cache,
+        //             cache,
+        //         ]);
+        //         let mut task = Task::from(TaskBuilder::try_from((
+        //             user_input,
+        //             efvtt.task_template
+        //                 .as_ref()
+        //                 .expect("task_template must have been provided"),
+        //             // &view_cache,
+        //             cache,
+        //         ))?);
+        //         // TODO how to actually inject this basedir as `working_dir`
+        //         // to the lookup cache above?  Maybe provide a layer on top?
+        //         task.basedir = view_basedir;
+        //         Ok(VTTCTask {
+        //             view_task_template_id: efvtt.id,
+        //             task: task,
+        //         })
+        //     })
+        //     .collect::<Result<Vec<_>, BuildArgErrors>>()?;
+
         Ok(tasks)
+    }
+}
+
+impl<
+    'p,
+    'db,
+    MCP: MCPlatform + Sized + Sync,
+    TMP: TMPlatform + Sized + Sync,
+> EFViewTaskTemplateCtrl<'p, 'db, MCP, TMP>
+where
+    'p: 'db
+{
+    pub(crate) fn new(
+        platform: &'p Platform<'db, MCP, TMP>,
+        exposure_file_ctrl: ExposureFileCtrl<'p, 'db, MCP, TMP>,
+        efvtt: &'db ViewTaskTemplate,
+        choice_registry: Vec<Arc<PreparedChoiceRegistry>>,
+    ) -> Self {
+        Self {
+            platform,
+            exposure_file_ctrl,
+            efvtt,
+            choice_registry: choice_registry,
+            choice_registry_cache: OnceLock::new(),
+        }
+    }
+
+    fn get_registry_cache(
+        &'db self
+    ) -> &PreparedChoiceRegistryCache {
+        match self.choice_registry_cache.get() {
+            Some(registry_cache) => registry_cache,
+            None => {
+                self.choice_registry_cache.set(
+                    self.choice_registry
+                        .as_slice()
+                        .into_iter()
+                        .map(|x| x.as_ref() as &dyn ChoiceRegistry<_>)
+                        .collect::<Vec<_>>()
+                        .into()
+                ).unwrap_or_else(|_| log::warn!(
+                    "concurrent call to the same \
+                    EFViewTaskTemplateCtrl.choice_registry_cache()"
+                ));
+                self.choice_registry_cache.get()
+                    .expect("choice_registry_cache just been set!")
+            }
+        }
+    }
+
+    fn create_task_from_input(
+        &'p self,
+        user_input: &'db UserInputMap,
+    ) -> Result<VTTCTask, BuildArgErrors> {
+          // TODO resolve this value from the registry
+          let view_basedir = self.exposure_file_ctrl
+              .data_root()
+              .join(&self.efvtt.view_key)
+              .as_path()
+              .display()
+              .to_string();
+          let cache = self.get_registry_cache();
+          let mut task = Task::from(TaskBuilder::try_from((
+              user_input,
+              self.efvtt.task_template
+                  .as_ref()
+                  .expect("task_template must have been provided"),
+              cache,
+          ))?);
+          task.basedir = view_basedir;
+          Ok(VTTCTask {
+              view_task_template_id: self.efvtt.id,
+              task: task,
+          })
     }
 }
 

@@ -6,7 +6,10 @@ use pmrcore::{
     },
 };
 use pmrrepo::handle::GitHandleResult;
-use std::sync::Arc;
+use std::{
+    path::PathBuf,
+    sync::Arc,
+};
 
 use crate::{
     platform::Platform,
@@ -23,6 +26,7 @@ pub(crate) struct RawExposureFileCtrl<
     pub(crate) exposure: ExposureCtrl<'db, 'db, MCP, TMP>,
     pub(crate) exposure_file: ExposureFileRef<'db, MCP>,
     pub(crate) pathinfo: GitHandleResult<'p, 'db, MCP>,
+    data_root: PathBuf,
 }
 
 pub struct ExposureFileCtrl<

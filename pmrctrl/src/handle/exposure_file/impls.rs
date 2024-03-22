@@ -17,7 +17,10 @@ use pmrcore::{
 };
 use pmrrepo::handle::GitHandleResult;
 use std::{
-    path::PathBuf,
+    path::{
+        Path,
+        PathBuf,
+    },
     sync::Arc,
 };
 
@@ -58,11 +61,15 @@ where
         exposure_file: ExposureFileRef<'db, MCP>,
         pathinfo: GitHandleResult<'p, 'db, MCP>,
     ) -> Self {
+        let mut data_root = platform.data_root.join("exposure");
+        data_root.push(exposure.exposure().id().to_string());
+        data_root.push(exposure_file.id().to_string());
         Self(Arc::new(RawExposureFileCtrl {
             platform,
             exposure,
             exposure_file,
             pathinfo,
+            data_root,
         }))
     }
 
@@ -139,6 +146,9 @@ where
     /// Build a ViewTaskTemplatesCtrl.
     ///
     /// This could be an impl on async TryFrom.
+    ///
+    /// Note that this would freeze the view templates associated with
+    /// this particular instance of ExposureFileCtrl.
     pub async fn build_vttc(
         &'p self,
     ) -> Result<ViewTaskTemplatesCtrl<'p, 'db, MCP, TMP>, PlatformError> {
@@ -188,10 +198,7 @@ where
         &self.0.exposure_file
     }
 
-    pub fn data_root(&self) -> PathBuf {
-        let mut root = self.0.platform.data_root.join("exposure");
-        root.push(self.0.exposure.exposure().id().to_string());
-        root.push(self.0.exposure_file.id().to_string());
-        root
+    pub fn data_root(&self) -> &Path {
+        self.0.data_root.as_ref()
     }
 }

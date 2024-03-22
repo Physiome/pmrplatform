@@ -46,6 +46,18 @@ impl<'a, T> From<&'a dyn ChoiceRegistry<T>> for ChoiceRegistryCache<'a, T> {
     }
 }
 
+impl<'a, T> From<&[&'a dyn ChoiceRegistry<T>]> for ChoiceRegistryCache<'a, T> {
+    fn from(registry: &[&'a dyn ChoiceRegistry<T>]) -> Self {
+        Self::new(Vec::from(registry))
+    }
+}
+
+impl<'a, T> From<Vec<&'a dyn ChoiceRegistry<T>>> for ChoiceRegistryCache<'a, T> {
+    fn from(registry: Vec<&'a dyn ChoiceRegistry<T>>) -> Self {
+        Self::new(registry)
+    }
+}
+
 impl<'a, T> From<Vec<&ChoiceRegistryCache<'a, T>>> for ChoiceRegistryCache<'a, T> {
     fn from(item: Vec<&ChoiceRegistryCache<'a, T>>) -> Self {
         Self::new(

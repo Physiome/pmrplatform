@@ -392,6 +392,36 @@ where
             }
         }"#)?
     ).await?);
+    result.push(platform.adds_view_task_template(
+        serde_json::from_str(r#"{
+            "view_key": "default_hidden",
+            "description": "",
+            "task_template": {
+                "bin_path": "/usr/local/bin/hidden_example",
+                "version_id": "1.0.0",
+                "args": [
+                    {
+                        "flag": "--workspace_file_path=",
+                        "flag_joined": true,
+                        "prompt": "",
+                        "default": "workspace_file_path",
+                        "choice_fixed": true,
+                        "choice_source": "workspace_file_path",
+                        "choices": []
+                    },
+                    {
+                        "flag": "--working_dir=",
+                        "flag_joined": true,
+                        "prompt": "",
+                        "default": "working_dir",
+                        "choice_fixed": true,
+                        "choice_source": "working_dir",
+                        "choices": []
+                    }
+                ]
+            }
+        }"#)?
+    ).await?);
     Ok(result)
 }
 
@@ -619,6 +649,85 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+// this tests usage of registries that reference values secured against
+// end user access, such as the working_dir and actual location of the
+// underlying workspace.
+#[async_std::test]
+async fn test_hidden_registries() -> anyhow::Result<()> {
+    let (_reporoot, platform) = create_sqlite_platform().await?;
+    let mut exposure_basedir = PathBuf::new();
+    exposure_basedir.push(platform.data_root());
+    exposure_basedir.push("exposure");
+    exposure_basedir.push("1");
+    let exposure_file_basedir = exposure_basedir.join("1");
+    let target = "branch/leaf/z1";
+    let workspace_filepath = exposure_basedir.join("files").join(target)
+        .display()
+        .to_string();
+    let working_dir = exposure_file_basedir
+        .join("default_hidden")
+        .display()
+        .to_string();
+
+    let vtts = make_example_view_task_templates(&platform).await?;
+    let exposure = platform.create_exposure(
+        1,
+        "8dd710b6b5cf607711bc44f5ca0204565bf7cc35",
+    ).await?;
+    let efc = exposure.create_file(target).await?;
+    let exposure_file_id = efc
+        .exposure_file()
+        .id();
+    ExposureTaskTemplateBackend::set_file_templates(
+        &platform.mc_platform,
+        exposure_file_id,
+        [vtts[4]].into_iter(),
+    ).await?;
+
+    let efvttsc = efc.build_vttc().await?;
+    let user_arg_refs = efvttsc.create_user_arg_refs().await?;
+    assert_eq!(user_arg_refs.len(), 0);
+
+    let user_input = UserInputMap::from([]);
+    let tasks = efvttsc.create_tasks_from_input(&user_input).await?
+        .into_iter()
+        .map(<(i64, Task)>::from)
+        .collect::<Vec<_>>();
+
+    let answers: Vec<(i64, Task)> = serde_json::from_str(&format!(r#"
+    [
+        [5, {{
+            "id": 0,
+            "task_template_id": 6,
+            "bin_path": "/usr/local/bin/hidden_example",
+            "pid": null,
+            "created_ts": 0,
+            "start_ts": null,
+            "stop_ts": null,
+            "exit_status": null,
+            "basedir": "{working_dir}",
+            "args": [
+                {{
+                    "id": 0,
+                    "task_id": 0,
+                    "arg": "--workspace_file_path={workspace_filepath}"
+                }},
+                {{
+                    "id": 0,
+                    "task_id": 0,
+                    "arg": "--working_dir={working_dir}"
+                }}
+            ]
+        }}]
+    ]
+    "#))?;
+    assert_eq!(&answers, &tasks);
+
+
+    Ok(())
+}
+
 
 #[async_std::test]
 async fn test_multiple_exposure_files() -> anyhow::Result<()> {
