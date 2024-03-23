@@ -19,11 +19,11 @@ use super::{
     GitHandle,
 };
 
-impl<'handle, 'db, P: MCPlatform + Sync> Handle<'handle, 'db, P> {
+impl<'handle, P: MCPlatform + Send + Sync> Handle<'handle, P> {
     pub(crate) fn new(
-        backend: &'handle Backend<'db, P>,
+        backend: &'handle Backend<P>,
         repo_root: PathBuf,
-        workspace: WorkspaceRef<'db, P>,
+        workspace: WorkspaceRef<'handle, P>,
     ) -> Self {
         let repo_dir = repo_root.join(workspace.id().to_string());
         Self { backend, repo_dir, workspace }
@@ -31,10 +31,7 @@ impl<'handle, 'db, P: MCPlatform + Sync> Handle<'handle, 'db, P> {
 
     pub(crate) async fn sync_workspace(
         self,
-    ) -> Result<GitHandle<'handle, 'db, P>, PmrRepoError>
-    where
-        'handle: 'db
-    {
+    ) -> Result<GitHandle<'handle, P>, PmrRepoError> {
         let ticket = self.workspace.begin_sync().await?;
         let repo_dir = &self.repo_dir.as_ref();
         let url = self.workspace.url();
@@ -46,7 +43,7 @@ impl<'handle, 'db, P: MCPlatform + Sync> Handle<'handle, 'db, P> {
         match super::git::util::fetch_or_clone(repo_dir, &url) {
             Ok(_) => {
                 ticket.complete_sync().await?;
-                let handle: GitHandle<'handle, 'db, P> = self.try_into()?;
+                let handle: GitHandle<'handle, P> = self.try_into()?;
                 handle.index_tags().await?;
                 Ok(handle)
             }
@@ -126,7 +123,7 @@ mod tests {
             .returning(|_, _| Ok(true));
         expect_workspace(&mut platform, wid, td.path().to_str().unwrap());
         let repo_root = TempDir::new()?;
-        let backend = Backend::new(&platform, repo_root.path().to_path_buf());
+        let backend = Backend::new(platform.into(), repo_root.path().to_path_buf());
         backend.sync_workspace(wid).await?;
         Ok(())
     }
@@ -161,7 +158,7 @@ mod tests {
         expect_workspace(&mut platform, wid, td.path().to_str().unwrap());
 
         let repo_root = TempDir::new().unwrap();
-        let backend = Backend::new(&platform, repo_root.path().to_path_buf());
+        let backend = Backend::new(platform.into(), repo_root.path().to_path_buf());
         backend.sync_workspace(wid).await?;
         Ok(())
     }
@@ -188,7 +185,7 @@ mod tests {
         expect_workspace(&mut platform, wid, td.path().to_str().unwrap());
 
         let repo_root = TempDir::new().unwrap();
-        let backend = Backend::new(&platform, repo_root.path().to_path_buf());
+        let backend = Backend::new(platform.into(), repo_root.path().to_path_buf());
         let err = backend.sync_workspace(wid).await.unwrap_err();
         assert_eq!(err.to_string(), err_msg);
         Ok(())
@@ -213,13 +210,10 @@ mod tests {
         expect_workspace(&mut platform, wid, &url);
 
         let repo_root = TempDir::new().unwrap();
-        {
-            let backend = Backend::new(&platform, repo_root.path().to_path_buf());
-            assert!(backend.sync_workspace(wid).await.is_ok());
-        }
+        let backend = Backend::new(platform.into(), repo_root.path().to_path_buf());
+        assert!(backend.sync_workspace(wid).await.is_ok());
 
-        platform.checkpoint();
-
+        let mut platform = MockPlatform::new();
         // now verify that the failure to sync will generate the right error
         // when an originally working remote disappeared or errored.
         td.close()?;
@@ -239,7 +233,8 @@ mod tests {
             "ExecutionError: workspace `42`: failed to synchronize with \
             remote `{}`: unsupported URL protocol; class=Net (12)", url
         );
-        let backend = Backend::new(&platform, repo_root.path().to_path_buf());
+
+        let backend = Backend::new(platform.into(), repo_root.path().to_path_buf());
         let failed_sync = backend.sync_workspace(wid).await;
         assert_eq!(failed_sync.unwrap_err().to_string(), err_msg);
         Ok(())
@@ -277,7 +272,7 @@ mod tests {
             .returning(|_, _| Ok(true));
         expect_workspace(&mut platform, 10, origin.path().to_str().unwrap());
 
-        let backend = Backend::new(&platform, repo_root.path().to_path_buf());
+        let backend = Backend::new(platform.into(), repo_root.path().to_path_buf());
         let failed_sync = backend.sync_workspace(10).await.unwrap_err();
         let err_msg = format!(
             "ExecutionError: workspace `10`: failed to synchronize with \
@@ -306,15 +301,12 @@ mod tests {
             .with(eq(10), eq(WorkspaceSyncStatus::Completed))
             .returning(|_, _| Ok(true));
         expect_workspace(&mut platform, 10, td.path().to_str().unwrap());
+        let backend = Backend::new(platform.into(), repo_root.path().to_path_buf());
+        assert!(backend.sync_workspace(10).await.is_ok());
 
-        {
-            let backend = Backend::new(&platform, repo_root.path().to_path_buf());
-            assert!(backend.sync_workspace(10).await.is_ok());
-        }
-        platform.checkpoint();
-
+        let mut platform = MockPlatform::new();
         expect_workspace(&mut platform, 10, td.path().to_str().unwrap());
-        let backend = Backend::new(&platform, repo_root.path().to_path_buf());
+        let backend = Backend::new(platform.into(), repo_root.path().to_path_buf());
         let handle = backend.git_handle(10).await?;
         let result = handle.pathinfo::<String>(None, None).unwrap();
         assert_eq!(result.path(), "");
@@ -347,7 +339,7 @@ mod tests {
         expect_workspace(&mut platform, 3, "http://models.example.com/w/repodata");
         expect_workspace(&mut platform, 2, "http://models.example.com/w/import2");
 
-        let backend = Backend::new(&platform, repo_root.path().to_path_buf());
+        let backend = Backend::new(platform.into(), repo_root.path().to_path_buf());
         let handle = backend.git_handle(3).await?;
         let pathinfo = handle.pathinfo(
             Some("557ee3cb13fb421d2bd6897615ae95830eb427c8"),
@@ -437,7 +429,7 @@ mod tests {
         let mut platform = MockPlatform::new();
         expect_workspace(&mut platform, 3, "http://models.example.com/w/repodata");
 
-        let backend = Backend::new(&platform, repo_root.path().to_path_buf());
+        let backend = Backend::new(platform.into(), repo_root.path().to_path_buf());
         let handle = backend.git_handle(3).await?;
         let logs = handle.loginfo(None, None, None).unwrap();
         assert_eq!(
@@ -611,7 +603,7 @@ mod tests {
 
         let mut platform = MockPlatform::new();
         expect_workspace(&mut platform, 3, "http://models.example.com/w/repodata");
-        let backend = Backend::new(&platform, repo_root.path().to_path_buf());
+        let backend = Backend::new(platform.into(), repo_root.path().to_path_buf());
         let handle = backend.git_handle(3).await?;
 
         assert_eq!(
@@ -655,7 +647,7 @@ mod tests {
         ) = test_pmr::repo::create_repodata();
         let mut platform = MockPlatform::new();
         expect_workspace(&mut platform, 3, "http://models.example.com/w/repodata");
-        let backend = Backend::new(&platform, repo_root.path().to_path_buf());
+        let backend = Backend::new(platform.into(), repo_root.path().to_path_buf());
         let handle = backend.git_handle(3).await?;
         {
             let _ = handle.pathinfo::<String>(None, None);
@@ -677,7 +669,7 @@ mod tests {
         ) = test_pmr::repo::create_repodata();
         let mut platform = MockPlatform::new();
         expect_workspace(&mut platform, 1, "http://models.example.com/");
-        let backend = Backend::new(&platform, repo_root.path().to_path_buf());
+        let backend = Backend::new(platform.into(), repo_root.path().to_path_buf());
         let handle = backend.git_handle(1).await?;
 
         let checkout_root = TempDir::new()?;

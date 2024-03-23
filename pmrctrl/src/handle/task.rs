@@ -10,12 +10,11 @@ use crate::platform::Platform;
 
 pub struct TaskCtrl<
     'p,
-    'db,
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
 > {
-    pub(crate) platform: &'p Platform<'db, MCP, TMP>,
-    pub(crate) task: TaskRef<'db, TMP>,
+    pub(crate) platform: &'p Platform<MCP, TMP>,
+    pub(crate) task: TaskRef<'p, TMP>,
 }
 
 mod impls;

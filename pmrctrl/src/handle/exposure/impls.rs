@@ -36,9 +36,9 @@ use crate::{
 };
 
 impl<
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
-> Clone for ExposureCtrl<'_, '_, MCP, TMP> {
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
+> Clone for ExposureCtrl<'_, MCP, TMP> {
     fn clone(&self) -> Self {
         Self(Arc::clone(&self.0))
     }
@@ -46,17 +46,13 @@ impl<
 
 impl<
     'p,
-    'db,
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
-> ExposureCtrl<'p, 'db, MCP, TMP>
-where
-    'p: 'db
-{
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
+> ExposureCtrl<'p, MCP, TMP> {
     pub fn new(
-        platform: &'p Platform<'db, MCP, TMP>,
-        git_handle: GitHandle<'p, 'db, MCP>,
-        exposure: ExposureRef<'db, MCP>,
+        platform: &'p Platform<MCP, TMP>,
+        git_handle: GitHandle<'p, MCP>,
+        exposure: ExposureRef<'p, MCP>,
     ) -> Self {
         Self(Arc::new(RawExposureCtrl {
             platform,
@@ -68,9 +64,9 @@ where
 
     pub async fn create_file(
         &'p self,
-        workspace_file_path: &'db str,
+        workspace_file_path: &'p str,
     ) -> Result<
-        ExposureFileCtrl<'p, 'db, MCP, TMP>,
+        ExposureFileCtrl<'p, MCP, TMP>,
         PlatformError
     > {
         // FIXME should fail with already exists if already created
@@ -80,7 +76,7 @@ where
             Some(workspace_file_path),
         )?;
         // path exists, so create the exposure file
-        let efb: &dyn ExposureFileBackend = &self.0.platform.mc_platform;
+        let efb: &dyn ExposureFileBackend = self.0.platform.mc_platform.as_ref();
         let exposure_file = self.0.platform.mc_platform.get_exposure_file(
             efb.insert(
                 self.0.exposure.id(),
@@ -108,9 +104,9 @@ where
 
     pub fn ctrl_file(
         &'p self,
-        exposure_file_ref: ExposureFileRef<'db, MCP>,
+        exposure_file_ref: ExposureFileRef<'p, MCP>,
     ) -> Result<
-        ExposureFileCtrl<'p, 'db, MCP, TMP>,
+        ExposureFileCtrl<'p, MCP, TMP>,
         PlatformError
     > {
         let workspace_file_path = exposure_file_ref
@@ -196,7 +192,7 @@ where
     }
 
     /// List all files that have a corresponding exposure file
-    pub async fn list_exposure_files(&'p self) -> Result<Vec<&'db str>, PlatformError> {
+    pub async fn list_exposure_files(&'p self) -> Result<Vec<&'p str>, PlatformError> {
         // FIXME this might not be accurate if we later create a new file.
         // using create_file after this call.
         Ok(self.0.exposure.files().await?
@@ -206,7 +202,7 @@ where
         )
     }
 
-    pub fn exposure(&self) -> &ExposureRef<'db, MCP> {
+    pub fn exposure(&self) -> &ExposureRef<'p, MCP> {
         &self.0.exposure
     }
 

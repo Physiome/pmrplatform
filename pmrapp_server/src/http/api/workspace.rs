@@ -33,7 +33,7 @@ pub fn router() -> Router {
 }
 
 pub async fn api_workspace(ctx: Extension<AppContext>) -> Result<Json<Workspaces>> {
-    let workspaces = WorkspaceBackend::list_workspaces(&ctx.db).await?;
+    let workspaces = WorkspaceBackend::list_workspaces(ctx.db.as_ref()).await?;
     Ok(Json(workspaces))
 }
 
@@ -41,7 +41,7 @@ pub async fn api_workspace_top(
     ctx: Extension<AppContext>,
     Path(workspace_id): Path<i64>,
 ) -> Result<Json<RepoResult>> {
-    let backend = Backend::new(&ctx.db, (&ctx.config.pmr_repo_root).into());
+    let backend = Backend::new(ctx.db.clone(), (&ctx.config.pmr_repo_root).into());
     let handle = backend.git_handle(workspace_id).await?;
     let pathinfo = handle.pathinfo::<String>(None, None)?;
     Ok(Json(pathinfo.into()))
@@ -52,7 +52,7 @@ pub async fn api_workspace_top_ssr(
     ctx: Extension<AppContext>,
     Path(workspace_id): Path<i64>,
 ) -> Result<(JsonWorkspaceRecord, Option<RepoResult>)> {
-    let backend = Backend::new(&ctx.db, (&ctx.config.pmr_repo_root).into());
+    let backend = Backend::new(ctx.db.clone(), (&ctx.config.pmr_repo_root).into());
     let handle = backend.git_handle(workspace_id).await?;
 
     let pathinfo = match handle.pathinfo(None, None) {
@@ -78,7 +78,7 @@ async fn api_workspace_pathinfo(
     commit_id: Option<String>,
     path: Option<String>,
 ) -> Result<Json<RepoResult>> {
-    let backend = Backend::new(&ctx.db, (&ctx.config.pmr_repo_root).into());
+    let backend = Backend::new(ctx.db.clone(), (&ctx.config.pmr_repo_root).into());
     let handle = backend.git_handle(workspace_id).await?;
 
     let result = match handle.pathinfo(

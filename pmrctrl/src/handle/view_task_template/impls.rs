@@ -44,16 +44,12 @@ use super::VTTCTask;
 
 impl<
     'p,
-    'db,
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
-> EFViewTaskTemplatesCtrl<'p, 'db, MCP, TMP>
-where
-    'p: 'db
-{
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
+> EFViewTaskTemplatesCtrl<'p, MCP, TMP> {
     pub(crate) fn new(
-        platform: &'p Platform<'db, MCP, TMP>,
-        exposure_file_ctrl: ExposureFileCtrl<'p, 'db, MCP, TMP>,
+        platform: &'p Platform<MCP, TMP>,
+        exposure_file_ctrl: ExposureFileCtrl<'p, MCP, TMP>,
         view_task_templates: ViewTaskTemplates,
     ) -> Self {
         Self {
@@ -85,7 +81,7 @@ where
     }
 
     async fn get_registry_cache(
-        &'db self
+        &'p self
     ) -> Result<&PreparedChoiceRegistryCache, PlatformError> {
         Ok(match self.choice_registry_cache.get() {
             Some(registry_cache) => Ok::<_, PlatformError>(registry_cache),
@@ -166,17 +162,13 @@ where
 
 impl<
     'p,
-    'db,
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
-> EFViewTaskTemplateCtrl<'p, 'db, MCP, TMP>
-where
-    'p: 'db
-{
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
+> EFViewTaskTemplateCtrl<'p, MCP, TMP> {
     pub(crate) fn new(
-        platform: &'p Platform<'db, MCP, TMP>,
-        exposure_file_ctrl: ExposureFileCtrl<'p, 'db, MCP, TMP>,
-        efvtt: &'db ViewTaskTemplate,
+        platform: &'p Platform<MCP, TMP>,
+        exposure_file_ctrl: ExposureFileCtrl<'p, MCP, TMP>,
+        efvtt: &'p ViewTaskTemplate,
         choice_registry: Vec<Arc<PreparedChoiceRegistry>>,
     ) -> Self {
         Self {
@@ -189,7 +181,7 @@ where
     }
 
     fn get_registry_cache(
-        &'db self
+        &'p self
     ) -> &PreparedChoiceRegistryCache {
         match self.choice_registry_cache.get() {
             Some(registry_cache) => registry_cache,
@@ -213,7 +205,7 @@ where
 
     fn create_task_from_input(
         &'p self,
-        user_input: &'db UserInputMap,
+        user_input: &'p UserInputMap,
     ) -> Result<VTTCTask, BuildArgErrors> {
           let cache = self.get_registry_cache();
           let mut task = Task::from(TaskBuilder::try_from((
@@ -251,16 +243,13 @@ where
 
 impl<
     'p,
-    'db,
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
-> From<&'p EFViewTaskTemplatesCtrl<'db, 'db, MCP, TMP>>
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
+> From<&'p EFViewTaskTemplatesCtrl<'p, MCP, TMP>>
 for
     &'p ViewTaskTemplates
-where
-    'p: 'db
 {
-    fn from(item: &'p EFViewTaskTemplatesCtrl<'db, 'db, MCP, TMP>) -> Self {
+    fn from(item: &'p EFViewTaskTemplatesCtrl<'p, MCP, TMP>) -> Self {
         &item.view_task_templates
     }
 }

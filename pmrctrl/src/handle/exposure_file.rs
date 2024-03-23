@@ -18,22 +18,20 @@ use crate::{
 
 pub(crate) struct RawExposureFileCtrl<
     'p,
-    'db,
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
 > {
-    pub(crate) platform: &'p Platform<'db, MCP, TMP>,
-    pub(crate) exposure: ExposureCtrl<'db, 'db, MCP, TMP>,
-    pub(crate) exposure_file: ExposureFileRef<'db, MCP>,
-    pub(crate) pathinfo: GitHandleResult<'p, 'db, MCP>,
+    pub(crate) platform: &'p Platform<MCP, TMP>,
+    pub(crate) exposure: ExposureCtrl<'p, MCP, TMP>,
+    pub(crate) exposure_file: ExposureFileRef<'p, MCP>,
+    pub(crate) pathinfo: GitHandleResult<'p, MCP>,
     data_root: PathBuf,
 }
 
 pub struct ExposureFileCtrl<
     'p,
-    'db,
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
->(pub(crate) Arc<RawExposureFileCtrl<'p, 'db, MCP, TMP>>);
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
+>(pub(crate) Arc<RawExposureFileCtrl<'p, MCP, TMP>>);
 
 mod impls;

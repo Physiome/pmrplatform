@@ -294,7 +294,7 @@ async fn test_platform_create_exposure_file_view_task() -> anyhow::Result<()> {
     // TODO may need to revisit this particular test when further API
     // refinements are made; for now just grab the task directly from
     // the internal task management platform.
-    // let new_task = TaskBackend::gets_task(&platform.tm_platform, 1);
+    // let new_task = TaskBackend::gets_task(platform.tm_platform.as_ref(), 1);
 
     // TODO actually tying the task back to the exposure file and thus
     // the appropriate view - this test really is a current proof of
@@ -303,18 +303,17 @@ async fn test_platform_create_exposure_file_view_task() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn make_example_view_task_templates<'p, 'db, M, T>(
-    platform: &'p Platform<'db, M, T>
+async fn make_example_view_task_templates<'p, M, T>(
+    platform: &'p Platform<M, T>
 ) -> anyhow::Result<Vec<i64>>
 where
-    M: MCPlatform + Sized + Sync,
-    T: TMPlatform + Sized + Sync,
-    'p: 'db,
+    M: MCPlatform + Sized + Send + Sync,
+    T: TMPlatform + Sized + Send + Sync,
 {
     use pmrcore::task_template::traits::TaskTemplateBackend;
     // force insertion of a dummy task template that should shift the
     // id for the ExposureFileTaskTemplate vs TaskTemplate.
-    let ttb: &dyn TaskTemplateBackend = &platform.tm_platform;
+    let ttb: &dyn TaskTemplateBackend = platform.tm_platform.as_ref();
     ttb.add_task_template("/bin/dummy", "1.0.0").await?;
 
     let mut result: Vec<i64> = Vec::new();
@@ -447,7 +446,7 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
     assert_eq!(vtt.len(), 0);
 
     ExposureTaskTemplateBackend::set_file_templates(
-        &platform.mc_platform,
+        platform.mc_platform.as_ref(),
         exposure_file_id,
         [vtts[0]].into_iter(),
     ).await?;
@@ -467,7 +466,7 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
     assert_eq!(vtt[0].view_key, "example_view1");
 
     ExposureTaskTemplateBackend::set_file_templates(
-        &platform.mc_platform,
+        platform.mc_platform.as_ref(),
         exposure_file_id,
         [vtts[1], vtts[2]].into_iter(),
     ).await?;
@@ -523,7 +522,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
         .id();
 
     ExposureTaskTemplateBackend::set_file_templates(
-        &platform.mc_platform,
+        platform.mc_platform.as_ref(),
         exposure_file_id,
         [vtts[0], vtts[3]].into_iter(),
     ).await?;
@@ -614,7 +613,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     // but for now just use the underlying and find out whether the
     // tasks have been correctly queued.
 
-    let etb: &dyn ExposureTaskBackend = &platform.mc_platform;
+    let etb: &dyn ExposureTaskBackend = platform.mc_platform.as_ref();
     let et1 = etb.select_task_for_view(result[0]).await?
         .expect("not none");
     assert_eq!(et1.id, 1);
@@ -622,7 +621,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     assert_eq!(et1.view_task_template_id, 1);
     assert_eq!(et1.ready, false);
 
-    let tb: &dyn TaskBackend = &platform.tm_platform;
+    let tb: &dyn TaskBackend = platform.tm_platform.as_ref();
     let task1 = tb.gets_task(et1.task_id.expect("not none")).await?;
     let created_ts = task1.created_ts;
     let answer: Task = serde_json::from_str(&format!(r#"
@@ -680,7 +679,7 @@ async fn test_hidden_registries() -> anyhow::Result<()> {
         .exposure_file()
         .id();
     ExposureTaskTemplateBackend::set_file_templates(
-        &platform.mc_platform,
+        platform.mc_platform.as_ref(),
         exposure_file_id,
         [vtts[4]].into_iter(),
     ).await?;

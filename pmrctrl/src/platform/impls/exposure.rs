@@ -17,33 +17,32 @@ use crate::{
 
 impl<
     'p,
-    'db,
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
-> Platform<'db, MCP, TMP>
-where
-    'p: 'db
-{
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
+> Platform<MCP, TMP> {
     /// Creates an exposure with all the relevant data validated.
     ///
     /// Returns a `ExposureCtrl` handle.
     pub async fn create_exposure(
-        &'p self,
+        &self,
         workspace_id: i64,
         commit_id: &str,
-    ) -> Result<ExposureCtrl<'p, 'db, MCP, TMP>, PlatformError> {
+    ) -> Result<ExposureCtrl<MCP, TMP>, PlatformError> {
         let git_handle = self
             .repo_backend()
             .git_handle(workspace_id).await?;
+
+        // // This verifies the existence of the commit
+        // // FIXME this has borrow lifetime issues still when called in here
+        // {
+        //     let _ = git_handle.pathinfo(Some(commit_id), None)?;
+        // }
+
         // This verifies the existence of the commit
-        // TODO replace this with a more simple call? Like get_commit()?
-        // calling pathinfo may be doing more than necessary work.
-        {
-            let _ = git_handle.pathinfo(Some(commit_id), None)?;
-        }
+        let _ = git_handle.check_commit(commit_id)?;
 
         // workspace_id and commit verified, create the root exposure
-        let eb: &dyn ExposureBackend = &self.mc_platform;
+        let eb: &dyn ExposureBackend = self.mc_platform.as_ref();
         let exposure = self.mc_platform.get_exposure(
             eb.insert(
                 workspace_id,
@@ -63,7 +62,7 @@ where
     pub async fn get_exposure(
         &'p self,
         id: i64,
-    ) -> Result<ExposureCtrl<'p, 'db, MCP, TMP>, PlatformError> {
+    ) -> Result<ExposureCtrl<'p, MCP, TMP>, PlatformError> {
         let exposure = self.mc_platform.get_exposure(id).await?;
         let git_handle = self
             .repo_backend()

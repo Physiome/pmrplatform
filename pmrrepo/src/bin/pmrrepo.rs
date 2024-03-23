@@ -95,13 +95,15 @@ enum Command {
     },
 }
 
-fn stream_git_result_default<P: MCPlatform + Sync>(
+fn stream_git_result_default<'a, P: MCPlatform + Send + Sync>(
     mut writer: impl Write,
-    item: &GitHandleResult<P>,
+    item: &GitHandleResult<'a, P>,
+    repo: &'a gix::Repository,
 ) -> std::result::Result<usize, std::io::Error> {
-    // TODO split off to a formatter version?
-    // alternatively, produce some structured data?
-    let repo = item.repo();
+    // the repo argument must be spawned off the result
+    // this wasn't an issue with an earlier design but this is required
+    // to workaround issues with lifetime, even if everything is discarded
+    // before function ends.
     writer.write(format!("
         have repo at {:?}
         have commit {:?}
@@ -111,15 +113,15 @@ fn stream_git_result_default<P: MCPlatform + Sync>(
         have path_object_info {:?}
         \n",
         item.repo().path(),
-        &item.commit(&repo).id(),
-        &item.commit(&repo),
+        item.commit(&repo).id(),
+        item.commit(&repo),
         item.path(),
         &item.target(),
         <PathObjectInfo>::from(item),
     ).as_bytes())
 }
 
-fn stream_git_result_as_json<P: MCPlatform + Sync>(
+fn stream_git_result_as_json<P: MCPlatform + Send + Sync>(
     writer: impl Write,
     item: &GitHandleResult<P>,
 ) -> Result<(), serde_json::Error> {
@@ -158,11 +160,11 @@ async fn main(args: Args) -> anyhow::Result<()> {
         .await?
         .run_migration_profile(Profile::Pmrapp)
         .await?;
-    let wb: &dyn WorkspaceBackend = &platform;
-    let wsb: &dyn WorkspaceSyncBackend = &platform;
-    let wtb: &dyn WorkspaceTagBackend = &platform;
 
-    let backend = Backend::new(&platform, git_root);
+    let backend = Backend::new(platform.into(), git_root);
+    let wb: &dyn WorkspaceBackend = backend.platform();
+    let wsb: &dyn WorkspaceSyncBackend = backend.platform();
+    let wtb: &dyn WorkspaceTagBackend = backend.platform();
 
     match args.cmd {
         Some(Command::Register { url, description, long_description }) => {
@@ -228,8 +230,9 @@ async fn main(args: Args) -> anyhow::Result<()> {
                         io::stdout(), &git_result)?;
                 }
                 else {
+                    let repo = git_result.repo();
                     stream_git_result_default(
-                        io::stdout(), &git_result)?;
+                        io::stdout(), &git_result, &repo)?;
                 }
             }
         }
@@ -246,7 +249,7 @@ async fn main(args: Args) -> anyhow::Result<()> {
             }
         }
         Some(Command::Alias { workspace_id, alias }) => {
-            let wab: &dyn WorkspaceAliasBackend = &platform;
+            let wab: &dyn WorkspaceAliasBackend = backend.platform();
             if alias.is_none() {
                 let aliases = wab.get_aliases(workspace_id).await?;
                 println!("Printing list of all aliases");

@@ -59,7 +59,7 @@ use super::{
     util::*,
 };
 
-impl<P: MCPlatform + Sync> From<&GitHandleResult<'_, '_, P>> for PathObjectInfo {
+impl<P: MCPlatform + Send + Sync> From<&GitHandleResult<'_, P>> for PathObjectInfo {
     fn from(item: &GitHandleResult<P>) -> Self {
         match &item.target {
             GitResultTarget::Object(object) => object.into(),
@@ -68,7 +68,7 @@ impl<P: MCPlatform + Sync> From<&GitHandleResult<'_, '_, P>> for PathObjectInfo 
     }
 }
 
-impl<P: MCPlatform + Sync> From<GitHandleResult<'_, '_, P>> for RepoResult {
+impl<P: MCPlatform + Send + Sync> From<GitHandleResult<'_, P>> for RepoResult {
     fn from(item: GitHandleResult<P>) -> Self {
         RepoResult {
             target: (&item).into(),
@@ -80,10 +80,10 @@ impl<P: MCPlatform + Sync> From<GitHandleResult<'_, '_, P>> for RepoResult {
     }
 }
 
-impl<'handle, 'db, P: MCPlatform + Sync> TryFrom<Handle<'handle, 'db, P>> for GitHandle<'handle, 'db, P> {
+impl<'handle, P: MCPlatform + Send + Sync> TryFrom<Handle<'handle, P>> for GitHandle<'handle, P> {
     type Error = GixError;
 
-    fn try_from(item: Handle<'handle, 'db, P>) -> Result<Self, GixError> {
+    fn try_from(item: Handle<'handle, P>) -> Result<Self, GixError> {
         let repo = gix::open::Options::isolated()
             .open_path_as_is(true)
             .open(&item.repo_dir)?;
@@ -95,11 +95,11 @@ impl<'handle, 'db, P: MCPlatform + Sync> TryFrom<Handle<'handle, 'db, P>> for Gi
     }
 }
 
-impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
+impl<'repo, P: MCPlatform + Send + Sync> GitHandle<'repo, P> {
     pub(crate) fn new(
-        backend: &'repo Backend<'db, P>,
+        backend: &'repo Backend<P>,
         repo_root: PathBuf,
-        workspace: WorkspaceRef<'db, P>,
+        workspace: WorkspaceRef<'repo, P>,
     ) -> Result<Self, GixError> {
         let repo_dir = repo_root.join(workspace.id().to_string());
         let repo = gix::open::Options::isolated()
@@ -108,16 +108,15 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
         Ok(Self { backend, workspace, repo })
     }
 
-    pub fn workspace(&'repo self) -> &'repo WorkspaceRef<'db, P> {
+    pub fn workspace(&'repo self) -> &'repo WorkspaceRef<'repo, P> {
         &self.workspace
     }
 
-    pub fn repo(&'repo self) -> Repository {
+    pub fn repo(&self) -> Repository {
         self.repo.to_thread_local()
     }
 
     pub async fn index_tags(&self) -> Result<(), GixError> {
-        let platform = self.backend.db_platform;
         let workspace = &self.workspace;
         self.repo()
             .references()?
@@ -148,7 +147,7 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
             })
             .map(|(name, oid)| async move {
                 match WorkspaceTagBackend::index_workspace_tag(
-                    platform,
+                    self.backend.db_platform.as_ref(),
                     workspace.id(),
                     &name,
                     &oid,
@@ -161,12 +160,23 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
         Ok(())
     }
 
+    // check whether the commit exists
+    pub fn check_commit<S: AsRef<str>>(
+        &self,
+        commit_id: S,
+    ) -> Result<(), PmrRepoError> {
+        let workspace_id = self.workspace.id();
+        let repo = self.repo();
+        get_commit(&repo, workspace_id, Some(commit_id.as_ref()))?;
+        Ok(())
+    }
+
     // commit_id/path should be a pathinfo struct?
     pub fn pathinfo<S: Into<String>>(
         &'repo self,
         commit_id: Option<S>,
         path: Option<S>,
-    ) -> Result<GitHandleResult<'db, 'repo, P>, PmrRepoError>
+    ) -> Result<GitHandleResult<'repo, P>, PmrRepoError>
     {
         let commit_id = commit_id.map(|s| s.into());
         let path = path.map(|s| s.into());
@@ -316,7 +326,7 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandle<'db, 'repo, P> {
 
 }
 
-impl<'db, 'repo, P: MCPlatform + Sync> GitHandleResult<'db, 'repo, P> {
+impl<'repo, P: MCPlatform + Send + Sync> GitHandleResult<'repo, P> {
     pub fn repo(&self) -> Repository {
         self.repo.to_thread_local()
     }
@@ -338,7 +348,7 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandleResult<'db, 'repo, P> {
         &self.target
     }
 
-    pub fn workspace(&'db self) -> &WorkspaceRef<'db, P> {
+    pub fn workspace(&'repo self) -> &WorkspaceRef<'repo, P> {
         &self.workspace
     }
 
@@ -359,7 +369,7 @@ impl<'db, 'repo, P: MCPlatform + Sync> GitHandleResult<'db, 'repo, P> {
             },
             GitResultTarget::RemoteInfo(RemoteInfo { location, commit, subpath, .. }) => {
                 let workspaces = WorkspaceBackend::list_workspace_by_url(
-                    self.backend.db_platform, &location,
+                    self.backend.db_platform.as_ref(), &location,
                 ).await?;
                 if workspaces.len() == 0 {
                     return Err(ContentError::NoWorkspaceForUrl{

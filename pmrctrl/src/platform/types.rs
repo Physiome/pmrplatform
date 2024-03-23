@@ -5,17 +5,16 @@ use pmrcore::platform::{
 use pmrrepo::backend::Backend;
 use std::{
     path::PathBuf,
-    sync::OnceLock,
+    sync::Arc,
 };
 
 pub struct Platform<
-    'mcp_db,
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
 > {
-    pub mc_platform: MCP,
-    pub tm_platform: TMP,
+    pub mc_platform: Arc<MCP>,
+    pub tm_platform: Arc<TMP>,
     pub(crate) data_root: PathBuf,
     pub(crate) repo_root: PathBuf,
-    pub(crate) repo_backend: OnceLock<Backend<'mcp_db, MCP>>,
+    pub(crate) repo_backend: Backend<MCP>,
 }

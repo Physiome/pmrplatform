@@ -8,23 +8,24 @@ use std::{
         Path,
         PathBuf,
     },
-    sync::OnceLock,
+    sync::Arc,
 };
 
 use crate::platform::Platform;
 
 impl<
-    'db,
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
-> Platform<'db, MCP, TMP> {
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
+> Platform<MCP, TMP> {
     pub fn new(
         mc_platform: MCP,
         tm_platform: TMP,
         data_root: PathBuf,
         repo_root: PathBuf,
     ) -> Self {
-        let repo_backend = OnceLock::new();
+        let mc_platform = Arc::new(mc_platform);
+        let tm_platform = Arc::new(tm_platform);
+        let repo_backend = Backend::new(mc_platform.clone(), repo_root.clone());
         Self { mc_platform, tm_platform, data_root, repo_root, repo_backend }
     }
 
@@ -32,24 +33,8 @@ impl<
         self.data_root.as_ref()
     }
 
-    pub fn repo_backend<'p>(
-        &'p self
-    ) -> &'p Backend<'db, MCP>
-    where
-        'p: 'db
-    {
-        match self.repo_backend.get() {
-            Some(repo_backend) => repo_backend,
-            None => {
-                self.repo_backend.set(
-                    Backend::new(&self.mc_platform, self.repo_root.clone())
-                ).unwrap_or_else(|_| log::warn!(
-                    "duplicate call to repo_backend while it is being setup"
-                ));
-                self.repo_backend.get()
-                    .expect("this repo_backend just got set!")
-            }
-        }
+    pub fn repo_backend(&self) -> &Backend<MCP> {
+        &self.repo_backend
     }
 }
 

@@ -8,9 +8,9 @@ use gix::{
     ThreadSafeRepository,
 };
 
-pub struct GitHandle<'db, 'repo, P: MCPlatform + Sync> {
-    pub(super) backend: &'repo Backend<'db, P>,
-    pub(super) workspace: WorkspaceRef<'db, P>,
+pub struct GitHandle<'repo, P: MCPlatform + Send + Sync> {
+    pub(super) backend: &'repo Backend<P>,
+    pub(super) workspace: WorkspaceRef<'repo, P>,
     pub(super) repo: ThreadSafeRepository,
 }
 
@@ -20,12 +20,12 @@ pub enum GitResultTarget {
     RemoteInfo(RemoteInfo),
 }
 
-pub struct GitHandleResult<'db, 'repo, P: MCPlatform + Sync> {
-    pub(super) backend: &'repo Backend<'db, P>,
+pub struct GitHandleResult<'repo, P: MCPlatform + Send + Sync> {
+    pub(super) backend: &'repo Backend<P>,
     pub(super) repo: &'repo ThreadSafeRepository,
     pub(super) commit: ObjectDetached,
     pub(super) target: GitResultTarget,
-    pub(super) workspace: &'repo WorkspaceRef<'db, P>,
+    pub(super) workspace: &'repo WorkspaceRef<'repo, P>,
 }
 
 pub(super) mod error;

@@ -21,10 +21,9 @@ use crate::{
 
 impl<
     'p,
-    'db,
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
-> ExposureFileViewCtrl<'p, 'db, MCP, TMP> {
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
+> ExposureFileViewCtrl<'p, MCP, TMP> {
     /// Queue a Task created by ViewTaskTemplateCtrl
     ///
     /// This consumes the incoming task.
@@ -37,9 +36,9 @@ impl<
         // the db, the underlying API depands it, and dropping the data
         // to be queued is a way to prevent duplicating this call.
         let (vtt_id, task): (i64, Task) = vttc_task.into();
-        let tb: &dyn TaskBackend = &self.platform.tm_platform;
+        let tb: &dyn TaskBackend = self.platform.tm_platform.as_ref();
         let task = tb.adds_task(task).await?;
-        let etb: &dyn ExposureTaskBackend = &self.platform.mc_platform;
+        let etb: &dyn ExposureTaskBackend = self.platform.mc_platform.as_ref();
         let efv_id = etb.create_task_for_view(
             self.exposure_file_view.id(),
             vtt_id,

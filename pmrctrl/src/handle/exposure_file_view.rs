@@ -10,13 +10,12 @@ use crate::platform::Platform;
 
 pub struct ExposureFileViewCtrl<
     'p,
-    'db,
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
 > {
-    pub(crate) platform: &'p Platform<'db, MCP, TMP>,
+    pub(crate) platform: &'p Platform<MCP, TMP>,
     // TODO there needs to be an Arc<ExposureFileCtrl> stored here
-    pub exposure_file_view: ExposureFileViewRef<'db, MCP>,
+    pub exposure_file_view: ExposureFileViewRef<'p, MCP>,
 }
 
 mod impls;

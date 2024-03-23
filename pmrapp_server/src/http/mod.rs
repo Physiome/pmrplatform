@@ -42,7 +42,7 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 #[derive(Clone)]
 pub struct AppContext {
     config: Arc<Config>,
-    db: SqliteBackend,
+    db: Arc<SqliteBackend>,
 }
 
 
@@ -55,7 +55,7 @@ pub async fn serve(config: Config, db: SqliteBackend) {
             ServiceBuilder::new()
             .layer(Extension(AppContext {
                 config: Arc::new(config),
-                db: db,
+                db: Arc::new(db),
             }))
             .layer(TraceLayer::new_for_http())
         );

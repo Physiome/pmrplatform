@@ -35,9 +35,9 @@ use crate::{
 };
 
 impl<
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
-> Clone for ExposureFileCtrl<'_, '_, MCP, TMP> {
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
+> Clone for ExposureFileCtrl<'_, MCP, TMP> {
     fn clone(&self) -> Self {
         Self(Arc::clone(&self.0))
     }
@@ -45,18 +45,14 @@ impl<
 
 impl<
     'p,
-    'db,
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
-> ExposureFileCtrl<'p, 'db, MCP, TMP>
-where
-    'p: 'db
-{
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
+> ExposureFileCtrl<'p, MCP, TMP> {
     pub fn new(
-        platform: &'p Platform<'db, MCP, TMP>,
-        exposure: ExposureCtrl<'db, 'db, MCP, TMP>,
-        exposure_file: ExposureFileRef<'db, MCP>,
-        pathinfo: GitHandleResult<'p, 'db, MCP>,
+        platform: &'p Platform<MCP, TMP>,
+        exposure: ExposureCtrl<'p, MCP, TMP>,
+        exposure_file: ExposureFileRef<'p, MCP>,
+        pathinfo: GitHandleResult<'p, MCP>,
     ) -> Self {
         let mut data_root = platform.data_root.join("exposure");
         data_root.push(exposure.exposure().id().to_string());
@@ -77,8 +73,8 @@ where
     pub async fn create_view_from_template(
         &self,
         view_task_template_id: i64,
-    ) -> Result<ExposureFileViewCtrl<'p, 'db, MCP, TMP>, PlatformError> {
-        let efvb: &dyn ExposureFileViewBackend = &self.0.platform.mc_platform;
+    ) -> Result<ExposureFileViewCtrl<'p, MCP, TMP>, PlatformError> {
+        let efvb: &dyn ExposureFileViewBackend = self.0.platform.mc_platform.as_ref();
         self.get_view(
             efvb.insert(
                 self.exposure_file().id(),
@@ -93,7 +89,7 @@ where
     pub async fn get_view(
         &self,
         exposure_file_view_id: i64,
-    ) -> Result<ExposureFileViewCtrl<'p, 'db, MCP, TMP>, PlatformError> {
+    ) -> Result<ExposureFileViewCtrl<'p, MCP, TMP>, PlatformError> {
         // TODO write proper tests for this to verify the whole workflow between
         // all the related moving pieces.
         let exposure_file_view = self.0
@@ -114,8 +110,8 @@ where
     pub async fn ensure_view_from_template(
         &self,
         view_task_template_id: i64,
-    ) -> Result<ExposureFileViewCtrl<'p, 'db, MCP, TMP>, PlatformError> {
-        let efvb: &dyn ExposureFileViewBackend = &self.0.platform.mc_platform;
+    ) -> Result<ExposureFileViewCtrl<'p, MCP, TMP>, PlatformError> {
+        let efvb: &dyn ExposureFileViewBackend = self.0.platform.mc_platform.as_ref();
         let exposure_file_view = self.0.platform
             .mc_platform
             .get_exposure_file_view_by_file_template(
@@ -148,15 +144,15 @@ where
     /// this particular instance of ExposureFileCtrl.
     pub async fn build_vttc(
         &'p self,
-    ) -> Result<EFViewTaskTemplatesCtrl<'p, 'db, MCP, TMP>, PlatformError> {
+    ) -> Result<EFViewTaskTemplatesCtrl<'p, MCP, TMP>, PlatformError> {
         let mut vtts = ExposureTaskTemplateBackend::get_file_templates(
-            &self.0.platform.mc_platform,
+            self.0.platform.mc_platform.as_ref(),
             self.exposure_file().id(),
         ).await?;
         future::try_join_all(vtts.iter_mut().map(|vtt| async {
             Ok::<(), PlatformError>(vtt.task_template = Some(
                 TaskTemplateBackend::get_task_template_by_id(
-                    &self.0.platform.tm_platform,
+                    self.0.platform.tm_platform.as_ref(),
                     vtt.task_template_id,
                 ).await?
             ))
@@ -187,11 +183,11 @@ where
         Ok(results)
     }
 
-    pub fn pathinfo(&self) -> &GitHandleResult<'p, 'db, MCP> {
+    pub fn pathinfo(&self) -> &GitHandleResult<'p, MCP> {
         &self.0.pathinfo
     }
 
-    pub fn exposure_file(&self) -> &ExposureFileRef<'db, MCP> {
+    pub fn exposure_file(&self) -> &ExposureFileRef<'p, MCP> {
         &self.0.exposure_file
     }
 

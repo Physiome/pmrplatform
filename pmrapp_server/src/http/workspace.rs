@@ -106,7 +106,7 @@ async fn raw_workspace_pathinfo_workspace_id_commit_id_path(
     let commit_id = path.1.clone();
     let filepath = path.2.clone();
 
-    let backend = Backend::new(&ctx.db, (&ctx.config.pmr_repo_root).into());
+    let backend = Backend::new(ctx.db.clone(), (&ctx.config.pmr_repo_root).into());
     let handle = match backend.git_handle(workspace_id).await {
         Ok(handle) => handle,
         Err(e) => return Error::from(e).into_response()

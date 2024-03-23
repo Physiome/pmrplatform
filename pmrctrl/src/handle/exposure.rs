@@ -19,21 +19,19 @@ use crate::{
 
 pub(crate) struct RawExposureCtrl<
     'p,
-    'db,
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
 > {
-    pub(crate) platform: &'p Platform<'db, MCP, TMP>,
-    pub(crate) git_handle: GitHandle<'db, 'db, MCP>,
-    pub(crate) exposure: ExposureRef<'db, MCP>,
-    pub(crate) exposure_file_ctrls: Arc<Mutex<HashMap<String, ExposureFileCtrl<'p, 'db, MCP, TMP>>>>,
+    pub(crate) platform: &'p Platform<MCP, TMP>,
+    pub(crate) git_handle: GitHandle<'p, MCP>,
+    pub(crate) exposure: ExposureRef<'p, MCP>,
+    pub(crate) exposure_file_ctrls: Arc<Mutex<HashMap<String, ExposureFileCtrl<'p, MCP, TMP>>>>,
 }
 
 pub struct ExposureCtrl<
     'p,
-    'db,
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
->(pub(crate) Arc<RawExposureCtrl<'p, 'db, MCP, TMP>>);
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
+>(pub(crate) Arc<RawExposureCtrl<'p, MCP, TMP>>);
 
 mod impls;

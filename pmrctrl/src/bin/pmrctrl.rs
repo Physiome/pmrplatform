@@ -114,21 +114,20 @@ async fn main() -> anyhow::Result<()> {
             parse_exposure(cmd, &platform).await?;
         },
         Commands::File { cmd } => {
-            todo!();
+            parse_file(cmd, &platform).await?;
         },
     }
 
     Ok(())
 }
 
-async fn parse_exposure<'p, 'db, MCP, TMP>(
+async fn parse_exposure<'p, MCP, TMP>(
     arg: ExposureCmd,
-    platform: &'p Platform<'db, MCP, TMP>,
+    platform: &'p Platform<MCP, TMP>,
 ) -> anyhow::Result<()>
 where
-    'p: 'db,
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
 {
     match arg {
         ExposureCmd::Add { workspace_id, commit_id } => {
@@ -140,28 +139,21 @@ where
     Ok(())
 }
 
-async fn parse_file<'p, 'db, MCP, TMP>(
+async fn parse_file<'p, MCP, TMP>(
     arg: FileCmd,
-    platform: &'p Platform<'db, MCP, TMP>,
+    platform: &'p Platform<MCP, TMP>,
 ) -> anyhow::Result<()>
 where
-    'p: 'db,
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
 {
-    // TODO really implement the FIXME below for the reference to the MCP
-    // inside the pmrrepo package - that might need to be put in an Arc?
-    // FIXME not here, but Platform being unable to be used/borrowed when
-    // it's passed into a function like this, but since this is a one-off
-    // thing, this function can consume the platforms
-    // match arg {
-    //     FileCmd::Add { exposure_id, path } => {
-    //         let ec = platform.get_exposure(exposure_id).await?;
-    //         let efc = ec.create_file(&path).await?;
-    //         let id = efc.exposure_file().id();
-    //         println!("created exposure file id {id} for exposure {exposure_id} at path {path}");
-    //     }
-    // }
-    // Ok(())
-    todo!()
+    match arg {
+        FileCmd::Add { exposure_id, path } => {
+            let ec = platform.get_exposure(exposure_id).await?;
+            let efc = ec.create_file(&path).await?;
+            let id = efc.exposure_file().id();
+            println!("created exposure file id {id} for exposure {exposure_id} at path {path}");
+        }
+    }
+    Ok(())
 }

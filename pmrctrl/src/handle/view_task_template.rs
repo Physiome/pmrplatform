@@ -28,30 +28,28 @@ use crate::{
 /// A controller for exposure view task templates for the given
 pub struct EFViewTaskTemplatesCtrl<
     'p,
-    'db,
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
 > {
-    platform: &'p Platform<'db, MCP, TMP>,
-    exposure_file_ctrl: ExposureFileCtrl<'p, 'db, MCP, TMP>,
+    platform: &'p Platform<MCP, TMP>,
+    exposure_file_ctrl: ExposureFileCtrl<'p, MCP, TMP>,
     view_task_templates: ViewTaskTemplates,
     choice_registry: OnceLock<Arc<PreparedChoiceRegistry>>,
-    choice_registry_cache: OnceLock<Arc<PreparedChoiceRegistryCache<'db>>>,
-    efvttcs: OnceLock<Vec<EFViewTaskTemplateCtrl<'p, 'db, MCP, TMP>>>,
+    choice_registry_cache: OnceLock<Arc<PreparedChoiceRegistryCache<'p>>>,
+    efvttcs: OnceLock<Vec<EFViewTaskTemplateCtrl<'p, MCP, TMP>>>,
 }
 
 /// Individual controller for each of the view_task_template of the above.
 pub(crate) struct EFViewTaskTemplateCtrl<
     'p,
-    'db,
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
 > {
-    platform: &'p Platform<'db, MCP, TMP>,
-    exposure_file_ctrl: ExposureFileCtrl<'p, 'db, MCP, TMP>,
-    efvtt: &'db ViewTaskTemplate,
+    platform: &'p Platform<MCP, TMP>,
+    exposure_file_ctrl: ExposureFileCtrl<'p, MCP, TMP>,
+    efvtt: &'p ViewTaskTemplate,
     choice_registry: Vec<Arc<PreparedChoiceRegistry>>,
-    choice_registry_cache: OnceLock<PreparedChoiceRegistryCache<'db>>,
+    choice_registry_cache: OnceLock<PreparedChoiceRegistryCache<'p>>,
 }
 
 /// These are for task that spawned off a EFViewTaskTemplatesCtrl

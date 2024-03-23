@@ -8,9 +8,9 @@ use tempfile::TempDir;
 
 use crate::repo::inject_repodata;
 
-pub async fn create_blank_sqlite_platform<'a>() -> anyhow::Result<(
+pub async fn create_blank_sqlite_platform() -> anyhow::Result<(
     TempDir,
-    Platform<'a, SqliteBackend, SqliteBackend>,
+    Platform<SqliteBackend, SqliteBackend>,
 )> {
     let tempdir = TempDir::new()?;
     let repo_root = tempdir.path().join("repo").to_path_buf();
@@ -33,9 +33,9 @@ pub async fn create_blank_sqlite_platform<'a>() -> anyhow::Result<(
     Ok((tempdir, platform))
 }
 
-pub async fn create_sqlite_platform<'a>() -> anyhow::Result<(
+pub async fn create_sqlite_platform() -> anyhow::Result<(
     TempDir,
-    Platform<'a, SqliteBackend, SqliteBackend>,
+    Platform<SqliteBackend, SqliteBackend>,
 )> {
     let tempdir = TempDir::new()?;
     let repo_root = tempdir.path().join("repo").to_path_buf();

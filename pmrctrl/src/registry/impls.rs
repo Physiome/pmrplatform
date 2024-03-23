@@ -28,17 +28,13 @@ use crate::{
 
 impl<
     'p,
-    'db,
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
-> TryFrom<&ExposureCtrl<'p, 'db, MCP, TMP>> for PreparedChoiceRegistry
-where
-    'p: 'db
-{
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
+> TryFrom<&ExposureCtrl<'p, MCP, TMP>> for PreparedChoiceRegistry {
     type Error = PlatformError;
 
     fn try_from(
-        handle: &ExposureCtrl<'p, 'db, MCP, TMP>,
+        handle: &ExposureCtrl<'p, MCP, TMP>,
     ) -> Result<Self, Self::Error> {
         let mut registry = PreparedChoiceRegistry::new();
         registry.register("files", handle.map_files_fs()?.into());
@@ -51,17 +47,13 @@ where
 
 impl<
     'p,
-    'db,
-    MCP: MCPlatform + Sized + Sync,
-    TMP: TMPlatform + Sized + Sync,
-> TryFrom<&ExposureFileCtrl<'p, 'db, MCP, TMP>> for PreparedChoiceRegistry
-where
-    'p: 'db
-{
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
+> TryFrom<&ExposureFileCtrl<'p, MCP, TMP>> for PreparedChoiceRegistry {
     type Error = PlatformError;
 
     fn try_from(
-        handle: &ExposureFileCtrl<'p, 'db, MCP, TMP>,
+        handle: &ExposureFileCtrl<'p, MCP, TMP>,
     ) -> Result<Self, Self::Error> {
         let mut registry = PreparedChoiceRegistry::new();
         registry.register("files", handle.0.exposure.map_files_fs()?.into());
