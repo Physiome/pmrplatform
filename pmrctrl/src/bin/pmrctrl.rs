@@ -11,6 +11,7 @@ use pmrcore::{
         MCPlatform,
         TMPlatform,
     },
+    profile::traits::ViewTaskTemplateBackend,
 };
 use pmrctrl::platform::Platform;
 use pmrmodel::backend::db::{
@@ -52,6 +53,11 @@ enum Commands {
         #[command(subcommand)]
         cmd: FileCmd,
     },
+    #[command(arg_required_else_help = true)]
+    Profile {
+        #[command(subcommand)]
+        cmd: ProfileCmd,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -70,6 +76,18 @@ enum FileCmd {
         exposure_id: i64,
         path: String,
     },
+}
+
+#[derive(Debug, Subcommand)]
+enum ProfileCmd {
+    #[command(arg_required_else_help = true)]
+    Vtt {
+        task_template_id: i64,
+        view_key: String,
+        #[clap(long)]
+        description: String,
+    },
+    // TODO dump a profile to JSON?
 }
 
 #[async_std::main]
@@ -116,6 +134,10 @@ async fn main() -> anyhow::Result<()> {
         Commands::File { cmd } => {
             parse_file(cmd, &platform).await?;
         },
+        Commands::Profile { cmd } => {
+            parse_profile(cmd, &platform).await?;
+        },
+        // TODO exposure (view template) profiles
     }
 
     Ok(())
@@ -153,6 +175,34 @@ where
             let efc = ec.create_file(&path).await?;
             let id = efc.exposure_file().id();
             println!("created exposure file id {id} for exposure {exposure_id} at path {path}");
+        },
+        // FileCmd::View { exposure_file_id, effv_id } => {
+        //     todo!();
+        // },
+    }
+    Ok(())
+}
+
+async fn parse_profile<'p, MCP, TMP>(
+    arg: ProfileCmd,
+    platform: &'p Platform<MCP, TMP>,
+) -> anyhow::Result<()>
+where
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
+{
+    match arg {
+        ProfileCmd::Vtt { task_template_id, view_key, description } => {
+            let backend: &dyn ViewTaskTemplateBackend = platform.mc_platform.as_ref();
+            let result = backend.insert_view_task_template(
+                &view_key,
+                &description,
+                task_template_id,
+            ).await?;
+            println!("created new exposure file view task template with view_key {view_key} using template {task_template_id}");
+            let vtt = platform.get_view_task_template(result).await?;
+            let output = serde_json::to_string_pretty(&vtt)?;
+            println!("{output}");
         }
     }
     Ok(())

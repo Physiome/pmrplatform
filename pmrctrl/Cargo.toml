@@ -17,6 +17,7 @@ pmrmodel = "0.1.0"
 pmrrepo = "0.1.0"
 pmrtqs = "0.1.0"
 serde = { version = "1.0.59", features = ["serde_derive"] }
+serde_json = "1.0.59"
 sqlx = { version = "0.7.0", features = ["sqlite"] }
 stderrlog = "0.5.1"
 thiserror = "1.0"
@@ -24,6 +25,5 @@ thiserror = "1.0"
 [dev-dependencies]
 anyhow = "1.0.0"
 async-std = { version = "1.5.0", features = [ "attributes" ] }
-serde_json = "1.0.59"
 tempfile = "3.1.0"
 test-pmr = { path = "../testing", features = ["platform"] }
