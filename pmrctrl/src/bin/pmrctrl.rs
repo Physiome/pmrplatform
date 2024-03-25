@@ -11,7 +11,12 @@ use pmrcore::{
         MCPlatform,
         TMPlatform,
     },
-    profile::traits::ViewTaskTemplateBackend,
+    profile::traits::{
+        ProfileBackend,
+        ProfileViewsBackend,
+        ViewTaskTemplateBackend,
+        ViewTaskTemplateProfileBackend,
+    },
 };
 use pmrctrl::platform::Platform;
 use pmrmodel::backend::db::{
@@ -81,10 +86,19 @@ enum FileCmd {
 #[derive(Debug, Subcommand)]
 enum ProfileCmd {
     #[command(arg_required_else_help = true)]
+    Create {
+        title: String,
+        description: String,
+    },
+    #[command(arg_required_else_help = true)]
+    View {
+        profile_id: i64,
+    },
+    #[command(arg_required_else_help = true)]
     Vtt {
+        profile_id: i64,
         task_template_id: i64,
         view_key: String,
-        #[clap(long)]
         description: String,
     },
     // TODO dump a profile to JSON?
@@ -192,18 +206,35 @@ where
     TMP: TMPlatform + Sized + Send + Sync,
 {
     match arg {
-        ProfileCmd::Vtt { task_template_id, view_key, description } => {
+        ProfileCmd::Create { title, description } => {
+            let backend: &dyn ProfileBackend = platform.mc_platform.as_ref();
+            let id = backend.insert_profile(
+                &title,
+                &description,
+            ).await?;
+            println!("created new profile id: {id}");
+        },
+        ProfileCmd::View { profile_id } => {
+            let backend: &dyn ViewTaskTemplateProfileBackend = platform.mc_platform.as_ref();
+            let result = backend.get_view_task_template_profile(profile_id).await?;
+            let output = serde_json::to_string_pretty(&result)?;
+            println!("{output}");
+        },
+        ProfileCmd::Vtt { profile_id, task_template_id, view_key, description } => {
             let backend: &dyn ViewTaskTemplateBackend = platform.mc_platform.as_ref();
-            let result = backend.insert_view_task_template(
+            let id = backend.insert_view_task_template(
                 &view_key,
                 &description,
                 task_template_id,
             ).await?;
-            println!("created new exposure file view task template with view_key {view_key} using template {task_template_id}");
-            let vtt = platform.get_view_task_template(result).await?;
+            println!("created under profile id: {profile_id} a new exposure file view task template id: {id} with view_key {view_key} using template {task_template_id}");
+            let pvb: &dyn ProfileViewsBackend = platform.mc_platform.as_ref();
+            pvb.insert_profile_views(profile_id, id).await?;
+
+            let vtt = platform.get_view_task_template(id).await?;
             let output = serde_json::to_string_pretty(&vtt)?;
             println!("{output}");
-        }
+        },
     }
     Ok(())
 }

@@ -73,11 +73,26 @@ pub trait ProfileViewsBackend {
 }
 
 #[async_trait]
-pub trait ViewTaskTemplateProfileBackend {
-    // TODO determine if a default implementation for the combination
-    // of the previous two traits be feasible.
+pub trait ViewTaskTemplateProfileBackend: ProfileBackend
+    + ProfileViewsBackend
+
+    + Sync
+{
     async fn get_view_task_template_profile(
         &self,
         profile_id: i64,
-    ) -> Result<ViewTaskTemplateProfile, BackendError>;
+    ) -> Result<ViewTaskTemplateProfile, BackendError> {
+        let profile = ProfileBackend::select_profile_by_id(
+            self,
+            profile_id,
+        ).await?;
+        let view_task_templates = ProfileViewsBackend::get_view_task_templates_for_profile(
+            self,
+            profile_id,
+        ).await?;
+        Ok(ViewTaskTemplateProfile {
+            profile,
+            view_task_templates,
+        })
+    }
 }
