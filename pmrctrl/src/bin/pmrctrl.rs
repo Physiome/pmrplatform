@@ -15,7 +15,6 @@ use pmrcore::{
         ProfileBackend,
         ProfileViewsBackend,
         ViewTaskTemplateBackend,
-        ViewTaskTemplateProfileBackend,
     },
 };
 use pmrctrl::platform::Platform;
@@ -215,8 +214,7 @@ where
             println!("created new profile id: {id}");
         },
         ProfileCmd::View { profile_id } => {
-            let backend: &dyn ViewTaskTemplateProfileBackend = platform.mc_platform.as_ref();
-            let result = backend.get_view_task_template_profile(profile_id).await?;
+            let result = platform.get_view_task_template_profile(profile_id).await?;
             let output = serde_json::to_string_pretty(&result)?;
             println!("{output}");
         },
