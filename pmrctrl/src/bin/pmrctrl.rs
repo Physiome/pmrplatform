@@ -3,9 +3,12 @@ use clap::{
     Subcommand,
 };
 use pmrcore::{
-    exposure::traits::{
-        Exposure as _,
-        ExposureFile as _,
+    exposure::{
+        task::traits::ExposureTaskTemplateBackend,
+        traits::{
+            Exposure as _,
+            ExposureFile as _,
+        },
     },
     platform::{
         MCPlatform,
@@ -15,6 +18,7 @@ use pmrcore::{
         ProfileBackend,
         ProfileViewsBackend,
         ViewTaskTemplateBackend,
+        ViewTaskTemplateProfileBackend,
     },
 };
 use pmrctrl::platform::Platform;
@@ -79,6 +83,7 @@ enum FileCmd {
     Add {
         exposure_id: i64,
         path: String,
+        profile_id: i64,
     },
 }
 
@@ -183,11 +188,21 @@ where
     TMP: TMPlatform + Sized + Send + Sync,
 {
     match arg {
-        FileCmd::Add { exposure_id, path } => {
+        FileCmd::Add { exposure_id, path, profile_id } => {
             let ec = platform.get_exposure(exposure_id).await?;
             let efc = ec.create_file(&path).await?;
             let id = efc.exposure_file().id();
             println!("created exposure file id {id} for exposure {exposure_id} at path {path}");
+            let vtt_profile = ViewTaskTemplateProfileBackend::get_view_task_template_profile(
+                platform.mc_platform.as_ref(),
+                profile_id,
+            ).await?;
+            ExposureTaskTemplateBackend::set_vtt_profile(
+                platform.mc_platform.as_ref(),
+                id,
+                vtt_profile,
+            ).await?;
+            println!("set exposure file id {id} with profile id {profile_id}")
         },
         // FileCmd::View { exposure_file_id, effv_id } => {
         //     todo!();
