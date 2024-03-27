@@ -1,5 +1,4 @@
 use pmrcore::{
-    task::Task,
     platform::{
         MCPlatform,
         TMPlatform,
@@ -8,6 +7,8 @@ use pmrcore::{
         ViewTaskTemplate,
         ViewTaskTemplates,
     },
+    task::Task,
+    task_template::UserInputMap,
 };
 use pmrmodel::{
     error::BuildArgErrors,
@@ -15,7 +16,6 @@ use pmrmodel::{
         TaskBuilder,
         UserArgBuilder,
         UserArgRef,
-        UserInputMap,
     },
     registry::{
         ChoiceRegistry,

@@ -12,6 +12,10 @@ use pmrcore::{
         ExposureFiles,
         ExposureFileView,
         ExposureFileViews,
+        profile::{
+            ExposureFileProfile,
+            traits::ExposureFileProfileBackend,
+        },
         traits::{
             ExposureBackend,
             ExposureFileBackend,
@@ -156,6 +160,19 @@ mock! {
             &self,
             exposure_file_id: i64,
         ) -> Result<Vec<ViewTaskTemplate>, BackendError>;
+    }
+
+    #[async_trait]
+    impl ExposureFileProfileBackend for Platform {
+        async fn set_ef_profile(
+            &self,
+            exposure_file_id: i64,
+            profile_id: i64,
+        ) -> Result<(), BackendError>;
+        async fn get_ef_profile(
+            &self,
+            exposure_file_id: i64,
+        ) -> Result<ExposureFileProfile, BackendError>;
     }
 
     #[async_trait]

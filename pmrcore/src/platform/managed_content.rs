@@ -3,6 +3,7 @@ use crate::{
     error::BackendError,
     exposure::{
         self,
+        profile::traits::ExposureFileProfileBackend,
         task::{
             traits::{
                 ExposureTaskBackend,
@@ -42,6 +43,7 @@ pub trait MCPlatform: WorkspaceBackend
     + WorkspaceTagBackend
     + ExposureBackend
     + ExposureFileBackend
+    + ExposureFileProfileBackend
     + ExposureFileViewBackend
     + ExposureTaskBackend
     + ExposureTaskTemplateBackend
@@ -172,6 +174,7 @@ impl<P: workspace::traits::WorkspaceBackend
     + WorkspaceTagBackend
     + ExposureBackend
     + ExposureFileBackend
+    + ExposureFileProfileBackend
     + ExposureFileViewBackend
     + ExposureTaskBackend
     + ExposureTaskTemplateBackend

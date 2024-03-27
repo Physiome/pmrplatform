@@ -13,10 +13,10 @@ use pmrcore::{
         TaskTemplate,
         TaskTemplateArg,
         UserArg,
+        UserInputMap,
     },
 };
 use std::{
-    collections::HashMap,
     iter::{
         FlatMap,
         Flatten,
@@ -35,8 +35,6 @@ use crate::error::{
 };
 
 type ArgChunk<'a> = [Option<&'a str>; 2];
-// the following maps user input by TaskTemplateArg.id
-pub type UserInputMap = HashMap<i64, String>;
 
 #[derive(Debug, PartialEq)]
 pub struct TaskArgBuilder<'a> {
@@ -717,7 +715,7 @@ fn test_validate_choice_value_standard() {
 #[test]
 fn test_validate_choice_value_prompt_empty_or_none() {
     fn choices() -> Option<MapToArgRef<'static>> {
-        Some(HashMap::from([
+        Some(std::collections::HashMap::from([
             ("default value", Some("default value")),
         ]).into())
     }
@@ -753,7 +751,7 @@ fn test_validate_choice_value_default() {
         .. Default::default()
     };
     fn choices() -> Option<MapToArgRef<'static>> {
-        Some(HashMap::from([
+        Some(std::collections::HashMap::from([
             ("default value", Some("the hidden default")),
         ]).into())
     }

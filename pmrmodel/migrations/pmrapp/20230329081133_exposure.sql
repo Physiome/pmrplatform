@@ -193,9 +193,29 @@ CREATE TABLE IF NOT EXISTS profile_views (
 );
 -- Note that no tracking of when the profile got views extended or
 -- removed - this can cause a previously defined exposure view not
--- matching with the current profile.
+-- matching with the current profile.  This may have consequences
+-- for the next table.
 
 CREATE UNIQUE INDEX IF NOT EXISTS profile_views__profile_id_view_task_template_id ON profile_views(profile_id, view_task_template_id);
 
--- TODO determine the linkage (if necessary) of the original profile
--- selected for the corresponding resource type.
+-- The profile selected for a given exposure file.
+CREATE TABLE IF NOT EXISTS exposure_file_profile (
+    id INTEGER PRIMARY KEY NOT NULL,
+    exposure_file_id INTEGER NOT NULL,
+    profile_id INTEGER NOT NULL,
+    FOREIGN KEY(profile_id) REFERENCES profile(id),
+    FOREIGN KEY(exposure_file_id) REFERENCES exposure_file(id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS exposure_file_profile__exposure_file_id ON exposure_file_profile(exposure_file_id);
+CREATE INDEX IF NOT EXISTS exposure_file_profile__exposure_file_id_profile_id ON exposure_file_profile(exposure_file_id, profile_id);
+
+-- The user input for a given exposure_file_profile.
+CREATE TABLE IF NOT EXISTS exposure_file_profile_input (
+    id INTEGER PRIMARY KEY NOT NULL,
+    exposure_file_profile_id INTEGER NOT NULL,
+    -- This is the id for the arg from pmrtqs.
+    arg_id INTEGER NOT NULL,
+    input TEXT NOT NULL,
+    FOREIGN KEY(exposure_file_profile_id) REFERENCES exposure_file_profile(id)
+);
+CREATE INDEX IF NOT EXISTS exposure_file_profile_input__exposure_file_profile_id ON exposure_file_profile_input(exposure_file_profile_id);

@@ -13,7 +13,10 @@ use pmrcore::{
         Task,
         traits::TaskBackend,
     },
-    task_template::UserArg,
+    task_template::{
+        UserArg,
+        UserInputMap,
+    },
     platform::{
         MCPlatform,
         TMPlatform,
@@ -25,7 +28,6 @@ use pmrmodel::{
     model::task_template::{
         TaskBuilder,
         UserArgBuilder,
-        UserInputMap,
     },
     registry::{
         ChoiceRegistry,

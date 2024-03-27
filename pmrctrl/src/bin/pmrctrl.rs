@@ -197,6 +197,9 @@ where
                 platform.mc_platform.as_ref(),
                 profile_id,
             ).await?;
+            // TODO figure out if the ctrl platform should have a helper
+            // that will initialize the profile_id for exposure_file_id
+            // via the ExposureFileProfileBackend.
             ExposureTaskTemplateBackend::set_vtt_profile(
                 platform.mc_platform.as_ref(),
                 id,

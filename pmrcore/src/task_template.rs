@@ -115,6 +115,9 @@ pub struct UserArgRef<'a> {
 }
 */
 
+// The user input map for task template; key is TaskTemplateArg.id
+pub type UserInputMap = HashMap<i64, String>;
+
 #[cfg(feature = "display")]
 mod display;
 mod impls;

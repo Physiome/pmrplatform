@@ -46,6 +46,7 @@ pub struct ExposureFileViews(Vec<ExposureFileView>);
 #[cfg(feature = "display")]
 mod display;
 mod impls;
+pub mod profile;
 mod refs;
 pub mod task;
 pub mod traits;
