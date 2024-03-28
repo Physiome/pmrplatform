@@ -37,6 +37,7 @@ use pmrcore::{
         TaskTemplate,
         TaskTemplateArg,
         TaskTemplateArgChoice,
+        UserInputMap,
         traits::TaskTemplateBackend,
     },
     workspace::{
@@ -173,6 +174,11 @@ mock! {
             &self,
             exposure_file_id: i64,
         ) -> Result<ExposureFileProfile, BackendError>;
+        async fn update_ef_user_input(
+            &self,
+            exposure_file_id: i64,
+            user_input: &UserInputMap,
+        ) -> Result<(), BackendError>;
     }
 
     #[async_trait]

@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\nSELECT\n    id,\n    exposure_file_id,\n    profile_id\nFROM exposure_file_profile\nWHERE id = ?1\n",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "exposure_file_id",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "profile_id",
+        "ordinal": 2,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "2d0f227b95cbd711168afd3fe7355681c97636c251a08d6ca415af6358ee34b6"
+}

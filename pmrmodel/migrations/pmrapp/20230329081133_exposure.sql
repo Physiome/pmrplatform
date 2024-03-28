@@ -219,3 +219,4 @@ CREATE TABLE IF NOT EXISTS exposure_file_profile_input (
     FOREIGN KEY(exposure_file_profile_id) REFERENCES exposure_file_profile(id)
 );
 CREATE INDEX IF NOT EXISTS exposure_file_profile_input__exposure_file_profile_id ON exposure_file_profile_input(exposure_file_profile_id);
+CREATE UNIQUE INDEX IF NOT EXISTS exposure_file_profile_input__exposure_file_profile_id_arg_id ON exposure_file_profile_input(exposure_file_profile_id, arg_id);
