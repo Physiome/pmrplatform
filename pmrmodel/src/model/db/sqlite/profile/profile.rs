@@ -61,8 +61,7 @@ async fn select_profile_by_id_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
 ) -> Result<Profile, BackendError> {
-    let result = sqlx::query_as!(
-        Profile,
+    let result = sqlx::query!(
         r#"
 SELECT
     id,
@@ -73,6 +72,12 @@ WHERE id = ?1
         "#,
         id,
     )
+    .map(|row| Profile {
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        view_task_templates: None,
+    })
     .fetch_one(&*sqlite.pool)
     .await?;
     Ok(result)
@@ -127,6 +132,7 @@ mod testing {
             id: profile_id,
             title: "Test Profile".to_string(),
             description: "".to_string(),
+            view_task_templates: None,
         });
 
         assert!(b.update_profile_by_fields(
@@ -139,6 +145,7 @@ mod testing {
             id: profile_id,
             title: "Updated Title".to_string(),
             description: "Updated Description".to_string(),
+            view_task_templates: None,
         });
         Ok(())
     }

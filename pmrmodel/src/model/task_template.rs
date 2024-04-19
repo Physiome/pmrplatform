@@ -53,6 +53,7 @@ pub struct TaskBuilder<'a>{
 
 #[derive(Debug, serde::Serialize)]
 pub struct UserArgRef<'a> {
+    // this directly references the underlying TaskTemplateArg.id
     id: i64,
     prompt: &'a str,
     default: Option<&'a str>,
@@ -62,6 +63,29 @@ pub struct UserArgRef<'a> {
     // reference to later when we have a better idea on where the slice
     // actually lives.
     choices: Option<Vec<&'a str>>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct UserArgRefs<'a>(Vec<UserArgRef<'a>>);
+
+impl<'a> From<Vec<UserArgRef<'a>>> for UserArgRefs<'a> {
+    fn from(args: Vec<UserArgRef<'a>>) -> Self {
+        Self(args)
+    }
+}
+
+impl<'a, const N: usize> From<[UserArgRef<'a>; N]> for UserArgRefs<'a> {
+    fn from(args: [UserArgRef<'a>; N]) -> Self {
+        Self(args.into())
+    }
+}
+
+impl<'a> Deref for UserArgRefs<'a> {
+    type Target = Vec<UserArgRef<'a>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 pub struct UserArgBuilder<'a, I, T> {
@@ -128,6 +152,17 @@ impl<'a, T> From<(
                 .iter(),
             item.1,
         )
+    }
+}
+
+impl<'a, T> From<(
+    &'a TaskTemplate,
+    &'a ChoiceRegistryCache<'a, T>,
+)> for UserArgRefs<'a> {
+    fn from((task_template, cache): (&'a TaskTemplate, &'a ChoiceRegistryCache<'a, T>)) -> Self {
+        UserArgBuilder::from((task_template, cache))
+            .collect::<Vec<_>>()
+            .into()
     }
 }
 
@@ -1093,6 +1128,7 @@ mod test {
         TaskBuilder,
         UserInputMap,
         UserArgBuilder,
+        UserArgRefs,
     };
     use crate::registry::{
         ChoiceRegistry,
@@ -1583,8 +1619,11 @@ mod test {
             &task_template,
             &cache,
         )).collect::<Vec<_>>();
-
         assert_eq!(user_prompts.len(), 5);
+
+        let user_arg_refs: UserArgRefs = (&task_template, &cache).into();
+        assert_eq!(user_arg_refs.len(), 5);
+
         let json_str = serde_json::to_string(&user_prompts)?;
 
         // verify that the fully owned version of UserArg is compatible

@@ -11,6 +11,7 @@ pub struct Profile {
     pub id: i64,
     pub title: String,
     pub description: String,
+    pub view_task_templates: Option<ViewTaskTemplates>,
 }
 
 // TODO see if the individual structs be better organized if grouped
