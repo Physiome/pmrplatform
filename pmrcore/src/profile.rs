@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::task_template::TaskTemplate;
+use crate::task_template::{
+    TaskTemplate,
+    UserArgs,
+};
 
 // profile module contains miscellaneous structs that are parts that
 // may form into a profiles that encapsulate defaults.
@@ -51,6 +54,27 @@ pub struct ProfileView {
 pub struct ViewTaskTemplateProfile {
     pub profile: Profile,
     pub view_task_templates: ViewTaskTemplates,
+}
+
+// user facing types for the generation of views, grouped by profiles
+// and prompts, for the view to be created.  UserPromptGroup encpsulates
+// the UserArgs and the UserViewProfile group the different sets of
+// view prompts which will map to a resulting view.
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct UserPromptGroup {
+    pub id: i64,
+    pub description: String,
+    pub user_args: UserArgs,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct UserViewProfile {
+    pub id: i64,
+    pub title: String,
+    pub description: String,
+    // TODO convert to plural newtype when available.
+    pub user_prompt_groups: Vec<UserPromptGroup>,
 }
 
 mod impls;

@@ -21,7 +21,10 @@ use pmrcore::{
         MCPlatform,
         TMPlatform,
     },
-    profile::ViewTaskTemplates,
+    profile::{
+        ViewTaskTemplates,
+        UserPromptGroup,
+    },
 };
 use pmrmodel::{
     backend::db::SqliteBackend,
@@ -322,7 +325,7 @@ where
     result.push(platform.adds_view_task_template(
         serde_json::from_str(r#"{
             "view_key": "example_view1",
-            "description": "",
+            "description": "Example 1",
             "task_template": {
                 "bin_path": "/usr/local/bin/example1",
                 "version_id": "1.0.0",
@@ -343,7 +346,7 @@ where
     result.push(platform.adds_view_task_template(
         serde_json::from_str(r#"{
             "view_key": "example_view2",
-            "description": "",
+            "description": "Example 2",
             "task_template": {
                 "bin_path": "/usr/local/bin/example",
                 "version_id": "1.0.0",
@@ -354,7 +357,7 @@ where
     result.push(platform.adds_view_task_template(
         serde_json::from_str(r#"{
             "view_key": "example_view3",
-            "description": "",
+            "description": "Example 3",
             "task_template": {
                 "bin_path": "/usr/local/bin/example3",
                 "version_id": "1.0.0",
@@ -375,7 +378,7 @@ where
     result.push(platform.adds_view_task_template(
         serde_json::from_str(r#"{
             "view_key": "example_view4",
-            "description": "",
+            "description": "Example 4",
             "task_template": {
                 "bin_path": "/usr/local/bin/example3",
                 "version_id": "1.0.0",
@@ -541,6 +544,40 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     assert_eq!(user_args[0].prompt, "Example prompt");
     assert_eq!(user_args[1].id, 3);
     assert_eq!(user_args[1].prompt, "Prompt for alternative file");
+
+    let user_prompt_groups = efvttsc.create_user_prompt_groups().await?;
+    let upg_str = serde_json::to_string(&user_prompt_groups)?;
+
+    let upg: Vec<UserPromptGroup> = serde_json::from_str(&upg_str)?;
+    assert_eq!(upg, &[
+        UserPromptGroup {
+            id: 1,
+            description: "Example 1".into(),
+            user_args: [
+                UserArg {
+                    id: 1,
+                    prompt: "Example prompt".into(),
+                    default: None,
+                    choice_fixed: false,
+                    choices: Some([].into()),
+                }
+            ].into(),
+        },
+        UserPromptGroup {
+            id: 4,
+            description: "Example 4".into(),
+            user_args: [
+                UserArg {
+                    id: 3,
+                    prompt: "Prompt for alternative file".into(),
+                    default: None,
+                    choice_fixed: true,
+                    choices: Some(["README".into(), "if1".into()].into()),
+                }
+            ].into(),
+        },
+    ]);
+
     // TODO test for alternative ID remaps via manual deletes/updates to the
     // underlying linkage between ViewTaskTemplate and TaskTemplate
 

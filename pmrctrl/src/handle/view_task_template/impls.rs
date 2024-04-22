@@ -12,10 +12,13 @@ use pmrcore::{
 };
 use pmrmodel::{
     error::BuildArgErrors,
-    model::task_template::{
-        TaskBuilder,
-        UserArgBuilder,
-        UserArgRef,
+    model::{
+        profile::UserPromptGroupRefs,
+        task_template::{
+            TaskBuilder,
+            UserArgBuilder,
+            UserArgRef,
+        },
     },
     registry::{
         ChoiceRegistry,
@@ -135,14 +138,26 @@ impl<
         )
     }
 
+    /// This provides a flat list of user args.
     pub async fn create_user_arg_refs(
         &'p self,
     ) -> Result<Vec<UserArgRef>, PlatformError> {
         let cache = self.get_registry_cache().await?;
+        // shouldn't this be made to work?
+        // Ok((&self.view_task_templates, cache).into())
         Ok(UserArgBuilder::from((
             self.view_task_templates.as_slice(),
             cache,
         )).collect::<Vec<_>>())
+    }
+
+    /// This provides user args grouped by the prompt sets, which may be
+    /// better for end user consumption.
+    pub async fn create_user_prompt_groups(
+        &'p self,
+    ) -> Result<UserPromptGroupRefs, PlatformError> {
+        let cache = self.get_registry_cache().await?;
+        Ok((&self.view_task_templates, cache).into())
     }
 
     /// This creates a mapping from the ViewTaskTemplates that are being
