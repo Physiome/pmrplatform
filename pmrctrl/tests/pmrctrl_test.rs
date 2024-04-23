@@ -24,13 +24,21 @@ use pmrcore::{
     profile::{
         ViewTaskTemplates,
         UserPromptGroup,
+        UserViewProfile,
+        traits::{
+            ProfileBackend,
+            ProfileViewsBackend,
+        },
     },
 };
 use pmrmodel::{
     backend::db::SqliteBackend,
-    model::task_template::{
-        TaskBuilder,
-        UserArgBuilder,
+    model::{
+        profile::UserViewProfileRef,
+        task_template::{
+            TaskBuilder,
+            UserArgBuilder,
+        },
     },
     registry::{
         ChoiceRegistry,
@@ -684,6 +692,259 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     }}
     "#))?;
     assert_eq!(answer, task1);
+
+    Ok(())
+}
+
+#[async_std::test]
+async fn test_platform_vtt_profile() -> anyhow::Result<()> {
+    let (_reporoot, platform) = create_sqlite_platform().await?;
+    let vtts = make_example_view_task_templates(&platform).await?;
+    // add another one
+    let vtt_final = platform.adds_view_task_template(
+        serde_json::from_str(r#"{
+            "view_key": "more_args",
+            "description": "Just to have more arguments",
+            "task_template": {
+                "bin_path": "/usr/local/bin/args",
+                "version_id": "1.0.0",
+                "args": [
+                    {
+                        "flag": "-A",
+                        "flag_joined": false,
+                        "prompt": "First question in this group",
+                        "default": null,
+                        "choice_fixed": false,
+                        "choice_source": null,
+                        "choices": []
+                    },
+                    {
+                        "flag": "-B",
+                        "flag_joined": true,
+                        "prompt": "Second question in this group",
+                        "default": null,
+                        "choice_fixed": false,
+                        "choice_source": null,
+                        "choices": []
+                    },
+                    {
+                        "flag": "-C",
+                        "flag_joined": true,
+                        "prompt": "Final multiple choice",
+                        "default": null,
+                        "choice_fixed": false,
+                        "choice_source": "",
+                        "choices": [
+                            {
+                                "to_arg": "Picked A",
+                                "label": "Choice A"
+                            },
+                            {
+                                "to_arg": "Picked B",
+                                "label": "Choice B"
+                            },
+                            {
+                                "to_arg": "Picked C",
+                                "label": "Choice C"
+                            }
+                        ]
+                    }
+                ]
+            }
+        }"#)?
+    ).await?;
+    let pb: &dyn ProfileBackend = platform.mc_platform.as_ref();
+    let id = pb.insert_profile(
+        "Profile 1",
+        "Just an example profile",
+    ).await?;
+    let pvb: &dyn ProfileViewsBackend = platform.mc_platform.as_ref();
+    pvb.insert_profile_views(id, vtts[1]).await?;
+    pvb.insert_profile_views(id, vtts[2]).await?;
+    pvb.insert_profile_views(id, vtts[3]).await?;
+    pvb.insert_profile_views(id, vtts[4]).await?;
+    pvb.insert_profile_views(id, vtt_final).await?;
+
+    let vttp = platform.get_view_task_template_profile(id).await?;
+    let registry = PreparedChoiceRegistry::new();
+    let cache = ChoiceRegistryCache::from(
+        &registry as &dyn ChoiceRegistry<_>);
+
+    let uvpr: UserViewProfileRef = (&vttp, &cache).into();
+    // emulate trip from API to end user JSON read
+    let uvp: UserViewProfile = serde_json::from_str(&serde_json::to_string(&uvpr)?)?;
+    let result: UserViewProfile = serde_json::from_str(r#"
+    {
+        "id": 1,
+        "title": "Profile 1",
+        "description": "Just an example profile",
+        "user_prompt_groups": [
+            {
+                "id": 2,
+                "description": "Example 2",
+                "user_args": []
+            },
+            {
+                "id": 3,
+                "description": "Example 3",
+                "user_args": [
+                    {
+                        "id": 2,
+                        "prompt": "Prompt for file",
+                        "default": null,
+                        "choice_fixed": true,
+                        "choices": null
+                    }
+                ]
+            },
+            {
+                "id": 4,
+                "description": "Example 4",
+                "user_args": [
+                    {
+                        "id": 3,
+                        "prompt": "Prompt for alternative file",
+                        "default": null,
+                        "choice_fixed": true,
+                        "choices": null
+                    }
+                ]
+            },
+            {
+                "id": 5,
+                "description": "",
+                "user_args": []
+            },
+            {
+                "id": 6,
+                "description": "Just to have more arguments",
+                "user_args": [
+                    {
+                        "id": 6,
+                        "prompt": "First question in this group",
+                        "default": null,
+                        "choice_fixed": false,
+                        "choices": []
+                    },
+                    {
+                        "id": 7,
+                        "prompt": "Second question in this group",
+                        "default": null,
+                        "choice_fixed": false,
+                        "choices": []
+                    },
+                    {
+                        "id": 8,
+                        "prompt": "Final multiple choice",
+                        "default": null,
+                        "choice_fixed": false,
+                        "choices": [
+                            "Choice A",
+                            "Choice B",
+                            "Choice C"
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+    "#)?;
+
+    assert_eq!(uvp, result);
+
+    // now try to apply a profile to an exposure
+    let exposure = platform.create_exposure(
+        1,
+        "083b775d81ec9b66796edbbdce4d714bb2ddc355",
+    ).await?;
+    // this apparently triggers the destructor failure
+    let efc = exposure.create_file("if1").await?;
+    let exposure_file_id = efc
+        .exposure_file()
+        .id();
+
+    platform.mc_platform.set_ef_vttprofile(
+        exposure_file_id,
+        vttp,
+    ).await?;
+
+    let efvttsc = efc.build_vttc().await?;
+    let upgr = efvttsc.create_user_prompt_groups().await?;
+
+    let uvg: Vec<UserPromptGroup> = serde_json::from_str(&serde_json::to_string(&upgr)?)?;
+    let uvg_result: Vec<UserPromptGroup> = serde_json::from_str(r#"
+    [
+        {
+            "id": 2,
+            "description": "Example 2",
+            "user_args": []
+        },
+        {
+            "id": 3,
+            "description": "Example 3",
+            "user_args": [
+                {
+                    "id": 2,
+                    "prompt": "Prompt for file",
+                    "default": null,
+                    "choice_fixed": true,
+                    "choices": ["README", "if1"]
+                }
+            ]
+        },
+        {
+            "id": 4,
+            "description": "Example 4",
+            "user_args": [
+                {
+                    "id": 3,
+                    "prompt": "Prompt for alternative file",
+                    "default": null,
+                    "choice_fixed": true,
+                    "choices": ["README", "if1"]
+                }
+            ]
+        },
+        {
+            "id": 5,
+            "description": "",
+            "user_args": []
+        },
+        {
+            "id": 6,
+            "description": "Just to have more arguments",
+            "user_args": [
+                {
+                    "id": 6,
+                    "prompt": "First question in this group",
+                    "default": null,
+                    "choice_fixed": false,
+                    "choices": []
+                },
+                {
+                    "id": 7,
+                    "prompt": "Second question in this group",
+                    "default": null,
+                    "choice_fixed": false,
+                    "choices": []
+                },
+                {
+                    "id": 8,
+                    "prompt": "Final multiple choice",
+                    "default": null,
+                    "choice_fixed": false,
+                    "choices": [
+                        "Choice A",
+                        "Choice B",
+                        "Choice C"
+                    ]
+                }
+            ]
+        }
+    ]
+    "#)?;
+
+    assert_eq!(uvg, uvg_result);
 
     Ok(())
 }
