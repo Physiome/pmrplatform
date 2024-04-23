@@ -76,7 +76,6 @@ WHERE id = ?1
         id: row.id,
         title: row.title,
         description: row.description,
-        view_task_templates: None,
     })
     .fetch_one(&*sqlite.pool)
     .await?;
@@ -132,7 +131,6 @@ mod testing {
             id: profile_id,
             title: "Test Profile".to_string(),
             description: "".to_string(),
-            view_task_templates: None,
         });
 
         assert!(b.update_profile_by_fields(
@@ -145,7 +143,6 @@ mod testing {
             id: profile_id,
             title: "Updated Title".to_string(),
             description: "Updated Description".to_string(),
-            view_task_templates: None,
         });
         Ok(())
     }

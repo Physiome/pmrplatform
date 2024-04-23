@@ -14,7 +14,10 @@ pub struct Profile {
     pub id: i64,
     pub title: String,
     pub description: String,
-    pub view_task_templates: Option<ViewTaskTemplates>,
+    // The profile may have alternative purposes, so something like the
+    // following is never going to be done
+    // pub view_task_templates: Option<ViewTaskTemplates>,
+    // instead declare co-joined types like ViewTaskTemplateProfile
 }
 
 // TODO see if the individual structs be better organized if grouped
@@ -49,7 +52,9 @@ pub struct ProfileView {
 }
 
 // synthesized from the above records from the underlying db; isn't
-// typically directly stored in this form in the underlying db.
+// typically directly stored in this form in the underlying db, and this
+// is currently the only example of the associated type between Profile
+// and another.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ViewTaskTemplateProfile {
     pub profile: Profile,

@@ -1,10 +1,7 @@
-use pmrcore::{
-    error::ValueError,
-    profile::{
-        Profile,
-        ViewTaskTemplate,
-        ViewTaskTemplates,
-    },
+use pmrcore::profile::{
+    ViewTaskTemplate,
+    ViewTaskTemplates,
+    ViewTaskTemplateProfile,
 };
 use std::ops::Deref;
 
@@ -85,17 +82,15 @@ impl<'a, T> From<(
 }
 
 impl<'a, T> From<(
-    &'a Profile,
+    &'a ViewTaskTemplateProfile,
     &'a ChoiceRegistryCache<'a, T>,
 )> for UserViewProfileRef<'a> {
-    fn from((profile, choice_registry): (&'a Profile, &'a ChoiceRegistryCache<'a, T>)) -> Self {
+    fn from((vttp, choice_registry): (&'a ViewTaskTemplateProfile, &'a ChoiceRegistryCache<'a, T>)) -> Self {
         Self {
-            id: profile.id,
-            title: profile.title.as_ref(),
-            description: profile.description.as_ref(),
-            user_prompt_groups: profile.view_task_templates
-                .as_ref()
-                .expect("Profile.view_task_templates cannot be None here")
+            id: vttp.profile.id,
+            title: vttp.profile.title.as_ref(),
+            description: vttp.profile.description.as_ref(),
+            user_prompt_groups: vttp.view_task_templates
                 .iter()
                 .map(|vtt| (vtt, choice_registry).into())
                 .collect::<Vec<_>>()
