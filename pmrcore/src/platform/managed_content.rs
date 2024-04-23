@@ -16,11 +16,14 @@ use crate::{
             ExposureFileViewBackend,
         },
     },
-    profile::traits::{
-        ProfileBackend,
-        ViewTaskTemplateBackend,
-        ProfileViewsBackend,
-        ViewTaskTemplateProfileBackend,
+    profile::{
+        ViewTaskTemplateProfile,
+        traits::{
+            ProfileBackend,
+            ViewTaskTemplateBackend,
+            ProfileViewsBackend,
+            ViewTaskTemplateProfileBackend,
+        },
     },
     workspace,
     workspace::traits::{
@@ -165,6 +168,26 @@ pub trait MCPlatform: WorkspaceBackend
         workspace::traits::WorkspaceBackend::list_workspaces(self)
             .await
             .map(|v| v.bind(self).into())
+    }
+
+    async fn set_ef_vttprofile(
+        &self,
+        exposure_file_id: i64,
+        vttp: ViewTaskTemplateProfile,
+    ) -> Result<(), BackendError> {
+        ExposureTaskTemplateBackend::set_file_templates(
+            self,
+            exposure_file_id,
+            vttp.view_task_templates
+                .iter()
+                .map(|vtt| vtt.id),
+        ).await?;
+        ExposureFileProfileBackend::set_ef_profile(
+            self,
+            exposure_file_id,
+            vttp.profile.id,
+        ).await?;
+        Ok(())
     }
 }
 

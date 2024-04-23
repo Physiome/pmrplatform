@@ -4,7 +4,6 @@ use clap::{
 };
 use pmrcore::{
     exposure::{
-        task::traits::ExposureTaskTemplateBackend,
         traits::{
             Exposure as _,
             ExposureFile as _,
@@ -200,8 +199,7 @@ where
             // TODO figure out if the ctrl platform should have a helper
             // that will initialize the profile_id for exposure_file_id
             // via the ExposureFileProfileBackend.
-            ExposureTaskTemplateBackend::set_vtt_profile(
-                platform.mc_platform.as_ref(),
+            platform.mc_platform.set_ef_vttprofile(
                 id,
                 vtt_profile,
             ).await?;

@@ -2,10 +2,7 @@ use async_trait::async_trait;
 use crate::{
     error::BackendError,
     exposure::task::ExposureFileViewTask,
-    profile::{
-        ViewTaskTemplate,
-        ViewTaskTemplateProfile,
-    },
+    profile::ViewTaskTemplate,
 };
 
 #[async_trait]
@@ -20,18 +17,6 @@ pub trait ExposureTaskTemplateBackend {
         exposure_file_id: i64,
     ) -> Result<Vec<ViewTaskTemplate>, BackendError>;
 
-    async fn set_vtt_profile(
-        &self,
-        exposure_file_id: i64,
-        profile: ViewTaskTemplateProfile,
-    ) -> Result<(), BackendError> {
-        self.set_file_templates(
-            exposure_file_id,
-            profile.view_task_templates
-                .iter()
-                .map(|vtt| vtt.id),
-        ).await
-    }
 }
 
 #[async_trait]
