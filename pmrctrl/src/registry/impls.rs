@@ -56,6 +56,7 @@ impl<
         handle: &ExposureFileCtrl<'p, MCP, TMP>,
     ) -> Result<Self, Self::Error> {
         let mut registry = PreparedChoiceRegistry::new();
+        // TODO need a registry for files that provide a default value to the _current_ file name
         registry.register("files", handle.0.exposure.map_files_fs()?.into());
         let workspace_file_path = handle.0.exposure.ensure_fs()?.join(handle
             .exposure_file()

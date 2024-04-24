@@ -21,9 +21,17 @@ use pmrcore::{
     },
 };
 use pmrctrl::platform::Platform;
-use pmrmodel::backend::db::{
-    Profile,
-    SqliteBackend,
+use pmrmodel::{
+    backend::db::{
+        Profile,
+        SqliteBackend,
+    },
+    model::profile::UserViewProfileRef,
+    registry::{
+        ChoiceRegistry,
+        ChoiceRegistryCache,
+        PreparedChoiceRegistry,
+    },
 };
 use sqlx::{
     Sqlite,
@@ -95,6 +103,8 @@ enum ProfileCmd {
     },
     #[command(arg_required_else_help = true)]
     View {
+        #[clap(long, short='p', action)]
+        as_prompts: bool,
         profile_id: i64,
     },
     #[command(arg_required_else_help = true)]
@@ -229,11 +239,21 @@ where
             ).await?;
             println!("created new profile id: {id}");
         },
-        ProfileCmd::View { profile_id } => {
+        ProfileCmd::View { as_prompts, profile_id } => {
             let result = platform.get_view_task_template_profile(profile_id).await?;
-            let output = serde_json::to_string_pretty(&result)?;
+            let output = if as_prompts {
+                let registry = PreparedChoiceRegistry::new();
+                let cache = ChoiceRegistryCache::from(
+                    &registry as &dyn ChoiceRegistry<_>);
+                let uvpr: UserViewProfileRef = (&result, &cache).into();
+                serde_json::to_string_pretty(&uvpr)?
+            } else {
+                serde_json::to_string_pretty(&result)?
+            };
             println!("{output}");
         },
+        // profile vtt assign [x]
+        // profile vtt remove [ ]
         ProfileCmd::Vtt { profile_id, task_template_id, view_key, description } => {
             let backend: &dyn ViewTaskTemplateBackend = platform.mc_platform.as_ref();
             let id = backend.insert_view_task_template(
