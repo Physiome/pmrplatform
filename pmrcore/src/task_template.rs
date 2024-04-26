@@ -120,4 +120,7 @@ mod display;
 mod impls;
 pub mod traits;
 
-pub use map_to_arg::MapToArgRef;
+pub use map_to_arg::{
+    ChoiceRef,
+    MapToArgRef,
+};
