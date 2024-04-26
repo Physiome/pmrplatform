@@ -52,6 +52,7 @@ async fn finalize_task_template_sqlite(
     sqlite: &SqliteBackend,
     id: i64,
 ) -> Result<Option<i64>, BackendError> {
+    let mut tx = sqlite.pool.begin().await?;
     let rec = sqlx::query!(
         r#"
 UPDATE task_template
@@ -74,8 +75,9 @@ RETURNING final_task_template_arg_id
         "#,
         id,
     )
-    .fetch_one(&*sqlite.pool)
+    .fetch_one(&mut *tx)
     .await?;
+    tx.commit().await?;
 
     Ok(rec.final_task_template_arg_id)
 }

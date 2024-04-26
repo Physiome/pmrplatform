@@ -42,6 +42,8 @@ enum Commands {
     #[command(arg_required_else_help = true)]
     Show {
         id: i64,
+        #[clap(short = 'j', long = "json", action)]
+        json: bool,
     },
     #[command(arg_required_else_help = true)]
     Arg {
@@ -136,16 +138,23 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Finalize { id } => {
             println!("finalizing program id '{}'...", id);
-            TaskTemplateBackend::finalize_new_task_template(
+            let finalid = TaskTemplateBackend::finalize_new_task_template(
                 &backend, id,
             ).await?;
-            println!("program id {} is finalized.", id);
+            match finalid {
+                Some(finalid) => println!("finalize with argid {finalid}."),
+                None => println!("finalize failed"),
+            };
             let task_template = get_task_template_by_id(&backend, id).await?;
             println!("{}", task_template);
         }
-        Commands::Show { id } => {
+        Commands::Show { json, id } => {
             let task_template = get_task_template_by_id(&backend, id).await?;
-            println!("{}", task_template);
+            if json {
+                println!("{}", serde_json::to_string_pretty(&task_template)?);
+            } else {
+                println!("{}", task_template);
+            }
         }
         Commands::Arg { arg } => {
             parse_arg(arg, &backend).await?;
@@ -175,8 +184,8 @@ async fn get_task_template_by_id(
 async fn parse_arg(arg: Arg, backend: &SqliteBackend) -> anyhow::Result<()> {
     match arg {
         Arg::Add { id, flag, flag_joined, prompt, default_value, choice_fixed, choice_source } => {
-            println!("Setting argument for id {}", &id);
-            TaskTemplateBackend::add_task_template_arg(
+            println!("Setting argument for task template id {id}");
+            let argid = TaskTemplateBackend::add_task_template_arg(
                 backend,
                 id,
                 flag.as_deref(),
@@ -186,6 +195,7 @@ async fn parse_arg(arg: Arg, backend: &SqliteBackend) -> anyhow::Result<()> {
                 choice_fixed,
                 choice_source.as_deref(),
             ).await?;
+            println!("Created task template arg id {argid}");
             let task_template = get_task_template_by_id(
                 backend, id,
             ).await?;
@@ -242,16 +252,17 @@ async fn parse_arg(arg: Arg, backend: &SqliteBackend) -> anyhow::Result<()> {
 async fn parse_choice(choice: Choice, backend: &SqliteBackend) -> anyhow::Result<()> {
     match choice {
         Choice::Add { argid, label, value } => {
-            println!("Adding choice for arg:id {}", &argid);
-            TaskTemplateBackend::add_task_template_arg_choice(
+            println!("Adding choice for arg:id {argid}");
+            let choiceid = TaskTemplateBackend::add_task_template_arg_choice(
                 backend,
                 argid,
                 value.as_deref(),
                 &label,
             ).await?;
+            println!("Created choice choice:id {choiceid}");
         }
         Choice::Rm { choiceid } => {
-            println!("removing choice with choice:id {}", &choiceid);
+            println!("removing choice with choice:id {choiceid}");
             TaskTemplateBackend::delete_task_template_arg_choice_by_id(
                 backend,
                 choiceid,
