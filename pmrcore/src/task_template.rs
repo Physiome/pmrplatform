@@ -80,10 +80,6 @@ pub struct TaskTemplateArgChoice {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct TaskTemplateArgChoices(Vec<TaskTemplateArgChoice>);
 
-// What an owned version might have looked like
-// pub struct MapToArg(HashMap<String, Option<String>>);
-pub struct MapToArgRef<'a>(HashMap<&'a str, Option<&'a str>>);
-
 // UserArg is the user facing version of the TemplateArg - it only
 // provides fields that are critical to the end-user while hiding the
 // other details that are implementation specific for the server.
@@ -118,7 +114,10 @@ pub struct UserArgRef<'a> {
 // The user input map for task template; key is TaskTemplateArg.id
 pub type UserInputMap = HashMap<i64, String>;
 
+mod map_to_arg;
 #[cfg(feature = "display")]
 mod display;
 mod impls;
 pub mod traits;
+
+pub use map_to_arg::MapToArgRef;
