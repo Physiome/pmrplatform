@@ -14,6 +14,7 @@ use pmrcore::{
         traits::TaskBackend,
     },
     task_template::{
+        ChoiceRef,
         UserArg,
         UserInputMap,
     },
@@ -1027,7 +1028,6 @@ async fn test_hidden_registries() -> anyhow::Result<()> {
     Ok(())
 }
 
-
 #[async_std::test]
 async fn test_multiple_exposure_files() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
@@ -1040,6 +1040,38 @@ async fn test_multiple_exposure_files() -> anyhow::Result<()> {
 
     assert_eq!(efc1.exposure_file().id(), 1);
     assert_eq!(efc2.exposure_file().id(), 2);
+
+    Ok(())
+}
+
+#[async_std::test]
+async fn test_exposure_file_registry() -> anyhow::Result<()> {
+    let (_reporoot, platform) = create_sqlite_platform().await?;
+    let exposure = platform.create_exposure(
+        1,
+        "42845247d1a2af1bf5a0f09c85e254ba78992c2f",
+    ).await?;
+    let efc = exposure.create_file("if1").await?;
+    let registry: PreparedChoiceRegistry = (&efc).try_into()?;
+    let files: Vec<ChoiceRef> = registry.lookup("files")
+        .expect("has files registry")
+        .into();
+    assert_eq!(files.as_slice(), &[
+        ChoiceRef("README", false),
+        ChoiceRef("branch/alpha", false),
+        ChoiceRef("branch/beta", false),
+        ChoiceRef("if1", false),
+    ]);
+
+    let files_default: Vec<ChoiceRef> = registry.lookup("files_default")
+        .expect("has files_default registry")
+        .into();
+    assert_eq!(files_default.as_slice(), &[
+        ChoiceRef("README", false),
+        ChoiceRef("branch/alpha", false),
+        ChoiceRef("branch/beta", false),
+        ChoiceRef("if1", true),
+    ]);
 
     Ok(())
 }

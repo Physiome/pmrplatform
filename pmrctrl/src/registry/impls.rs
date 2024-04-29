@@ -66,6 +66,12 @@ impl<
         registry.register("workspace_file_path", HashMap::from([
             ("workspace_file_path".to_string(), workspace_file_path),
         ]).into());
+        registry.register("files_default", handle.0.exposure.map_files_fs()?.into());
+        registry.select_keys("files_default", vec![
+            handle.exposure_file()
+                .workspace_file_path()
+                .to_string()
+        ]);
         Ok(registry)
     }
 }

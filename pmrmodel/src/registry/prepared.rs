@@ -56,28 +56,50 @@ impl From<Vec<&'static str>> for SizedMapToArgRef {
     }
 }
 
-pub struct PreparedChoiceRegistry(HashMap<String, SizedMapToArgRef>);
+pub struct PreparedChoiceRegistry {
+    table: HashMap<String, SizedMapToArgRef>,
+    selected_keys: HashMap<String, Vec<String>>,
+}
 
 impl ChoiceRegistry<SizedMapToArgRef> for PreparedChoiceRegistry {
     fn register(&mut self, name: &str, registry: SizedMapToArgRef) {
-        self.0.insert(name.to_string(), registry);
+        self.table.insert(name.to_string(), registry);
+    }
+
+    fn select_keys(&mut self, name: &str, keys: Vec<String>) {
+        self.selected_keys.insert(name.to_string(), keys);
     }
 
     fn lookup<'a>(&'a self, name: &str) -> Option<MapToArgRef<'a>> {
-        self.0
+        self.table
             .get(name)
-            .map(|v| v.into())
+            .map(|v| {
+                let mut result: MapToArgRef = v.into();
+                result.select_keys(
+                    self.selected_keys
+                        .get(name)
+                        .map(|v| v.as_slice())
+                        .unwrap_or(&[])
+                        .into_iter()
+                        .map(|s| s.as_ref())
+                );
+                result
+            })
     }
 }
 
 impl PreparedChoiceRegistry {
     pub fn new() -> Self {
-        Self(HashMap::new())
+        Self {
+            table: HashMap::new(),
+            selected_keys: HashMap::new(),
+        }
     }
 }
 
 #[cfg(test)]
 mod test {
+    use pmrcore::task_template::ChoiceRef;
     use crate::registry::ChoiceRegistry;
     use crate::registry::PreparedChoiceRegistry;
 
@@ -91,10 +113,44 @@ mod test {
         ];
 
         registry.register("files", files.into());
-        let lookup = registry.lookup("files").unwrap();
+        let lookup = registry.lookup("files")
+            .expect("registry returned");
         // nested some may be confusing, but there is one for whether
         // the term exists, and then whether or not the term resolves
         // to a &str or a usable None.
-        assert_eq!(lookup.get("file_a"), Some(&Some("file_a")))
+        assert_eq!(lookup.get("file_a"), Some(&Some("file_a")));
+
+        let choices: Vec<ChoiceRef> = lookup.into();
+        assert_eq!(choices, [
+            ChoiceRef("file_a", false),
+            ChoiceRef("file_b", false),
+            ChoiceRef("file_c", false),
+        ]);
+    }
+
+    #[test]
+    fn test_prepared_choice_registry_select_keys() {
+        let mut registry = PreparedChoiceRegistry::new();
+        let files = vec![
+            "file_a".to_string(),
+            "file_b".to_string(),
+            "file_c".to_string(),
+        ];
+
+        registry.register("files", files.into());
+        registry.select_keys("files", vec![
+            "a".to_string(),
+            "file_a".to_string(),
+            "file_d".to_string(),
+        ]);
+
+        let choices: Vec<ChoiceRef> = registry.lookup("files")
+            .expect("registry returned")
+            .into();
+        assert_eq!(choices, [
+            ChoiceRef("file_a", true),
+            ChoiceRef("file_b", false),
+            ChoiceRef("file_c", false),
+        ]);
     }
 }
