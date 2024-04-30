@@ -92,6 +92,23 @@ pub trait MCPlatform: WorkspaceBackend
             .map(|v| v.bind(self))
     }
 
+    /// get the `ExposureFileRef` by the provided `exposure_id` and `workspace_file_path`
+    async fn get_exposure_file_by_id_path<'a>(
+        &'a self,
+        exposure_id: i64,
+        workspace_file_path: &str,
+    ) -> Result<exposure::ExposureFileRef<'a, Self>, BackendError>
+        where Self: Sized
+    {
+        ExposureFileBackend::get_by_exposure_filepath(
+            self,
+            exposure_id,
+            workspace_file_path,
+        )
+            .await
+            .map(|v| v.bind(self))
+    }
+
     /// get all `ExposureFileRefs` for the provided `exposure_id`
     async fn get_exposure_files<'a>(
         &'a self,

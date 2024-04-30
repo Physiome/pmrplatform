@@ -137,6 +137,44 @@ impl<
         )
     }
 
+    pub async fn ctrl_path(
+        &'p self,
+        workspace_file_path: &'p str,
+    ) -> Result<
+        ExposureFileCtrl<'p, MCP, TMP>,
+        PlatformError
+    > {
+        // quick failing here.
+        let pathinfo = self.0.git_handle.pathinfo(
+            Some(self.0.exposure.commit_id()),
+            Some(workspace_file_path),
+        )?;
+        // path exists, so create the exposure file
+        // TODO need to check if exposure_file_ctrls
+        let efb: &dyn ExposureFileBackend = self.0.platform.mc_platform.as_ref();
+        let exposure_file = self.0.platform.mc_platform.get_exposure_file_by_id_path(
+            self.0.exposure.id(),
+            workspace_file_path,
+        ).await?;
+        let exposure_file = ExposureFileCtrl::new(
+            self.0.platform,
+            self.clone(),
+            exposure_file,
+            pathinfo,
+        );
+        Ok(
+            MutexGuard::map(
+                self.0.exposure_file_ctrls.lock(),
+                |efc| efc
+                    .entry(workspace_file_path.to_string())
+                    .or_insert(exposure_file)
+            )
+                .deref()
+                .clone()
+        )
+    }
+
+
     /// List all underlying files associated with the workspace at the
     /// commit id for this exposure.
     pub fn list_files(&self) -> Result<Vec<String>, PlatformError> {
