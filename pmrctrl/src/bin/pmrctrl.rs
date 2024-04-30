@@ -82,6 +82,17 @@ enum ExposureCmd {
         workspace_id: i64,
         commit_id: String,
     },
+    #[command(arg_required_else_help = true)]
+    Files {
+        id: i64,
+    },
+    #[command(arg_required_else_help = true)]
+    Path {
+        exposure_id: i64,
+        path: String,
+        #[command(subcommand)]
+        cmd: ExposurePathCmd,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -92,12 +103,24 @@ enum FileCmd {
         path: String,
         profile_id: i64,
     },
+    #[command(arg_required_else_help = true)]
+    Profile {
+        exposure_file_id: i64,
+        #[command(subcommand)]
+        cmd: FileProfileCmd,
+    }
 }
 
 #[derive(Debug, Subcommand)]
 enum ProfileCmd {
     #[command(arg_required_else_help = true)]
     Create {
+        title: String,
+        description: String,
+    },
+    #[command(arg_required_else_help = true)]
+    Update {
+        id: i64,
         title: String,
         description: String,
     },
@@ -115,6 +138,21 @@ enum ProfileCmd {
         description: String,
     },
     // TODO dump a profile to JSON?
+}
+
+#[derive(Debug, Subcommand)]
+enum FileProfileCmd {
+    #[command(arg_required_else_help = true)]
+    Assign {
+        profile_id: i64,
+    },
+    // #[command(arg_required_else_help = true)]
+    // Prompts,
+}
+
+#[derive(Debug, Subcommand)]
+enum ExposurePathCmd {
+    Prompts,
 }
 
 #[async_std::main]
@@ -156,13 +194,13 @@ async fn main() -> anyhow::Result<()> {
 
     match args.command {
         Commands::Exposure { cmd } => {
-            parse_exposure(cmd, &platform).await?;
+            parse_exposure(&platform, cmd).await?;
         },
         Commands::File { cmd } => {
-            parse_file(cmd, &platform).await?;
+            parse_file(&platform, cmd).await?;
         },
         Commands::Profile { cmd } => {
-            parse_profile(cmd, &platform).await?;
+            parse_profile(&platform, cmd).await?;
         },
         // TODO exposure (view template) profiles
     }
@@ -171,8 +209,8 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn parse_exposure<'p, MCP, TMP>(
-    arg: ExposureCmd,
     platform: &'p Platform<MCP, TMP>,
+    arg: ExposureCmd,
 ) -> anyhow::Result<()>
 where
     MCP: MCPlatform + Sized + Send + Sync,
@@ -184,13 +222,32 @@ where
             let id = ctrl.exposure().id();
             println!("created exposure id {id} for workspace {workspace_id} at commit {commit_id}");
         }
+        ExposureCmd::Files { id } => {
+            let ctrl = platform.get_exposure(id).await?;
+            let mut files = ctrl.list_files()?;
+            files.sort_unstable();
+            let mut exposure_files = ctrl.list_exposure_files().await?;
+            exposure_files.sort_unstable();
+            let mut exposure_files = exposure_files.into_iter().peekable();
+            for file in files.iter() {
+                if exposure_files.peek() == Some(&(file.as_ref())) {
+                    println!("[*] {file}");
+                    exposure_files.next();
+                } else {
+                    println!("[ ] {file}");
+                }
+            }
+        }
+        ExposureCmd::Path { exposure_id, path, cmd } => {
+            parse_exposure_path(&platform, exposure_id, path.as_ref(), cmd).await?;
+        }
     }
     Ok(())
 }
 
 async fn parse_file<'p, MCP, TMP>(
-    arg: FileCmd,
     platform: &'p Platform<MCP, TMP>,
+    arg: FileCmd,
 ) -> anyhow::Result<()>
 where
     MCP: MCPlatform + Sized + Send + Sync,
@@ -213,18 +270,18 @@ where
                 id,
                 vtt_profile,
             ).await?;
-            println!("set exposure file id {id} with profile id {profile_id}")
+            println!("set exposure file id {id} with profile id {profile_id}");
         },
-        // FileCmd::View { exposure_file_id, effv_id } => {
-        //     todo!();
-        // },
+        FileCmd::Profile { exposure_file_id, cmd } => {
+            parse_file_profile(&platform, exposure_file_id, cmd).await?;
+        },
     }
     Ok(())
 }
 
 async fn parse_profile<'p, MCP, TMP>(
-    arg: ProfileCmd,
     platform: &'p Platform<MCP, TMP>,
+    arg: ProfileCmd,
 ) -> anyhow::Result<()>
 where
     MCP: MCPlatform + Sized + Send + Sync,
@@ -238,6 +295,15 @@ where
                 &description,
             ).await?;
             println!("created new profile id: {id}");
+        },
+        ProfileCmd::Update { id, title, description } => {
+            let backend: &dyn ProfileBackend = platform.mc_platform.as_ref();
+            backend.update_profile_by_fields(
+                id,
+                &title,
+                &description,
+            ).await?;
+            println!("updated profile {id}");
         },
         ProfileCmd::View { as_prompts, profile_id } => {
             let result = platform.get_view_task_template_profile(profile_id).await?;
@@ -267,6 +333,59 @@ where
 
             let vtt = platform.get_view_task_template(id).await?;
             let output = serde_json::to_string_pretty(&vtt)?;
+            println!("{output}");
+        },
+    }
+    Ok(())
+}
+
+async fn parse_file_profile<'p, MCP, TMP>(
+    platform: &'p Platform<MCP, TMP>,
+    exposure_file_id: i64,
+    arg: FileProfileCmd,
+) -> anyhow::Result<()>
+where
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
+{
+    match arg {
+        FileProfileCmd::Assign { profile_id } => {
+            let vttp = platform.get_view_task_template_profile(profile_id).await?;
+            platform.mc_platform.set_ef_vttprofile(
+                exposure_file_id,
+                vttp,
+            ).await?;
+            println!("profile set: exposure_file_id {exposure_file_id} => profile_id {profile_id}");
+        },
+        // FileProfileCmd::Prompts => {
+        //     println!("prompts for exposure_file_id {exposure_file_id}");
+        //     // Still haven't figured out how to return this directly from
+        //     // the platform, though with the typical usage via URI/paths
+        //     // this isn't the same huge problem.
+        //     let efc = todo!();
+        //     let efvttsc = efc.build_vttc().await?;
+        // },
+    }
+    Ok(())
+}
+
+async fn parse_exposure_path<'p, MCP, TMP>(
+    platform: &'p Platform<MCP, TMP>,
+    exposure_id: i64,
+    path: &str,
+    arg: ExposurePathCmd,
+) -> anyhow::Result<()>
+where
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
+{
+    match arg {
+        ExposurePathCmd::Prompts => {
+            let ec = platform.get_exposure(exposure_id).await?;
+            let efc = ec.ctrl_path(path).await?;
+            let efvttsc = efc.build_vttc().await?;
+            let upgr = efvttsc.create_user_prompt_groups().await?;
+            let output = serde_json::to_string_pretty(&upgr)?;
             println!("{output}");
         },
     }
