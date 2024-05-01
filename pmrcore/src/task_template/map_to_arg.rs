@@ -4,7 +4,11 @@ use std::{
     ops::Deref,
 };
 
-use super::TaskTemplateArgChoices;
+use super::{
+    TaskTemplateArgChoices,
+    UserChoice,
+    UserChoices,
+};
 
 pub struct MapToArgRef<'a> {
     selected_keys: Vec<&'a str>,
@@ -12,7 +16,10 @@ pub struct MapToArgRef<'a> {
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize, Serialize)]
-pub struct ChoiceRef<'a>(pub &'a str, pub bool);
+pub struct UserChoiceRef<'a>(pub &'a str, pub bool);
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+pub struct UserChoiceRefs<'a>(Vec<UserChoiceRef<'a>>);
 
 impl<'a> Deref for MapToArgRef<'a> {
     type Target = HashMap<&'a str, Option<&'a str>>;
@@ -96,20 +103,80 @@ impl<'a> From<MapToArgRef<'a>> for Vec<&'a str> {
     }
 }
 
-impl<'a> From<MapToArgRef<'a>> for Vec<ChoiceRef<'a>> {
+impl<'a> From<&'a UserChoice> for UserChoiceRef<'a> {
+    fn from(value: &'a UserChoice) -> Self {
+        Self(value.0.as_ref(), value.1)
+    }
+}
+
+impl From<&UserChoiceRef<'_>> for UserChoice {
+    fn from(value: &UserChoiceRef<'_>) -> Self {
+        Self(value.0.to_string(), value.1)
+    }
+}
+
+impl From<&UserChoiceRefs<'_>> for UserChoices {
+    fn from(values: &UserChoiceRefs<'_>) -> Self {
+        Self(
+            values.iter()
+                .map(|v| v.into())
+                .collect::<Vec<_>>()
+        )
+    }
+}
+
+impl<'a> From<MapToArgRef<'a>> for UserChoiceRefs<'a> {
     fn from(value: MapToArgRef<'a>) -> Self {
         let mut selected_keys = value.selected_keys.iter().peekable();
         let mut keys = value.table.into_keys()
             .collect::<Vec<_>>();
         keys.sort_unstable();
         keys.iter()
-            .map(|s| ChoiceRef(s, (selected_keys.peek() == Some(&&s))
+            .map(|s| UserChoiceRef(s, (selected_keys.peek() == Some(&&s))
                 .then(|| selected_keys.next())
                 .is_some()
             ))
-            .collect()
+            .collect::<Vec<_>>()
+            .into()
     }
 }
+
+impl<'a> From<&MapToArgRef<'a>> for UserChoiceRefs<'a> {
+    fn from(value: &MapToArgRef<'a>) -> Self {
+        let mut selected_keys = value.selected_keys.iter().peekable();
+        let mut keys = value.table.keys()
+            .collect::<Vec<_>>();
+        keys.sort_unstable();
+        keys.iter()
+            .map(|s| UserChoiceRef(s, (selected_keys.peek() == Some(&&s))
+                .then(|| selected_keys.next())
+                .is_some()
+            ))
+            .collect::<Vec<_>>()
+            .into()
+    }
+}
+
+impl<'a> From<Vec<UserChoiceRef<'a>>> for UserChoiceRefs<'a> {
+    fn from(args: Vec<UserChoiceRef<'a>>) -> Self {
+        Self(args)
+    }
+}
+
+impl<'a, const N: usize> From<[UserChoiceRef<'a>; N]> for UserChoiceRefs<'a> {
+    fn from(args: [UserChoiceRef<'a>; N]) -> Self {
+        Self(args.into())
+    }
+}
+
+impl<'a> Deref for UserChoiceRefs<'a> {
+    type Target = Vec<UserChoiceRef<'a>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 
 impl<'a> MapToArgRef<'a> {
     pub fn select_keys(
@@ -135,10 +202,10 @@ mod test {
             "three": "3"
         }"#)?;
         let lookup: MapToArgRef = (&values).into();
-        let choices: Vec<ChoiceRef> = lookup.into();
+        let choices: UserChoiceRefs = lookup.into();
 
         // sorted listing by label
-        let ChoiceRef(choice, selected) = choices[2];
+        let UserChoiceRef(choice, selected) = choices[2];
         assert_eq!(choice, "two");
         assert_eq!(selected, false);
 
@@ -156,14 +223,14 @@ mod test {
         let mut lookup: MapToArgRef = (&values).into();
         // unknown keys silently ignored
         lookup.select_keys(["a", "one", "three"].into_iter());
-        let choices: Vec<ChoiceRef> = lookup.into();
+        let choices: UserChoiceRefs = lookup.into();
 
         assert_eq!(choices, [
-            ChoiceRef("four", false),
-            ChoiceRef("one", true),
-            ChoiceRef("three", true),
-            ChoiceRef("two", false),
-        ]);
+            UserChoiceRef("four", false),
+            UserChoiceRef("one", true),
+            UserChoiceRef("three", true),
+            UserChoiceRef("two", false),
+        ].into());
 
         Ok(())
     }

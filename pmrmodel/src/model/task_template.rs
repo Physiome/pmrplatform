@@ -13,6 +13,7 @@ use pmrcore::{
         TaskTemplate,
         TaskTemplateArg,
         UserArg,
+        UserChoiceRefs,
         UserInputMap,
     },
 };
@@ -62,7 +63,7 @@ pub struct UserArgRef<'a> {
     // have a vec of references, punt dealing with the lifetime of that
     // reference to later when we have a better idea on where the slice
     // actually lives.
-    choices: Option<Vec<&'a str>>,
+    choices: Option<UserChoiceRefs<'a>>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -242,14 +243,14 @@ impl<'a, I: Iterator<Item=&'a TaskTemplateArg>, T> Iterator for UserArgBuilder<'
                         prompt: prompt,
                         default: arg.default.as_deref(),
                         choice_fixed: arg.choice_fixed,
-                        choices: self.choice_registry_cache.list(&arg)
+                        choices: self.choice_registry_cache.lookup(&arg)
                             .ok()
                             .as_deref()
                             .map(|r| r
                                 .as_ref()
-                                .map(|v| v.clone())
+                                .map(|v| v.into())
                                 // known empty remains empty
-                                .unwrap_or(vec![])
+                                .unwrap_or(vec![].into())
                             )
                     })
                 }
@@ -305,11 +306,7 @@ impl From<&UserArgRef<'_>> for UserArg {
             choice_fixed: item.choice_fixed,
             choices: item.choices
                 .as_ref()
-                .map(|choices| choices
-                    .iter()
-                    .map(|choice| choice.to_string())
-                    .collect::<Vec<_>>()
-                ),
+                .map(|choices| choices.into())
         }
     }
 }
@@ -1634,9 +1631,9 @@ mod test {
             default: None,
             choice_fixed: true,
             choices: Some(vec![
-                "src/README.md".into(),
-                "src/main/example.model".into(),
-            ]),
+                "src/README.md".to_string(),
+                "src/main/example.model".to_string(),
+            ].into()),
         });
 
         let value: serde_json::Value = serde_json::from_str(&json_str)?;
@@ -1661,8 +1658,8 @@ mod test {
                 "default": null,
                 "choice_fixed": true,
                 "choices": [
-                    "src/README.md",
-                    "src/main/example.model"
+                    ["src/README.md", false],
+                    ["src/main/example.model", false]
                 ]
             },
             {
@@ -1671,8 +1668,8 @@ mod test {
                 "default": "no",
                 "choice_fixed": true,
                 "choices": [
-                    "yes",
-                    "no"
+                    ["no", false],
+                    ["yes", false]
                 ]
             },
             {
@@ -1681,8 +1678,8 @@ mod test {
                 "default": "no",
                 "choice_fixed": true,
                 "choices": [
-                    "yes",
-                    "no"
+                    ["no", false],
+                    ["yes", false]
                 ]
             }
         ]"#)?;

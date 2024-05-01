@@ -78,3 +78,45 @@ impl DerefMut for UserArgs {
         &mut self.0
     }
 }
+
+impl From<&str> for UserChoice {
+    fn from(arg: &str) -> Self {
+        Self(arg.to_string(), false)
+    }
+}
+
+impl From<Vec<UserChoice>> for UserChoices {
+    fn from(args: Vec<UserChoice>) -> Self {
+        Self(args)
+    }
+}
+
+impl<const N: usize> From<[UserChoice; N]> for UserChoices {
+    fn from(args: [UserChoice; N]) -> Self {
+        Self(args.into())
+    }
+}
+
+impl Deref for UserChoices {
+    type Target = Vec<UserChoice>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for UserChoices {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl From<Vec<String>> for UserChoices {
+    fn from(args: Vec<String>) -> Self {
+        Self(
+            args.into_iter()
+                .map(|s| UserChoice(s, false))
+                .collect()
+        )
+    }
+}

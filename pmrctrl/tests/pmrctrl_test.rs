@@ -14,7 +14,8 @@ use pmrcore::{
         traits::TaskBackend,
     },
     task_template::{
-        ChoiceRef,
+        UserChoiceRef,
+        UserChoiceRefs,
         UserArg,
         UserInputMap,
     },
@@ -844,9 +845,9 @@ async fn test_platform_vtt_profile() -> anyhow::Result<()> {
                         "default": null,
                         "choice_fixed": false,
                         "choices": [
-                            "Choice A",
-                            "Choice B",
-                            "Choice C"
+                            ["Choice A", false],
+                            ["Choice B", false],
+                            ["Choice C", false]
                         ]
                     }
                 ]
@@ -893,7 +894,10 @@ async fn test_platform_vtt_profile() -> anyhow::Result<()> {
                     "prompt": "Prompt for file",
                     "default": null,
                     "choice_fixed": true,
-                    "choices": ["README", "if1"]
+                    "choices": [
+                        ["README", false],
+                        ["if1", false]
+                    ]
                 }
             ]
         },
@@ -906,7 +910,10 @@ async fn test_platform_vtt_profile() -> anyhow::Result<()> {
                     "prompt": "Prompt for alternative file",
                     "default": null,
                     "choice_fixed": true,
-                    "choices": ["README", "if1"]
+                    "choices": [
+                        ["README", false],
+                        ["if1", false]
+                    ]
                 }
             ]
         },
@@ -939,9 +946,9 @@ async fn test_platform_vtt_profile() -> anyhow::Result<()> {
                     "default": null,
                     "choice_fixed": false,
                     "choices": [
-                        "Choice A",
-                        "Choice B",
-                        "Choice C"
+                        ["Choice A", false],
+                        ["Choice B", false],
+                        ["Choice C", false]
                     ]
                 }
             ]
@@ -1057,24 +1064,24 @@ async fn test_exposure_file_registry() -> anyhow::Result<()> {
     ).await?;
     let efc = exposure.create_file("if1").await?;
     let registry: PreparedChoiceRegistry = (&efc).try_into()?;
-    let files: Vec<ChoiceRef> = registry.lookup("files")
+    let files: UserChoiceRefs = registry.lookup("files")
         .expect("has files registry")
         .into();
     assert_eq!(files.as_slice(), &[
-        ChoiceRef("README", false),
-        ChoiceRef("branch/alpha", false),
-        ChoiceRef("branch/beta", false),
-        ChoiceRef("if1", false),
+        UserChoiceRef("README", false),
+        UserChoiceRef("branch/alpha", false),
+        UserChoiceRef("branch/beta", false),
+        UserChoiceRef("if1", false),
     ]);
 
-    let files_default: Vec<ChoiceRef> = registry.lookup("files_default")
+    let files_default: UserChoiceRefs = registry.lookup("files_default")
         .expect("has files_default registry")
         .into();
     assert_eq!(files_default.as_slice(), &[
-        ChoiceRef("README", false),
-        ChoiceRef("branch/alpha", false),
-        ChoiceRef("branch/beta", false),
-        ChoiceRef("if1", true),
+        UserChoiceRef("README", false),
+        UserChoiceRef("branch/alpha", false),
+        UserChoiceRef("branch/beta", false),
+        UserChoiceRef("if1", true),
     ]);
 
     Ok(())

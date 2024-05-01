@@ -89,11 +89,17 @@ pub struct UserArg {
     pub prompt: String,
     pub default: Option<String>,
     pub choice_fixed: bool,
-    pub choices: Option<Vec<String>>,
+    pub choices: Option<UserChoices>,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct UserArgs(Vec<UserArg>);
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize, Serialize)]
+pub struct UserChoice(pub String, pub bool);
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct UserChoices(Vec<UserChoice>);
 
 /*
 // TODO figure out if putting the ref version here is best - currently,
@@ -121,6 +127,7 @@ mod impls;
 pub mod traits;
 
 pub use map_to_arg::{
-    ChoiceRef,
+    UserChoiceRef,
+    UserChoiceRefs,
     MapToArgRef,
 };

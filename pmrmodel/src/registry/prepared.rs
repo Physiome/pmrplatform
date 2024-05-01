@@ -99,7 +99,10 @@ impl PreparedChoiceRegistry {
 
 #[cfg(test)]
 mod test {
-    use pmrcore::task_template::ChoiceRef;
+    use pmrcore::task_template::{
+        UserChoiceRef,
+        UserChoiceRefs,
+    };
     use crate::registry::ChoiceRegistry;
     use crate::registry::PreparedChoiceRegistry;
 
@@ -120,12 +123,20 @@ mod test {
         // to a &str or a usable None.
         assert_eq!(lookup.get("file_a"), Some(&Some("file_a")));
 
-        let choices: Vec<ChoiceRef> = lookup.into();
+        let choices: UserChoiceRefs = (&lookup).into();
         assert_eq!(choices, [
-            ChoiceRef("file_a", false),
-            ChoiceRef("file_b", false),
-            ChoiceRef("file_c", false),
-        ]);
+            UserChoiceRef("file_a", false),
+            UserChoiceRef("file_b", false),
+            UserChoiceRef("file_c", false),
+        ].into());
+
+        let choices: UserChoiceRefs = lookup.into();
+        assert_eq!(choices, [
+            UserChoiceRef("file_a", false),
+            UserChoiceRef("file_b", false),
+            UserChoiceRef("file_c", false),
+        ].into());
+
     }
 
     #[test]
@@ -144,13 +155,13 @@ mod test {
             "file_d".to_string(),
         ]);
 
-        let choices: Vec<ChoiceRef> = registry.lookup("files")
+        let choices: UserChoiceRefs = registry.lookup("files")
             .expect("registry returned")
             .into();
         assert_eq!(choices, [
-            ChoiceRef("file_a", true),
-            ChoiceRef("file_b", false),
-            ChoiceRef("file_c", false),
-        ]);
+            UserChoiceRef("file_a", true),
+            UserChoiceRef("file_b", false),
+            UserChoiceRef("file_c", false),
+        ].into());
     }
 }
