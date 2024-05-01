@@ -382,7 +382,7 @@ where
                         "prompt": "Prompt for file",
                         "default": null,
                         "choice_fixed": true,
-                        "choice_source": "files",
+                        "choice_source": "files_default",
                         "choices": []
                     }
                 ]
@@ -896,7 +896,7 @@ async fn test_platform_vtt_profile() -> anyhow::Result<()> {
                     "choice_fixed": true,
                     "choices": [
                         ["README", false],
-                        ["if1", false]
+                        ["if1", true]
                     ]
                 }
             ]
