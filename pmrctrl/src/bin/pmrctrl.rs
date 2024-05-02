@@ -8,6 +8,7 @@ use pmrcore::{
             Exposure as _,
             ExposureFile as _,
         },
+        profile::traits::ExposureFileProfileBackend,
     },
     platform::{
         MCPlatform,
@@ -18,6 +19,10 @@ use pmrcore::{
         ProfileViewsBackend,
         ViewTaskTemplateBackend,
         ViewTaskTemplateProfileBackend,
+    },
+    task_template::{
+        UserArgs,
+        UserInputMap,
     },
 };
 use pmrctrl::platform::Platform;
@@ -152,6 +157,12 @@ enum FileProfileCmd {
 
 #[derive(Debug, Subcommand)]
 enum ExposurePathCmd {
+    #[command(arg_required_else_help = true)]
+    Answer {
+        arg_id: i64,
+        answer: String,
+    },
+    Answers,
     Prompts,
 }
 
@@ -387,6 +398,37 @@ where
             let upgr = efvttsc.create_user_prompt_groups().await?;
             let output = serde_json::to_string_pretty(&upgr)?;
             println!("{output}");
+        },
+        ExposurePathCmd::Answer { arg_id, answer } => {
+            let ec = platform.get_exposure(exposure_id).await?;
+            let efc = ec.ctrl_path(path).await?;
+            let id = efc.exposure_file().id();
+            let efpb: &dyn ExposureFileProfileBackend = platform.mc_platform.as_ref();
+            // TODO integrate with UserArgRefs if/when it can deal with
+            // processing answers.
+
+            let user_input = UserInputMap::from([
+                (arg_id, answer),
+            ]);
+            efpb.update_ef_user_input(id, &user_input).await?;
+        },
+        ExposurePathCmd::Answers => {
+            let ec = platform.get_exposure(exposure_id).await?;
+            let efc = ec.ctrl_path(path).await?;
+            let id = efc.exposure_file().id();
+
+            let efvttsc = efc.build_vttc().await?;
+            let uargs: UserArgs = (&efvttsc.create_user_arg_refs().await?).into();
+            let efpb: &dyn ExposureFileProfileBackend = platform.mc_platform.as_ref();
+
+            let profile = efpb.get_ef_profile(id).await?;
+
+            for user_arg in uargs.iter() {
+                let prompt = &user_arg.prompt;
+                let answer = profile.user_input.get(&user_arg.id);
+                println!("Q: {prompt}");
+                println!("A: {answer:?}");
+            }
         },
     }
     Ok(())

@@ -18,6 +18,7 @@ use pmrmodel::{
             TaskBuilder,
             UserArgBuilder,
             UserArgRef,
+            UserArgRefs,
         },
     },
     registry::{
@@ -141,14 +142,18 @@ impl<
     /// This provides a flat list of user args.
     pub async fn create_user_arg_refs(
         &'p self,
-    ) -> Result<Vec<UserArgRef>, PlatformError> {
+    ) -> Result<UserArgRefs, PlatformError> {
         let cache = self.get_registry_cache().await?;
         // shouldn't this be made to work?
         // Ok((&self.view_task_templates, cache).into())
-        Ok(UserArgBuilder::from((
-            self.view_task_templates.as_slice(),
-            cache,
-        )).collect::<Vec<_>>())
+        Ok(
+            UserArgBuilder::from((
+                self.view_task_templates.as_slice(),
+                cache,
+            ))
+                .collect::<Vec<_>>()
+                .into()
+        )
     }
 
     /// This provides user args grouped by the prompt sets, which may be

@@ -13,6 +13,7 @@ use pmrcore::{
         TaskTemplate,
         TaskTemplateArg,
         UserArg,
+        UserArgs,
         UserChoiceRefs,
         UserInputMap,
     },
@@ -308,6 +309,15 @@ impl From<&UserArgRef<'_>> for UserArg {
                 .as_ref()
                 .map(|choices| choices.into())
         }
+    }
+}
+
+impl From<&UserArgRefs<'_>> for UserArgs {
+    fn from(item: &UserArgRefs<'_>) -> Self {
+        item.iter()
+            .map(UserArg::from)
+            .collect::<Vec<_>>()
+            .into()
     }
 }
 
