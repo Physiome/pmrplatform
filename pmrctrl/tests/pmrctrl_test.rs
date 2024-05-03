@@ -484,6 +484,11 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
     );
     assert_eq!(vtt[0].view_key, "example_view1");
 
+    assert_eq!(
+        vttc.get_arg(&1).expect("arg").prompt,
+        Some("Example prompt".to_string())
+    );
+
     ExposureTaskTemplateBackend::set_file_templates(
         platform.mc_platform.as_ref(),
         exposure_file_id,
@@ -600,7 +605,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
         (3, "README".to_string()),
     ]);
 
-    let tasks = efvttsc.create_tasks_from_input(&user_input).await?
+    let tasks = efvttsc.create_tasks_from_input(&user_input)?
         .into_iter()
         .map(<(i64, Task)>::from)
         .collect::<Vec<_>>();
@@ -658,7 +663,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
 
     // since the one above was consumed for inspection, repeat that call
     // and pass the new one for processing.
-    let tasks = efvttsc.create_tasks_from_input(&user_input).await?;
+    let tasks = efvttsc.create_tasks_from_input(&user_input)?;
     let result = efc.process_vttc_tasks(tasks).await?;
     assert_eq!(result.len(), 2);
 
@@ -1001,7 +1006,7 @@ async fn test_hidden_registries() -> anyhow::Result<()> {
     assert_eq!(user_arg_refs.len(), 0);
 
     let user_input = UserInputMap::from([]);
-    let tasks = efvttsc.create_tasks_from_input(&user_input).await?
+    let tasks = efvttsc.create_tasks_from_input(&user_input)?
         .into_iter()
         .map(<(i64, Task)>::from)
         .collect::<Vec<_>>();

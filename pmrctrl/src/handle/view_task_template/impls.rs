@@ -8,7 +8,10 @@ use pmrcore::{
         ViewTaskTemplates,
     },
     task::Task,
-    task_template::UserInputMap,
+    task_template::{
+        TaskTemplateArg,
+        UserInputMap,
+    }
 };
 use pmrmodel::{
     error::BuildArgErrors,
@@ -63,10 +66,11 @@ impl<
             choice_registry: OnceLock::new(),
             choice_registry_cache: OnceLock::new(),
             efvttcs: OnceLock::new(),
+            task_template_args: OnceLock::new(),
         }
     }
 
-    async fn get_registry(
+    fn get_registry(
         &self
     ) -> Result<&PreparedChoiceRegistry, PlatformError> {
         Ok(match self.choice_registry.get() {
@@ -84,13 +88,13 @@ impl<
         }?)
     }
 
-    async fn get_registry_cache(
+    pub fn get_registry_cache(
         &'p self
     ) -> Result<&PreparedChoiceRegistryCache, PlatformError> {
         Ok(match self.choice_registry_cache.get() {
             Some(registry_cache) => Ok::<_, PlatformError>(registry_cache),
             None => {
-                let registry = self.get_registry().await?;
+                let registry = self.get_registry()?;
                 self.choice_registry_cache.set(Arc::new(
                     (registry as &dyn ChoiceRegistry<_>).into()
                 )).unwrap_or_else(|_| log::warn!(
@@ -109,6 +113,14 @@ impl<
         self.efvttcs.get_or_init(|| self.view_task_templates
             .iter()
             .map(|efvtt| {
+                // FIXME should this be prepared at `get_registry`?
+                // normally get_registry should provide everything, but
+                // currently this working_dir registry is generally not
+                // provided for end-user consumption (as in, users that
+                // provide raw values they want to validate against),
+                // and so if this situation changes (e.g. additional
+                // local registries needed) this will need to be done
+                // by then.
                 let mut reg_basedir = PreparedChoiceRegistry::new();
                 reg_basedir.register("working_dir", HashMap::from([
                     ("working_dir".to_string(), Some(
@@ -139,11 +151,38 @@ impl<
         )
     }
 
+    /// Get a TaskTemplateArg that may form one of the arguments in any
+    /// of the TaskTemplates that are tracked internal to this control
+    /// by the task_template_arg.id
+    pub fn get_arg(
+        &'p self,
+        id: &i64,
+    ) -> Option<&'p TaskTemplateArg> {
+        self.task_template_args
+            .get_or_init(|| self.view_task_templates
+                .iter()
+                .map(
+                    |vtt| vtt.task_template
+                        .as_ref()
+                        .expect("task_template should have been included here")
+                        .args
+                        .as_ref()
+                        .expect("args should have been included here")
+                        .iter()
+                        .map(|a| (a.id, a))
+                )
+                .flatten()
+                .collect::<HashMap<_, _>>()
+            )
+            .get(id)
+            .copied()
+    }
+
     /// This provides a flat list of user args.
     pub async fn create_user_arg_refs(
         &'p self,
     ) -> Result<UserArgRefs, PlatformError> {
-        let cache = self.get_registry_cache().await?;
+        let cache = self.get_registry_cache()?;
         // shouldn't this be made to work?
         // Ok((&self.view_task_templates, cache).into())
         Ok(
@@ -161,18 +200,18 @@ impl<
     pub async fn create_user_prompt_groups(
         &'p self,
     ) -> Result<UserPromptGroupRefs, PlatformError> {
-        let cache = self.get_registry_cache().await?;
+        let cache = self.get_registry_cache()?;
         Ok((&self.view_task_templates, cache).into())
     }
 
     /// This creates a mapping from the ViewTaskTemplates that are being
     /// controlled by this handle.  The mapping goes from each element's
     /// id to the task that it should be spawning.
-    pub async fn create_tasks_from_input(
+    pub fn create_tasks_from_input(
         &'p self,
         user_input: &'p UserInputMap,
     ) -> Result<Vec<VTTCTask>, PlatformError> {
-        let _ = self.get_registry_cache().await?;
+        let _ = self.get_registry_cache()?;
         let tasks = self.get_efvttcs().into_iter()
             .map(|ctrl| ctrl.create_task_from_input(&user_input))
             .collect::<Result<Vec<_>, BuildArgErrors>>()?;

@@ -31,7 +31,10 @@ use pmrmodel::{
         Profile,
         SqliteBackend,
     },
-    model::profile::UserViewProfileRef,
+    model::{
+        profile::UserViewProfileRef,
+        task_template::TaskArgBuilder,
+    },
     registry::{
         ChoiceRegistry,
         ChoiceRegistryCache,
@@ -402,15 +405,27 @@ where
         ExposurePathCmd::Answer { arg_id, answer } => {
             let ec = platform.get_exposure(exposure_id).await?;
             let efc = ec.ctrl_path(path).await?;
+            let efvttsc = efc.build_vttc().await?;
+
+            // store the answer anyway.
+            let user_input = UserInputMap::from([
+                (arg_id, answer.clone()),
+            ]);
             let id = efc.exposure_file().id();
             let efpb: &dyn ExposureFileProfileBackend = platform.mc_platform.as_ref();
-            // TODO integrate with UserArgRefs if/when it can deal with
-            // processing answers.
-
-            let user_input = UserInputMap::from([
-                (arg_id, answer),
-            ]);
             efpb.update_ef_user_input(id, &user_input).await?;
+
+            // validation
+            let arg = efvttsc.get_arg(&arg_id)
+                .expect("provided arg_id is not part of the selected profile");
+            match TaskArgBuilder::try_from((
+                Some(answer.as_ref()),
+                arg,
+                efvttsc.get_registry_cache()?,
+            )) {
+                Err(error) => println!("Error: {error}"),
+                Ok(_) => println!("OK"),
+            }
         },
         ExposurePathCmd::Answers => {
             let ec = platform.get_exposure(exposure_id).await?;
@@ -424,12 +439,27 @@ where
             let profile = efpb.get_ef_profile(id).await?;
 
             for user_arg in uargs.iter() {
+                let arg = efvttsc.get_arg(&user_arg.id)
+                    .expect("the arg that formed this user_arg be present");
                 let prompt = &user_arg.prompt;
                 let answer = profile.user_input.get(&user_arg.id);
+                let builder = TaskArgBuilder::try_from((
+                    answer.map(|s| s.as_ref()),
+                    arg,
+                    efvttsc.get_registry_cache()?,
+                ));
+
                 println!("Q: {prompt}");
                 println!("A: {answer:?}");
+
+                if let Some(error) = builder.map_err(|e| e.to_string()).err() {
+                    println!("Error: {error}");
+                }
+
+                println!("");
             }
         },
     }
+
     Ok(())
 }

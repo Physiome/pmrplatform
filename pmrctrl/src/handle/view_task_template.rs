@@ -10,14 +10,18 @@ use pmrcore::{
         ViewTaskTemplates,
     },
     task::Task,
+    task_template::TaskTemplateArg,
 };
 use pmrmodel::registry::{
     PreparedChoiceRegistry,
     PreparedChoiceRegistryCache,
 };
-use std::sync::{
-    Arc,
-    OnceLock,
+use std::{
+    collections::HashMap,
+    sync::{
+        Arc,
+        OnceLock,
+    },
 };
 
 use crate::{
@@ -37,6 +41,7 @@ pub struct EFViewTaskTemplatesCtrl<
     choice_registry: OnceLock<Arc<PreparedChoiceRegistry>>,
     choice_registry_cache: OnceLock<Arc<PreparedChoiceRegistryCache<'p>>>,
     efvttcs: OnceLock<Vec<EFViewTaskTemplateCtrl<'p, MCP, TMP>>>,
+    task_template_args: OnceLock<HashMap<i64, &'p TaskTemplateArg>>,
 }
 
 /// Individual controller for each of the view_task_template of the above.
