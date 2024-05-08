@@ -47,12 +47,14 @@ impl TryFrom<&Task> for process::Command {
 
     fn try_from(task: &Task) -> Result<Self, Self::Error> {
         let mut cmd = process::Command::new(&task.bin_path);
-        cmd.args::<Vec<&str>, &str>(
-            task.args
-                .as_ref()
-                .ok_or(ValueError::Uninitialized)?
-                .into()
-        );
+        cmd
+            .args::<Vec<&str>, &str>(
+                task.args
+                    .as_ref()
+                    .ok_or(ValueError::Uninitialized)?
+                    .into()
+            )
+            .current_dir::<&str>(task.basedir.as_ref());
         Ok(cmd)
     }
 }
@@ -68,22 +70,33 @@ impl<P: TMPlatform + Sized> TryFrom<&TaskRef<'_, P>> for process::Command {
 #[cfg(test)]
 pub(crate) mod test {
     use std::process::Command;
+    use tempfile::TempDir;
     use crate::task::Task;
     use test_binary::build_test_binary_once;
+
+    #[derive(serde::Deserialize)]
+    pub(crate) struct Sentinel {
+        pub(crate) args: Vec<String>,
+        pub(crate) cwd: String,
+    }
 
     #[test]
     fn test_command() -> anyhow::Result<()> {
         // FIXME platform specific pathsep
         build_test_binary_once!(sentinel, "../testing");
         let bin_path = path_to_sentinel().into_string().expect("valid string");
+        let tempdir = TempDir::new()?;
         let task = Task {
             bin_path: bin_path.clone(),
             args: Some(vec!["hello".into(), "world".into()].into()),
+            basedir: tempdir.path().to_str().expect("valid utf8").to_string(),
             .. Default::default()
         };
         let mut cmd: Command = (&task).try_into()?;
         let output = String::from_utf8(cmd.output()?.stdout)?;
-        assert_eq!(output, format!(r#"["{bin_path}", "hello", "world"]"#));
+        let result: Sentinel = serde_json::from_str(&output)?;
+        assert_eq!(result.args.as_slice(), &[bin_path.as_ref(), "hello", "world"]);
+        assert_eq!(result.cwd, tempdir.path().to_str().expect("valid utf-8").to_string());
         Ok(())
     }
 }
@@ -98,12 +111,14 @@ mod tokio_impls {
 
         fn try_from(task: &Task) -> Result<Self, Self::Error> {
             let mut cmd = Command::new(&task.bin_path);
-            cmd.args::<Vec<&str>, &str>(
-                task.args
-                    .as_ref()
-                    .ok_or(ValueError::Uninitialized)?
-                    .into()
-            );
+            cmd
+                .args::<Vec<&str>, &str>(
+                    task.args
+                        .as_ref()
+                        .ok_or(ValueError::Uninitialized)?
+                        .into()
+                )
+                .current_dir::<&str>(task.basedir.as_ref());
             Ok(cmd)
         }
     }
@@ -118,8 +133,12 @@ mod tokio_impls {
 
     #[cfg(test)]
     pub(crate) mod test {
+        use tempfile::TempDir;
         use tokio::process::Command;
-        use crate::task::Task;
+        use crate::task::{
+            Task,
+            impls::test::Sentinel,
+        };
         use test_binary::build_test_binary_once;
 
         #[tokio::test]
@@ -127,14 +146,18 @@ mod tokio_impls {
             // FIXME platform specific pathsep
             build_test_binary_once!(sentinel, "../testing");
             let bin_path = path_to_sentinel().into_string().expect("valid string");
+            let tempdir = TempDir::new()?;
             let task = Task {
                 bin_path: bin_path.clone(),
                 args: Some(vec!["hello".into(), "world".into()].into()),
+                basedir: tempdir.path().to_str().expect("valid utf8").to_string(),
                 .. Default::default()
             };
             let mut cmd: Command = (&task).try_into()?;
             let output = String::from_utf8(cmd.output().await?.stdout)?;
-            assert_eq!(output, format!(r#"["{bin_path}", "hello", "world"]"#));
+            let result: Sentinel = serde_json::from_str(&output)?;
+            assert_eq!(result.args.as_slice(), &[bin_path.as_ref(), "hello", "world"]);
+            assert_eq!(result.cwd, tempdir.path().to_str().expect("valid utf-8").to_string());
             Ok(())
         }
     }

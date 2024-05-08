@@ -1,6 +1,11 @@
 use std::env;
 
-fn main() {
+fn main() -> std::io::Result<()> {
     let args: Vec<String> = env::args().collect();
-    print!("{args:?}");
+    let cwd = env::current_dir()?;
+    print!("{{");
+    print!(r#""args":{args:?},"#);
+    print!(r#""cwd":{:?}"#, cwd.display());
+    print!("}}");
+    Ok(())
 }
