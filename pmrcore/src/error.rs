@@ -22,4 +22,6 @@ pub enum ValueError {
     Backend(#[from] BackendError),
     #[error("uninitialized value")]
     Uninitialized,
+    #[error("uninitialized attribute: {0}")]
+    UninitializedAttribute(&'static str),
 }

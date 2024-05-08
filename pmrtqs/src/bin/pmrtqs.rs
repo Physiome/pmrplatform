@@ -7,14 +7,19 @@ use pmrmodel::backend::db::{
     Profile,
     SqliteBackend,
 };
-use pmrcore::task_template::{
-    TaskTemplate,
-    traits::TaskTemplateBackend,
+use pmrcore::{
+    platform::TMPlatform,
+    task_template::{
+        TaskTemplate,
+        traits::TaskTemplateBackend,
+    },
 };
 use sqlx::{
     Sqlite,
     migrate::MigrateDatabase,
 };
+
+use pmrtqs::executor::Executor;
 
 
 #[derive(Debug, Parser)]
@@ -54,7 +59,8 @@ enum Commands {
     Choice {
         #[command(subcommand)]
         choice: Choice,
-    }
+    },
+    ExecOneShot,
 }
 
 #[derive(Debug, Subcommand)]
@@ -161,6 +167,20 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Choice { choice } => {
             parse_choice(choice, &backend).await?
+        }
+        Commands::ExecOneShot => {
+            match backend
+                .start_task().await?
+                .map(Executor::new)
+            {
+                Some(mut executor) => {
+                    executor.execute().await?;
+                    println!("job completed");
+                }
+                None => {
+                    println!("no outstanding jobs");
+                }
+            };
         }
     }
 
