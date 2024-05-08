@@ -16,6 +16,7 @@ use pmrmodel::registry::{
     PreparedChoiceRegistry,
     PreparedChoiceRegistryCache,
 };
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     sync::{
@@ -58,6 +59,7 @@ pub(crate) struct EFViewTaskTemplateCtrl<
 }
 
 /// These are for task that spawned off a EFViewTaskTemplatesCtrl
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct VTTCTask {
     pub(crate) view_task_template_id: i64,
     pub(crate) task: Task,

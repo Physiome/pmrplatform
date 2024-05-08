@@ -167,6 +167,10 @@ enum ExposurePathCmd {
     },
     Answers,
     Prompts,
+    Task {
+        #[clap(long, short='p', action)]
+        submit: bool,
+    },
 }
 
 #[async_std::main]
@@ -437,6 +441,7 @@ where
             let efpb: &dyn ExposureFileProfileBackend = platform.mc_platform.as_ref();
 
             let profile = efpb.get_ef_profile(id).await?;
+            let cache = efvttsc.get_registry_cache()?;
 
             for user_arg in uargs.iter() {
                 let arg = efvttsc.get_arg(&user_arg.id)
@@ -446,7 +451,7 @@ where
                 let builder = TaskArgBuilder::try_from((
                     answer.map(|s| s.as_ref()),
                     arg,
-                    efvttsc.get_registry_cache()?,
+                    cache,
                 ));
 
                 println!("Q: {prompt}");
@@ -459,6 +464,29 @@ where
                 println!("");
             }
         },
+        ExposurePathCmd::Task { submit } => {
+            let ec = platform.get_exposure(exposure_id).await?;
+            let efc = ec.ctrl_path(path).await?;
+            let id = efc.exposure_file().id();
+            let efvttsc = efc.build_vttc().await?;
+            let efpb: &dyn ExposureFileProfileBackend = platform.mc_platform.as_ref();
+            let profile = efpb.get_ef_profile(id).await?;
+            let vttc_tasks = efvttsc.create_tasks_from_input(
+                &profile.user_input
+            )?;
+            if submit {
+                let len = vttc_tasks.len();
+                efc.process_vttc_tasks(vttc_tasks).await?;
+                println!("{len} task(s) queued");
+            } else {
+                let output = serde_json::to_string_pretty(&vttc_tasks)?;
+                println!("The generated VTTCTasks:");
+                println!("{output}");
+            };
+        }
+        // TODO need a way to pull up the latest VTTCTask?
+        // figure out how to queue tasks without causing too much conflict
+        // with new tasks that come up
     }
 
     Ok(())
