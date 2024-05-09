@@ -45,6 +45,7 @@ use sqlx::{
     Sqlite,
     migrate::MigrateDatabase,
 };
+use std::fs;
 
 
 #[derive(Debug, Parser)]
@@ -206,8 +207,8 @@ async fn main() -> anyhow::Result<()> {
     let platform = Platform::new(
         mc,
         tm,
-        args.pmr_data_root.into(),
-        args.pmr_repo_root.into(),
+        fs::canonicalize(args.pmr_data_root)?,
+        fs::canonicalize(args.pmr_repo_root)?,
     );
 
     match args.command {
