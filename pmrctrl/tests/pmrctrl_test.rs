@@ -667,13 +667,14 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     let tasks = efvttsc.create_tasks_from_input(&user_input)?;
     let result = efc.process_vttc_tasks(tasks).await?;
     assert_eq!(result.len(), 2);
+    let (efv_id, _) = result[0];
 
     // TODO finalize the ExposureFileViewTask handling via the platform
     // but for now just use the underlying and find out whether the
     // tasks have been correctly queued.
 
     let etb: &dyn ExposureTaskBackend = platform.mc_platform.as_ref();
-    let et1 = etb.select_task_for_view(result[0]).await?
+    let et1 = etb.select_task_for_view(efv_id).await?
         .expect("not none");
     assert_eq!(et1.id, 1);
     assert_eq!(et1.exposure_file_view_id, 1);
@@ -992,9 +993,8 @@ async fn test_exposure_file_view_task_sync() -> anyhow::Result<()> {
     ]);
 
     let tasks = efvttsc.create_tasks_from_input(&user_input)?;
-    let _result = efc.process_vttc_tasks(tasks).await?;
-    // FIXME figure out a way to derive task_id from the result above
-    let task_id = 1;
+    let result = efc.process_vttc_tasks(tasks).await?;
+    let (_, task_id) = result[0];
     let efvb: &dyn ExposureFileViewBackend = platform.mc_platform.as_ref();
     let id = efvb.select_id_by_task_id(task_id).await?;
     assert_eq!(exposure_file_id, id);
@@ -1005,6 +1005,9 @@ async fn test_exposure_file_view_task_sync() -> anyhow::Result<()> {
     efc.process_vttc_tasks(tasks).await?;
     let id = efvb.select_id_by_task_id(task_id).await;
     assert!(id.is_err());
+
+    // TODO need a test that "runs" the last task and have a new task be
+    // queued up right after that and have it fail to update the view.
 
     Ok(())
 }

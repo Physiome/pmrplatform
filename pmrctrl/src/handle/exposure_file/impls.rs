@@ -169,9 +169,9 @@ impl<
     pub async fn process_vttc_tasks(
         &self,
         vttc_tasks: Vec<VTTCTask>,
-    ) -> Result<Vec<i64>, PlatformError> {
+    ) -> Result<Vec<(i64, i64)>, PlatformError> {
         let mut iter = vttc_tasks.into_iter();
-        let mut results: Vec<i64> = Vec::new();
+        let mut results: Vec<(i64, i64)> = Vec::new();
         // TODO determine if benefits of sequential insertion is
         // actually required here.
         while let Some(vttc_task) = iter.next() {
