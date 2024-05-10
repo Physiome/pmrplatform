@@ -23,10 +23,12 @@ impl<'a, P: TMPlatform + Sync> Executor<'a, P> {
 
     pub async fn execute(&mut self) -> Result<(), RunnerError> {
         let mut command: Command = (&self.task).try_into()?;
-        let temp_path = command.get_current_dir()
+        let basedir = command.get_current_dir()
             .ok_or(ValueError::UninitializedAttribute("task missing basedir"))?;
 
-        std::fs::create_dir_all(temp_path)?;
+        let temp_path = basedir.join("temp");
+
+        std::fs::create_dir_all(&temp_path)?;
         let stdout_file = File::create(temp_path.join("stdout"))?;
         let stderr_file = File::create(temp_path.join("stderr"))?;
 
