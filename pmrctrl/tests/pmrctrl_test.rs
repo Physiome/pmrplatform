@@ -7,6 +7,7 @@ use pmrcore::{
         traits::{
             Exposure as _,
             ExposureFile as _,
+            ExposureFileView as _,
             ExposureFileViewBackend,
         },
     },
@@ -1011,6 +1012,67 @@ async fn test_exposure_file_view_task_sync() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[async_std::test]
+async fn test_exposure_file_view_task_run_view_key_success() -> anyhow::Result<()> {
+    let (_reporoot, platform) = create_sqlite_platform().await?;
+    let vtts = make_example_view_task_templates(&platform).await?;
+    let exposure = platform.create_exposure(
+        1,
+        "083b775d81ec9b66796edbbdce4d714bb2ddc355",
+    ).await?;
+    // this apparently triggers the destructor failure
+    let efc = exposure.create_file("if1").await?;
+    let exposure_file_id = efc
+        .exposure_file()
+        .id();
+
+    ExposureTaskTemplateBackend::set_file_templates(
+        platform.mc_platform.as_ref(),
+        exposure_file_id,
+        [vtts[0]].into_iter(),
+    ).await?;
+    let efvttsc = efc.build_vttc().await?;
+    let user_input = UserInputMap::from([
+        (1, "Example answer".to_string()),
+    ]);
+
+    let tasks = efvttsc.create_tasks_from_input(&user_input)?;
+    let result = efc.process_vttc_tasks(tasks).await?;
+    let (exposure_file_view_id, task_id) = result[0];
+
+    let efv = platform.mc_platform.as_ref()
+        .get_exposure_file_view(exposure_file_view_id)
+        .await?;
+    assert_eq!(efv.view_key(), None);
+
+    // spawn a task
+    let mut task = platform.tm_platform.as_ref()
+        .start_task()
+        .await?
+        .expect("task was queued");
+    assert_eq!(task.id(), task_id);
+    // pretend we ran it and complete it
+    task.run(12345).await?;
+    // TODO test for other status codes
+    task.complete(0).await?;
+
+    let etb: &dyn ExposureTaskBackend = platform.mc_platform.as_ref();
+    let result = etb.finalize_task_id(task_id).await?;
+    assert!(result);
+
+    let efv = platform.mc_platform.as_ref()
+        .get_exposure_file_view(exposure_file_view_id)
+        .await?;
+    assert_eq!(efv.view_key(), Some("example_view1"));
+
+    // FIXME again, this only test the happy path now, need to test
+    // - non-zero return code
+    // - simulate various conflicts with when tasks are queud/finished.
+
+    Ok(())
+}
+
 
 
 // this tests usage of registries that reference values secured against

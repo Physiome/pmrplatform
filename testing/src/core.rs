@@ -3,6 +3,7 @@ use mockall::mock;
 use pmrcore::{
     error::{
         BackendError,
+        Error,
         task::TaskError,
     },
     exposure::{
@@ -309,6 +310,10 @@ mock! {
             &self,
             exposure_file_id: i64,
         ) -> Result<Option<ExposureFileViewTask>, BackendError>;
+        async fn finalize_task_id(
+            &self,
+            task_id: i64,
+        ) -> Result<bool, Error>;
     }
 
     #[async_trait]

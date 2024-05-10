@@ -1,6 +1,9 @@
 use async_trait::async_trait;
 use crate::{
-    error::BackendError,
+    error::{
+        BackendError,
+        Error,
+    },
     exposure::task::ExposureFileViewTask,
     profile::ViewTaskTemplate,
 };
@@ -31,4 +34,8 @@ pub trait ExposureTaskBackend {
         &self,
         exposure_file_id: i64,
     ) -> Result<Option<ExposureFileViewTask>, BackendError>;
+    async fn finalize_task_id(
+        &self,
+        task_id: i64,
+    ) -> Result<bool, Error>;
 }

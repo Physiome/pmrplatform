@@ -1,6 +1,6 @@
 mod data {
     use async_trait::async_trait;
-    use crate::error::ValueError;
+    use crate::error::Error;
 
     #[async_trait]
     pub trait Workspace<'a, S> {
@@ -10,7 +10,7 @@ mod data {
         fn description(&self) -> Option<&str>;
         fn long_description(&self) -> Option<&str>;
         fn created_ts(&self) -> i64;
-        async fn exposures(&'a self) -> Result<&'a S, ValueError>;
+        async fn exposures(&'a self) -> Result<&'a S, Error>;
     }
 }
 

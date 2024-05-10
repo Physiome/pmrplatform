@@ -4,6 +4,15 @@ pub mod task;
 
 #[non_exhaustive]
 #[derive(Debug, Error)]
+pub enum Error {
+    #[error(transparent)]
+    Backend(#[from] BackendError),
+    #[error(transparent)]
+    Value(#[from] ValueError),
+}
+
+#[non_exhaustive]
+#[derive(Debug, Error)]
 pub enum BackendError {
     #[cfg(feature = "sqlx")]
     #[error(transparent)]
@@ -18,8 +27,10 @@ pub enum BackendError {
 #[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum ValueError {
+    #[error("entity missing: {0}")]
+    EntityMissing(String),
     #[error(transparent)]
-    Backend(#[from] BackendError),
+    Task(#[from] task::TaskError),
     #[error("uninitialized value")]
     Uninitialized,
     #[error("uninitialized attribute: {0}")]

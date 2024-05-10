@@ -3,7 +3,10 @@ use std::ops::{
     Deref,
     DerefMut,
 };
-use crate::error::ValueError;
+use crate::error::{
+    Error,
+    ValueError,
+};
 use crate::exposure::ExposureRefs;
 use crate::platform::MCPlatform;
 use crate::workspace::*;
@@ -74,7 +77,7 @@ impl<'a> traits::Workspace<'a, Exposures> for Workspace {
     fn created_ts(&self) -> i64 {
         self.created_ts
     }
-    async fn exposures(&'a self) -> Result<&Exposures, ValueError> {
+    async fn exposures(&'a self) -> Result<&Exposures, Error> {
         Ok(self.exposures.as_ref().ok_or(ValueError::Uninitialized)?)
     }
 }
@@ -99,7 +102,7 @@ impl<'a, P: MCPlatform + Sized + Sync> traits::Workspace<'a, ExposureRefs<'a, P>
     fn created_ts(&self) -> i64 {
         self.inner.created_ts
     }
-    async fn exposures(&'a self) -> Result<&'a ExposureRefs<'a, P>, ValueError> {
+    async fn exposures(&'a self) -> Result<&'a ExposureRefs<'a, P>, Error> {
         match self.exposures.get() {
             Some(exposures) => Ok(exposures),
             None => {

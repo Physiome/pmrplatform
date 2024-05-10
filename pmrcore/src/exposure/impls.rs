@@ -1,6 +1,9 @@
 use async_trait::async_trait;
 use std::ops::{Deref, DerefMut};
-use crate::error::ValueError;
+use crate::error::{
+    Error,
+    ValueError,
+};
 use crate::exposure::*;
 use crate::platform::MCPlatform;
 use crate::workspace::{
@@ -166,12 +169,12 @@ impl<'a> traits::Exposure<'a, ExposureFiles, Workspace> for Exposure {
     fn default_file_id(&self) -> Option<i64> {
         self.default_file_id
     }
-    async fn files(&'a self) -> Result<&ExposureFiles, ValueError> {
+    async fn files(&'a self) -> Result<&ExposureFiles, Error> {
         Ok(self.files.as_ref().ok_or(ValueError::Uninitialized)?)
     }
-    async fn workspace(&'a self) -> Result<&Workspace, ValueError> {
+    async fn workspace(&'a self) -> Result<&Workspace, Error> {
         // reference to parent is not provided, so simply uninitialized
-        Err(ValueError::Uninitialized)
+        Err(Error::Value(ValueError::Uninitialized))
     }
 }
 
@@ -197,7 +200,7 @@ for ExposureRef<'a, P> {
     fn default_file_id(&self) -> Option<i64> {
         self.inner.default_file_id
     }
-    async fn files(&'a self) -> Result<&'a ExposureFileRefs<'a, P>, ValueError> {
+    async fn files(&'a self) -> Result<&'a ExposureFileRefs<'a, P>, Error> {
         match self.files.get() {
             Some(files) => Ok(files),
             None => {
@@ -213,7 +216,7 @@ for ExposureRef<'a, P> {
     }
     async fn workspace(
         &'a self
-    ) -> Result<&'a WorkspaceRef<'a, P>, ValueError> {
+    ) -> Result<&'a WorkspaceRef<'a, P>, Error> {
         match self.parent.get() {
             Some(parent) => Ok(parent),
             None => {
@@ -243,12 +246,12 @@ impl<'a> traits::ExposureFile<'a, ExposureFileViews, Exposure> for ExposureFile 
     fn default_view_id(&self) -> Option<i64> {
         self.default_view_id
     }
-    async fn views(&'a self) -> Result<&ExposureFileViews, ValueError> {
+    async fn views(&'a self) -> Result<&ExposureFileViews, Error> {
         Ok(self.views.as_ref().ok_or(ValueError::Uninitialized)?)
     }
-    async fn exposure(&'a self) -> Result<&'a Exposure, ValueError> {
+    async fn exposure(&'a self) -> Result<&'a Exposure, Error> {
         // reference to parent is not provided, so simply uninitialized
-        Err(ValueError::Uninitialized)
+        Err(Error::Value(ValueError::Uninitialized))
     }
 }
 
@@ -270,7 +273,7 @@ for ExposureFileRef<'a, P> {
     }
     async fn views(
         &'a self
-    ) -> Result<&'a ExposureFileViewRefs<'a, P>, ValueError> {
+    ) -> Result<&'a ExposureFileViewRefs<'a, P>, Error> {
         match self.views.get() {
             Some(views) => Ok(views),
             None => {
@@ -286,7 +289,7 @@ for ExposureFileRef<'a, P> {
     }
     async fn exposure(
         &'a self
-    ) -> Result<&'a ExposureRef<'a, P>, ValueError> {
+    ) -> Result<&'a ExposureRef<'a, P>, Error> {
         match self.parent.get() {
             Some(parent) => Ok(parent),
             None => {
@@ -322,9 +325,9 @@ impl<'a> traits::ExposureFileView<'a, ExposureFile> for ExposureFileView {
     fn updated_ts(&self) -> i64 {
         self.updated_ts
     }
-    async fn exposure_file(&'a self) -> Result<&'a ExposureFile, ValueError> {
+    async fn exposure_file(&'a self) -> Result<&'a ExposureFile, Error> {
         // reference to parent is not provided, so simply uninitialized
-        Err(ValueError::Uninitialized)
+        Err(Error::Value(ValueError::Uninitialized))
     }
 }
 
@@ -352,7 +355,7 @@ for ExposureFileViewRef<'a, P> {
     }
     async fn exposure_file(
         &'a self
-    ) -> Result<&'a ExposureFileRef<'a, P>, ValueError> {
+    ) -> Result<&'a ExposureFileRef<'a, P>, Error> {
         match self.parent.get() {
             Some(parent) => Ok(parent),
             None => {

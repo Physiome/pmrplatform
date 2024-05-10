@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use crate::{
     error::{
         BackendError,
-        ValueError,
+        Error,
     },
     exposure,
 };
@@ -15,8 +15,8 @@ pub trait Exposure<'a, S, P> {
     fn commit_id(&self) -> &str;
     fn created_ts(&self) -> i64;
     fn default_file_id(&self) -> Option<i64>;
-    async fn files(&'a self) -> Result<&'a S, ValueError>;
-    async fn workspace(&'a self) -> Result<&'a P, ValueError>;
+    async fn files(&'a self) -> Result<&'a S, Error>;
+    async fn workspace(&'a self) -> Result<&'a P, Error>;
 }
 
 #[async_trait]
@@ -25,8 +25,8 @@ pub trait ExposureFile<'a, S, P> {
     fn exposure_id(&self) -> i64;
     fn workspace_file_path(&self) -> &str;
     fn default_view_id(&self) -> Option<i64>;
-    async fn views(&'a self) -> Result<&'a S, ValueError>;
-    async fn exposure(&'a self) -> Result<&'a P, ValueError>;
+    async fn views(&'a self) -> Result<&'a S, Error>;
+    async fn exposure(&'a self) -> Result<&'a P, Error>;
 }
 
 #[async_trait]
@@ -38,8 +38,8 @@ pub trait ExposureFileView<'a, P> {
     fn view_key(&self) -> Option<&str>;
     fn updated_ts(&self) -> i64;
     // TODO enable this for ExposureFileViewTask
-    // fn task(&self) -> Result<&'a S, ValueError>;
-    async fn exposure_file(&'a self) -> Result<&'a P, ValueError>;
+    // fn task(&self) -> Result<&'a S, Error>;
+    async fn exposure_file(&'a self) -> Result<&'a P, Error>;
 }
 
 #[async_trait]

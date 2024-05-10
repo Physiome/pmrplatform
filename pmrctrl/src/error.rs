@@ -1,5 +1,6 @@
 use pmrcore::error::{
     BackendError,
+    Error,
     ValueError,
     task::TaskError,
 };
@@ -13,6 +14,9 @@ pub enum PlatformError {
     BackendError(#[from] BackendError),
     #[error(transparent)]
     BuildArgErrors(#[from] BuildArgErrors),
+    // FIXME BackendError and ValueError may need to be merged?
+    #[error(transparent)]
+    CoreError(#[from] Error),
     #[error(transparent)]
     IOError(#[from] std::io::Error),
     #[error(transparent)]

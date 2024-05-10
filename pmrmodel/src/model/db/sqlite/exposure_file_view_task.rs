@@ -4,7 +4,10 @@ use chrono::Utc;
 #[cfg(test)]
 use crate::test::Utc;
 use pmrcore::{
-    error::BackendError,
+    error::{
+        BackendError,
+        Error,
+    },
     exposure::task::{
         ExposureFileViewTask,
         traits::ExposureTaskBackend,
@@ -106,6 +109,98 @@ WHERE
     Ok(rec)
 }
 
+async fn finalize_exposure_file_view_task_with_task_id_sqlite(
+    sqlite: &SqliteBackend,
+    task_id: i64,
+) -> Result<bool, Error> {
+    let some_task_id = Some(task_id);
+    let mut tx = sqlite.pool.begin().await
+        .map_err(BackendError::from)?;
+    let rows_affected = sqlx::query!(
+        r#"
+UPDATE
+    exposure_file_view_task
+SET
+    ready = true
+WHERE
+    task_id = ?1
+        "#,
+        some_task_id,
+    )
+        .execute(&mut *tx)
+        .await
+        .map_err(BackendError::from)?
+        .rows_affected();
+
+    if rows_affected == 0 {
+        tx.rollback().await
+            .map_err(BackendError::from)?;
+        return Err(Error::Backend(BackendError::AppInvariantViolation(
+            format!(
+                "no exposure_file_view_task bound with task_id: {}",
+                task_id,
+            )
+        )))
+    }
+
+    let rows_affected = sqlx::query!(
+        r#"
+UPDATE
+    exposure_file_view
+SET
+    view_key = (
+        SELECT
+            view_key
+        FROM
+            view_task_template
+        WHERE id = (
+            SELECT
+                view_task_template_id
+            FROM
+                exposure_file_view
+            WHERE
+                exposure_file_view_task_id = (
+                    SELECT
+                        id
+                    FROM
+                        exposure_file_view_task
+                    WHERE
+                        task_id = ?1
+                )
+        )
+    )
+WHERE id = (
+    SELECT
+        id
+    FROM
+        exposure_file_view
+    WHERE
+        exposure_file_view_task_id = (
+            SELECT
+                id
+            FROM
+                exposure_file_view_task
+            WHERE
+                task_id = ?1
+        )
+)
+"#,
+        some_task_id,
+    )
+    .execute(&mut *tx)
+    .await
+    .map_err(BackendError::from)?
+    .rows_affected();
+
+    tx.commit().await.map_err(BackendError::from)?;
+
+    // TODO if the view_key isn't updated it should be an error, but for
+    // now a bool result is sufficient to denote whether a successful
+    // update was done or not.
+    Ok(rows_affected == 1)
+}
+
+
 #[async_trait]
 impl ExposureTaskBackend for SqliteBackend {
     async fn create_task_for_view(
@@ -129,6 +224,16 @@ impl ExposureTaskBackend for SqliteBackend {
         select_exposure_file_view_task_for_view_sqlite(
             &self,
             exposure_file_id,
+        ).await
+    }
+
+    async fn finalize_task_id(
+        &self,
+        task_id: i64,
+    ) -> Result<bool, Error> {
+        finalize_exposure_file_view_task_with_task_id_sqlite(
+            &self,
+            task_id,
         ).await
     }
 }
