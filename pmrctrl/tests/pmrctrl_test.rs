@@ -5,8 +5,9 @@ use pmrcore::{
             ExposureTaskBackend,
         },
         traits::{
-            Exposure,
-            ExposureFile,
+            Exposure as _,
+            ExposureFile as _,
+            ExposureFileViewBackend,
         },
     },
     task::{
@@ -965,6 +966,49 @@ async fn test_platform_vtt_profile() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[async_std::test]
+async fn test_exposure_file_view_task_sync() -> anyhow::Result<()> {
+    let (_reporoot, platform) = create_sqlite_platform().await?;
+    let vtts = make_example_view_task_templates(&platform).await?;
+    let exposure = platform.create_exposure(
+        1,
+        "083b775d81ec9b66796edbbdce4d714bb2ddc355",
+    ).await?;
+    // this apparently triggers the destructor failure
+    let efc = exposure.create_file("if1").await?;
+    let exposure_file_id = efc
+        .exposure_file()
+        .id();
+
+    ExposureTaskTemplateBackend::set_file_templates(
+        platform.mc_platform.as_ref(),
+        exposure_file_id,
+        [vtts[0]].into_iter(),
+    ).await?;
+    let efvttsc = efc.build_vttc().await?;
+    let user_input = UserInputMap::from([
+        (1, "Example answer".to_string()),
+    ]);
+
+    let tasks = efvttsc.create_tasks_from_input(&user_input)?;
+    let _result = efc.process_vttc_tasks(tasks).await?;
+    // FIXME figure out a way to derive task_id from the result above
+    let task_id = 1;
+    let efvb: &dyn ExposureFileViewBackend = platform.mc_platform.as_ref();
+    let id = efvb.select_id_by_task_id(task_id).await?;
+    assert_eq!(exposure_file_id, id);
+
+    // this new set of tasks will invalidate the first set of queued
+    // tasks for the exposure file view
+    let tasks = efvttsc.create_tasks_from_input(&user_input)?;
+    efc.process_vttc_tasks(tasks).await?;
+    let id = efvb.select_id_by_task_id(task_id).await;
+    assert!(id.is_err());
+
+    Ok(())
+}
+
 
 // this tests usage of registries that reference values secured against
 // end user access, such as the working_dir and actual location of the

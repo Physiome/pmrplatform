@@ -145,6 +145,10 @@ mock! {
             id: i64,
             exposure_file_view_task_id: Option<i64>,
         ) -> Result<bool, BackendError>;
+        pub async fn exposure_file_view_select_id_by_task_id(
+            &self,
+            task_id: i64,
+        ) -> Result<i64, BackendError>;
         // Due to conflicting lifetime and mockall seeminging do not
         // support impl in argument position, and that this mock is
         // really only a placeholder for only a certain few calls, just
@@ -455,6 +459,14 @@ impl ExposureFileViewBackend for MockPlatform {
         self.exposure_file_view_update_exposure_file_view_task_id(
             id,
             exposure_file_view_task_id,
+        ).await
+    }
+    async fn select_id_by_task_id(
+        &self,
+        task_id: i64,
+    ) -> Result<i64, BackendError> {
+        self.exposure_file_view_select_id_by_task_id(
+            task_id
         ).await
     }
 }

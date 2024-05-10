@@ -181,6 +181,41 @@ WHERE id = ?1
     Ok(rows_affected > 0)
 }
 
+async fn select_exposure_file_view_id_by_task_id_sqlite(
+    sqlite: &SqliteBackend,
+    task_id: i64,
+) -> Result<i64, BackendError> {
+    let result = sqlx::query!(r#"
+SELECT
+    id
+FROM
+    exposure_file_view
+WHERE
+    id = (
+        SELECT
+            exposure_file_view_id
+        FROM
+            exposure_file_view_task
+        WHERE
+            task_id = ?1
+    ) AND
+    exposure_file_view_task_id = (
+        SELECT
+            id
+        FROM
+            exposure_file_view_task
+        WHERE
+            task_id = ?1
+    )
+"#,
+        task_id,
+    )
+    .map(|row| row.id)
+    .fetch_one(&*sqlite.pool)
+    .await?;
+    Ok(result)
+}
+
 #[async_trait]
 impl ExposureFileViewBackend for SqliteBackend {
     async fn insert(
@@ -250,6 +285,16 @@ impl ExposureFileViewBackend for SqliteBackend {
             &self,
             id,
             exposure_file_view_task_id,
+        ).await
+    }
+
+    async fn select_id_by_task_id(
+        &self,
+        task_id: i64,
+    ) -> Result<i64, BackendError> {
+        select_exposure_file_view_id_by_task_id_sqlite(
+            &self,
+            task_id,
         ).await
     }
 }
@@ -484,6 +529,25 @@ pub(crate) mod testing {
         let no_such_template = 123;
         let id = backend.insert(f1, no_such_template, None).await;
         // should fail with FOREIGN KEY constraint failed
+        assert!(id.is_err());
+        Ok(())
+    }
+
+    // The successful test case requires integration testing which is
+    // done at the pmrctrl platform level.
+    #[async_std::test]
+    async fn test_exposure_file_task_none() -> anyhow::Result<()> {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await?
+            .run_migration_profile(Profile::Pmrapp)
+            .await?;
+        let w1 = make_example_workspace(&backend).await?;
+        let e1 = make_example_exposure(&backend, w1).await?;
+        let f1 = make_example_exposure_file(&backend, e1, "README.md").await?;
+        make_example_exposure_file_view(&backend, f1, None, "view").await?;
+        let backend: &dyn ExposureFileViewBackend = &backend;
+        let id = backend.select_id_by_task_id(123).await;
+        // should fail as no records returned
         assert!(id.is_err());
         Ok(())
     }

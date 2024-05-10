@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS exposure_file_view (
     FOREIGN KEY(exposure_file_view_task_id) REFERENCES exposure_file_view_task(id)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS exposure_file_view__exposure_file_id_view_task_template_id ON exposure_file_view(exposure_file_id, view_task_template_id);
+CREATE INDEX IF NOT EXISTS exposure_file_view__id_exposure_file_view_task_id ON exposure_file_view(id, exposure_file_view_task_id);
 
 -- To ensure that there is a one-to-one binding of the file view to the
 -- underlying task_template.
@@ -130,7 +131,8 @@ CREATE TABLE IF NOT EXISTS exposure_file_view_task (
     -- *** So for now, this is a big entry that tracks a particular view
     -- with its latest associated task/template that created it, not to
     -- serve as a comprehensive log of every creation process that
-    -- happened.
+    -- happened. *** though for now we allow new entries for same view -
+    -- view_task_template pair, so currently it may be comprehensive.
     task_id INTEGER,
     -- Track the creation timestamp to ensure that this record is still
     -- relevant - should it be before the updated_ts then this task
@@ -141,6 +143,9 @@ CREATE TABLE IF NOT EXISTS exposure_file_view_task (
     ready BOOLEAN NOT NULL,
     FOREIGN KEY(view_task_template_id) REFERENCES view_task_template(id)
 );
+-- This actually will make this a non-comprehensive log, but for now
+-- CREATE UNIQUE INDEX IF NOT EXISTS exposure_file_view_task__exposure_file_view_id_view_task_template_id ON exposure_file_view_task(exposure_file_view_id, view_task_template_id);
+CREATE INDEX IF NOT EXISTS exposure_file_view_task__task_id ON exposure_file_view_task(task_id);
 
 -- The view_task_template table tracks each of the available task
 -- template that may be used to generate a view.  There will be

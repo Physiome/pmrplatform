@@ -58,6 +58,10 @@ impl<P: TMPlatform + Sized> TaskRef<'_, P> {
     // TODO maybe move this to a common trait like what was done with
     // Exposure types.
 
+    pub fn id(&self) -> i64 {
+        self.inner.id
+    }
+
     pub fn pid(&self) -> Option<i64> {
         self.inner.pid
     }

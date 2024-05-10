@@ -162,4 +162,9 @@ pub trait ExposureFileViewBackend {
         id: i64,
         exposure_file_view_task_id: Option<i64>,
     ) -> Result<bool, BackendError>;
+    /// Find a valid `ExposureFileView.id` that might be associated with the underlying task_id recorded via the exposure_file_view_task model.  This would check that a given task_id is still bound to an exposure_view_view.
+    async fn select_id_by_task_id(
+        &self,
+        task_id: i64,
+    ) -> Result<i64, BackendError>;
 }
