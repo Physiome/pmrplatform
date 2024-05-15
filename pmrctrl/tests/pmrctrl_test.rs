@@ -56,6 +56,7 @@ use std::{
     fs::read_to_string,
 };
 
+use test_binary::build_test_binary_once;
 use test_pmr::ctrl::create_sqlite_platform;
 
 #[async_std::test]
@@ -441,6 +442,31 @@ where
                 ]
             }
         }"#)?
+    ).await?);
+    Ok(result)
+}
+
+async fn make_example_runnable_task_templates<'p, M, T>(
+    platform: &'p Platform<M, T>
+) -> anyhow::Result<Vec<i64>>
+where
+    M: MCPlatform + Sized + Send + Sync,
+    T: TMPlatform + Sized + Send + Sync,
+{
+    build_test_binary_once!(sentinel, "../testing");
+    let bin_path = path_to_sentinel().into_string().expect("a valid string");
+
+    let mut result: Vec<i64> = Vec::new();
+    result.push(platform.adds_view_task_template(
+        serde_json::from_str(&format!(r#"{{
+            "view_key": "sentinel_0",
+            "description": "Sentinel 0",
+            "task_template": {{
+                "bin_path": "{bin_path}",
+                "version_id": "1.0.0",
+                "args": []
+            }}
+        }}"#))?
     ).await?);
     Ok(result)
 }
@@ -1247,6 +1273,49 @@ async fn test_hidden_registries() -> anyhow::Result<()> {
     "#))?;
     assert_eq!(&answers, &tasks);
 
+
+    Ok(())
+}
+
+#[async_std::test]
+async fn test_task_executor_ctrl() -> anyhow::Result<()> {
+    // TaskExecutorCtrl
+    let (_reporoot, platform) = create_sqlite_platform().await?;
+    let vtts = make_example_runnable_task_templates(&platform).await?;
+
+    let exposure = platform.create_exposure(
+        1,
+        "083b775d81ec9b66796edbbdce4d714bb2ddc355",
+    ).await?;
+    let efc = exposure.create_file("if1").await?;
+    let exposure_file_id = efc
+        .exposure_file()
+        .id();
+    ExposureTaskTemplateBackend::set_file_templates(
+        platform.mc_platform.as_ref(),
+        exposure_file_id,
+        [vtts[0]].into_iter(),
+    ).await?;
+    let efvttsc = efc.build_vttc().await?;
+    let user_input = UserInputMap::from([]);
+    let tasks = efvttsc.create_tasks_from_input(&user_input)?;
+    let result = efc.process_vttc_tasks(tasks).await?;
+    let (exposure_file_view_id, _) = result[0];
+
+    let efv = platform.mc_platform.as_ref()
+        .get_exposure_file_view(exposure_file_view_id)
+        .await?;
+    assert_eq!(efv.view_key(), None);
+
+    let task_executor_ctrl = platform.start_task().await?
+        .expect("a task is queued");
+    let result = task_executor_ctrl.execute().await?;
+    assert_eq!(result, true);
+
+    let efv = platform.mc_platform.as_ref()
+        .get_exposure_file_view(exposure_file_view_id)
+        .await?;
+    assert_eq!(efv.view_key(), Some("sentinel_0"));
 
     Ok(())
 }

@@ -171,7 +171,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::ExecOneShot => {
             match backend
                 .start_task().await?
-                .map(Executor::new)
+                .map(Executor::from)
             {
                 Some(mut executor) => {
                     executor.execute().await?;

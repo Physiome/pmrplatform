@@ -7,5 +7,5 @@ mod view_task_template;
 pub use exposure::ExposureCtrl;
 pub use exposure_file::ExposureFileCtrl;
 pub use exposure_file_view::ExposureFileViewCtrl;
-pub use task::TaskCtrl;
+pub use task::TaskExecutorCtrl;
 pub use view_task_template::EFViewTaskTemplatesCtrl;

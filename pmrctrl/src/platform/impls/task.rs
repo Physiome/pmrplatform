@@ -12,10 +12,12 @@ use pmrcore::{
 };
 use crate::{
     error::PlatformError,
+    handle::TaskExecutorCtrl,
     platform::Platform,
 };
 
 impl<
+    'p,
     MCP: MCPlatform + Sized + Send + Sync,
     TMP: TMPlatform + Sized + Send + Sync,
 > Platform<MCP, TMP> {
@@ -26,7 +28,15 @@ impl<
         Ok(TaskBackend::adds_task(self.tm_platform.as_ref(), task).await?)
     }
 
-    // TODO determine how to call tm_platform.start_task()
+    pub async fn start_task(
+        &'p self,
+    ) -> Result<Option<TaskExecutorCtrl<'p, MCP, TMP>>, PlatformError> {
+        Ok(self.tm_platform.as_ref()
+            .start_task()
+            .await?
+            .map(|t| TaskExecutorCtrl::new(&self, t))
+        )
+    }
 
     pub async fn complete_task(
         &self,

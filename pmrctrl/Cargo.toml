@@ -26,4 +26,5 @@ thiserror = "1.0"
 anyhow = "1.0.0"
 async-std = { version = "1.5.0", features = [ "attributes" ] }
 tempfile = "3.1.0"
+test-binary = "3.0.2"
 test-pmr = { path = "../testing", features = ["platform"] }

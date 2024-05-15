@@ -15,13 +15,17 @@ use crate::error::RunnerError;
 use super::*;
 
 impl<'a, P: TMPlatform + Sync> Executor<'a, P> {
-    pub fn new(task: TaskRef<'a, P>) -> Self {
+    fn new(task: TaskRef<'a, P>) -> Self {
         Self {
             task,
         }
     }
 
-    pub async fn execute(&mut self) -> Result<(), RunnerError> {
+    pub fn task(&'a self) -> &TaskRef<'a, P> {
+        &self.task
+    }
+
+    pub async fn execute(&mut self) -> Result<i32, RunnerError> {
         let mut command: Command = (&self.task).try_into()?;
         let basedir = command.get_current_dir()
             .ok_or(ValueError::UninitializedAttribute("task missing basedir"))?;
@@ -43,6 +47,18 @@ impl<'a, P: TMPlatform + Sync> Executor<'a, P> {
         let exit_status = child.wait()?;
         let code = exit_status.code().unwrap_or(-1);
         self.task.complete(code.into()).await?;
-        Ok(())
+        Ok(code)
+    }
+}
+
+impl<'a, P: TMPlatform + Sync> From<TaskRef<'a, P>> for Executor<'a, P> {
+    fn from(task: TaskRef<'a, P>) -> Self {
+        Self::new(task)
+    }
+}
+
+impl<'a, P: TMPlatform + Sync> From<Executor<'a, P>> for TaskRef<'a, P> {
+    fn from(executor: Executor<'a, P>) -> Self {
+        executor.task
     }
 }
