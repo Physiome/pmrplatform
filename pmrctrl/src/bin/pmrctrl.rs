@@ -7,6 +7,7 @@ use pmrcore::{
         traits::{
             Exposure as _,
             ExposureFile as _,
+            ExposureFileView as _,
         },
         profile::traits::ExposureFileProfileBackend,
     },
@@ -186,6 +187,7 @@ enum ExposurePathCmd {
         #[clap(long, short='p', action)]
         submit: bool,
     },
+    Views,
 }
 
 #[async_std::main]
@@ -442,10 +444,10 @@ where
     MCP: MCPlatform + Sized + Send + Sync,
     TMP: TMPlatform + Sized + Send + Sync,
 {
+    let ec = platform.get_exposure(exposure_id).await?;
+    let efc = ec.ctrl_path(path).await?;
     match arg {
         ExposurePathCmd::Assign { profile_id } => {
-            let ec = platform.get_exposure(exposure_id).await?;
-            let efc = ec.ctrl_path(path).await?;
             let exposure_file_id = efc.exposure_file().id();
             let vttp = platform.get_view_task_template_profile(profile_id).await?;
             platform.mc_platform.set_ef_vttprofile(
@@ -453,18 +455,14 @@ where
                 vttp,
             ).await?;
             println!("profile set: exposure_file_id {exposure_file_id} => profile_id {profile_id}");
-        }
+        },
         ExposurePathCmd::Prompts => {
-            let ec = platform.get_exposure(exposure_id).await?;
-            let efc = ec.ctrl_path(path).await?;
             let efvttsc = efc.build_vttc().await?;
             let upgr = efvttsc.create_user_prompt_groups().await?;
             let output = serde_json::to_string_pretty(&upgr)?;
             println!("{output}");
         },
         ExposurePathCmd::Answer { arg_id, answer } => {
-            let ec = platform.get_exposure(exposure_id).await?;
-            let efc = ec.ctrl_path(path).await?;
             let efvttsc = efc.build_vttc().await?;
 
             // store the answer anyway.
@@ -488,8 +486,6 @@ where
             }
         },
         ExposurePathCmd::Answers => {
-            let ec = platform.get_exposure(exposure_id).await?;
-            let efc = ec.ctrl_path(path).await?;
             let id = efc.exposure_file().id();
 
             let efvttsc = efc.build_vttc().await?;
@@ -521,8 +517,6 @@ where
             }
         },
         ExposurePathCmd::Task { submit } => {
-            let ec = platform.get_exposure(exposure_id).await?;
-            let efc = ec.ctrl_path(path).await?;
             let id = efc.exposure_file().id();
             let efvttsc = efc.build_vttc().await?;
             let efpb: &dyn ExposureFileProfileBackend = platform.mc_platform.as_ref();
@@ -539,7 +533,18 @@ where
                 println!("The generated VTTCTasks:");
                 println!("{output}");
             };
-        }
+        },
+        ExposurePathCmd::Views => {
+            let ef = efc.exposure_file();
+            let views = ef.views().await?;
+            println!("The following exposure file views are available:");
+            for view in views.iter() {
+                match view.view_key() {
+                    Some(view_key) => println!("- {view_key}"),
+                    _ => (),
+                }
+            }
+        },
         // TODO need a way to pull up the latest VTTCTask?
         // figure out how to queue tasks without causing too much conflict
         // with new tasks that come up
