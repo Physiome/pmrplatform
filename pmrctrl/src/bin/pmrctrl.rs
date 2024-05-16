@@ -82,6 +82,11 @@ enum Commands {
         #[command(subcommand)]
         cmd: ProfileCmd,
     },
+    #[command(arg_required_else_help = true)]
+    Task {
+        #[command(subcommand)]
+        cmd: TaskCmd,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -150,6 +155,11 @@ enum ProfileCmd {
 }
 
 #[derive(Debug, Subcommand)]
+enum TaskCmd {
+    ExecOneShot,
+}
+
+#[derive(Debug, Subcommand)]
 enum FileProfileCmd {
     #[command(arg_required_else_help = true)]
     Assign {
@@ -167,6 +177,10 @@ enum ExposurePathCmd {
         answer: String,
     },
     Answers,
+    #[command(arg_required_else_help = true)]
+    Assign {
+        profile_id: i64,
+    },
     Prompts,
     Task {
         #[clap(long, short='p', action)]
@@ -220,6 +234,9 @@ async fn main() -> anyhow::Result<()> {
         },
         Commands::Profile { cmd } => {
             parse_profile(&platform, cmd).await?;
+        },
+        Commands::Task { cmd } => {
+            parse_task(&platform, cmd).await?;
         },
         // TODO exposure (view template) profiles
     }
@@ -358,6 +375,33 @@ where
     Ok(())
 }
 
+async fn parse_task<'p, MCP, TMP>(
+    platform: &'p Platform<MCP, TMP>,
+    arg: TaskCmd,
+) -> anyhow::Result<()>
+where
+    MCP: MCPlatform + Sized + Send + Sync,
+    TMP: TMPlatform + Sized + Send + Sync,
+{
+    match arg {
+        TaskCmd::ExecOneShot => {
+            match platform.start_task().await? {
+                Some(tec) => {
+                    match tec.execute().await? {
+                        (0, true) => println!("OK: task execution successful; exposure file view set"),
+                        (0, false) => println!("ERR: task execution successful: exposure file view NOT set"),
+                        _ => println!("ERR: task execution FAILED"),
+                    }
+                }
+                None => {
+                    println!("no outstanding job");
+                }
+            };
+        }
+    }
+    Ok(())
+}
+
 async fn parse_file_profile<'p, MCP, TMP>(
     platform: &'p Platform<MCP, TMP>,
     exposure_file_id: i64,
@@ -399,6 +443,17 @@ where
     TMP: TMPlatform + Sized + Send + Sync,
 {
     match arg {
+        ExposurePathCmd::Assign { profile_id } => {
+            let ec = platform.get_exposure(exposure_id).await?;
+            let efc = ec.ctrl_path(path).await?;
+            let exposure_file_id = efc.exposure_file().id();
+            let vttp = platform.get_view_task_template_profile(profile_id).await?;
+            platform.mc_platform.set_ef_vttprofile(
+                exposure_file_id,
+                vttp,
+            ).await?;
+            println!("profile set: exposure_file_id {exposure_file_id} => profile_id {profile_id}");
+        }
         ExposurePathCmd::Prompts => {
             let ec = platform.get_exposure(exposure_id).await?;
             let efc = ec.ctrl_path(path).await?;

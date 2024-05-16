@@ -454,7 +454,9 @@ where
     T: TMPlatform + Sized + Send + Sync,
 {
     build_test_binary_once!(sentinel, "../testing");
-    let bin_path = path_to_sentinel().into_string().expect("a valid string");
+    build_test_binary_once!(exit_code, "../testing");
+    let sentinel = path_to_sentinel().into_string().expect("a valid string");
+    let exit_code = path_to_exit_code().into_string().expect("a valid string");
 
     let mut result: Vec<i64> = Vec::new();
     result.push(platform.adds_view_task_template(
@@ -462,9 +464,30 @@ where
             "view_key": "sentinel_0",
             "description": "Sentinel 0",
             "task_template": {{
-                "bin_path": "{bin_path}",
+                "bin_path": "{sentinel}",
                 "version_id": "1.0.0",
                 "args": []
+            }}
+        }}"#))?
+    ).await?);
+    result.push(platform.adds_view_task_template(
+        serde_json::from_str(&format!(r#"{{
+            "view_key": "exit_code_0",
+            "description": "Exit Code 0",
+            "task_template": {{
+                "bin_path": "{exit_code}",
+                "version_id": "1.0.0",
+                "args": [
+                    {{
+                        "flag": null,
+                        "flag_joined": false,
+                        "prompt": "Exit Code",
+                        "default": null,
+                        "choice_fixed": false,
+                        "choice_source": null,
+                        "choices": []
+                    }}
+                ]
             }}
         }}"#))?
     ).await?);
@@ -1279,7 +1302,6 @@ async fn test_hidden_registries() -> anyhow::Result<()> {
 
 #[async_std::test]
 async fn test_task_executor_ctrl() -> anyhow::Result<()> {
-    // TaskExecutorCtrl
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let vtts = make_example_runnable_task_templates(&platform).await?;
 
@@ -1309,13 +1331,124 @@ async fn test_task_executor_ctrl() -> anyhow::Result<()> {
 
     let task_executor_ctrl = platform.start_task().await?
         .expect("a task is queued");
-    let result = task_executor_ctrl.execute().await?;
+    let (code, result) = task_executor_ctrl.execute().await?;
+    assert_eq!(code, 0);
     assert_eq!(result, true);
 
     let efv = platform.mc_platform.as_ref()
         .get_exposure_file_view(exposure_file_view_id)
         .await?;
     assert_eq!(efv.view_key(), Some("sentinel_0"));
+
+    Ok(())
+}
+
+#[async_std::test]
+async fn test_task_executor_ctrl_queued_extra() -> anyhow::Result<()> {
+    let (_reporoot, platform) = create_sqlite_platform().await?;
+    let vtts = make_example_runnable_task_templates(&platform).await?;
+
+    let exposure = platform.create_exposure(
+        1,
+        "083b775d81ec9b66796edbbdce4d714bb2ddc355",
+    ).await?;
+    let efc = exposure.create_file("if1").await?;
+    let exposure_file_id = efc
+        .exposure_file()
+        .id();
+    ExposureTaskTemplateBackend::set_file_templates(
+        platform.mc_platform.as_ref(),
+        exposure_file_id,
+        [vtts[0]].into_iter(),
+    ).await?;
+    let efvttsc = efc.build_vttc().await?;
+    let user_input = UserInputMap::from([]);
+    let tasks = efvttsc.create_tasks_from_input(&user_input)?;
+    let result = efc.process_vttc_tasks(tasks).await?;
+    let (exposure_file_view_id, _) = result[0];
+
+    let efv = platform.mc_platform.as_ref()
+        .get_exposure_file_view(exposure_file_view_id)
+        .await?;
+    assert_eq!(efv.view_key(), None);
+
+    let task_executor_ctrl = platform.start_task().await?
+        .expect("a task is queued");
+
+    // now mess it up by queuing and processing a new set of tasks
+    efc.process_vttc_tasks(
+        efvttsc.create_tasks_from_input(&user_input)?
+    ).await?;
+
+    let (code, result) = task_executor_ctrl.execute().await?;
+    assert_eq!(code, 0);
+    assert_eq!(result, false);
+
+    let efv = platform.mc_platform.as_ref()
+        .get_exposure_file_view(exposure_file_view_id)
+        .await?;
+    assert_eq!(efv.view_key(), None);
+
+    Ok(())
+}
+
+#[async_std::test]
+async fn test_task_executor_ctrl_task_failure_then_success() -> anyhow::Result<()> {
+    let (_reporoot, platform) = create_sqlite_platform().await?;
+    let vtts = make_example_runnable_task_templates(&platform).await?;
+
+    let exposure = platform.create_exposure(
+        1,
+        "083b775d81ec9b66796edbbdce4d714bb2ddc355",
+    ).await?;
+    let efc = exposure.create_file("if1").await?;
+    let exposure_file_id = efc
+        .exposure_file()
+        .id();
+    ExposureTaskTemplateBackend::set_file_templates(
+        platform.mc_platform.as_ref(),
+        exposure_file_id,
+        [vtts[1]].into_iter(),
+    ).await?;
+    let efvttsc = efc.build_vttc().await?;
+    let user_input = UserInputMap::from([
+        (1, "42".to_string()),
+    ]);
+    let tasks = efvttsc.create_tasks_from_input(&user_input)?;
+    let result = efc.process_vttc_tasks(tasks).await?;
+    let (exposure_file_view_id, _) = result[0];
+
+    let efv = platform.mc_platform.as_ref()
+        .get_exposure_file_view(exposure_file_view_id)
+        .await?;
+    assert_eq!(efv.view_key(), None);
+
+    let task_executor_ctrl = platform.start_task().await?
+        .expect("a task is queued");
+    let (code, result) = task_executor_ctrl.execute().await?;
+    assert_eq!(code, 42);
+    assert_eq!(result, false);
+
+    let efv = platform.mc_platform.as_ref()
+        .get_exposure_file_view(exposure_file_view_id)
+        .await?;
+    assert_eq!(efv.view_key(), None);
+
+    // now simulate a correction to a successful run
+    let user_input = UserInputMap::from([
+        (1, "0".to_string()),
+    ]);
+    let tasks = efvttsc.create_tasks_from_input(&user_input)?;
+    let result = efc.process_vttc_tasks(tasks).await?;
+    let task_executor_ctrl = platform.start_task().await?
+        .expect("a task is queued");
+    let (code, result) = task_executor_ctrl.execute().await?;
+    assert_eq!(code, 0);
+    assert_eq!(result, true);
+    let efv = platform.mc_platform.as_ref()
+        .get_exposure_file_view(exposure_file_view_id)
+        .await?;
+    assert_eq!(efv.view_key(), Some("exit_code_0"));
 
     Ok(())
 }

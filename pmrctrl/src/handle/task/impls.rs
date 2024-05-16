@@ -29,11 +29,11 @@ impl<
         }
     }
 
-    pub async fn execute(mut self) -> Result<bool, PlatformError> {
+    pub async fn execute(mut self) -> Result<(i32, bool), PlatformError> {
         let exit_status = self.executor.execute().await?;
-        Ok(self.platform.complete_task(
+        Ok((exit_status, self.platform.complete_task(
             self.executor.into(),
             exit_status.into(),
-        ).await?)
+        ).await?))
     }
 }
