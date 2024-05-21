@@ -1,5 +1,6 @@
 use mockall::predicate::eq;
 use pmrcore::{
+    error::BackendError,
     platform::TMPlatform,
     task::Task,
 };
@@ -47,5 +48,73 @@ async fn test_ref_impls() -> anyhow::Result<()> {
         exit_status: Some(0),
         .. Default::default()
     });
+    Ok(())
+}
+
+#[async_std::test]
+async fn test_detach_attach_matching() -> anyhow::Result<()> {
+    let mut src_platform = MockPlatform::new();
+    let mut dst_platform = MockPlatform::new();
+    let task_id = 1;
+    src_platform.expect_start()
+        .times(1)
+        .with()
+        .returning(move || Ok(Some(
+            Task {
+                id: task_id,
+                .. Default::default()
+            },
+        )));
+    let url = "mock";
+    src_platform.expect_url()
+        .times(1)
+        .with()
+        .return_const(url.to_string());
+    dst_platform.expect_url()
+        .times(1)
+        .with()
+        .return_const(url.to_string());
+
+    let task_ref = src_platform.start_task()
+        .await?
+        .expect("task started");
+    let task_detached = task_ref.detach();
+    let _ = task_detached.bind(&dst_platform)?;
+    Ok(())
+}
+
+#[async_std::test]
+async fn test_detach_attach_mismatching() -> anyhow::Result<()> {
+    let mut src_platform = MockPlatform::new();
+    let mut dst_platform = MockPlatform::new();
+    let task_id = 1;
+    src_platform.expect_start()
+        .times(1)
+        .with()
+        .returning(move || Ok(Some(
+            Task {
+                id: task_id,
+                .. Default::default()
+            },
+        )));
+    let url = "mock";
+    src_platform.expect_url()
+        .times(1)
+        .with()
+        .return_const(url.to_string());
+    dst_platform.expect_url()
+        .times(1)
+        .with()
+        .return_const("wrong".to_string());
+
+    let task_ref = src_platform.start_task()
+        .await?
+        .expect("task started");
+    let task_detached = task_ref.detach();
+    // can't unwrap_err, can't assert because missing various derives...
+    match task_detached.bind(&dst_platform) {
+        Err(BackendError::NonMatchingBind) => (),
+        _ => unreachable!(),
+    }
     Ok(())
 }

@@ -20,6 +20,8 @@ pub enum BackendError {
     /// Denotes custom application invariant; generally informative.
     #[error("application invariant violated: {0}")]
     AppInvariantViolation(String),
+    #[error("cannot bind an entity to a non-matching backend")]
+    NonMatchingBind,
     #[error("unknown error")]
     Unknown,
 }

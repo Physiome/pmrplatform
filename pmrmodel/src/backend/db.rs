@@ -1,3 +1,4 @@
+use pmrcore::platform::PlatformUrl;
 use sqlx::{
     Pool,
     sqlite::SqlitePool
@@ -11,19 +12,23 @@ pub enum Profile {
 
 #[derive(Clone)]
 pub struct Backend<T> {
-    pub pool: Arc<T>,
+    pub(crate) pool: Arc<T>,
+    pub(crate) url: String,
+}
+
+impl<T> PlatformUrl for Backend<T> {
+    fn url(&self) -> &str {
+        self.url.as_ref()
+    }
 }
 
 impl<DB: sqlx::Database> Backend<Pool<DB>> {
-    pub fn bind(pool: Pool<DB>) -> Self {
-        Self {
-            pool: Arc::new(pool),
-        }
-    }
-
     pub async fn from_url(url: &str) -> Result<Self, sqlx::Error> {
         let pool = Pool::<DB>::connect(url).await?;
-        Ok(Self::bind(pool))
+        Ok(Self {
+            pool: Arc::new(pool),
+            url: url.to_string(),
+        })
     }
 
     // TODO how to disambiguate this between database type

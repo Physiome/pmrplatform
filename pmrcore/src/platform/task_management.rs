@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use crate::{
     error::BackendError,
+    platform::PlatformUrl,
     task::{
         TaskRef,
         traits::TaskBackend,
@@ -18,6 +19,7 @@ use crate::{
 #[async_trait]
 pub trait TMPlatform: TaskBackend
     + TaskTemplateBackend
+    + PlatformUrl
 {
     async fn start_task(
         &self,
@@ -33,4 +35,5 @@ pub trait TMPlatform: TaskBackend
 
 impl<P: TaskBackend
     + TaskTemplateBackend
+    + PlatformUrl
 > TMPlatform for P {}

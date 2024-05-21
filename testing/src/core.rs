@@ -30,6 +30,7 @@ use pmrcore::{
             },
         },
     },
+    platform::PlatformUrl,
     task::{
         Task,
         traits::TaskBackend,
@@ -341,6 +342,9 @@ mock! {
         ) -> Result<bool, BackendError>;
     }
 
+    impl PlatformUrl for Platform {
+        fn url(&self) -> &str;
+    }
 }
 
 #[async_trait]

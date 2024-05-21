@@ -16,6 +16,7 @@ use crate::{
             ExposureFileViewBackend,
         },
     },
+    platform::PlatformUrl,
     profile::{
         ViewTaskTemplateProfile,
         traits::{
@@ -55,6 +56,8 @@ pub trait MCPlatform: WorkspaceBackend
     + ViewTaskTemplateBackend
     + ProfileViewsBackend
     + ViewTaskTemplateProfileBackend
+
+    + PlatformUrl
 {
     /// get the `ExposureRef` by the provided `id`
     async fn get_exposure<'a>(
@@ -223,4 +226,6 @@ impl<P: workspace::traits::WorkspaceBackend
     + ViewTaskTemplateBackend
     + ProfileViewsBackend
     + ViewTaskTemplateProfileBackend
+
+    + PlatformUrl
 > MCPlatform for P {}

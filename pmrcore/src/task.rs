@@ -24,10 +24,14 @@ pub struct TaskArg {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct TaskArgs(Vec<TaskArg>);
 
+mod detached;
 mod impls;
 mod refs;
 pub mod traits;
 
+pub use detached::{
+    TaskDetached,
+};
 pub use refs::{
     TaskRef,
 };
