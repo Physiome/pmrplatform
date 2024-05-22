@@ -35,4 +35,11 @@ impl TaskDetached {
             Err(BackendError::NonMatchingBind)
         }
     }
+
+    // TODO maybe move this to a common trait like what was done with
+    // Exposure types.
+
+    pub fn id(&self) -> i64 {
+        self.inner.id
+    }
 }
