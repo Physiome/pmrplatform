@@ -26,6 +26,7 @@ use sqlx::{
 use std::{
     thread,
     time::Duration,
+    sync::Arc,
 };
 
 // the runner may become a separate sync function
@@ -54,6 +55,7 @@ struct Cli {
 
 pub struct Runner<DB> {
     backend: Backend<DB>,
+    semaphore: Arc<tokio::sync::Semaphore>,
     receiver: tokio::sync::mpsc::Receiver<TaskDetached>,
     rt_handle: tokio::runtime::Handle,
 }
@@ -67,9 +69,12 @@ where
         backend: Backend<DB>,
         receiver: tokio::sync::mpsc::Receiver<TaskDetached>,
         rt_handle: tokio::runtime::Handle,
+        runners: usize,
     ) -> Self {
+        let semaphore = Arc::new(tokio::sync::Semaphore::new(runners));
         Self {
             backend,
+            semaphore,
             receiver,
             rt_handle,
         }
@@ -83,8 +88,12 @@ where
             log::debug!("runner received task: {}", task.id());
             let handle = self.rt_handle.clone();
             let backend = self.backend.clone();
+            let permit = Arc::clone(&self.semaphore).acquire_owned().await;
             handle.spawn(async move {
                 let id = task.id();
+                let _permit = permit;
+                log::debug!("runner starting task: {id}");
+                // hold onto the permit until this is done.
                 let mut executor: Executor<Backend<DB>> = task.bind(&backend)
                     .expect("task isn't part of this backend")
                     .into();
@@ -128,6 +137,7 @@ async fn main() -> Result<(), RunnerError> {
             runner_backend,
             task_rx,
             runtime.handle().clone(),
+            args.runners,
         );
 
         runtime.handle().spawn({
