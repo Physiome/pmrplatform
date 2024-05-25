@@ -1,3 +1,4 @@
+use std::fmt;
 use crate::{
     error::BackendError,
     platform::TMPlatform,
@@ -10,6 +11,12 @@ use crate::{
 pub struct TaskDetached {
     pub(super) inner: Task,
     pub(super) url: String,
+}
+
+impl fmt::Display for TaskDetached {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "TaskDetached {{ id: {} }}", self.inner.id)
+    }
 }
 
 impl<P: TMPlatform + Sized> TaskRef<'_, P> {
