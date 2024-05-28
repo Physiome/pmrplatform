@@ -5,7 +5,7 @@ use pmrcore::{
     },
     task::TaskRef,
 };
-use pmrtqs::executor::Executor;
+use pmrtqs::executor::TMPlatformExecutorInstance;
 
 use crate::platform::Platform;
 
@@ -15,7 +15,7 @@ pub struct TaskExecutorCtrl<
     TMP: TMPlatform + Sized + Send + Sync,
 > {
     pub(crate) platform: &'p Platform<MCP, TMP>,
-    pub(crate) executor: Executor<'p, TMP>,
+    pub(crate) executor: TMPlatformExecutorInstance<'p, TMP>,
 }
 
 mod impls;

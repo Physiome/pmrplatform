@@ -33,6 +33,10 @@ impl<
         self.data_root.as_ref()
     }
 
+    pub fn repo_root(&self) -> &Path {
+        self.repo_root.as_ref()
+    }
+
     pub fn repo_backend(&self) -> &Backend<MCP> {
         &self.repo_backend
     }

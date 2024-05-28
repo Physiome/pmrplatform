@@ -3,6 +3,11 @@ use pmrcore::{
     task::TaskRef,
 };
 
-pub struct Executor<'a, P: TMPlatform + Sync> {
+#[derive(Clone)]
+pub struct TMPlatformExecutor<P: Clone> {
+    pub(crate) platform: P,
+}
+
+pub struct TMPlatformExecutorInstance<'a, P: TMPlatform + Sync> {
     pub(crate) task: TaskRef<'a, P>,
 }

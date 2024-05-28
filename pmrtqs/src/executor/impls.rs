@@ -1,7 +1,11 @@
+use async_trait::async_trait;
 use pmrcore::{
     error::ValueError,
     platform::TMPlatform,
-    task::TaskRef,
+    task::{
+       TaskDetached,
+       TaskRef,
+    },
 };
 use std::{
     fs::File,
@@ -10,11 +14,12 @@ use std::{
         Stdio,
     },
 };
+use tokio::sync::broadcast;
 
 use crate::error::RunnerError;
 use super::*;
 
-impl<'a, P: TMPlatform + Sync> Executor<'a, P> {
+impl<'a, P: TMPlatform + Sync> TMPlatformExecutorInstance<'a, P> {
     fn new(task: TaskRef<'a, P>) -> Self {
         Self {
             task,
@@ -25,7 +30,7 @@ impl<'a, P: TMPlatform + Sync> Executor<'a, P> {
         &self.task
     }
 
-    pub async fn execute(&mut self) -> Result<i32, RunnerError> {
+    pub async fn execute(&mut self) -> Result<(i32, bool), RunnerError> {
         let mut command: Command = (&self.task).try_into()?;
         let basedir = command.get_current_dir()
             .ok_or(ValueError::UninitializedAttribute("task missing basedir"))?;
@@ -44,21 +49,46 @@ impl<'a, P: TMPlatform + Sync> Executor<'a, P> {
         let pid = child.id();
         // TODO if the DB died here, kill the task?
         self.task.run(pid.into()).await?;
+        log::trace!("waiting for child {pid}");
         let exit_status = child.wait()?;
         let code = exit_status.code().unwrap_or(-1);
+        log::trace!("child {pid} exit with code {code}");
         self.task.complete(code.into()).await?;
-        Ok(code)
+        Ok((code, code == 0))
     }
 }
 
-impl<'a, P: TMPlatform + Sync> From<TaskRef<'a, P>> for Executor<'a, P> {
+impl<'a, P: TMPlatform + Sync> From<TaskRef<'a, P>> for TMPlatformExecutorInstance<'a, P> {
     fn from(task: TaskRef<'a, P>) -> Self {
         Self::new(task)
     }
 }
 
-impl<'a, P: TMPlatform + Sync> From<Executor<'a, P>> for TaskRef<'a, P> {
-    fn from(executor: Executor<'a, P>) -> Self {
+impl<'a, P: TMPlatform + Sync> From<TMPlatformExecutorInstance<'a, P>> for TaskRef<'a, P> {
+    fn from(executor: TMPlatformExecutorInstance<'a, P>) -> Self {
         executor.task
+    }
+}
+
+impl<P: Clone> TMPlatformExecutor<P> {
+    pub fn new(platform: P) -> Self {
+        Self { platform }
+    }
+}
+
+#[async_trait]
+impl<P: Clone> traits::Executor for TMPlatformExecutor<P>
+where
+    P: TMPlatform + Sync
+{
+    async fn execute(
+        &self,
+        task: TaskDetached,
+        _abort_receiver: broadcast::Receiver<()>,
+    ) -> Result<(i32, bool), RunnerError> {
+        let mut executor: TMPlatformExecutorInstance<P> = task.bind(&self.platform)?.into();
+        // the abort token needs to be passed/run with the
+        // executor so it knows if the abort is set.
+        executor.execute().await
     }
 }

@@ -1,5 +1,4 @@
 use pmrcore::task::TaskDetached;
-use pmrmodel::backend::db::Backend;
 use std::{
     sync::{
         Arc,
@@ -10,10 +9,13 @@ use tokio::{
     runtime,
     sync::{
         Semaphore,
+        broadcast,
         mpsc,
     },
 };
 use tokio_util::task::TaskTracker;
+
+use crate::executor::traits;
 
 
 pub enum RunnerMessage {
@@ -21,32 +23,33 @@ pub enum RunnerMessage {
     Shutdown,
 }
 
-pub struct Runner<DB> {
-    pub(super) backend: Backend<DB>,
+pub struct Runner<B, EX: traits::Executor> {
+    pub(super) backend: B,
     pub(super) rt_handle: runtime::Handle,
     pub(super) sender: mpsc::Sender<RunnerMessage>,
     pub(super) receiver: mpsc::Receiver<RunnerMessage>,
     pub(super) semaphore: Arc<Semaphore>,
     pub(super) task_tracker: TaskTracker,
     pub(super) termination_token: Arc<AtomicBool>,
-    // TODO these are reserved for the use of aborting a running process
-    pub(super) _abort_sender: mpsc::Sender<()>,
-    pub(super) _abort_receiver: mpsc::Receiver<()>,
+
+    pub(super) executor: EX,
+    pub(super) abort_sender: broadcast::Sender<()>,
 }
 
 #[derive(Clone)]
-pub struct RunnerHandle<DB> {
-    pub(super) backend: Backend<DB>,
-    pub(super) _abort_sender: mpsc::Sender<()>,
+pub struct RunnerHandle<B> {
+    pub(super) backend: B,
+    pub(super) abort_sender: broadcast::Sender<()>,
     pub(super) sender: mpsc::Sender<RunnerMessage>,
     pub(super) task_tracker: TaskTracker,
     pub(super) termination_token: Arc<AtomicBool>,
     pub(super) rt_handle: tokio::runtime::Handle,
 }
 
-pub struct RunnerRuntime<DB> {
+pub struct RunnerRuntime<B, EX: traits::Executor> {
     pub(super) runtime: tokio::runtime::Runtime,
-    pub(super) backend: Backend<DB>,
+    pub(super) backend: B,
+    pub(super) executor: EX,
     pub(super) permits: usize,
-    pub(super) handle: Option<RunnerHandle<DB>>,
+    pub(super) handle: Option<RunnerHandle<B>>,
 }

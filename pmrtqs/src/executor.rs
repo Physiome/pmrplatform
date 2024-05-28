@@ -1,4 +1,8 @@
 mod impls;
+pub mod traits;
 mod types;
 
-pub use types::Executor;
+pub use types::{
+    TMPlatformExecutor,
+    TMPlatformExecutorInstance,
+};

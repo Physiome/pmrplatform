@@ -12,6 +12,7 @@ use crate::{
     },
 };
 
+#[derive(Clone)]
 pub struct Backend<P: MCPlatform + Send + Sync> {
     pub db_platform: Arc<P>,
     pub(crate) repo_root: PathBuf,

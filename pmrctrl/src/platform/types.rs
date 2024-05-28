@@ -8,6 +8,7 @@ use std::{
     sync::Arc,
 };
 
+#[derive(Clone)]
 pub struct Platform<
     MCP: MCPlatform + Sized + Send + Sync,
     TMP: TMPlatform + Sized + Send + Sync,

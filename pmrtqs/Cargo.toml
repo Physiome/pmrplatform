@@ -9,7 +9,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0"
 async-std = { version = "1.5.0", features = [ "attributes" ] }
-async-recursion = "1.0.0"
+async-trait = "0.1.50"
 clap = { version = "4.2", features = [ "derive", "env" ] }
 dotenvy = "0.15.0"
 futures = "0.3"

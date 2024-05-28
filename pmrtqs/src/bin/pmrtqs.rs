@@ -19,7 +19,7 @@ use sqlx::{
     migrate::MigrateDatabase,
 };
 
-use pmrtqs::executor::Executor;
+use pmrtqs::executor::TMPlatformExecutorInstance;
 
 
 #[derive(Debug, Parser)]
@@ -171,7 +171,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::ExecOneShot => {
             match backend
                 .start_task().await?
-                .map(Executor::from)
+                .map(TMPlatformExecutorInstance::from)
             {
                 Some(mut executor) => {
                     executor.execute().await?;

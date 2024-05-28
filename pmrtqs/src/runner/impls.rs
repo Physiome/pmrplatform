@@ -2,7 +2,6 @@ use pmrcore::{
     platform::TMPlatform,
     task::TaskDetached,
 };
-use pmrmodel::backend::db::Backend;
 use std::{
     sync::{
         Arc,
@@ -16,6 +15,7 @@ use tokio::{
     sync::{
         Semaphore,
         mpsc,
+        broadcast,
     },
     time,
 };
@@ -25,17 +25,18 @@ use tokio_stream::{
 };
 use tokio_util::task::TaskTracker;
 
-use crate::executor::Executor;
+use crate::executor::traits;
 
 use super::*;
 
-impl<DB> Runner<DB>
+impl<B, EX> Runner<B, EX>
 where
-    Backend<DB>: TMPlatform,
-    for<'a> DB: Sync + Send + Clone + 'a
+    for<'a> EX: traits::Executor + Send + Sync + Clone + 'a,
+    for<'a> B: Sync + Send + Clone + 'a
 {
     pub fn new(
-        backend: Backend<DB>,
+        backend: B,
+        executor: EX,
         rt_handle: runtime::Handle,
         permits: usize,  // the number of process permitted
     ) -> Self {
@@ -43,7 +44,7 @@ where
         let task_tracker = TaskTracker::new();
         // not sure if this relative low limit is fine...
         let (sender, receiver) = mpsc::channel(permits);
-        let (_abort_sender, _abort_receiver) = mpsc::channel(1);
+        let (abort_sender, _) = broadcast::channel(1);
         let termination_token = Arc::new(false.into());
         Self {
             backend,
@@ -53,19 +54,19 @@ where
             semaphore,
             task_tracker,
             termination_token,
-            _abort_sender,
-            _abort_receiver,
+            abort_sender,
+            executor,
         }
     }
 
-    pub fn handle(&self) -> RunnerHandle<DB> {
+    pub fn handle(&self) -> RunnerHandle<B> {
         RunnerHandle {
             backend: self.backend.clone(),
             sender: self.sender.clone(),
             task_tracker: self.task_tracker.clone(),
             termination_token: self.termination_token.clone(),
             rt_handle: self.rt_handle.clone(),
-            _abort_sender: self._abort_sender.clone(),
+            abort_sender: self.abort_sender.clone(),
         }
     }
 
@@ -85,9 +86,10 @@ where
             match msg {
                 RunnerMessage::Task(task) => {
                     log::debug!("runner received: {task}");
-                    let backend = self.backend.clone();
                     let semaphore = self.semaphore.clone();
                     let termination_token = self.termination_token.clone();
+                    let executor = self.executor.clone();
+                    let abort_receiver = self.abort_sender.subscribe();
                     self.rt_handle.spawn(self.task_tracker.track_future(async move {
                         let t = format!("{task}");
                         // only try to acquire the permit after spawning so this
@@ -99,12 +101,9 @@ where
                             log::debug!("runner ignoring task due to termination token: {t}");
                         } else {
                             log::debug!("runner starting task: {t}");
-                            let mut executor: Executor<Backend<DB>> = task.bind(&backend)
-                                .expect("this incoming task isn't part of this backend!")
-                                .into();
                             // the abort token needs to be passed/run with the
                             // executor so it knows if the abort is set.
-                            match executor.execute().await {
+                            match executor.execute(task, abort_receiver).await {
                                 Ok(_) => (),
                                 Err(e) => log::error!("task executor error: {e}"),
                             }
@@ -123,10 +122,9 @@ where
     }
 }
 
-impl<DB> RunnerHandle<DB>
+impl<B> RunnerHandle<B>
 where
-    Backend<DB>: TMPlatform,
-    for<'a> DB: Sync + Send + Clone + 'a
+    for<'a> B: TMPlatform + Sync + Send + Clone + 'a
 {
     // queue_task sends a message through the sender which hopefully the
     // underlying runner will receive and do something with it.
@@ -145,6 +143,13 @@ where
         log::debug!("waiting for task_tracker...");
         self.task_tracker.wait().await;
         log::debug!("finished waiting for task_tracker");
+    }
+
+    pub fn abort(&self) {
+        match self.abort_sender.send(()) {
+            Ok(n) => log::debug!("abort signal sent to {n} receiver(s)."),
+            Err(_) => log::debug!("abort sent but there are no receivers."),
+        }
     }
 
     pub fn terminate(&self) {
@@ -173,10 +178,28 @@ where
         log::debug!("task queue stopping");
     }
 
+    pub async fn wait_for_abort_signal(&self) {
+        match signal::ctrl_c().await {
+            Ok(()) => {
+                log::debug!("Ctrl-C received for abort");
+                self.abort();
+                log::debug!("abort broadcast set");
+            },
+            Err(err) => {
+                log::debug!("Unable to listen for shutdown signal: {}", err);
+                log::debug!("abort not signaled");
+            },
+        }
+    }
+
     pub async fn wait_for_terminate_signal(&self) {
         match signal::ctrl_c().await {
             Ok(()) => {
                 log::debug!("Ctrl-C received for terminate");
+                let handle = self.clone();
+                self.rt_handle.spawn({async move {
+                    handle.wait_for_abort_signal().await;
+                }});
                 self.terminate();
                 log::debug!("termination token set");
             },
@@ -187,6 +210,8 @@ where
         }
     }
 
+    // FIXME somehow these ctrl-c is not fully trapped and is leaked to
+    // the subprocess...
     pub async fn wait_for_shutdown_signal(&self) {
         match signal::ctrl_c().await {
             Ok(()) => {
@@ -206,13 +231,14 @@ where
     }
 }
 
-impl<DB> RunnerRuntime<DB>
+impl<B, EX> RunnerRuntime<B, EX>
 where
-    Backend<DB>: TMPlatform,
-    for<'a> DB: Sync + Send + Clone + 'a
+    for<'a> EX: traits::Executor + Send + Sync + Clone + 'a,
+    for<'a> B: TMPlatform + Sync + Send + Clone + 'a
 {
     pub fn new(
-        backend: Backend<DB>,
+        backend: B,
+        executor: EX,
         permits: usize,
     ) -> Self {
         let runtime = runtime::Builder::new_multi_thread()
@@ -223,6 +249,7 @@ where
         Self {
             runtime,
             backend,
+            executor,
             permits,
             handle: None,
         }
@@ -233,8 +260,9 @@ where
             return () // don't start again
         }
 
-        let mut runner = Runner::new(
+        let mut runner: Runner<B, EX> = Runner::new(
             self.backend.clone(),
+            self.executor.clone(),
             self.runtime.handle().clone(),
             self.permits,
         );
