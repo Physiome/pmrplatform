@@ -1,6 +1,4 @@
 use pmrcore::{
-    error::task::TaskError,
-    exposure::traits::ExposureFileViewBackend,
     platform::{
         MCPlatform,
         TMPlatform,

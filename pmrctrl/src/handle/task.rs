@@ -1,9 +1,6 @@
-use pmrcore::{
-    platform::{
-        MCPlatform,
-        TMPlatform,
-    },
-    task::TaskRef,
+use pmrcore::platform::{
+    MCPlatform,
+    TMPlatform,
 };
 use pmrtqs::executor::TMPlatformExecutorInstance;
 

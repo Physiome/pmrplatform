@@ -1,7 +1,4 @@
-use pmrcore::{
-    platform::TMPlatform,
-    task::TaskDetached,
-};
+use pmrcore::task::TaskDetached;
 use std::{
     sync::{
         Arc,
@@ -29,17 +26,17 @@ use crate::executor::traits;
 
 use super::*;
 
-impl<B, EX> Runner<B, EX>
+impl<EX> Runner<EX>
 where
     for<'a> EX: traits::Executor + Send + Sync + Clone + 'a,
-    for<'a> B: Sync + Send + Clone + 'a
+    <EX as traits::Executor>::Error: Send + std::fmt::Display + std::fmt::Debug
 {
     pub fn new(
-        backend: B,
         executor: EX,
         rt_handle: runtime::Handle,
         permits: usize,  // the number of process permitted
     ) -> Self {
+        log::info!("setting up runner with {permits} permits");
         let semaphore = Arc::new(Semaphore::new(permits));
         let task_tracker = TaskTracker::new();
         // not sure if this relative low limit is fine...
@@ -47,7 +44,6 @@ where
         let (abort_sender, _) = broadcast::channel(1);
         let termination_token = Arc::new(false.into());
         Self {
-            backend,
             rt_handle,
             sender,
             receiver,
@@ -59,9 +55,9 @@ where
         }
     }
 
-    pub fn handle(&self) -> RunnerHandle<B> {
+    pub fn handle(&self) -> RunnerHandle<EX> {
         RunnerHandle {
-            backend: self.backend.clone(),
+            executor: self.executor.clone(),
             sender: self.sender.clone(),
             task_tracker: self.task_tracker.clone(),
             termination_token: self.termination_token.clone(),
@@ -122,9 +118,10 @@ where
     }
 }
 
-impl<B> RunnerHandle<B>
+impl<EX> RunnerHandle<EX>
 where
-    for<'a> B: TMPlatform + Sync + Send + Clone + 'a
+    for<'a> EX: traits::Executor + Sync + Send + Clone + 'a,
+    <EX as traits::Executor>::Error: Send + std::fmt::Display + std::fmt::Debug
 {
     // queue_task sends a message through the sender which hopefully the
     // underlying runner will receive and do something with it.
@@ -165,11 +162,12 @@ where
         let mut ticker = IntervalStream::new(time::interval(Duration::from_millis(100)));
         log::debug!("task queue starting");
         while let Some(_) = (!self.is_closed()).then_some(ticker.next().await).flatten() {
-            while let Some(task) = self.backend.start_task()
+            while let Some(task) = self.executor.start_task()
                 .await
-                // FIXME need to figure out a more robust way to deal with this
+                // FIXME need to figure out a more robust way to deal
+                // with the following error, as database crash will
+                // probably crash the task polling completely.
                 .expect("database error when trying to poll for a new task")
-                .map(|task| task.detach())
             {
                 log::debug!("sending task {task}");
                 self.queue_task(task).await;
@@ -179,6 +177,7 @@ where
     }
 
     pub async fn wait_for_abort_signal(&self) {
+        log::trace!("waiting for abort signal");
         match signal::ctrl_c().await {
             Ok(()) => {
                 log::debug!("Ctrl-C received for abort");
@@ -193,6 +192,7 @@ where
     }
 
     pub async fn wait_for_terminate_signal(&self) {
+        log::trace!("waiting for termination signal");
         match signal::ctrl_c().await {
             Ok(()) => {
                 log::debug!("Ctrl-C received for terminate");
@@ -213,6 +213,7 @@ where
     // FIXME somehow these ctrl-c is not fully trapped and is leaked to
     // the subprocess...
     pub async fn wait_for_shutdown_signal(&self) {
+        log::trace!("waiting for shutdown signal");
         match signal::ctrl_c().await {
             Ok(()) => {
                 log::debug!("Ctrl-C received for shutdown");
@@ -231,13 +232,12 @@ where
     }
 }
 
-impl<B, EX> RunnerRuntime<B, EX>
+impl<EX> RunnerRuntime<EX>
 where
     for<'a> EX: traits::Executor + Send + Sync + Clone + 'a,
-    for<'a> B: TMPlatform + Sync + Send + Clone + 'a
+    <EX as traits::Executor>::Error: Send + std::fmt::Display + std::fmt::Debug
 {
     pub fn new(
-        backend: B,
         executor: EX,
         permits: usize,
     ) -> Self {
@@ -248,7 +248,6 @@ where
             .expect("unable to create the runner runtime");
         Self {
             runtime,
-            backend,
             executor,
             permits,
             handle: None,
@@ -260,8 +259,7 @@ where
             return () // don't start again
         }
 
-        let mut runner: Runner<B, EX> = Runner::new(
-            self.backend.clone(),
+        let mut runner: Runner<EX> = Runner::new(
             self.executor.clone(),
             self.runtime.handle().clone(),
             self.permits,
@@ -279,7 +277,6 @@ where
     pub fn wait(&mut self) {
         // do nothing if not started before
         if let Some(handle) = &self.handle {
-            log::debug!("waiting for termination signal");
             self.runtime.block_on(async {
                 handle.wait_for_shutdown_signal().await;
             });

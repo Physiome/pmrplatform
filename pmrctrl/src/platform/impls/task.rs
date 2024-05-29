@@ -47,8 +47,10 @@ impl<
         // TODO figure out if we need to record task run failure for the
         // exposure task log
         if exit_status == 0 {
-            let etb: &dyn ExposureTaskBackend = self.mc_platform.as_ref();
-            Ok(etb.finalize_task_id(task.id()).await?)
+            Ok(ExposureTaskBackend::finalize_task_id(
+                self.mc_platform.as_ref(),
+                task.id(),
+            ).await?)
         } else {
             Ok(false)
         }

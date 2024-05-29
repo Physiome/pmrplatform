@@ -57,7 +57,7 @@ fn main() -> Result<(), RunnerError> {
         )
     })?;
     let executor = TMPlatformExecutor::new(backend.clone());
-    let mut runtime = RunnerRuntime::new(backend, executor, args.runners);
+    let mut runtime = RunnerRuntime::new(executor, args.runners);
     runtime.start();
     log::info!("runner runtime starting");
     runtime.wait();

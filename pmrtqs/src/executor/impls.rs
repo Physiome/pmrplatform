@@ -79,13 +79,23 @@ impl<P: Clone> TMPlatformExecutor<P> {
 #[async_trait]
 impl<P: Clone> traits::Executor for TMPlatformExecutor<P>
 where
-    P: TMPlatform + Sync
+    P: TMPlatform + Sync + Send
 {
+    type Error = RunnerError;
+
+    async fn start_task(
+        &self,
+    ) -> Result<Option<TaskDetached>, Self::Error> {
+        Ok(self.platform.start_task().await
+            .map(|task| task.map(|task| task.detach()))?
+        )
+    }
+
     async fn execute(
         &self,
         task: TaskDetached,
         _abort_receiver: broadcast::Receiver<()>,
-    ) -> Result<(i32, bool), RunnerError> {
+    ) -> Result<(i32, bool), Self::Error> {
         let mut executor: TMPlatformExecutorInstance<P> = task.bind(&self.platform)?.into();
         // the abort token needs to be passed/run with the
         // executor so it knows if the abort is set.
