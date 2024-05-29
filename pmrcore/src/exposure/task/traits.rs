@@ -37,5 +37,5 @@ pub trait ExposureTaskBackend {
     async fn finalize_task_id(
         &self,
         task_id: i64,
-    ) -> Result<bool, Error>;
+    ) -> Result<Option<(i64, Option<String>)>, Error>;
 }

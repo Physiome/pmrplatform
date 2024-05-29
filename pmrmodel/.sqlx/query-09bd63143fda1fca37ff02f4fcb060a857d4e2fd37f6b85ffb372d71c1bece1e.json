@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\nUPDATE\n    exposure_file_view\nSET\n    view_key = (\n        SELECT\n            view_key\n        FROM\n            view_task_template\n        WHERE id = (\n            SELECT\n                view_task_template_id\n            FROM\n                exposure_file_view\n            WHERE\n                exposure_file_view_task_id = (\n                    SELECT\n                        id\n                    FROM\n                        exposure_file_view_task\n                    WHERE\n                        task_id = ?1\n                )\n        )\n    )\nWHERE id = (\n    SELECT\n        id\n    FROM\n        exposure_file_view\n    WHERE\n        exposure_file_view_task_id = (\n            SELECT\n                id\n            FROM\n                exposure_file_view_task\n            WHERE\n                task_id = ?1\n        )\n)\nRETURNING id, view_key\n",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "view_key",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "09bd63143fda1fca37ff02f4fcb060a857d4e2fd37f6b85ffb372d71c1bece1e"
+}

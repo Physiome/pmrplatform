@@ -47,10 +47,24 @@ impl<
         // TODO figure out if we need to record task run failure for the
         // exposure task log
         if exit_status == 0 {
-            Ok(ExposureTaskBackend::finalize_task_id(
+            let task_id = task.id();
+            Ok(match ExposureTaskBackend::finalize_task_id(
                 self.mc_platform.as_ref(),
-                task.id(),
-            ).await?)
+                task_id,
+            ).await? {
+                Some((id, Some(view_key))) => {
+                    log::debug!("Task:{task_id} ran for ExposureFileView:{id}, produced view {view_key}");
+                    true
+                }
+                Some((id, None)) => {
+                    log::warn!("Task:{task_id} ran for ExposureFileView:{id}, but failed to produced view");
+                    false
+                }
+                None => {
+                    log::warn!("Task:{task_id} ran but it failed to produce results?");
+                    false
+                }
+            })
         } else {
             Ok(false)
         }

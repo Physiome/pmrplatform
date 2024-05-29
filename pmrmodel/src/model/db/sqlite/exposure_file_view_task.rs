@@ -112,7 +112,7 @@ WHERE
 async fn finalize_exposure_file_view_task_with_task_id_sqlite(
     sqlite: &SqliteBackend,
     task_id: i64,
-) -> Result<bool, Error> {
+) -> Result<Option<(i64, Option<String>)>, Error> {
     let some_task_id = Some(task_id);
     let mut tx = sqlite.pool.begin().await
         .map_err(BackendError::from)?;
@@ -143,7 +143,7 @@ WHERE
         )))
     }
 
-    let rows_affected = sqlx::query!(
+    let result = sqlx::query!(
         r#"
 UPDATE
     exposure_file_view
@@ -184,20 +184,22 @@ WHERE id = (
                 task_id = ?1
         )
 )
+RETURNING id, view_key
 "#,
         some_task_id,
     )
-    .execute(&mut *tx)
+    // TODO if the view_key isn't updated it should be an error...
+    .fetch_optional(&mut *tx)
     .await
     .map_err(BackendError::from)?
-    .rows_affected();
+    .map(|result| (result.id, result.view_key));
 
     tx.commit().await.map_err(BackendError::from)?;
 
-    // TODO if the view_key isn't updated it should be an error, but for
-    // now a bool result is sufficient to denote whether a successful
-    // update was done or not.
-    Ok(rows_affected == 1)
+    // ... there are no distinctions between that or the view_key isn't
+    // defined, but a None result should indicate that something has
+    // gone wrong.
+    Ok(result)
 }
 
 
@@ -230,7 +232,7 @@ impl ExposureTaskBackend for SqliteBackend {
     async fn finalize_task_id(
         &self,
         task_id: i64,
-    ) -> Result<bool, Error> {
+    ) -> Result<Option<(i64, Option<String>)>, Error> {
         finalize_exposure_file_view_task_with_task_id_sqlite(
             &self,
             task_id,
