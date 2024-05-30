@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDateTime};
+use chrono::DateTime;
 use std::cell::Cell;
 
 thread_local! {
@@ -9,13 +9,10 @@ pub struct Utc;
 
 impl Utc {
     pub fn now() -> DateTime<chrono::Utc> {
-        DateTime::<chrono::Utc>::from_naive_utc_and_offset(
-            TIMESTAMP.with(|timestamp| NaiveDateTime::from_timestamp_opt(
-                timestamp.get(),
-                0,
-            ).expect("a valid timestamp set")),
-            chrono::Utc,
-        )
+        TIMESTAMP.with(|timestamp| DateTime::<chrono::Utc>::from_timestamp(
+            timestamp.get(),
+            0,
+        )).expect("need a valid timestamp set")
     }
 }
 
