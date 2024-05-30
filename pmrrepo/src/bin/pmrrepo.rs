@@ -10,7 +10,7 @@ use std::process;
 use structopt::StructOpt;
 
 use pmrmodel::backend::db::{
-    Profile,
+    MigrationProfile,
     SqliteBackend,
 };
 use pmrmodel::model::workspace::{
@@ -158,7 +158,7 @@ async fn main(args: Args) -> anyhow::Result<()> {
     }
     let platform = SqliteBackend::from_url(&db_url)
         .await?
-        .run_migration_profile(Profile::Pmrapp)
+        .run_migration_profile(MigrationProfile::Pmrapp)
         .await?;
 
     let backend = Backend::new(platform.into(), git_root);

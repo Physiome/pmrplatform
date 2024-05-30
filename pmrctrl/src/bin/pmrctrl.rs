@@ -29,7 +29,7 @@ use pmrcore::{
 use pmrctrl::platform::Platform;
 use pmrmodel::{
     backend::db::{
-        Profile,
+        MigrationProfile,
         SqliteBackend,
     },
     model::{
@@ -213,11 +213,11 @@ async fn main() -> anyhow::Result<()> {
 
     let mc = SqliteBackend::from_url(&args.pmrapp_db_url)
         .await?
-        .run_migration_profile(Profile::Pmrapp)
+        .run_migration_profile(MigrationProfile::Pmrapp)
         .await?;
     let tm = SqliteBackend::from_url(&args.pmrtqs_db_url)
         .await?
-        .run_migration_profile(Profile::Pmrtqs)
+        .run_migration_profile(MigrationProfile::Pmrtqs)
         .await?;
 
     let platform = Platform::new(

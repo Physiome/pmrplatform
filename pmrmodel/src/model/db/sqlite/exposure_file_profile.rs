@@ -180,7 +180,7 @@ pub(crate) mod testing {
         task_template::UserInputMap,
     };
     use crate::backend::db::{
-        Profile,
+        MigrationProfile,
         SqliteBackend,
     };
     use crate::model::db::sqlite::{
@@ -193,7 +193,7 @@ pub(crate) mod testing {
     async fn test_basic() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrapp)
+            .run_migration_profile(MigrationProfile::Pmrapp)
             .await?;
 
         let exposure_file_id = make_example_exposure_file(

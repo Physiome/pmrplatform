@@ -533,7 +533,7 @@ mod tests {
         traits::TaskTemplateBackend,
     };
     use crate::backend::db::{
-        Profile,
+        MigrationProfile,
         SqliteBackend,
     };
 
@@ -541,7 +541,7 @@ mod tests {
     async fn test_smoketest_no_args() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrtqs)
+            .run_migration_profile(MigrationProfile::Pmrtqs)
             .await?;
         let ttb: &dyn TaskTemplateBackend = &backend;
 
@@ -566,7 +566,7 @@ mod tests {
     #[async_std::test]
     async fn test_smoketest_with_args() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:").await?
-            .run_migration_profile(Profile::Pmrtqs).await?;
+            .run_migration_profile(MigrationProfile::Pmrtqs).await?;
 
         let ttb: &dyn TaskTemplateBackend = &backend;
 
@@ -759,7 +759,7 @@ mod tests {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await
             .unwrap()
-            .run_migration_profile(Profile::Pmrtqs)
+            .run_migration_profile(MigrationProfile::Pmrtqs)
             .await
             .unwrap();
 
@@ -830,7 +830,7 @@ mod tests {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await
             .unwrap()
-            .run_migration_profile(Profile::Pmrtqs)
+            .run_migration_profile(MigrationProfile::Pmrtqs)
             .await
             .unwrap();
 
@@ -873,7 +873,7 @@ mod tests {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await
             .unwrap()
-            .run_migration_profile(Profile::Pmrtqs)
+            .run_migration_profile(MigrationProfile::Pmrtqs)
             .await
             .unwrap();
 
@@ -958,7 +958,7 @@ mod tests {
     async fn test_adds() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrtqs)
+            .run_migration_profile(MigrationProfile::Pmrtqs)
             .await?;
         let ttb: &(dyn TaskTemplateBackend + Sync) = &backend;
         let task_template: TaskTemplate = serde_json::from_str(r#"

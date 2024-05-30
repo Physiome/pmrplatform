@@ -219,7 +219,7 @@ pub(crate) mod testing {
         platform::MCPlatform,
     };
     use crate::backend::db::{
-        Profile,
+        MigrationProfile,
         SqliteBackend,
     };
     use crate::model::db::sqlite::workspace::testing::make_example_workspace;
@@ -241,7 +241,7 @@ pub(crate) mod testing {
     async fn test_basic() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrapp)
+            .run_migration_profile(MigrationProfile::Pmrapp)
             .await?;
 
         let exposure_id = make_example_exposure(
@@ -267,7 +267,7 @@ pub(crate) mod testing {
     async fn test_using_exposure_files() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrapp)
+            .run_migration_profile(MigrationProfile::Pmrapp)
             .await?;
         let efb: &dyn ExposureFileBackend = &backend;
         let eb: &dyn ExposureBackend = &backend;
@@ -304,7 +304,7 @@ pub(crate) mod testing {
     async fn test_exposure_backend() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrapp)
+            .run_migration_profile(MigrationProfile::Pmrapp)
             .await?;
         let w = make_example_workspace(&backend).await?;
         let id = make_example_exposure(&backend, w).await?;
@@ -337,7 +337,7 @@ pub(crate) mod testing {
     async fn test_exposure_file_dupe() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrapp)
+            .run_migration_profile(MigrationProfile::Pmrapp)
             .await?;
         let id = make_example_exposure(
             &backend,

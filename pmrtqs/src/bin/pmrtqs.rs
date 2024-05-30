@@ -4,7 +4,7 @@ use clap::{
     Subcommand,
 };
 use pmrmodel::backend::db::{
-    Profile,
+    MigrationProfile,
     SqliteBackend,
 };
 use pmrcore::{
@@ -131,7 +131,7 @@ async fn main() -> anyhow::Result<()> {
     }
     let backend = SqliteBackend::from_url(&args.db_url)
         .await?
-        .run_migration_profile(Profile::Pmrtqs)
+        .run_migration_profile(MigrationProfile::Pmrtqs)
         .await?;
 
     match args.command {

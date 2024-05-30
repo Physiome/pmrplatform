@@ -245,7 +245,7 @@ mod tests {
     use super::*;
     use pmrcore::profile::traits::ViewTaskTemplateBackend;
     use crate::backend::db::{
-        Profile::Pmrapp,
+        MigrationProfile::Pmrapp,
         SqliteBackend,
     };
 

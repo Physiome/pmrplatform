@@ -1,7 +1,7 @@
 use pmrcore::workspace::traits::WorkspaceBackend;
 use pmrctrl::platform::Platform;
 use pmrmodel::backend::db::{
-    Profile,
+    MigrationProfile,
     SqliteBackend,
 };
 use tempfile::TempDir;
@@ -21,11 +21,11 @@ pub async fn create_blank_sqlite_platform() -> anyhow::Result<(
     let platform = Platform::new(
         SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrapp)
+            .run_migration_profile(MigrationProfile::Pmrapp)
             .await?,
         SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrtqs)
+            .run_migration_profile(MigrationProfile::Pmrtqs)
             .await?,
         data_root,
         repo_root,
@@ -47,11 +47,11 @@ pub async fn create_sqlite_platform() -> anyhow::Result<(
 
     let mc = SqliteBackend::from_url("sqlite::memory:")
         .await?
-        .run_migration_profile(Profile::Pmrapp)
+        .run_migration_profile(MigrationProfile::Pmrapp)
         .await?;
     let tm = SqliteBackend::from_url("sqlite::memory:")
         .await?
-        .run_migration_profile(Profile::Pmrtqs)
+        .run_migration_profile(MigrationProfile::Pmrtqs)
         .await?;
 
     let wb: &dyn WorkspaceBackend = &mc;

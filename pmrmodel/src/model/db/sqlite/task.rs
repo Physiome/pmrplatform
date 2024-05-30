@@ -319,7 +319,7 @@ mod tests {
         traits::TaskBackend,
     };
     use crate::backend::db::{
-        Profile,
+        MigrationProfile,
         SqliteBackend,
     };
 
@@ -327,7 +327,7 @@ mod tests {
     async fn test_adds_task() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrtqs)
+            .run_migration_profile(MigrationProfile::Pmrtqs)
             .await?;
 
         // Need the task template to provide a valid reference for the
@@ -393,7 +393,7 @@ mod tests {
     async fn test_start_task() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrtqs)
+            .run_migration_profile(MigrationProfile::Pmrtqs)
             .await?;
         let (id, _) = TaskTemplateBackend::add_task_template(
             &backend, "/bin/true", "1.0.0",
@@ -470,7 +470,7 @@ mod tests {
     async fn test_task_complete_flow() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrtqs)
+            .run_migration_profile(MigrationProfile::Pmrtqs)
             .await?;
         let (id, _) = TaskTemplateBackend::add_task_template(
             &backend, "/bin/true", "1.0.0",

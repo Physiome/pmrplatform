@@ -6,7 +6,7 @@ use pmrctrl::{
     platform::Platform,
 };
 use pmrmodel::backend::db::{
-    Profile,
+    MigrationProfile,
     SqliteBackend,
 };
 use pmrtqs::runner::RunnerRuntime;
@@ -61,13 +61,13 @@ fn main() -> Result<(), PlatformError> {
         let mc = SqliteBackend::from_url(&args.pmrapp_db_url)
             .await
             .map_err(BackendError::from)?
-            .run_migration_profile(Profile::Pmrapp)
+            .run_migration_profile(MigrationProfile::Pmrapp)
             .await
             .map_err(BackendError::from)?;
         let tm = SqliteBackend::from_url(&args.pmrtqs_db_url)
             .await
             .map_err(BackendError::from)?
-            .run_migration_profile(Profile::Pmrtqs)
+            .run_migration_profile(MigrationProfile::Pmrtqs)
             .await
             .map_err(BackendError::from)?;
         let platform = Platform::new(

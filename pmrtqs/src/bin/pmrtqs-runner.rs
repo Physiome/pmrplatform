@@ -1,6 +1,6 @@
 use clap::Parser;
 use pmrmodel::backend::db::{
-    Profile,
+    MigrationProfile,
     SqliteBackend,
 };
 use pmrtqs::{
@@ -51,7 +51,7 @@ fn main() -> Result<(), RunnerError> {
         Ok::<_, RunnerError>(SqliteBackend::from_url(&args.pmrtqs_db_url)
             .await
             .map_err(pmrcore::error::BackendError::from)?
-            .run_migration_profile(Profile::Pmrtqs)
+            .run_migration_profile(MigrationProfile::Pmrtqs)
             .await
             .map_err(pmrcore::error::BackendError::from)?
         )

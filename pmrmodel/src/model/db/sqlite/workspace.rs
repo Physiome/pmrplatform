@@ -228,7 +228,7 @@ pub(crate) mod testing {
         traits::WorkspaceBackend,
     };
     use crate::backend::db::{
-        Profile,
+        MigrationProfile,
         SqliteBackend,
     };
 
@@ -246,7 +246,7 @@ pub(crate) mod testing {
     async fn test_basic() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrapp)
+            .run_migration_profile(MigrationProfile::Pmrapp)
             .await?;
         let id = make_example_workspace(&backend)
             .await?;
@@ -269,7 +269,7 @@ pub(crate) mod testing {
     async fn test_list_by_url() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrapp)
+            .run_migration_profile(MigrationProfile::Pmrapp)
             .await?;
         // note this makes _two_ workspaces with the same url
         make_example_workspace(&backend).await?;
@@ -285,7 +285,7 @@ pub(crate) mod testing {
     async fn test_listing() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrapp)
+            .run_migration_profile(MigrationProfile::Pmrapp)
             .await?;
         let wb: &dyn WorkspaceBackend = &backend;
         make_example_workspace(wb).await?;
@@ -300,7 +300,7 @@ pub(crate) mod testing {
     async fn test_update() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrapp)
+            .run_migration_profile(MigrationProfile::Pmrapp)
             .await?;
         let id = make_example_workspace(&backend)
             .await?;

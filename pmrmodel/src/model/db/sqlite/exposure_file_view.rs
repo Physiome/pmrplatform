@@ -316,7 +316,7 @@ pub(crate) mod testing {
         platform::MCPlatform,
     };
     use crate::backend::db::{
-        Profile,
+        MigrationProfile,
         SqliteBackend,
     };
     use crate::model::db::sqlite::{
@@ -353,7 +353,7 @@ pub(crate) mod testing {
     async fn test_basic() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrapp)
+            .run_migration_profile(MigrationProfile::Pmrapp)
             .await?;
         let efvb: &dyn ExposureFileViewBackend = &backend;
 
@@ -390,7 +390,7 @@ pub(crate) mod testing {
     async fn test_updates() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrapp)
+            .run_migration_profile(MigrationProfile::Pmrapp)
             .await?;
         let efvb: &dyn ExposureFileViewBackend = &backend;
 
@@ -449,7 +449,7 @@ pub(crate) mod testing {
     async fn test_using_exposure_file_view() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrapp)
+            .run_migration_profile(MigrationProfile::Pmrapp)
             .await?;
         let efvb: &dyn ExposureFileViewBackend = &backend;
         let efb: &dyn ExposureFileBackend = &backend;
@@ -502,7 +502,7 @@ pub(crate) mod testing {
     async fn test_exposure_file_view_dupe_template() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrapp)
+            .run_migration_profile(MigrationProfile::Pmrapp)
             .await?;
         let w1 = make_example_workspace(&backend).await?;
         let e1 = make_example_exposure(&backend, w1).await?;
@@ -520,7 +520,7 @@ pub(crate) mod testing {
     async fn test_exposure_file_vtt_required() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrapp)
+            .run_migration_profile(MigrationProfile::Pmrapp)
             .await?;
         let w1 = make_example_workspace(&backend).await?;
         let e1 = make_example_exposure(&backend, w1).await?;
@@ -539,7 +539,7 @@ pub(crate) mod testing {
     async fn test_exposure_file_task_none() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrapp)
+            .run_migration_profile(MigrationProfile::Pmrapp)
             .await?;
         let w1 = make_example_workspace(&backend).await?;
         let e1 = make_example_exposure(&backend, w1).await?;

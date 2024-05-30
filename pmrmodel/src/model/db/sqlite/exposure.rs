@@ -200,7 +200,7 @@ pub(crate) mod testing {
         workspace::traits::Workspace,
     };
     use crate::backend::db::{
-        Profile,
+        MigrationProfile,
         SqliteBackend,
     };
     use crate::model::db::sqlite::workspace::testing::make_example_workspace;
@@ -221,7 +221,7 @@ pub(crate) mod testing {
     async fn test_basic() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrapp)
+            .run_migration_profile(MigrationProfile::Pmrapp)
             .await?;
 
         let workspace_id = make_example_workspace(&backend).await?;
@@ -252,7 +252,7 @@ pub(crate) mod testing {
     async fn test_get_exposure_workspace() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
-            .run_migration_profile(Profile::Pmrapp)
+            .run_migration_profile(MigrationProfile::Pmrapp)
             .await?;
 
         let w1 = make_example_workspace(&backend).await?;

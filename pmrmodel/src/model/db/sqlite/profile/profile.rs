@@ -114,7 +114,7 @@ mod testing {
         traits::ProfileBackend,
     };
     use crate::backend::db::{
-        Profile::Pmrapp,
+        MigrationProfile::Pmrapp,
         SqliteBackend,
     };
 

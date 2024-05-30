@@ -133,7 +133,7 @@ mod testing {
         },
     };
     use crate::backend::db::{
-        Profile::Pmrapp,
+        MigrationProfile::Pmrapp,
         SqliteBackend,
     };
 

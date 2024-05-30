@@ -5,7 +5,7 @@ use sqlx::{
 };
 use std::sync::Arc;
 
-pub enum Profile {
+pub enum MigrationProfile {
     Pmrapp,
     Pmrtqs,
 }
@@ -34,16 +34,16 @@ impl<DB: sqlx::Database> Backend<Pool<DB>> {
     // TODO how to disambiguate this between database type
     pub async fn run_migration_profile(
         self,
-        profile: Profile
+        profile: MigrationProfile
     ) -> Result<Self, sqlx::Error>
     where
         <DB as sqlx::Database>::Connection: sqlx::migrate::Migrate,
     {
         match profile {
-            Profile::Pmrapp => {
+            MigrationProfile::Pmrapp => {
                 sqlx::migrate!("migrations/pmrapp").run(&*self.pool).await?;
             }
-            Profile::Pmrtqs => {
+            MigrationProfile::Pmrtqs => {
                 sqlx::migrate!("migrations/pmrtqs").run(&*self.pool).await?;
             }
         }

@@ -148,7 +148,7 @@ mod testing {
         traits::ViewTaskTemplateBackend,
     };
     use crate::backend::db::{
-        Profile::Pmrapp,
+        MigrationProfile::Pmrapp,
         SqliteBackend,
     };
 
