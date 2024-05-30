@@ -55,6 +55,8 @@ pub struct TaskTemplateArg {
     // TODO may need an enum instead that disambiguates the DB one and
     // the generated ones provided by alternative sources
     pub choices: Option<TaskTemplateArgChoices>,
+    // TODO multiple choices; MapToArgRef technically can support that
+    // now but it has been nerfed for now.
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]

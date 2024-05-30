@@ -158,7 +158,6 @@ impl<
             ))
         })).await?;
         Ok(EFViewTaskTemplatesCtrl::new(
-            &self.0.platform,
             self.clone(),
             vtts.into(),
         ))

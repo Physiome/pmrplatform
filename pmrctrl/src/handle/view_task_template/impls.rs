@@ -20,7 +20,6 @@ use pmrmodel::{
         task_template::{
             TaskBuilder,
             UserArgBuilder,
-            UserArgRef,
             UserArgRefs,
         },
     },
@@ -45,7 +44,6 @@ use crate::{
         EFViewTaskTemplatesCtrl,
         view_task_template::EFViewTaskTemplateCtrl,
     },
-    platform::Platform,
 };
 use super::VTTCTask;
 
@@ -55,12 +53,10 @@ impl<
     TMP: TMPlatform + Sized + Send + Sync,
 > EFViewTaskTemplatesCtrl<'p, MCP, TMP> {
     pub(crate) fn new(
-        platform: &'p Platform<MCP, TMP>,
         exposure_file_ctrl: ExposureFileCtrl<'p, MCP, TMP>,
         view_task_templates: ViewTaskTemplates,
     ) -> Self {
         Self {
-            platform,
             exposure_file_ctrl,
             view_task_templates,
             choice_registry: OnceLock::new(),
@@ -140,7 +136,6 @@ impl<
                     Arc::new(reg_basedir),
                 ];
                 let ctrl = EFViewTaskTemplateCtrl::new(
-                    self.platform,
                     self.exposure_file_ctrl.clone(),
                     efvtt,
                     registry
@@ -225,13 +220,11 @@ impl<
     TMP: TMPlatform + Sized + Send + Sync,
 > EFViewTaskTemplateCtrl<'p, MCP, TMP> {
     pub(crate) fn new(
-        platform: &'p Platform<MCP, TMP>,
         exposure_file_ctrl: ExposureFileCtrl<'p, MCP, TMP>,
         efvtt: &'p ViewTaskTemplate,
         choice_registry: Vec<Arc<PreparedChoiceRegistry>>,
     ) -> Self {
         Self {
-            platform,
             exposure_file_ctrl,
             efvtt,
             choice_registry: choice_registry,

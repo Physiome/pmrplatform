@@ -143,6 +143,7 @@ impl<'a> From<(ArgChunk<'a>, &'a TaskTemplateArg)> for TaskArgBuilder<'a> {
     }
 }
 
+// TODO need to adapt this for the profile case, where grouping applies
 impl<'a, T> From<(
     &'a TaskTemplate,
     &'a ChoiceRegistryCache<'a, T>,
@@ -230,6 +231,7 @@ impl<'a> Iterator for TaskArgBuilders<'a> {
     }
 }
 
+// TODO Need a grouping by ViewTaskTemplate, which is two levels up?
 impl<'a, I: Iterator<Item=&'a TaskTemplateArg>, T> Iterator for UserArgBuilder<'a, I, T> {
     type Item = UserArgRef<'a>;
 

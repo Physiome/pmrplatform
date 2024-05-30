@@ -1109,6 +1109,8 @@ async fn test_exposure_file_view_task_run_view_key_success() -> anyhow::Result<(
 
 #[async_std::test]
 async fn test_exposure_file_view_task_run_task_fail() -> anyhow::Result<()> {
+    // TODO find out why there may be spurious FOREIGN KEY constraint
+    // failure in this test - probably due to certain hard-coded ids.
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let vtts = make_example_view_task_templates(&platform).await?;
     let exposure = platform.create_exposure(
@@ -1440,6 +1442,7 @@ async fn test_task_executor_ctrl_task_failure_then_success() -> anyhow::Result<(
     ]);
     let tasks = efvttsc.create_tasks_from_input(&user_input)?;
     let result = efc.process_vttc_tasks(tasks).await?;
+    assert_eq!(result.len(), 1);
     let task_executor_ctrl = platform.start_task().await?
         .expect("a task is queued");
     let (code, result) = task_executor_ctrl.execute().await?;

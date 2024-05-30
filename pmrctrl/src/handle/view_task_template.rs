@@ -25,10 +25,7 @@ use std::{
     },
 };
 
-use crate::{
-    handle::ExposureFileCtrl,
-    platform::Platform,
-};
+use crate::handle::ExposureFileCtrl;
 
 /// A controller for exposure view task templates for the given
 pub struct EFViewTaskTemplatesCtrl<
@@ -36,7 +33,6 @@ pub struct EFViewTaskTemplatesCtrl<
     MCP: MCPlatform + Sized + Send + Sync,
     TMP: TMPlatform + Sized + Send + Sync,
 > {
-    platform: &'p Platform<MCP, TMP>,
     exposure_file_ctrl: ExposureFileCtrl<'p, MCP, TMP>,
     view_task_templates: ViewTaskTemplates,
     choice_registry: OnceLock<Arc<PreparedChoiceRegistry>>,
@@ -51,7 +47,6 @@ pub(crate) struct EFViewTaskTemplateCtrl<
     MCP: MCPlatform + Sized + Send + Sync,
     TMP: TMPlatform + Sized + Send + Sync,
 > {
-    platform: &'p Platform<MCP, TMP>,
     exposure_file_ctrl: ExposureFileCtrl<'p, MCP, TMP>,
     efvtt: &'p ViewTaskTemplate,
     choice_registry: Vec<Arc<PreparedChoiceRegistry>>,

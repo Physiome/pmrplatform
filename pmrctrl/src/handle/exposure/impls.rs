@@ -151,7 +151,6 @@ impl<
         )?;
         // path exists, so create the exposure file
         // TODO need to check if exposure_file_ctrls
-        let efb: &dyn ExposureFileBackend = self.0.platform.mc_platform.as_ref();
         let exposure_file = self.0.platform.mc_platform.get_exposure_file_by_id_path(
             self.0.exposure.id(),
             workspace_file_path,

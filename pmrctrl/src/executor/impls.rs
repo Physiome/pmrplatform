@@ -47,7 +47,8 @@ impl<
     async fn execute(
         &self,
         task: TaskDetached,
-        abort_receiver: broadcast::Receiver<()>,
+        // TODO deal with aborts.
+        _abort_receiver: broadcast::Receiver<()>,
     ) -> Result<(i32, bool), Self::Error> {
         let tec = TaskExecutorCtrl::new(
             &self.platform,
