@@ -78,8 +78,9 @@ pub fn WorkspaceListing() -> impl IntoView {
                 <ErrorBoundary fallback=|errors| {
                     view! { <ErrorTemplate errors=errors/> }
                 }>
-                    {
-                        workspaces
+                    {move || {
+                        logging::log!("rendering listing");
+                        let workspace_listing = { move || { workspaces
                             .get()
                             .map(move |workspaces| match workspaces {
                                 Err(e) => {
@@ -106,7 +107,9 @@ pub fn WorkspaceListing() -> impl IntoView {
                                 }
                             })
                             .unwrap_or_default()
-                    }
+                        }};
+                        view! { <div>{workspace_listing}</div> }
+                    }}
                 </ErrorBoundary>
             </Transition>
             </div>
