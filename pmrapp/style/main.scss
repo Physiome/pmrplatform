@@ -1,0 +1,65 @@
+body {
+  font-family: 'Arial', sans-serif;
+  margin: 0 auto;
+  max-width: 90rem;
+}
+
+nav {
+  display: flex;
+  background-color: #333;
+  color: #fff;
+}
+
+nav a {
+  color: #fff;
+  padding: 0.5em 2em;
+  text-decoration: none;
+}
+
+nav a.active {
+  background-color: #c00;
+}
+
+table.file-listing {
+  width: 100%;
+}
+
+table.file-listing td.gitobj-tree span::before {
+  content: '\1f4c1 ';
+}
+
+table.file-listing td.gitobj-blob span::before {
+  content: '\1f4c4 ';
+}
+
+#indicator, #indicator div {
+  height: 10px;
+}
+
+#indicator div.loading {
+  background: repeating-linear-gradient(-45deg, #c00 0, #c00 33%, #333 0, #333 66%);
+  background-size: 20px;
+  animation: loading_indicator 1s infinite linear;
+}
+
+.workspace-pathinfo img {
+  max-width: 100%;
+}
+
+@keyframes loading_indicator {
+  from {
+    background-position: 0px 0px;
+  }
+
+  to {
+    background-position: -40px 0px;
+  }
+
+  from {
+    background-position: 0px 0px;
+  }
+
+  to {
+    background-position: -40px 0px;
+  }
+}

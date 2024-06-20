@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "pmrapp",
     "pmrapp_client",
     "pmrapp_server",
     "pmrctrl",
@@ -20,6 +21,7 @@ default-members = [
 resolver = "2"
 
 [patch.crates-io]
+pmrapp = { path = "./pmrapp" }
 pmrapp_client = { path = "./pmrapp_client" }
 pmrapp_server = { path = "./pmrapp_server" }
 pmrctrl = { path = "./pmrctrl" }
@@ -27,3 +29,11 @@ pmrmodel = { path = "./pmrmodel" }
 pmrcore = { path = "./pmrcore" }
 pmrrepo = { path = "./pmrrepo" }
 pmrtqs = { path = "./pmrtqs" }
+
+# Defines a size-optimized profile for the WASM bundle in release mode
+[profile.wasm-release]
+inherits = "release"
+opt-level = 'z'
+lto = true
+codegen-units = 1
+panic = "abort"
