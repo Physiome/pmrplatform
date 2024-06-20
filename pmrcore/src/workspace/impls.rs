@@ -37,6 +37,15 @@ impl DerefMut for Workspaces {
     }
 }
 
+impl IntoIterator for Workspaces {
+    type Item = Workspace;
+    type IntoIter = std::vec::IntoIter<Workspace>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 impl<'a, P: MCPlatform + Sized> From<Vec<WorkspaceRef<'a, P>>> for WorkspaceRefs<'a, P> {
     fn from(args: Vec<WorkspaceRef<'a, P>>) -> Self {
         Self(args)
