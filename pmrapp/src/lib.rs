@@ -5,6 +5,8 @@ pub mod error_template;
 pub mod exposure;
 #[cfg(feature = "ssr")]
 pub mod fileserv;
+#[cfg(feature = "ssr")]
+pub mod server;
 pub mod workspace;
 
 #[cfg(feature = "hydrate")]

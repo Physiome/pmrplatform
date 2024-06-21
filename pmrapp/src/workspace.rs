@@ -2,10 +2,17 @@ use crate::error_template::{AppError, ErrorTemplate};
 use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
+use pmrcore::repo::{
+    PathObjectInfo,
+    RepoResult,
+};
 
 mod api;
 
-use crate::workspace::api::list_workspaces;
+use crate::workspace::api::{
+    list_workspaces,
+    get_workspace_info,
+};
 
 /*
 #[component(transparent)]
@@ -119,25 +126,141 @@ pub fn WorkspaceListing() -> impl IntoView {
 
 #[derive(Params, PartialEq, Clone, Debug)]
 pub struct WorkspaceParams {
-    id: Option<String>,
+    id: Option<i64>,
 }
 
 #[component]
 pub fn WorkspaceView() -> impl IntoView {
     let params = use_params::<WorkspaceParams>();
     let id = move || {
-        params.with(|params| {
-            params.as_ref()
-                .map(|params| params.id.clone())
-                .ok()
-                .flatten()
+        params.with(|p| {
+            p.as_ref()
+                .map(|p| p.id.unwrap_or_default())
+                .map_err(|_| AppError::NotFound)
+        })
+    };
+
+    let resource = create_resource(id, |id| async move {
+        match id {
+            Err(e) => Err(e),
+            Ok(id) => get_workspace_info(id)
+                .await
+                .map_err(|_| AppError::InternalServerError),
+        }
+    });
+
+    let info = move || match resource.get() {
+        Some(Ok(v)) => Ok(v),
+        _ => Err(AppError::InternalServerError),
+    };
+
+    let workspace_view = move || {
+        info().map(|info| {
+            view! {
+                // render content
+                <h1>{info.workspace.description.as_ref().unwrap_or(
+                    &format!("Workspace {}", &info.workspace.id))}</h1>
+                <dl>
+                    <dt>"Git Repository URI"</dt>
+                    <dd>{&info.workspace.url}</dd>
+                    <div class="workspace-pathinfo">
+                        <WorkspaceFileTable repo_result=info/>
+                    </div>
+                </dl>
+            }
         })
     };
 
     view! {
-        <div class="main">
-            <h1>"Viewing workspace "{id}</h1>
-        </div>
+        <Suspense fallback=move || view! { <p>"Loading workspace..."</p> }>
+            <ErrorBoundary fallback=|errors| {
+                view! {
+                    <div class="error">
+                        <h1>"Something went wrong."</h1>
+                        <ul>
+                        {move || errors.get()
+                            .into_iter()
+                            .map(|(_, error)| view! { <li>{error.to_string()} </li> })
+                            .collect_view()
+                        }
+                        </ul>
+                    </div>
+                }
+            }>
+                {workspace_view}
+            </ErrorBoundary>
+        </Suspense>
+    }
+}
+
+#[component]
+fn WorkspaceFileTable(repo_result: RepoResult) -> impl IntoView {
+    view! {
+        <table class="file-listing">
+            <thead>
+                <tr>
+                    <th>"Filename"</th>
+                    <th>"Size"</th>
+                    <th>"Date"</th>
+                </tr>
+            </thead>
+            {
+                match repo_result.target {
+                    PathObjectInfo::TreeInfo(tree_info) => {
+                        view! {
+                            <tbody>
+                            {
+                                tree_info.entries.iter().map(|info| view! {
+                                    <WorkspaceFileRow
+                                        workspace_id=repo_result.workspace.id
+                                        commit_id=repo_result.commit.commit_id.clone()
+                                        path=repo_result.path.clone()
+                                        kind=info.kind.clone()
+                                        name=info.name.clone()/>
+                                })
+                                .collect_view()
+                            }
+                            </tbody>
+                        }
+                    },
+                    _ => view! { <tbody></tbody> },
+                }
+            }
+        </table>
+    }
+}
+
+#[component]
+fn WorkspaceFileRow(
+    workspace_id: i64,
+    commit_id: String,
+    path: String,
+    kind: String,
+    name: String,
+) -> impl IntoView {
+    let path_name = if name == ".." {
+        let idx = path[0..path.len() - 1].rfind('/').unwrap_or(0);
+        if idx == 0 {
+            "".to_string()
+        } else {
+            format!("{}/", &path[0..idx])
+        }
+    } else {
+        format!("{}{}", path, if kind == "tree" {
+            format!("{}/", name)
+        } else {
+            format!("{}", name)
+        })
+    };
+    let href = format!("/workspace/{}/file/{}/{}", workspace_id, commit_id, path_name);
+    view! {
+        <tr>
+            <td class=format!("gitobj-{}", kind)>
+                <span><a href=href>{name}</a></span>
+            </td>
+            <td></td>
+            <td></td>
+        </tr>
     }
 }
 
