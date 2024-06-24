@@ -24,11 +24,15 @@ pub async fn list_workspaces() -> Result<Workspaces, ServerFnError> {
 }
 
 #[server]
-pub async fn get_workspace_info(id: i64) -> Result<RepoResult, ServerFnError> {
+pub async fn get_workspace_info(
+    id: i64,
+    commit: Option<String>,
+    path: Option<String>,
+) -> Result<RepoResult, ServerFnError> {
     let platform = platform()?;
     Ok(platform.repo_backend()
         .git_handle(id).await?
-        .pathinfo::<String>(None, None)?
+        .pathinfo(commit, path)?
         .into()
     )
 }

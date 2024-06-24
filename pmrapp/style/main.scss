@@ -28,6 +28,7 @@ table.file-listing td.gitobj-tree span::before {
   content: '\1f4c1 ';
 }
 
+table.file-listing td.gitobj-exe span::before,
 table.file-listing td.gitobj-blob span::before {
   content: '\1f4c4 ';
 }
