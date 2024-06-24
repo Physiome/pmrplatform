@@ -165,7 +165,7 @@ fn obj_tree_to_treeinfo(git_object: &Object) -> TreeInfo {
             )
                 .expect("these are standard ascii numbers")
                 .to_string(),
-            kind: entry.oid.kind().to_string(),
+            kind: entry.mode.as_str().to_string(),
             id: entry.oid.to_string(),
             name: entry.filename.to_string(),
         }).collect(),
@@ -185,7 +185,7 @@ fn objd_tree_to_treeinfo(git_object: &ObjectDetached) -> TreeInfo {
             )
                 .expect("these are standard ascii numbers")
                 .to_string(),
-            kind: entry.oid.kind().to_string(),
+            kind: entry.mode.as_str().to_string(),
             id: entry.oid.to_string(),
             name: entry.filename.to_string(),
         }).collect(),

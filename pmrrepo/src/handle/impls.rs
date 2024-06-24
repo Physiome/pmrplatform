@@ -70,6 +70,7 @@ mod tests {
     use super::*;
     use pmrcore::{
         repo::{
+            PathObjectInfo,
             RemoteInfo,
         },
         workspace::{
@@ -633,6 +634,40 @@ mod tests {
 
         let pathinfo = handle.pathinfo(None, Some("dir1/nested/file_a"))?;
         assert_eq!(pathinfo.path(), "dir1/nested/file_a");
+
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn test_workspace_pathobjectinfo() -> anyhow::Result<()> {
+        let (
+            repo_root,
+            _, // (import1, import1_oids),
+            _, // (import2, import2_oids),
+            _, // (repodata, repodata_oids)
+        ) = test_pmr::repo::create_repodata();
+
+        let mut platform = MockPlatform::new();
+        expect_workspace(&mut platform, 3, "http://models.example.com/w/repodata");
+        let backend = Backend::new(platform.into(), repo_root.path().to_path_buf());
+        let handle = backend.git_handle(3).await?;
+
+        // TODO do a test for the Object<'repo> conversion, but currently
+        // this is no longer "reachable" through the pmrrepo API as most
+        // are converted to the detached version for Send + Sync.
+        let pathinfo = handle.pathinfo(Some("8ae6e9af37c8bd78614545d0ab807348fc46dcab"), None)?;
+        match PathObjectInfo::from(&pathinfo) {
+            PathObjectInfo::TreeInfo(tree_info) => {
+                assert_eq!(tree_info.filecount, 6);
+                assert_eq!(tree_info.entries[0], serde_json::from_str(r#"{
+                    "filemode": "100644",
+                    "id": "e5571ee030566a854f5f862b94138aed1c48918b",
+                    "kind": "blob",
+                    "name": ".gitmodules"
+                }"#)?);
+            }
+            _ => unreachable!()
+        }
 
         Ok(())
     }
