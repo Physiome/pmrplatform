@@ -1,13 +1,18 @@
 #[cfg(feature = "ssr")]
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    use axum::Router;
+    use axum::{
+        Router,
+        extract::Extension,
+        routing::get,
+    };
     use clap::Parser;
     use leptos::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
     use pmrapp::app::*;
     use pmrapp::conf::Cli;
     use pmrapp::fileserv::file_and_error_handler;
+    use pmrapp::server::workspace::raw_workspace_download;
     use pmrctrl::platform::Platform;
     use pmrmodel::backend::db::{
         MigrationProfile,
@@ -15,6 +20,7 @@ async fn main() -> anyhow::Result<()> {
     };
     use std::fs;
     use sqlx::{migrate::MigrateDatabase, Sqlite};
+    use tower::ServiceBuilder;
 
     dotenvy::dotenv().ok();
     let args = Cli::parse();
@@ -54,6 +60,13 @@ async fn main() -> anyhow::Result<()> {
 
     // build our application with a route
     let app = Router::new()
+        .route("/workspace/:workspace_id/raw/:commit_id/*path",
+            get(raw_workspace_download::<SqliteBackend, SqliteBackend>)
+        )
+        .layer(
+            ServiceBuilder::new()
+                .layer(Extension(platform.clone()))
+        )
         .leptos_routes_with_context(
             &leptos_options,
             routes,

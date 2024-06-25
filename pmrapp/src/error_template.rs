@@ -5,9 +5,9 @@ use thiserror::Error;
 
 #[derive(Clone, Debug, Error, PartialEq, Serialize, Deserialize)]
 pub enum AppError {
-    #[error("Not Found")]
+    #[error("404 Not Found")]
     NotFound,
-    #[error("Internal Server Error")]
+    #[error("500 Internal Server Error")]
     InternalServerError,
 }
 
@@ -15,7 +15,21 @@ impl AppError {
     pub fn status_code(&self) -> StatusCode {
         match self {
             AppError::NotFound => StatusCode::NOT_FOUND,
-            AppError::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
+#[cfg(feature = "ssr")]
+mod ssr {
+    use axum::response::{IntoResponse, Response};
+    use crate::error_template::AppError;
+
+    impl IntoResponse for AppError {
+        fn into_response(self) -> Response {
+            // TODO bring in the standard template to wrap around this.
+            let body = ();
+            (self.status_code(), body).into_response()
         }
     }
 }

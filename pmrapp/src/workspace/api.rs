@@ -4,20 +4,15 @@ use leptos::{
 };
 use pmrcore::{
     repo::RepoResult,
-    workspace::{
-        Workspaces,
-        traits::WorkspaceBackend,
-    },
-    platform::{
-        MCPlatform,
-        TMPlatform,
-    },
+    workspace::Workspaces,
 };
 #[cfg(feature = "ssr")]
 use crate::server::platform;
 
 #[server]
 pub async fn list_workspaces() -> Result<Workspaces, ServerFnError> {
+    use pmrcore::workspace::traits::WorkspaceBackend;
+
     let platform = platform()?;
     Ok(WorkspaceBackend::list_workspaces(platform.mc_platform.as_ref())
         .await?)

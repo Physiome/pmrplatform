@@ -242,7 +242,7 @@ fn WorkspaceListingView(repo_result: RepoResult) -> impl IntoView {
 #[component]
 fn WorkspaceRepoResultView(repo_result: RepoResult) -> impl IntoView {
     match repo_result.target {
-        PathObjectInfo::TreeInfo(ref tree_info) =>
+        PathObjectInfo::TreeInfo(_) =>
             Some(view! { <div><WorkspaceListingView repo_result/></div> }),
         PathObjectInfo::FileInfo(ref file_info) => {
             let href = format!(
