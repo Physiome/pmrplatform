@@ -1,4 +1,5 @@
 use crate::error_template::{AppError, ErrorTemplate};
+use serde::{Serialize, Deserialize};
 use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
@@ -24,7 +25,6 @@ pub fn Exposure() -> impl IntoView {
         <Title text="Physiome Model Repository > Exposure"/>
         <Outlet/>
 
-        /*
         // content for this welcome page
         <Router fallback=|| {
             let mut outside_errors = Errors::default();
@@ -37,7 +37,6 @@ pub fn Exposure() -> impl IntoView {
             <main>
             </main>
         </Router>
-        */
     }
 }
 
@@ -97,3 +96,84 @@ pub fn ExposurePathView() -> impl IntoView {
     }
 }
 
+#[derive(Params, PartialEq, Clone, Debug)]
+pub struct ExposureComponentParams {
+    id: Option<i64>,
+    path: Option<String>,
+}
+
+// custom routing solution for exposures as the built-in version not
+// fit for purpose
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum ExposureRouting {
+    Listing,
+    Exposure(i64),  // id
+    File(i64, String), // id, path
+}
+
+#[component]
+pub fn ExposureComponent() -> impl IntoView {
+    let params = use_params::<ExposureComponentParams>();
+    let route = create_resource(
+        move || params.get().map(|p| (p.id, p.path)).unwrap_or_else(|_| (None, None)),
+        |p| async move {
+            match p {
+                (None, None) => Ok(ExposureRouting::Listing),
+                (Some(id), None) => Ok(ExposureRouting::Exposure(id)),
+                (Some(id), Some(path)) => if path == "" {
+                    Ok(ExposureRouting::Exposure(id))
+                } else {
+                    Ok(ExposureRouting::File(id, path))
+                },
+                _ => Err(AppError::NotFound),
+            }
+        }
+    );
+
+    let exposure_view = move || {
+        match route.get() {
+            Some(Ok(ExposureRouting::Listing)) => Ok(view! {
+                <div>
+                    <ExposureListing/>
+                </div>
+            }),
+            // TODO probably need a dedicated function for resolving
+            // whether it is in fact Ok (e.g. exposure actually exist
+            Some(Ok(ExposureRouting::Exposure(_))) => Ok(view! {
+                <div>
+                    <ExposureView/>
+                </div>
+            }),
+            // likewise for the path
+            Some(Ok(ExposureRouting::File(..))) => Ok(view! {
+                <div>
+                    <ExposurePathView/>
+                </div>
+            }),
+            _ => Err(AppError::InternalServerError),
+        }
+    };
+
+    view! {
+        <Suspense>
+            <ErrorBoundary fallback=|errors| {
+                view! {
+                    <div class="error">
+                        <h1>"Something went wrong."</h1>
+                        <ul>
+                        {// This will not hoist the 404 to the main page?
+                        move || errors.get()
+                            .into_iter()
+                            .map(|(_, error)| view! { <li>{error.to_string()} </li> })
+                            .collect_view()
+                        }
+                        </ul>
+                    </div>
+                }
+            }>
+                {exposure_view}
+            </ErrorBoundary>
+        </Suspense>
+    }
+
+}

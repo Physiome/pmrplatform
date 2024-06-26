@@ -4,7 +4,7 @@ use leptos_meta::*;
 use leptos_router::*;
 
 use crate::workspace::{
-    Workspace,
+    // Workspace,
     WorkspaceListing,
     // WorkspaceRoutes,
     WorkspaceView,
@@ -12,10 +12,11 @@ use crate::workspace::{
 };
 
 use crate::exposure::{
-    ExposureListing,
-    ExposureView,
+    // ExposureListing,
+    // ExposureView,
     // ExposureRedirect,
-    ExposurePathView,
+    // ExposurePathView,
+    ExposureComponent,
 };
 
 #[component]
@@ -68,9 +69,16 @@ pub fn App() -> impl IntoView {
                     <Route path="/workspace/:id/file/:commit/*path" view=WorkspaceCommitPathView trailing_slash=TrailingSlash::Exact/>
 
                     // Exposures
-                    <Route path="/exposure/" view=ExposureListing trailing_slash=TrailingSlash::Exact/>
-                    <Route path="/exposure/:id/" view=ExposureView trailing_slash=TrailingSlash::Exact/>
-                    <Route path="/exposure/:id/*path" view=ExposurePathView trailing_slash=TrailingSlash::Exact/>
+                    // TODO these are bugged because leptos routes can't disambiguate between
+                    // all of the following cases correctly (specifically, the listing route is
+                    // *never* matched when a wildcard path immediately follows a fixed parameter).
+                    // <Route path="/exposure/" view=ExposureListing trailing_slash=TrailingSlash::Exact/>
+                    // <Route path="/exposure/:id/" view=ExposureView trailing_slash=TrailingSlash::Exact/>
+                    // <Route path="/exposure/:id/*path" view=ExposurePathView/>
+
+                    // This will handle everything until the routing bugs are fixed
+                    <Route path="/exposure/:id/*path" view=ExposureComponent/>
+
                     // both of the following cannot work with axum, they duplicate
                     // moreover, suffix mapping doesn't work.
                     // <Route path="/exposure/:id/*path" view=ExposureRedirect trailing_slash=TrailingSlash::Exact/>
