@@ -78,6 +78,8 @@ pub fn App() -> impl IntoView {
 
                     // This will handle everything until the routing bugs are fixed
                     <Route path="/exposure/:id/*path" view=ExposureComponent/>
+                    // FIXME dropping variables fixes the context?!
+                    // <Route path="/exposure" view=ExposureComponent/>
 
                     // both of the following cannot work with axum, they duplicate
                     // moreover, suffix mapping doesn't work.

@@ -37,6 +37,15 @@ impl DerefMut for Exposures {
     }
 }
 
+impl IntoIterator for Exposures {
+    type Item = Exposure;
+    type IntoIter = std::vec::IntoIter<Exposure>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 impl<'a, P: MCPlatform + Sized> From<Vec<ExposureRef<'a, P>>> for ExposureRefs<'a, P> {
     fn from(args: Vec<ExposureRef<'a, P>>) -> Self {
         Self(args)

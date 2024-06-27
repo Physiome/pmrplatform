@@ -4,13 +4,11 @@ use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
 
-/*
-#[component(transparent)]
-pub fn ExposureRoutes() -> impl IntoView {
-    view! {
-    }
-}
-*/
+mod api;
+
+use crate::exposure::api::{
+    list_exposures,
+};
 
 #[component]
 pub fn Exposure() -> impl IntoView {
@@ -42,9 +40,60 @@ pub fn Exposure() -> impl IntoView {
 
 #[component]
 pub fn ExposureListing() -> impl IntoView {
+    let exposures = create_resource(
+        move || (),
+        move |_| async move {
+            let result = list_exposures().await;
+            match result {
+                Ok(ref result) => logging::log!("{}", result.len()),
+                Err(_) => logging::log!("error loading exposures"),
+            };
+            result
+        },
+    );
+
     view! {
         <div class="main">
             <h1>"Listing of exposures"</h1>
+            <div>
+            <Suspense fallback=move || view! { <p>"Loading..."</p> }>
+                <ErrorBoundary fallback=|errors| {
+                    view! { <ErrorTemplate errors=errors/> }
+                }>
+                    {move || {
+                        logging::log!("rendering listing");
+                        let listing = { move || { exposures
+                            .get()
+                            .map(move |exposures| match exposures {
+                                Err(e) => {
+                                    view! {
+                                        <pre class="error">"Server Error: " {e.to_string()}</pre>
+                                    }
+                                        .into_view()
+                                }
+                                Ok(exposures) => {
+                                    exposures
+                                        .into_iter()
+                                        .map(move |exposure| {
+                                            view! {
+                                                <div>
+                                                    <div><a href=format!("/exposure/{}/", exposure.id)>
+                                                        "Exposure "{exposure.id}
+                                                    </a></div>
+                                                    <div>{exposure.description}</div>
+                                                </div>
+                                            }
+                                        })
+                                        .collect_view()
+                                }
+                            })
+                            .unwrap_or_default()
+                        }};
+                        view! { <div>{listing}</div> }
+                    }}
+                </ErrorBoundary>
+            </Suspense>
+            </div>
         </div>
     }
 }
@@ -139,17 +188,21 @@ pub fn ExposureComponent() -> impl IntoView {
             }),
             // TODO probably need a dedicated function for resolving
             // whether it is in fact Ok (e.g. exposure actually exist
-            Some(Ok(ExposureRouting::Exposure(_))) => Ok(view! {
-                <div>
-                    <ExposureView/>
-                </div>
-            }),
+            Some(Ok(ExposureRouting::Exposure(_))) => {
+                Ok(view! {
+                    <div>
+                        <ExposureView/>
+                    </div>
+                })
+            }
             // likewise for the path
-            Some(Ok(ExposureRouting::File(..))) => Ok(view! {
-                <div>
-                    <ExposurePathView/>
-                </div>
-            }),
+            Some(Ok(ExposureRouting::File(..))) => {
+                Ok(view! {
+                    <div>
+                        <ExposurePathView/>
+                    </div>
+                })
+            }
             _ => Err(AppError::InternalServerError),
         }
     };
