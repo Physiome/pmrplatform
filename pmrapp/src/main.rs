@@ -20,7 +20,6 @@ async fn main() -> anyhow::Result<()> {
     };
     use std::fs;
     use sqlx::{migrate::MigrateDatabase, Sqlite};
-    use tower::ServiceBuilder;
 
     dotenvy::dotenv().ok();
     let args = Cli::parse();
@@ -57,24 +56,19 @@ async fn main() -> anyhow::Result<()> {
         fs::canonicalize(&args.pmr_data_root)?,
         fs::canonicalize(&args.pmr_repo_root)?,
     );
-    let app_platform = platform.clone();
 
     // build our application with a route
     let app = Router::new()
         .route("/workspace/:workspace_id/raw/:commit_id/*path",
             get(raw_workspace_download::<SqliteBackend, SqliteBackend>)
         )
-        .leptos_routes_with_context(
+        .leptos_routes(
             &leptos_options,
             routes,
-            move || provide_context(app_platform.clone()),
             App,
         )
         .fallback(file_and_error_handler)
-        .layer(
-            ServiceBuilder::new()
-                .layer(Extension(platform.clone()))
-        )
+        .layer(Extension(platform.clone()))
         .with_state(leptos_options);
 
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();

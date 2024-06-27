@@ -1,6 +1,5 @@
 use leptos::{
     ServerFnError,
-    use_context,
 };
 use pmrcore::platform::{
     MCPlatform,
@@ -9,19 +8,21 @@ use pmrcore::platform::{
 use pmrctrl::platform::Platform;
 use pmrmodel::backend::db::SqliteBackend;
 
-pub fn platform_context<MCP, TMP>() -> Result<Platform<MCP, TMP>, ServerFnError>
+pub async fn platform_context<MCP, TMP>() -> Result<Platform<MCP, TMP>, ServerFnError>
 where
     MCP: MCPlatform + Clone + Sized + Send + Sync + 'static,
     TMP: TMPlatform + Clone + Sized + Send + Sync + 'static,
 {
-    use_context::<Platform<MCP, TMP>>()
-        .ok_or_else(|| ServerFnError::ServerError("Missing Platform.".into()))
+    Ok(leptos_axum::extract::<axum::Extension<Platform<MCP, TMP>>>()
+        .await?
+        .0
+    )
 }
 
 // TODO figure out how the specific type can be avoided, the goal
 // is to allow generics for the backend.
-pub fn platform() -> Result<Platform<SqliteBackend, SqliteBackend>, ServerFnError> {
-    platform_context()
+pub async fn platform() -> Result<Platform<SqliteBackend, SqliteBackend>, ServerFnError> {
+    platform_context().await
 }
 
 pub mod workspace;

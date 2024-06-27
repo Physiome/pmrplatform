@@ -13,7 +13,7 @@ use crate::server::platform;
 pub async fn list_workspaces() -> Result<Workspaces, ServerFnError> {
     use pmrcore::workspace::traits::WorkspaceBackend;
 
-    let platform = platform()?;
+    let platform = platform().await?;
     Ok(WorkspaceBackend::list_workspaces(platform.mc_platform.as_ref())
         .await?)
 }
@@ -24,7 +24,7 @@ pub async fn get_workspace_info(
     commit: Option<String>,
     path: Option<String>,
 ) -> Result<RepoResult, ServerFnError> {
-    let platform = platform()?;
+    let platform = platform().await?;
     Ok(platform.repo_backend()
         .git_handle(id).await?
         .pathinfo(commit, path)?
