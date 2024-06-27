@@ -7,6 +7,7 @@ use pmrcore::{
         MCPlatform,
         TMPlatform,
     },
+    workspace::traits::Workspace as _,
 };
 
 use crate::{
@@ -45,6 +46,7 @@ impl<
         let eb: &dyn ExposureBackend = self.mc_platform.as_ref();
         let exposure = self.mc_platform.get_exposure(
             eb.insert(
+                git_handle.workspace().description(),
                 workspace_id,
                 None,
                 commit_id,

@@ -49,6 +49,7 @@ pub trait ExposureBackend {
     /// Returns the id of the inserted entry.
     async fn insert(
         &self,
+        description: Option<&str>,
         workspace_id: i64,
         workspace_tag_id: Option<i64>,
         commit_id: &str,

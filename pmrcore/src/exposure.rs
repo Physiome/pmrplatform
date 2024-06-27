@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Exposure {
     pub id: i64,
+    pub description: Option<String>,
     pub workspace_id: i64,
     pub workspace_tag_id: Option<i64>,
     pub commit_id: String,

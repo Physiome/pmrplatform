@@ -72,8 +72,9 @@ use pmrcore::{
 
 mock! {
     pub Platform {
-        pub async fn exposure_insert(
+        pub async fn exposure_insert<'a>(
             &self,
+            description: Option<&'a str>,
             workspace_id: i64,
             workspace_tag_id: Option<i64>,
             commit_id: &str,
@@ -354,12 +355,13 @@ mock! {
 impl ExposureBackend for MockPlatform {
     async fn insert(
         &self,
+        description: Option<&str>,
         workspace_id: i64,
         workspace_tag_id: Option<i64>,
         commit_id: &str,
         default_file_id: Option<i64>,
     ) -> Result<i64, BackendError> {
-        self.exposure_insert(workspace_id, workspace_tag_id, commit_id, default_file_id).await
+        self.exposure_insert(description, workspace_id, workspace_tag_id, commit_id, default_file_id).await
     }
     async fn list(
         &self,

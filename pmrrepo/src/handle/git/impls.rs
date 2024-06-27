@@ -108,7 +108,7 @@ impl<'repo, P: MCPlatform + Send + Sync> GitHandle<'repo, P> {
         Ok(Self { backend, workspace, repo })
     }
 
-    pub fn workspace(&'repo self) -> &'repo WorkspaceRef<'repo, P> {
+    pub fn workspace(&self) -> &WorkspaceRef<'repo, P> {
         &self.workspace
     }
 

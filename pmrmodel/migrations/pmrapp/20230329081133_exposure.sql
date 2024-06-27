@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS exposure (
     id INTEGER PRIMARY KEY NOT NULL,
+    description TEXT,
     workspace_id INTEGER NOT NULL,
     workspace_tag_id INTEGER,
     commit_id TEXT NOT NULL,  -- this is actually duplicate with tag

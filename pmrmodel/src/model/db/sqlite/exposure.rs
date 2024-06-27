@@ -18,6 +18,7 @@ use crate::{
 
 async fn insert_exposure_sqlite(
     sqlite: &SqliteBackend,
+    description: Option<&str>,
     workspace_id: i64,
     workspace_tag_id: Option<i64>,
     commit_id: &str,
@@ -27,14 +28,16 @@ async fn insert_exposure_sqlite(
     let id = sqlx::query!(
         r#"
 INSERT INTO exposure (
+    description,
     workspace_id,
     workspace_tag_id,
     commit_id,
     created_ts,
     default_file_id
 )
-VALUES ( ?1, ?2, ?3, ?4, ?5 )
+VALUES ( ?1, ?2, ?3, ?4, ?5, ?6 )
         "#,
+        description,
         workspace_id,
         workspace_tag_id,
         commit_id,
@@ -54,6 +57,7 @@ async fn get_exposure_by_id_sqlite(
     let rec = sqlx::query!(r#"
 SELECT
     id,
+    description,
     workspace_id,
     workspace_tag_id,
     commit_id,
@@ -66,6 +70,7 @@ WHERE id = ?1
     )
     .map(|row| Exposure {
         id: row.id,
+        description: row.description,
         workspace_id: row.workspace_id,
         workspace_tag_id: row.workspace_tag_id,
         commit_id: row.commit_id,
@@ -85,6 +90,7 @@ async fn list_exposures_sqlite(
     let rec = sqlx::query!(r#"
 SELECT
     id,
+    description,
     workspace_id,
     workspace_tag_id,
     commit_id,
@@ -95,6 +101,7 @@ FROM exposure
     )
     .map(|row| Exposure {
         id: row.id,
+        description: row.description,
         workspace_id: row.workspace_id,
         workspace_tag_id: row.workspace_tag_id,
         commit_id: row.commit_id,
@@ -115,6 +122,7 @@ async fn list_exposures_for_workspace_sqlite(
     let rec = sqlx::query!(r#"
 SELECT
     id,
+    description,
     workspace_id,
     workspace_tag_id,
     commit_id,
@@ -127,6 +135,7 @@ WHERE workspace_id = ?1
     )
     .map(|row| Exposure {
         id: row.id,
+        description: row.description,
         workspace_id: row.workspace_id,
         workspace_tag_id: row.workspace_tag_id,
         commit_id: row.commit_id,
@@ -168,6 +177,7 @@ WHERE id = ?1
 impl ExposureBackend for SqliteBackend {
     async fn insert(
         &self,
+        description: Option<&str>,
         workspace_id: i64,
         workspace_tag_id: Option<i64>,
         commit_id: &str,
@@ -175,6 +185,7 @@ impl ExposureBackend for SqliteBackend {
     ) -> Result<i64, BackendError>{
         insert_exposure_sqlite(
             &self,
+            description,
             workspace_id,
             workspace_tag_id,
             commit_id,
@@ -246,7 +257,9 @@ pub(crate) mod testing {
         backend: &dyn ExposureBackend,
         workspace_id: i64,
     ) -> anyhow::Result<i64> {
+        let description = format!("Exposure for Workspace {workspace_id}");
         Ok(backend.insert(
+            Some(&description),
             workspace_id,
             None,
             "abcdef".into(),
@@ -268,6 +281,7 @@ pub(crate) mod testing {
         ).await?;
         assert_eq!(exposure, Exposure {
             id: 1,
+            description: Some("Exposure for Workspace 1".into()),
             workspace_id: 1,
             workspace_tag_id: None,
             commit_id: "abcdef".into(),
