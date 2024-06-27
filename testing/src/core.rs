@@ -79,6 +79,9 @@ mock! {
             commit_id: &str,
             default_file_id: Option<i64>,
         ) -> Result<i64, BackendError>;
+        pub async fn exposure_list(
+            &self,
+        ) -> Result<Exposures, BackendError>;
         pub async fn exposure_list_for_workspace(
             &self,
             workspace_id: i64,
@@ -357,6 +360,11 @@ impl ExposureBackend for MockPlatform {
         default_file_id: Option<i64>,
     ) -> Result<i64, BackendError> {
         self.exposure_insert(workspace_id, workspace_tag_id, commit_id, default_file_id).await
+    }
+    async fn list(
+        &self,
+    ) -> Result<Exposures, BackendError> {
+        self.exposure_list().await
     }
     async fn list_for_workspace(
         &self,

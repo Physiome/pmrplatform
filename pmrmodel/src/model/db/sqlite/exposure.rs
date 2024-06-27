@@ -79,6 +79,35 @@ WHERE id = ?1
     Ok(rec)
 }
 
+async fn list_exposures_sqlite(
+    sqlite: &SqliteBackend,
+) -> Result<Exposures, BackendError> {
+    let rec = sqlx::query!(r#"
+SELECT
+    id,
+    workspace_id,
+    workspace_tag_id,
+    commit_id,
+    created_ts,
+    default_file_id
+FROM exposure
+"#,
+    )
+    .map(|row| Exposure {
+        id: row.id,
+        workspace_id: row.workspace_id,
+        workspace_tag_id: row.workspace_tag_id,
+        commit_id: row.commit_id,
+        created_ts: row.created_ts,
+        default_file_id: row.default_file_id,
+        // won't have files.
+        files: None,
+    })
+    .fetch_all(&*sqlite.pool)
+    .await?;
+    Ok(rec.into())
+}
+
 async fn list_exposures_for_workspace_sqlite(
     sqlite: &SqliteBackend,
     workspace_id: i64,
@@ -150,6 +179,14 @@ impl ExposureBackend for SqliteBackend {
             workspace_tag_id,
             commit_id,
             default_file_id,
+        ).await
+    }
+
+    async fn list(
+        &self,
+    ) -> Result<Exposures, BackendError> {
+        list_exposures_sqlite(
+            &self,
         ).await
     }
 

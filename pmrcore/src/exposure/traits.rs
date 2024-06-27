@@ -55,6 +55,11 @@ pub trait ExposureBackend {
         default_file_id: Option<i64>,
     ) -> Result<i64, BackendError>;
 
+    /// Returns all `Exposures`.
+    async fn list(
+        &self,
+    ) -> Result<exposure::Exposures, BackendError>;
+
     /// Returns all `Exposures` for the given `workspace_id`.
     async fn list_for_workspace(
         &self,
