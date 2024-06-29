@@ -256,7 +256,7 @@ fn WorkspaceRepoResultView(repo_result: RepoResult) -> impl IntoView {
                 <div>
                 <div>{info}</div>
                 <div>
-                    <a href=&href>"download"</a>
+                    <a href=&href target="_self">"download"</a>
                 </div>
                 {
                     (file_info.mime_type[..5] == *"image").then(||
