@@ -173,7 +173,6 @@ impl<
         )
     }
 
-
     /// List all underlying files associated with the workspace at the
     /// commit id for this exposure.
     pub fn list_files(&self) -> Result<Vec<String>, PlatformError> {
@@ -235,6 +234,32 @@ impl<
         Ok(self.0.exposure.files().await?
             .iter()
             .map(|f| f.workspace_file_path())
+            .collect::<Vec<_>>()
+        )
+    }
+
+    /// List all underlying files associated with the workspace at the
+    /// commit id for this exposure, with an additional flag denoting if
+    /// the path has an exposure file.
+    pub async fn list_files_info(
+        &'p self,
+    ) -> Result<Vec<(String, bool)>, PlatformError> {
+        // Ok(self.0.git_handle.files(Some(&self.0.exposure.commit_id()))?)
+        let mut files = self.list_files()?;
+        files.sort_unstable();
+        let mut exposure_files = self.list_exposure_files().await?;
+        exposure_files.sort_unstable();
+        let mut exposure_files = exposure_files.into_iter().peekable();
+
+        Ok(files.into_iter()
+            .map(|file| {
+                if exposure_files.peek() == Some(&(file.as_ref())) {
+                    exposure_files.next();
+                    (file, true)
+                } else {
+                    (file, false)
+                }
+            })
             .collect::<Vec<_>>()
         )
     }

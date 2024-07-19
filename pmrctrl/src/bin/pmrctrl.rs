@@ -262,18 +262,9 @@ where
         }
         ExposureCmd::Files { id } => {
             let ctrl = platform.get_exposure(id).await?;
-            let mut files = ctrl.list_files()?;
-            files.sort_unstable();
-            let mut exposure_files = ctrl.list_exposure_files().await?;
-            exposure_files.sort_unstable();
-            let mut exposure_files = exposure_files.into_iter().peekable();
-            for file in files.iter() {
-                if exposure_files.peek() == Some(&(file.as_ref())) {
-                    println!("[*] {file}");
-                    exposure_files.next();
-                } else {
-                    println!("[ ] {file}");
-                }
+            for (file, flag) in ctrl.list_files_info().await?.iter() {
+                let flag = flag.then_some("*").unwrap_or(" ");
+                println!("[{flag}] {file}");
             }
         }
         ExposureCmd::Path { exposure_id, path, cmd } => {
