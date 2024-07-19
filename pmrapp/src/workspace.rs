@@ -246,7 +246,7 @@ fn WorkspaceRepoResultView(repo_result: RepoResult) -> impl IntoView {
             Some(view! { <div><WorkspaceListingView repo_result/></div> }),
         PathObjectInfo::FileInfo(ref file_info) => {
             let href = format!(
-                "/workspace/{}/raw/{}/{}",
+                "/workspace/{}/rawfile/{}/{}",
                 &repo_result.workspace.id,
                 &repo_result.commit.commit_id,
                 &repo_result.path,

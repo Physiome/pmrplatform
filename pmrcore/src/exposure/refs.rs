@@ -70,6 +70,10 @@ impl<P: MCPlatform + Sized> ExposureRef<'_, P> {
     pub fn into_inner(self) -> Exposure {
         self.inner
     }
+
+    pub fn clone_inner(&self) -> Exposure {
+        self.inner.clone()
+    }
 }
 
 impl<'a, P: MCPlatform + Sized> ExposureRef<'a, P> {
@@ -119,6 +123,9 @@ impl ExposureFiles {
 impl<P: MCPlatform + Sized> ExposureFileRef<'_, P> {
     pub fn into_inner(self) -> ExposureFile {
         self.inner
+    }
+    pub fn clone_inner(&self) -> ExposureFile {
+        self.inner.clone()
     }
 }
 
@@ -195,5 +202,8 @@ impl<'a, P: MCPlatform + Sized> ExposureFileViewRef<'a, P> {
 impl<P: MCPlatform + Sized> ExposureFileViewRef<'_, P> {
     pub fn into_inner(self) -> ExposureFileView {
         self.inner
+    }
+    pub fn clone_inner(&self) -> ExposureFileView {
+        self.inner.clone()
     }
 }

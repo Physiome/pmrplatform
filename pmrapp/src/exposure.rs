@@ -7,7 +7,9 @@ use leptos_router::*;
 mod api;
 
 use crate::exposure::api::{
-    list_exposures,
+    list,
+    list_files,
+    get_file,
 };
 
 #[component]
@@ -43,7 +45,7 @@ pub fn ExposureListing() -> impl IntoView {
     let exposures = create_resource(
         move || (),
         move |_| async move {
-            let result = list_exposures().await;
+            let result = list().await;
             match result {
                 Ok(ref result) => logging::log!("{}", result.len()),
                 Err(_) => logging::log!("error loading exposures"),
@@ -51,6 +53,27 @@ pub fn ExposureListing() -> impl IntoView {
             result
         },
     );
+    let listing = move || { exposures
+        .get()
+        .map(move |exposures| match exposures {
+            Err(e) => view! {
+                <pre class="error">"Server Error: " {e.to_string()}</pre>
+            }
+                .into_view(),
+            Ok(exposures) => exposures
+                .into_iter()
+                .map(move |exposure| view! {
+                    <div>
+                        <div><a href=format!("/exposure/{}/", exposure.id)>
+                            "Exposure "{exposure.id}
+                        </a></div>
+                        <div>{exposure.description}</div>
+                    </div>
+                })
+                .collect_view()
+        })
+        .unwrap_or_default()
+    };
 
     view! {
         <div class="main">
@@ -60,37 +83,7 @@ pub fn ExposureListing() -> impl IntoView {
                 <ErrorBoundary fallback=|errors| {
                     view! { <ErrorTemplate errors=errors/> }
                 }>
-                    {move || {
-                        logging::log!("rendering listing");
-                        let listing = { move || { exposures
-                            .get()
-                            .map(move |exposures| match exposures {
-                                Err(e) => {
-                                    view! {
-                                        <pre class="error">"Server Error: " {e.to_string()}</pre>
-                                    }
-                                        .into_view()
-                                }
-                                Ok(exposures) => {
-                                    exposures
-                                        .into_iter()
-                                        .map(move |exposure| {
-                                            view! {
-                                                <div>
-                                                    <div><a href=format!("/exposure/{}/", exposure.id)>
-                                                        "Exposure "{exposure.id}
-                                                    </a></div>
-                                                    <div>{exposure.description}</div>
-                                                </div>
-                                            }
-                                        })
-                                        .collect_view()
-                                }
-                            })
-                            .unwrap_or_default()
-                        }};
-                        view! { <div>{listing}</div> }
-                    }}
+                    <div>{listing}</div>
                 </ErrorBoundary>
             </Suspense>
             </div>
@@ -104,20 +97,46 @@ pub struct ExposureParams {
 }
 
 #[component]
-pub fn ExposureView() -> impl IntoView {
-    let params = use_params::<ExposureParams>();
-    let id = move || {
-        params.with(|params| {
-            params.as_ref()
-                .map(|params| params.id.clone())
-                .ok()
-                .flatten()
+pub fn ExposureView(id: i64) -> impl IntoView {
+    let files = create_resource(
+        move || (),
+        move |_| list_files(id),
+    );
+    let file_entry_view = move |(file, flag)| view! {
+        <li>
+          // <li>{file} - {flag}</li>
+          <a href=format!("/exposure/{id}/{file}")>
+              {file}
+          </a>
+          " - "{flag}
+        </li>
+    };
+    let listing = move || { files.get().map(
+        move |files| match files {
+            Err(_) => Err(AppError::NotFound),
+            Ok(files) => {
+                Ok(view! {
+                    <h1>"Viewing exposure "{id}</h1>
+                    <ul>{
+                        files
+                            .into_iter()
+                            .map(file_entry_view)
+                            .collect_view()
+                    }</ul>
+                }.into_view())
+            }
         })
     };
 
     view! {
         <div class="main">
-            <h1>"Viewing exposure "{id}</h1>
+            <Suspense fallback=move || view! { <p>"Loading..."</p> }>
+                <ErrorBoundary fallback=|errors| {
+                    view! { <ErrorTemplate errors=errors/> }
+                }>
+                    <div>{listing}</div>
+                </ErrorBoundary>
+            </Suspense>
         </div>
     }
 }
@@ -129,18 +148,44 @@ pub struct ExposureViewParams {
 }
 
 #[component]
-pub fn ExposurePathView() -> impl IntoView {
-    let params = use_params_map();
-    let id = move || {
-        params.get().get("id").cloned().unwrap_or_default()
-    };
-    let path = move || {
-        params.get().get("path").cloned().unwrap_or_default()
+pub fn ExposurePathView(id: i64, path: String) -> impl IntoView {
+    let file = create_resource(
+        move || (),
+        move |_| get_file(id, path.clone()),
+    );
+    let ep_view = move || { file.get().map(
+        move |file| match file {
+            // TODO figure out how to redirect to the workspace.
+            Err(_) => Err(AppError::NotFound),
+            Ok(value) => match value {
+                Ok(file) => Ok(view! {
+                    <h1>
+                        "Viewing exposure "{file.id}
+                        " at "{file.workspace_file_path}
+                    </h1>
+                }.into_view()),
+                Err(path) => {
+                    // Ok(path.into_view()
+                    Ok(view! {
+                        <Redirect
+                            path=path
+                            // options=NavigationOptions
+                        />
+                    }.into_view())
+                }
+            }
+        })
     };
 
     view! {
         <div class="main">
-            <h1>"Viewing exposure "{id}" at "{path}</h1>
+            <Suspense fallback=move || view! { <p>"Loading..."</p> }>
+                <ErrorBoundary fallback=|errors| {
+                    view! { <ErrorTemplate errors=errors/> }
+                }>
+                    <div>{ep_view}</div>
+                </ErrorBoundary>
+            </Suspense>
         </div>
     }
 }
@@ -188,18 +233,21 @@ pub fn ExposureComponent() -> impl IntoView {
             }),
             // TODO probably need a dedicated function for resolving
             // whether it is in fact Ok (e.g. exposure actually exist
-            Some(Ok(ExposureRouting::Exposure(_))) => {
+            Some(Ok(ExposureRouting::Exposure(id))) => {
                 Ok(view! {
                     <div>
-                        <ExposureView/>
+                        <ExposureView id=id/>
                     </div>
                 })
             }
             // likewise for the path
-            Some(Ok(ExposureRouting::File(..))) => {
+            Some(Ok(ExposureRouting::File(id, path))) => {
                 Ok(view! {
                     <div>
-                        <ExposurePathView/>
+                        <ExposurePathView
+                            id=id
+                            path=path
+                            />
                     </div>
                 })
             }
