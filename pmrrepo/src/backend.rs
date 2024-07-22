@@ -13,13 +13,13 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct Backend<P: MCPlatform + Send + Sync> {
-    pub db_platform: Arc<P>,
+pub struct Backend {
+    pub db_platform: Arc<dyn MCPlatform + Send + Sync>,
     pub(crate) repo_root: PathBuf,
 }
 
-impl<P: MCPlatform + Send + Sync> Backend<P> {
-    pub fn new(db_platform: Arc<P>, repo_root: PathBuf) -> Self {
+impl Backend {
+    pub fn new(db_platform: Arc<dyn MCPlatform + Send + Sync>, repo_root: PathBuf) -> Self {
         Self {
             db_platform,
             repo_root,
@@ -33,12 +33,12 @@ impl<P: MCPlatform + Send + Sync> Backend<P> {
         Ok(())
     }
 
-    pub async fn git_handle<'a>(&'a self, workspace_id: i64) -> Result<GitHandle<'a, P>, PmrRepoError> {
+    pub async fn git_handle<'a>(&'a self, workspace_id: i64) -> Result<GitHandle<'a>, PmrRepoError> {
         let workspace = self.db_platform.get_workspace(workspace_id).await?;
         Ok(GitHandle::new(&self, self.repo_root.clone(), workspace)?)
     }
 
-    pub fn platform(&self) -> &P {
-        &self.db_platform
+    pub fn platform(&self) -> &(dyn MCPlatform + Send + Sync) {
+        self.db_platform.as_ref()
     }
 }

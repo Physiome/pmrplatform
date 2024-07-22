@@ -1,9 +1,5 @@
 use futures::future;
 use pmrcore::{
-    platform::{
-        MCPlatform,
-        TMPlatform,
-    },
     profile::{
         ViewTaskTemplateProfile,
         traits::ViewTaskTemplateProfileBackend,
@@ -15,10 +11,7 @@ use crate::{
     platform::Platform,
 };
 
-impl<
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-> Platform<MCP, TMP> {
+impl Platform {
     pub async fn create_view_profile(
         &self,
     ) -> Result<(), PlatformError> {

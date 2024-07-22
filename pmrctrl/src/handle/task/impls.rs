@@ -1,8 +1,4 @@
 use pmrcore::{
-    platform::{
-        MCPlatform,
-        TMPlatform,
-    },
     task::TaskRef,
 };
 
@@ -12,13 +8,9 @@ use crate::{
     platform::Platform,
 };
 
-impl<
-    'p,
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-> TaskExecutorCtrl<'p, MCP, TMP> {
+impl<'p> TaskExecutorCtrl<'p> {
     pub(crate) fn new(
-        platform: &'p Platform<MCP, TMP>,
+        platform: &'p Platform,
         task: TaskRef<'p>,
     ) -> Self {
         Self {

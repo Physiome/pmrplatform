@@ -4,6 +4,7 @@ use pmrcore::platform::{
 };
 use pmrrepo::backend::Backend;
 use std::{
+    fmt,
     path::{
         Path,
         PathBuf,
@@ -13,13 +14,10 @@ use std::{
 
 use crate::platform::Platform;
 
-impl<
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-> Platform<MCP, TMP> {
+impl Platform {
     pub fn new(
-        mc_platform: MCP,
-        tm_platform: TMP,
+        mc_platform: impl MCPlatform + Send + Sync + 'static,
+        tm_platform: impl TMPlatform + Send + Sync + 'static,
         data_root: PathBuf,
         repo_root: PathBuf,
     ) -> Self {
@@ -37,8 +35,17 @@ impl<
         self.repo_root.as_ref()
     }
 
-    pub fn repo_backend(&self) -> &Backend<MCP> {
+    pub fn repo_backend(&self) -> &Backend {
         &self.repo_backend
+    }
+}
+
+impl fmt::Debug for Platform {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Platform")
+            .field("data_root", &self.data_root)
+            .field("repo_root", &self.repo_root)
+            .finish()
     }
 }
 

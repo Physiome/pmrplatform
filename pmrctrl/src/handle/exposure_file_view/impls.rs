@@ -3,10 +3,6 @@ use pmrcore::{
         task::traits::ExposureTaskBackend,
         traits::ExposureFileView as _,
     },
-    platform::{
-        MCPlatform,
-        TMPlatform,
-    },
     task::{
         Task,
         traits::TaskBackend,
@@ -19,11 +15,7 @@ use crate::{
     handle::view_task_template::VTTCTask,
 };
 
-impl<
-    'p,
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-> ExposureFileViewCtrl<'p, MCP, TMP> {
+impl<'p> ExposureFileViewCtrl<'p> {
     /// Queue a Task created by ViewTaskTemplateCtrl
     ///
     /// This consumes the incoming task.
@@ -39,10 +31,11 @@ impl<
         // the db, the underlying API depands it, and dropping the data
         // to be queued is a way to prevent duplicating this call.
         let (vtt_id, task): (i64, Task) = vttc_task.into();
-        let tb: &dyn TaskBackend = self.platform.tm_platform.as_ref();
-        let task = tb.adds_task(task).await?;
-        let etb: &dyn ExposureTaskBackend = self.platform.mc_platform.as_ref();
-        let efv_id = etb.create_task_for_view(
+        let tmp = self.platform.tm_platform.as_ref();
+        let task = TaskBackend::adds_task(tmp, task).await?;
+        let mcp = self.platform.mc_platform.as_ref();
+        let efv_id = ExposureTaskBackend::create_task_for_view(
+            mcp,
             self.exposure_file_view.id(),
             vtt_id,
             Some(task.id),

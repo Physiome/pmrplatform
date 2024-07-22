@@ -8,8 +8,8 @@ use gix::{
     ThreadSafeRepository,
 };
 
-pub struct GitHandle<'repo, P: MCPlatform + Send + Sync> {
-    pub(super) backend: &'repo Backend<P>,
+pub struct GitHandle<'repo> {
+    pub(super) backend: &'repo Backend,
     pub(super) workspace: WorkspaceRef<'repo>,
     pub(super) repo: ThreadSafeRepository,
 }
@@ -20,8 +20,8 @@ pub enum GitResultTarget {
     RemoteInfo(RemoteInfo),
 }
 
-pub struct GitHandleResult<'repo, P: MCPlatform + Send + Sync> {
-    pub(super) backend: &'repo Backend<P>,
+pub struct GitHandleResult<'repo> {
+    pub(super) backend: &'repo Backend,
     pub(super) repo: &'repo ThreadSafeRepository,
     pub(super) commit: ObjectDetached,
     pub(super) target: GitResultTarget,

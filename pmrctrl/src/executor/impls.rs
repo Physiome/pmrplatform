@@ -1,11 +1,5 @@
 use async_trait::async_trait;
-use pmrcore::{
-    platform::{
-        MCPlatform,
-        TMPlatform,
-    },
-    task::TaskDetached,
-};
+use pmrcore::task::TaskDetached;
 use pmrtqs::executor::traits;
 use tokio::sync::broadcast;
 
@@ -16,20 +10,14 @@ use crate::{
     platform::Platform,
 };
 
-impl<
-    MCP: MCPlatform + Clone + Send + Sync,
-    TMP: TMPlatform + Clone + Send + Sync,
-> Executor<MCP, TMP> {
-    pub fn new(platform: Platform<MCP, TMP>) -> Self {
+impl Executor {
+    pub fn new(platform: Platform) -> Self {
         Self { platform }
     }
 }
 
 #[async_trait]
-impl<
-    MCP: MCPlatform + Clone + Send + Sync,
-    TMP: TMPlatform + Clone + Send + Sync,
-> traits::Executor for Executor<MCP, TMP> {
+impl traits::Executor for Executor {
     type Error = PlatformError;
 
     async fn start_task(

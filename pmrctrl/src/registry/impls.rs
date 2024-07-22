@@ -1,10 +1,4 @@
-use pmrcore::{
-    exposure::traits::ExposureFile,
-    platform::{
-        MCPlatform,
-        TMPlatform,
-    },
-};
+use pmrcore::exposure::traits::ExposureFile;
 use pmrmodel::registry::{
     ChoiceRegistry,
     PreparedChoiceRegistry,
@@ -26,15 +20,11 @@ use crate::{
 // An idea for this might be a default method and the impl TryFrom for
 // each of them would flag the relevant ones on or off.
 
-impl<
-    'p,
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-> TryFrom<&ExposureCtrl<'p, MCP, TMP>> for PreparedChoiceRegistry {
+impl<'p> TryFrom<&ExposureCtrl<'p>> for PreparedChoiceRegistry {
     type Error = PlatformError;
 
     fn try_from(
-        handle: &ExposureCtrl<'p, MCP, TMP>,
+        handle: &ExposureCtrl<'p>,
     ) -> Result<Self, Self::Error> {
         let mut registry = PreparedChoiceRegistry::new();
         registry.register("files", handle.map_files_fs()?.into());
@@ -45,15 +35,11 @@ impl<
     }
 }
 
-impl<
-    'p,
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-> TryFrom<&ExposureFileCtrl<'p, MCP, TMP>> for PreparedChoiceRegistry {
+impl<'p> TryFrom<&ExposureFileCtrl<'p>> for PreparedChoiceRegistry {
     type Error = PlatformError;
 
     fn try_from(
-        handle: &ExposureFileCtrl<'p, MCP, TMP>,
+        handle: &ExposureFileCtrl<'p>,
     ) -> Result<Self, Self::Error> {
         let mut registry = PreparedChoiceRegistry::new();
         // TODO need a registry for files that provide a default value to the _current_ file name

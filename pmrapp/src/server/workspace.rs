@@ -9,10 +9,6 @@ use axum::{
 };
 use http::header;
 use pmrcore::{
-    platform::{
-        MCPlatform,
-        TMPlatform,
-    },
     repo::{
         PathObjectInfo,
         RemoteInfo,
@@ -25,14 +21,10 @@ use std::io::Write;
 use crate::error_template::AppError;
 
 
-pub async fn raw_workspace_download<MCP, TMP>(
-    platform: Extension<Platform<MCP, TMP>>,
+pub async fn raw_workspace_download(
+    platform: Extension<Platform>,
     path: Path<(i64, String, String)>,
-) -> Response
-where
-    MCP: MCPlatform + Clone + Sized + Send + Sync + 'static,
-    TMP: TMPlatform + Clone + Sized + Send + Sync + 'static,
-{
+) -> Response {
 
     let workspace_id = path.0.0;
     let commit_id = path.1.clone();

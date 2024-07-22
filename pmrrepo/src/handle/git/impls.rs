@@ -22,7 +22,6 @@ use pmrcore::{
         RemoteInfo,
         RepoResult,
     },
-    platform::MCPlatform,
     workspace::{
         WorkspaceRef,
         traits::{
@@ -59,8 +58,8 @@ use super::{
     util::*,
 };
 
-impl<P: MCPlatform + Send + Sync> From<&GitHandleResult<'_, P>> for PathObjectInfo {
-    fn from(item: &GitHandleResult<P>) -> Self {
+impl From<&GitHandleResult<'_>> for PathObjectInfo {
+    fn from(item: &GitHandleResult) -> Self {
         match &item.target {
             GitResultTarget::Object(object) => object.into(),
             GitResultTarget::RemoteInfo(remote_info) => PathObjectInfo::RemoteInfo(remote_info.clone()),
@@ -68,8 +67,8 @@ impl<P: MCPlatform + Send + Sync> From<&GitHandleResult<'_, P>> for PathObjectIn
     }
 }
 
-impl<P: MCPlatform + Send + Sync> From<GitHandleResult<'_, P>> for RepoResult {
-    fn from(item: GitHandleResult<P>) -> Self {
+impl From<GitHandleResult<'_>> for RepoResult {
+    fn from(item: GitHandleResult) -> Self {
         RepoResult {
             target: (&item).into(),
             workspace: item.workspace.clone_inner(),
@@ -80,10 +79,10 @@ impl<P: MCPlatform + Send + Sync> From<GitHandleResult<'_, P>> for RepoResult {
     }
 }
 
-impl<'handle, P: MCPlatform + Send + Sync> TryFrom<Handle<'handle, P>> for GitHandle<'handle, P> {
+impl<'handle> TryFrom<Handle<'handle>> for GitHandle<'handle> {
     type Error = GixError;
 
-    fn try_from(item: Handle<'handle, P>) -> Result<Self, GixError> {
+    fn try_from(item: Handle<'handle>) -> Result<Self, GixError> {
         let repo = gix::open::Options::isolated()
             .open_path_as_is(true)
             .open(&item.repo_dir)?;
@@ -95,9 +94,9 @@ impl<'handle, P: MCPlatform + Send + Sync> TryFrom<Handle<'handle, P>> for GitHa
     }
 }
 
-impl<'repo, P: MCPlatform + Send + Sync> GitHandle<'repo, P> {
+impl<'repo> GitHandle<'repo> {
     pub(crate) fn new(
-        backend: &'repo Backend<P>,
+        backend: &'repo Backend,
         repo_root: PathBuf,
         workspace: WorkspaceRef<'repo>,
     ) -> Result<Self, GixError> {
@@ -176,7 +175,7 @@ impl<'repo, P: MCPlatform + Send + Sync> GitHandle<'repo, P> {
         &'repo self,
         commit_id: Option<S>,
         path: Option<S>,
-    ) -> Result<GitHandleResult<'repo, P>, PmrRepoError>
+    ) -> Result<GitHandleResult<'repo>, PmrRepoError>
     {
         let commit_id = commit_id.map(|s| s.into());
         let path = path.map(|s| s.into());
@@ -326,7 +325,7 @@ impl<'repo, P: MCPlatform + Send + Sync> GitHandle<'repo, P> {
 
 }
 
-impl<'repo, P: MCPlatform + Send + Sync> GitHandleResult<'repo, P> {
+impl<'repo> GitHandleResult<'repo> {
     pub fn repo(&self) -> Repository {
         self.repo.to_thread_local()
     }

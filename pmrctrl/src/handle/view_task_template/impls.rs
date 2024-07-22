@@ -1,8 +1,4 @@
 use pmrcore::{
-    platform::{
-        MCPlatform,
-        TMPlatform,
-    },
     profile::{
         ViewTaskTemplate,
         ViewTaskTemplates,
@@ -47,13 +43,9 @@ use crate::{
 };
 use super::VTTCTask;
 
-impl<
-    'p,
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-> EFViewTaskTemplatesCtrl<'p, MCP, TMP> {
+impl<'p> EFViewTaskTemplatesCtrl<'p> {
     pub(crate) fn new(
-        exposure_file_ctrl: ExposureFileCtrl<'p, MCP, TMP>,
+        exposure_file_ctrl: ExposureFileCtrl<'p>,
         view_task_templates: ViewTaskTemplates,
     ) -> Self {
         Self {
@@ -105,7 +97,7 @@ impl<
 
     fn get_efvttcs(
         &'p self
-    ) -> &'p [EFViewTaskTemplateCtrl<MCP, TMP>] {
+    ) -> &'p [EFViewTaskTemplateCtrl] {
         self.efvttcs.get_or_init(|| self.view_task_templates
             .iter()
             .map(|efvtt| {
@@ -214,13 +206,9 @@ impl<
     }
 }
 
-impl<
-    'p,
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-> EFViewTaskTemplateCtrl<'p, MCP, TMP> {
+impl<'p> EFViewTaskTemplateCtrl<'p> {
     pub(crate) fn new(
-        exposure_file_ctrl: ExposureFileCtrl<'p, MCP, TMP>,
+        exposure_file_ctrl: ExposureFileCtrl<'p>,
         efvtt: &'p ViewTaskTemplate,
         choice_registry: Vec<Arc<PreparedChoiceRegistry>>,
     ) -> Self {
@@ -293,15 +281,11 @@ impl<
     }
 }
 
-impl<
-    'p,
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-> From<&'p EFViewTaskTemplatesCtrl<'p, MCP, TMP>>
+impl<'p> From<&'p EFViewTaskTemplatesCtrl<'p>>
 for
     &'p ViewTaskTemplates
 {
-    fn from(item: &'p EFViewTaskTemplatesCtrl<'p, MCP, TMP>) -> Self {
+    fn from(item: &'p EFViewTaskTemplatesCtrl<'p>) -> Self {
         &item.view_task_templates
     }
 }

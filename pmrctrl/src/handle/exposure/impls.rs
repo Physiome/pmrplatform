@@ -12,10 +12,6 @@ use pmrcore::{
         ExposureRef,
         ExposureFileRef,
     },
-    platform::{
-        MCPlatform,
-        TMPlatform,
-    },
 };
 use pmrrepo::handle::GitHandle;
 use std::{
@@ -35,23 +31,16 @@ use crate::{
     platform::Platform,
 };
 
-impl<
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-> Clone for ExposureCtrl<'_, MCP, TMP> {
+impl Clone for ExposureCtrl<'_> {
     fn clone(&self) -> Self {
         Self(Arc::clone(&self.0))
     }
 }
 
-impl<
-    'p,
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-> ExposureCtrl<'p, MCP, TMP> {
+impl<'p> ExposureCtrl<'p> {
     pub fn new(
-        platform: &'p Platform<MCP, TMP>,
-        git_handle: GitHandle<'p, MCP>,
+        platform: &'p Platform,
+        git_handle: GitHandle<'p>,
         exposure: ExposureRef<'p>,
     ) -> Self {
         Self(Arc::new(RawExposureCtrl {
@@ -66,7 +55,7 @@ impl<
         &'p self,
         workspace_file_path: &'p str,
     ) -> Result<
-        ExposureFileCtrl<'p, MCP, TMP>,
+        ExposureFileCtrl<'p>,
         PlatformError
     > {
         // FIXME should fail with already exists if already created
@@ -76,9 +65,10 @@ impl<
             Some(workspace_file_path),
         )?;
         // path exists, so create the exposure file
-        let efb: &dyn ExposureFileBackend = self.0.platform.mc_platform.as_ref();
+        let mcp = self.0.platform.mc_platform.as_ref();
         let exposure_file = self.0.platform.mc_platform.get_exposure_file(
-            efb.insert(
+            ExposureFileBackend::insert(
+                mcp,
                 self.0.exposure.id(),
                 workspace_file_path,
                 None,
@@ -106,7 +96,7 @@ impl<
         &'p self,
         exposure_file_ref: ExposureFileRef<'p>,
     ) -> Result<
-        ExposureFileCtrl<'p, MCP, TMP>,
+        ExposureFileCtrl<'p>,
         PlatformError
     > {
         let workspace_file_path = exposure_file_ref
@@ -141,7 +131,7 @@ impl<
         &'p self,
         workspace_file_path: &'p str,
     ) -> Result<
-        ExposureFileCtrl<'p, MCP, TMP>,
+        ExposureFileCtrl<'p>,
         PlatformError
     > {
         // quick failing here.

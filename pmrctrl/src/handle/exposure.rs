@@ -1,11 +1,5 @@
 use parking_lot::Mutex;
-use pmrcore::{
-    exposure::ExposureRef,
-    platform::{
-        MCPlatform,
-        TMPlatform,
-    },
-};
+use pmrcore::exposure::ExposureRef;
 use pmrrepo::handle::GitHandle;
 use std::{
     collections::HashMap,
@@ -17,21 +11,13 @@ use crate::{
     handle::ExposureFileCtrl,
 };
 
-pub(crate) struct RawExposureCtrl<
-    'p,
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-> {
-    pub(crate) platform: &'p Platform<MCP, TMP>,
-    pub(crate) git_handle: GitHandle<'p, MCP>,
+pub(crate) struct RawExposureCtrl<'p> {
+    pub(crate) platform: &'p Platform,
+    pub(crate) git_handle: GitHandle<'p>,
     pub(crate) exposure: ExposureRef<'p>,
-    pub(crate) exposure_file_ctrls: Arc<Mutex<HashMap<String, ExposureFileCtrl<'p, MCP, TMP>>>>,
+    pub(crate) exposure_file_ctrls: Arc<Mutex<HashMap<String, ExposureFileCtrl<'p>>>>,
 }
 
-pub struct ExposureCtrl<
-    'p,
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
->(pub(crate) Arc<RawExposureCtrl<'p, MCP, TMP>>);
+pub struct ExposureCtrl<'p>(pub(crate) Arc<RawExposureCtrl<'p>>);
 
 mod impls;

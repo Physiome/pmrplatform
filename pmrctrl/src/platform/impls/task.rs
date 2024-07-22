@@ -5,10 +5,6 @@ use pmrcore::{
         traits::TaskBackend,
     },
     exposure::task::traits::ExposureTaskBackend,
-    platform::{
-        MCPlatform,
-        TMPlatform,
-    },
 };
 use crate::{
     error::PlatformError,
@@ -16,11 +12,7 @@ use crate::{
     platform::Platform,
 };
 
-impl<
-    'p,
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-> Platform<MCP, TMP> {
+impl<'p> Platform {
     pub async fn adds_task(
         &self,
         task: Task,
@@ -30,7 +22,7 @@ impl<
 
     pub async fn start_task(
         &'p self,
-    ) -> Result<Option<TaskExecutorCtrl<'p, MCP, TMP>>, PlatformError> {
+    ) -> Result<Option<TaskExecutorCtrl<'p>>, PlatformError> {
         Ok(self.tm_platform.as_ref()
             .start_task()
             .await?

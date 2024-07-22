@@ -60,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
     // build our application with a route
     let app = Router::new()
         .route("/workspace/:workspace_id/rawfile/:commit_id/*path",
-            get(raw_workspace_download::<SqliteBackend, SqliteBackend>)
+            get(raw_workspace_download)
         )
         .leptos_routes(
             &leptos_options,

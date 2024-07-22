@@ -21,10 +21,6 @@ use pmrcore::{
         UserArg,
         UserInputMap,
     },
-    platform::{
-        MCPlatform,
-        TMPlatform,
-    },
     profile::{
         ViewTaskTemplates,
         UserPromptGroup,
@@ -36,7 +32,6 @@ use pmrcore::{
     },
 };
 use pmrmodel::{
-    backend::db::SqliteBackend,
     model::{
         profile::UserViewProfileRef,
         task_template::{
@@ -325,18 +320,17 @@ async fn test_platform_create_exposure_file_view_task() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn make_example_view_task_templates<'p, M, T>(
-    platform: &'p Platform<M, T>
-) -> anyhow::Result<Vec<i64>>
-where
-    M: MCPlatform + Sized + Send + Sync,
-    T: TMPlatform + Sized + Send + Sync,
-{
+async fn make_example_view_task_templates<'p>(
+    platform: &'p Platform,
+) -> anyhow::Result<Vec<i64>> {
     use pmrcore::task_template::traits::TaskTemplateBackend;
     // force insertion of a dummy task template that should shift the
     // id for the ExposureFileTaskTemplate vs TaskTemplate.
-    let ttb: &dyn TaskTemplateBackend = platform.tm_platform.as_ref();
-    ttb.add_task_template("/bin/dummy", "1.0.0").await?;
+    TaskTemplateBackend::add_task_template(
+        platform.tm_platform.as_ref(),
+        "/bin/dummy",
+        "1.0.0",
+    ).await?;
 
     let mut result: Vec<i64> = Vec::new();
     result.push(platform.adds_view_task_template(
@@ -446,13 +440,9 @@ where
     Ok(result)
 }
 
-async fn make_example_runnable_task_templates<'p, M, T>(
-    platform: &'p Platform<M, T>
-) -> anyhow::Result<Vec<i64>>
-where
-    M: MCPlatform + Sized + Send + Sync,
-    T: TMPlatform + Sized + Send + Sync,
-{
+async fn make_example_runnable_task_templates<'p>(
+    platform: &'p Platform,
+) -> anyhow::Result<Vec<i64>> {
     build_test_binary_once!(sentinel, "../testing");
     build_test_binary_once!(exit_code, "../testing");
     let sentinel = path_to_sentinel().into_string().expect("a valid string");
@@ -722,16 +712,21 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     // but for now just use the underlying and find out whether the
     // tasks have been correctly queued.
 
-    let etb: &dyn ExposureTaskBackend = platform.mc_platform.as_ref();
-    let et1 = etb.select_task_for_view(efv_id).await?
+    let et1 = ExposureTaskBackend::select_task_for_view(
+        platform.mc_platform.as_ref(),
+        efv_id,
+    )
+        .await?
         .expect("not none");
     assert_eq!(et1.id, 1);
     assert_eq!(et1.exposure_file_view_id, 1);
     assert_eq!(et1.view_task_template_id, 1);
     assert_eq!(et1.ready, false);
 
-    let tb: &dyn TaskBackend = platform.tm_platform.as_ref();
-    let task1 = tb.gets_task(et1.task_id.expect("not none")).await?;
+    let task1 = TaskBackend::gets_task(
+        platform.tm_platform.as_ref(),
+        et1.task_id.expect("not none"),
+    ).await?;
     let created_ts = task1.created_ts;
     let answer: Task = serde_json::from_str(&format!(r#"
     {{
@@ -815,17 +810,17 @@ async fn test_platform_vtt_profile() -> anyhow::Result<()> {
             }
         }"#)?
     ).await?;
-    let pb: &dyn ProfileBackend = platform.mc_platform.as_ref();
-    let id = pb.insert_profile(
+    let mcp = platform.mc_platform.as_ref();
+    let id = ProfileBackend::insert_profile(
+        mcp,
         "Profile 1",
         "Just an example profile",
     ).await?;
-    let pvb: &dyn ProfileViewsBackend = platform.mc_platform.as_ref();
-    pvb.insert_profile_views(id, vtts[1]).await?;
-    pvb.insert_profile_views(id, vtts[2]).await?;
-    pvb.insert_profile_views(id, vtts[3]).await?;
-    pvb.insert_profile_views(id, vtts[4]).await?;
-    pvb.insert_profile_views(id, vtt_final).await?;
+    ProfileViewsBackend::insert_profile_views(mcp, id, vtts[1]).await?;
+    ProfileViewsBackend::insert_profile_views(mcp, id, vtts[2]).await?;
+    ProfileViewsBackend::insert_profile_views(mcp, id, vtts[3]).await?;
+    ProfileViewsBackend::insert_profile_views(mcp, id, vtts[4]).await?;
+    ProfileViewsBackend::insert_profile_views(mcp, id, vtt_final).await?;
 
     let vttp = platform.get_view_task_template_profile(id).await?;
     let registry = PreparedChoiceRegistry::new();
@@ -1042,15 +1037,20 @@ async fn test_exposure_file_view_task_sync() -> anyhow::Result<()> {
     let tasks = efvttsc.create_tasks_from_input(&user_input)?;
     let result = efc.process_vttc_tasks(tasks).await?;
     let (_, task_id) = result[0];
-    let efvb: &dyn ExposureFileViewBackend = platform.mc_platform.as_ref();
-    let id = efvb.select_id_by_task_id(task_id).await?;
+    let id = ExposureFileViewBackend::select_id_by_task_id(
+        platform.mc_platform.as_ref(),
+        task_id,
+    ).await?;
     assert_eq!(exposure_file_id, id);
 
     // this new set of tasks will invalidate the first set of queued
     // tasks for the exposure file view
     let tasks = efvttsc.create_tasks_from_input(&user_input)?;
     efc.process_vttc_tasks(tasks).await?;
-    let id = efvb.select_id_by_task_id(task_id).await;
+    let id = ExposureFileViewBackend::select_id_by_task_id(
+        platform.mc_platform.as_ref(),
+        task_id,
+    ).await;
     assert!(id.is_err());
 
     // TODO need a test that "runs" the last task and have a new task be
@@ -1507,6 +1507,6 @@ async fn test_exposure_file_registry() -> anyhow::Result<()> {
 #[test]
 fn test_send_sync_ctrl() {
     fn is_send_sync<T: Send + Sync>() { }
-    is_send_sync::<pmrctrl::handle::ExposureCtrl<SqliteBackend, SqliteBackend>>();
-    is_send_sync::<pmrctrl::handle::ExposureFileCtrl<SqliteBackend, SqliteBackend>>();
+    is_send_sync::<pmrctrl::handle::ExposureCtrl>();
+    is_send_sync::<pmrctrl::handle::ExposureFileCtrl>();
 }

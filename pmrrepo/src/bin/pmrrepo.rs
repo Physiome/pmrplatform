@@ -7,6 +7,7 @@ use std::io::{self, Write};
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::process;
+use std::sync::Arc;
 use structopt::StructOpt;
 
 use pmrmodel::backend::db::{
@@ -18,7 +19,6 @@ use pmrmodel::model::workspace::{
     stream_workspace_records_as_json,
 };
 use pmrcore::{
-    platform::MCPlatform,
     repo::PathObjectInfo,
     workspace::traits::{
         WorkspaceBackend,
@@ -95,9 +95,9 @@ enum Command {
     },
 }
 
-fn stream_git_result_default<'a, P: MCPlatform + Send + Sync>(
+fn stream_git_result_default<'a>(
     mut writer: impl Write,
-    item: &GitHandleResult<'a, P>,
+    item: &GitHandleResult<'a>,
     repo: &'a gix::Repository,
 ) -> std::result::Result<usize, std::io::Error> {
     // the repo argument must be spawned off the result
@@ -121,9 +121,9 @@ fn stream_git_result_default<'a, P: MCPlatform + Send + Sync>(
     ).as_bytes())
 }
 
-fn stream_git_result_as_json<P: MCPlatform + Send + Sync>(
+fn stream_git_result_as_json(
     writer: impl Write,
-    item: &GitHandleResult<P>,
+    item: &GitHandleResult,
 ) -> Result<(), serde_json::Error> {
     serde_json::to_writer(writer, &<PathObjectInfo>::from(item))
 }
@@ -161,20 +161,28 @@ async fn main(args: Args) -> anyhow::Result<()> {
         .run_migration_profile(MigrationProfile::Pmrapp)
         .await?;
 
-    let backend = Backend::new(platform.into(), git_root);
-    let wb: &dyn WorkspaceBackend = backend.platform();
-    let wsb: &dyn WorkspaceSyncBackend = backend.platform();
-    let wtb: &dyn WorkspaceTagBackend = backend.platform();
+    let backend = Backend::new(Arc::new(platform), git_root);
+    let platform = backend.platform();
 
     match args.cmd {
         Some(Command::Register { url, description, long_description }) => {
             println!("Registering workspace with url '{}'...", &url);
-            let workspace_id = wb.add_workspace(&url, &description, &long_description).await?;
+            let workspace_id = WorkspaceBackend::add_workspace(
+                platform,
+                &url,
+                &description,
+                &long_description,
+            ).await?;
             println!("Registered workspace with id {}", workspace_id);
         }
         Some(Command::Update { workspace_id, description, long_description }) => {
             println!("Updating workspace with id {}...", workspace_id);
-            if wb.update_workspace(workspace_id, &description, &long_description).await? {
+            if WorkspaceBackend::update_workspace(
+                platform,
+                workspace_id,
+                &description,
+                &long_description,
+            ).await? {
                 println!("Updated workspace id {}", workspace_id);
             }
             else {
@@ -184,7 +192,7 @@ async fn main(args: Args) -> anyhow::Result<()> {
         Some(Command::Sync { workspace_id, log }) => {
             if log {
                 println!("Listing of sync logs for workspace with id {}", workspace_id);
-                let recs = wsb.get_workspaces_sync_records(workspace_id).await?;
+                let recs = WorkspaceSyncBackend::get_workspaces_sync_records(platform, workspace_id).await?;
                 println!("start - end - status");
                 for rec in recs {
                     println!("{}", rec);
@@ -203,7 +211,7 @@ async fn main(args: Args) -> anyhow::Result<()> {
             }
             else {
                 println!("Listing of indexed tags workspace with id {}", workspace_id);
-                let recs = wtb.get_workspace_tags(workspace_id).await?;
+                let recs = WorkspaceTagBackend::get_workspace_tags(platform, workspace_id).await?;
                 println!("commit_id - tag");
                 for rec in recs {
                     println!("{}", rec);
@@ -249,9 +257,8 @@ async fn main(args: Args) -> anyhow::Result<()> {
             }
         }
         Some(Command::Alias { workspace_id, alias }) => {
-            let wab: &dyn WorkspaceAliasBackend = backend.platform();
             if alias.is_none() {
-                let aliases = wab.get_aliases(workspace_id).await?;
+                let aliases = WorkspaceAliasBackend::get_aliases(platform, workspace_id).await?;
                 println!("Printing list of all aliases");
                 for rec in aliases {
                     println!("{}", rec);
@@ -259,12 +266,12 @@ async fn main(args: Args) -> anyhow::Result<()> {
             }
             else {
                 let alias = alias.unwrap();
-                wab.add_alias(workspace_id, &alias).await?;
+                WorkspaceAliasBackend::add_alias(platform, workspace_id, &alias).await?;
                 println!("setting alias to {}", alias);
             }
         }
         None => {
-            let workspaces = wb.list_workspaces().await?;
+            let workspaces = WorkspaceBackend::list_workspaces(platform).await?;
             if args.json {
                 stream_workspace_records_as_json(io::stdout(), &workspaces)?;
             }

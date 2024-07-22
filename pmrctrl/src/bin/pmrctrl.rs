@@ -11,10 +11,6 @@ use pmrcore::{
         },
         profile::traits::ExposureFileProfileBackend,
     },
-    platform::{
-        MCPlatform,
-        TMPlatform,
-    },
     profile::traits::{
         ProfileBackend,
         ProfileViewsBackend,
@@ -246,14 +242,10 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn parse_exposure<'p, MCP, TMP>(
-    platform: &'p Platform<MCP, TMP>,
+async fn parse_exposure<'p>(
+    platform: &'p Platform,
     arg: ExposureCmd,
-) -> anyhow::Result<()>
-where
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-{
+) -> anyhow::Result<()> {
     match arg {
         ExposureCmd::Add { workspace_id, commit_id } => {
             let ctrl = platform.create_exposure(workspace_id, &commit_id).await?;
@@ -274,14 +266,10 @@ where
     Ok(())
 }
 
-async fn parse_file<'p, MCP, TMP>(
-    platform: &'p Platform<MCP, TMP>,
+async fn parse_file<'p>(
+    platform: &'p Platform,
     arg: FileCmd,
-) -> anyhow::Result<()>
-where
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-{
+) -> anyhow::Result<()> {
     match arg {
         FileCmd::Add { exposure_id, path, profile_id } => {
             let ec = platform.get_exposure(exposure_id).await?;
@@ -308,26 +296,22 @@ where
     Ok(())
 }
 
-async fn parse_profile<'p, MCP, TMP>(
-    platform: &'p Platform<MCP, TMP>,
+async fn parse_profile<'p>(
+    platform: &'p Platform,
     arg: ProfileCmd,
-) -> anyhow::Result<()>
-where
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-{
+) -> anyhow::Result<()> {
     match arg {
         ProfileCmd::Create { title, description } => {
-            let backend: &dyn ProfileBackend = platform.mc_platform.as_ref();
-            let id = backend.insert_profile(
+            let id = ProfileBackend::insert_profile(
+                platform.mc_platform.as_ref(),
                 &title,
                 &description,
             ).await?;
             println!("created new profile id: {id}");
         },
         ProfileCmd::Update { id, title, description } => {
-            let backend: &dyn ProfileBackend = platform.mc_platform.as_ref();
-            backend.update_profile_by_fields(
+            ProfileBackend::update_profile_by_fields(
+                platform.mc_platform.as_ref(),
                 id,
                 &title,
                 &description,
@@ -350,15 +334,18 @@ where
         // profile vtt assign [x]
         // profile vtt remove [ ]
         ProfileCmd::Vtt { profile_id, task_template_id, view_key, description } => {
-            let backend: &dyn ViewTaskTemplateBackend = platform.mc_platform.as_ref();
-            let id = backend.insert_view_task_template(
+            let id = ViewTaskTemplateBackend::insert_view_task_template(
+                platform.mc_platform.as_ref(),
                 &view_key,
                 &description,
                 task_template_id,
             ).await?;
             println!("created under profile id: {profile_id} a new exposure file view task template id: {id} with view_key {view_key} using template {task_template_id}");
-            let pvb: &dyn ProfileViewsBackend = platform.mc_platform.as_ref();
-            pvb.insert_profile_views(profile_id, id).await?;
+            ProfileViewsBackend::insert_profile_views(
+                platform.mc_platform.as_ref(),
+                profile_id,
+                id,
+            ).await?;
 
             let vtt = platform.get_view_task_template(id).await?;
             let output = serde_json::to_string_pretty(&vtt)?;
@@ -368,14 +355,10 @@ where
     Ok(())
 }
 
-async fn parse_task<'p, MCP, TMP>(
-    platform: &'p Platform<MCP, TMP>,
+async fn parse_task<'p>(
+    platform: &'p Platform,
     arg: TaskCmd,
-) -> anyhow::Result<()>
-where
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-{
+) -> anyhow::Result<()> {
     match arg {
         TaskCmd::ExecOneShot => {
             match platform.start_task().await? {
@@ -395,15 +378,11 @@ where
     Ok(())
 }
 
-async fn parse_file_profile<'p, MCP, TMP>(
-    platform: &'p Platform<MCP, TMP>,
+async fn parse_file_profile<'p>(
+    platform: &'p Platform,
     exposure_file_id: i64,
     arg: FileProfileCmd,
-) -> anyhow::Result<()>
-where
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-{
+) -> anyhow::Result<()> {
     match arg {
         FileProfileCmd::Assign { profile_id } => {
             let vttp = platform.get_view_task_template_profile(profile_id).await?;
@@ -425,16 +404,12 @@ where
     Ok(())
 }
 
-async fn parse_exposure_path<'p, MCP, TMP>(
-    platform: &'p Platform<MCP, TMP>,
+async fn parse_exposure_path<'p>(
+    platform: &'p Platform,
     exposure_id: i64,
     path: &str,
     arg: ExposurePathCmd,
-) -> anyhow::Result<()>
-where
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-{
+) -> anyhow::Result<()> {
     let ec = platform.get_exposure(exposure_id).await?;
     let efc = ec.ctrl_path(path).await?;
     match arg {
@@ -461,8 +436,11 @@ where
                 (arg_id, answer.clone()),
             ]);
             let id = efc.exposure_file().id();
-            let efpb: &dyn ExposureFileProfileBackend = platform.mc_platform.as_ref();
-            efpb.update_ef_user_input(id, &user_input).await?;
+            ExposureFileProfileBackend::update_ef_user_input(
+                platform.mc_platform.as_ref(),
+                id,
+                &user_input,
+            ).await?;
 
             // validation
             let arg = efvttsc.get_arg(&arg_id)
@@ -481,9 +459,11 @@ where
 
             let efvttsc = efc.build_vttc().await?;
             let uargs: UserArgs = (&efvttsc.create_user_arg_refs().await?).into();
-            let efpb: &dyn ExposureFileProfileBackend = platform.mc_platform.as_ref();
 
-            let profile = efpb.get_ef_profile(id).await?;
+            let profile = ExposureFileProfileBackend::get_ef_profile(
+                platform.mc_platform.as_ref(),
+                id,
+            ).await?;
             let cache = efvttsc.get_registry_cache()?;
 
             for user_arg in uargs.iter() {
@@ -510,8 +490,10 @@ where
         ExposurePathCmd::Task { submit } => {
             let id = efc.exposure_file().id();
             let efvttsc = efc.build_vttc().await?;
-            let efpb: &dyn ExposureFileProfileBackend = platform.mc_platform.as_ref();
-            let profile = efpb.get_ef_profile(id).await?;
+            let profile = ExposureFileProfileBackend::get_ef_profile(
+                platform.mc_platform.as_ref(),
+                id,
+            ).await?;
             let vttc_tasks = efvttsc.create_tasks_from_input(
                 &profile.user_input
             )?;

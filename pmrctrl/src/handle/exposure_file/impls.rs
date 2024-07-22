@@ -9,10 +9,6 @@ use pmrcore::{
         },
         ExposureFileRef,
     },
-    platform::{
-        MCPlatform,
-        TMPlatform,
-    },
     task_template::traits::TaskTemplateBackend
 };
 use pmrrepo::handle::GitHandleResult;
@@ -34,25 +30,18 @@ use crate::{
     platform::Platform,
 };
 
-impl<
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-> Clone for ExposureFileCtrl<'_, MCP, TMP> {
+impl Clone for ExposureFileCtrl<'_> {
     fn clone(&self) -> Self {
         Self(Arc::clone(&self.0))
     }
 }
 
-impl<
-    'p,
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-> ExposureFileCtrl<'p, MCP, TMP> {
+impl<'p> ExposureFileCtrl<'p> {
     pub fn new(
-        platform: &'p Platform<MCP, TMP>,
-        exposure: ExposureCtrl<'p, MCP, TMP>,
+        platform: &'p Platform,
+        exposure: ExposureCtrl<'p>,
         exposure_file: ExposureFileRef<'p>,
-        pathinfo: GitHandleResult<'p, MCP>,
+        pathinfo: GitHandleResult<'p>,
     ) -> Self {
         let mut data_root = platform.data_root.join("exposure");
         data_root.push(exposure.exposure().id().to_string());
@@ -73,10 +62,10 @@ impl<
     pub async fn create_view_from_template(
         &self,
         view_task_template_id: i64,
-    ) -> Result<ExposureFileViewCtrl<'p, MCP, TMP>, PlatformError> {
-        let efvb: &dyn ExposureFileViewBackend = self.0.platform.mc_platform.as_ref();
+    ) -> Result<ExposureFileViewCtrl<'p>, PlatformError> {
         self.get_view(
-            efvb.insert(
+            ExposureFileViewBackend::insert(
+                self.0.platform.mc_platform.as_ref(),
                 self.exposure_file().id(),
                 view_task_template_id,
                 None,
@@ -89,7 +78,7 @@ impl<
     pub async fn get_view(
         &self,
         exposure_file_view_id: i64,
-    ) -> Result<ExposureFileViewCtrl<'p, MCP, TMP>, PlatformError> {
+    ) -> Result<ExposureFileViewCtrl<'p>, PlatformError> {
         // TODO write proper tests for this to verify the whole workflow between
         // all the related moving pieces.
         let exposure_file_view = self.0
@@ -110,19 +99,18 @@ impl<
     pub async fn ensure_view_from_template(
         &self,
         view_task_template_id: i64,
-    ) -> Result<ExposureFileViewCtrl<'p, MCP, TMP>, PlatformError> {
-        let efvb: &dyn ExposureFileViewBackend = self.0.platform.mc_platform.as_ref();
+    ) -> Result<ExposureFileViewCtrl<'p>, PlatformError> {
         let exposure_file_view = self.0.platform
             .mc_platform
             .get_exposure_file_view_by_file_template(
                 self.exposure_file()
                     .id(),
-                efvb
-                    .insert(
-                        self.exposure_file().id(),
-                        view_task_template_id,
-                        None,
-                    )
+                ExposureFileViewBackend::insert(
+                    self.0.platform.mc_platform.as_ref(),
+                    self.exposure_file().id(),
+                    view_task_template_id,
+                    None,
+                )
                     .await
                     // ultimately the view_task_template_id is used for
                     // the query
@@ -144,7 +132,7 @@ impl<
     /// this particular instance of ExposureFileCtrl.
     pub async fn build_vttc(
         &'p self,
-    ) -> Result<EFViewTaskTemplatesCtrl<'p, MCP, TMP>, PlatformError> {
+    ) -> Result<EFViewTaskTemplatesCtrl<'p>, PlatformError> {
         let mut vtts = ExposureTaskTemplateBackend::get_file_templates(
             self.0.platform.mc_platform.as_ref(),
             self.exposure_file().id(),
@@ -182,7 +170,7 @@ impl<
         Ok(results)
     }
 
-    pub fn pathinfo(&self) -> &GitHandleResult<'p, MCP> {
+    pub fn pathinfo(&self) -> &GitHandleResult<'p> {
         &self.0.pathinfo
     }
 

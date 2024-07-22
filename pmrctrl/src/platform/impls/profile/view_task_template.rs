@@ -3,10 +3,6 @@ use pmrcore::{
         ViewTaskTemplate,
         traits::ViewTaskTemplateBackend,
     },
-    platform::{
-        MCPlatform,
-        TMPlatform,
-    },
     task_template::traits::TaskTemplateBackend
 };
 use crate::{
@@ -14,10 +10,7 @@ use crate::{
     platform::Platform,
 };
 
-impl<
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-> Platform<MCP, TMP> {
+impl Platform {
     pub async fn adds_view_task_template(
         &self,
         view_task_template: ViewTaskTemplate,
@@ -31,8 +24,8 @@ impl<
         ).await?;
         let task_template_id = task_template.id;
 
-        let backend: &dyn ViewTaskTemplateBackend = self.mc_platform.as_ref();
-        let result = backend.insert_view_task_template(
+        let result = ViewTaskTemplateBackend::insert_view_task_template(
+            self.mc_platform.as_ref(),
             &view_task_template.view_key,
             &view_task_template.description,
             task_template_id,
@@ -44,12 +37,16 @@ impl<
         &self,
         id: i64,
     ) -> Result<ViewTaskTemplate, PlatformError> {
-        let backend: &dyn ViewTaskTemplateBackend = self.mc_platform.as_ref();
-        let mut result = backend.select_view_task_template_by_id(id).await?;
+        let mut result = ViewTaskTemplateBackend::select_view_task_template_by_id(
+            self.mc_platform.as_ref(),
+            id,
+        ).await?;
 
-        let backend: &(dyn TaskTemplateBackend + Sync) = self.tm_platform.as_ref();
         let id = result.task_template_id;
-        let task_template = backend.get_task_template_by_id(id).await?;
+        let task_template = TaskTemplateBackend::get_task_template_by_id(
+            self.tm_platform.as_ref(),
+            id,
+        ).await?;
         result.task_template = Some(task_template);
         Ok(result)
     }

@@ -1,10 +1,4 @@
-use pmrcore::{
-    exposure::ExposureFileRef,
-    platform::{
-        MCPlatform,
-        TMPlatform,
-    },
-};
+use pmrcore::exposure::ExposureFileRef;
 use pmrrepo::handle::GitHandleResult;
 use std::{
     path::PathBuf,
@@ -16,22 +10,14 @@ use crate::{
     handle::ExposureCtrl,
 };
 
-pub(crate) struct RawExposureFileCtrl<
-    'p,
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
-> {
-    pub(crate) platform: &'p Platform<MCP, TMP>,
-    pub(crate) exposure: ExposureCtrl<'p, MCP, TMP>,
+pub(crate) struct RawExposureFileCtrl<'p> {
+    pub(crate) platform: &'p Platform,
+    pub(crate) exposure: ExposureCtrl<'p>,
     pub(crate) exposure_file: ExposureFileRef<'p>,
-    pub(crate) pathinfo: GitHandleResult<'p, MCP>,
+    pub(crate) pathinfo: GitHandleResult<'p>,
     data_root: PathBuf,
 }
 
-pub struct ExposureFileCtrl<
-    'p,
-    MCP: MCPlatform + Sized + Send + Sync,
-    TMP: TMPlatform + Sized + Send + Sync,
->(pub(crate) Arc<RawExposureFileCtrl<'p, MCP, TMP>>);
+pub struct ExposureFileCtrl<'p>(pub(crate) Arc<RawExposureFileCtrl<'p>>);
 
 mod impls;
