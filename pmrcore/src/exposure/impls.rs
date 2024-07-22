@@ -5,7 +5,6 @@ use crate::error::{
     ValueError,
 };
 use crate::exposure::*;
-use crate::platform::MCPlatform;
 use crate::workspace::{
     Workspace,
     WorkspaceRef,
@@ -46,20 +45,20 @@ impl IntoIterator for Exposures {
     }
 }
 
-impl<'a, P: MCPlatform + Sized> From<Vec<ExposureRef<'a, P>>> for ExposureRefs<'a, P> {
-    fn from(args: Vec<ExposureRef<'a, P>>) -> Self {
+impl<'a> From<Vec<ExposureRef<'a>>> for ExposureRefs<'a> {
+    fn from(args: Vec<ExposureRef<'a>>) -> Self {
         Self(args)
     }
 }
 
-impl<'a, P: MCPlatform + Sized, const N: usize> From<[ExposureRef<'a, P>; N]> for ExposureRefs<'a, P> {
-    fn from(args: [ExposureRef<'a, P>; N]) -> Self {
+impl<'a, const N: usize> From<[ExposureRef<'a>; N]> for ExposureRefs<'a> {
+    fn from(args: [ExposureRef<'a>; N]) -> Self {
         Self(args.into())
     }
 }
 
-impl<'a, P: MCPlatform + Sized> Deref for ExposureRefs<'a, P> {
-    type Target = Vec<ExposureRef<'a, P>>;
+impl<'a> Deref for ExposureRefs<'a> {
+    type Target = Vec<ExposureRef<'a>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -92,20 +91,20 @@ impl DerefMut for ExposureFiles {
     }
 }
 
-impl<'a, P: MCPlatform + Sized> From<Vec<ExposureFileRef<'a, P>>> for ExposureFileRefs<'a, P> {
-    fn from(args: Vec<ExposureFileRef<'a, P>>) -> Self {
+impl<'a> From<Vec<ExposureFileRef<'a>>> for ExposureFileRefs<'a> {
+    fn from(args: Vec<ExposureFileRef<'a>>) -> Self {
         Self(args)
     }
 }
 
-impl<'a, P: MCPlatform + Sized, const N: usize> From<[ExposureFileRef<'a, P>; N]> for ExposureFileRefs<'a, P> {
-    fn from(args: [ExposureFileRef<'a, P>; N]) -> Self {
+impl<'a, const N: usize> From<[ExposureFileRef<'a>; N]> for ExposureFileRefs<'a> {
+    fn from(args: [ExposureFileRef<'a>; N]) -> Self {
         Self(args.into())
     }
 }
 
-impl<'a, P: MCPlatform + Sized> Deref for ExposureFileRefs<'a, P> {
-    type Target = Vec<ExposureFileRef<'a, P>>;
+impl<'a> Deref for ExposureFileRefs<'a> {
+    type Target = Vec<ExposureFileRef<'a>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -138,20 +137,20 @@ impl DerefMut for ExposureFileViews {
     }
 }
 
-impl<'a, P: MCPlatform + Sized> From<Vec<ExposureFileViewRef<'a, P>>> for ExposureFileViewRefs<'a, P> {
-    fn from(args: Vec<ExposureFileViewRef<'a, P>>) -> Self {
+impl<'a> From<Vec<ExposureFileViewRef<'a>>> for ExposureFileViewRefs<'a> {
+    fn from(args: Vec<ExposureFileViewRef<'a>>) -> Self {
         Self(args)
     }
 }
 
-impl<'a, P: MCPlatform + Sized, const N: usize> From<[ExposureFileViewRef<'a, P>; N]> for ExposureFileViewRefs<'a, P> {
-    fn from(args: [ExposureFileViewRef<'a, P>; N]) -> Self {
+impl<'a, const N: usize> From<[ExposureFileViewRef<'a>; N]> for ExposureFileViewRefs<'a> {
+    fn from(args: [ExposureFileViewRef<'a>; N]) -> Self {
         Self(args.into())
     }
 }
 
-impl<'a, P: MCPlatform + Sized> Deref for ExposureFileViewRefs<'a, P> {
-    type Target = Vec<ExposureFileViewRef<'a, P>>;
+impl<'a> Deref for ExposureFileViewRefs<'a> {
+    type Target = Vec<ExposureFileViewRef<'a>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -188,9 +187,9 @@ impl<'a> traits::Exposure<'a, ExposureFiles, Workspace> for Exposure {
 }
 
 #[async_trait]
-impl<'a, P: MCPlatform + Sized + Sync>
-    traits::Exposure<'a, ExposureFileRefs<'a, P>, WorkspaceRef<'a, P>>
-for ExposureRef<'a, P> {
+impl<'a>
+    traits::Exposure<'a, ExposureFileRefs<'a>, WorkspaceRef<'a>>
+for ExposureRef<'a> {
     fn id(&self) -> i64 {
         self.inner.id
     }
@@ -209,7 +208,7 @@ for ExposureRef<'a, P> {
     fn default_file_id(&self) -> Option<i64> {
         self.inner.default_file_id
     }
-    async fn files(&'a self) -> Result<&'a ExposureFileRefs<'a, P>, Error> {
+    async fn files(&'a self) -> Result<&'a ExposureFileRefs<'a>, Error> {
         match self.files.get() {
             Some(files) => Ok(files),
             None => {
@@ -225,7 +224,7 @@ for ExposureRef<'a, P> {
     }
     async fn workspace(
         &'a self
-    ) -> Result<&'a WorkspaceRef<'a, P>, Error> {
+    ) -> Result<&'a WorkspaceRef<'a>, Error> {
         match self.parent.get() {
             Some(parent) => Ok(parent),
             None => {
@@ -265,9 +264,9 @@ impl<'a> traits::ExposureFile<'a, ExposureFileViews, Exposure> for ExposureFile 
 }
 
 #[async_trait]
-impl<'a, P: MCPlatform + Sized + Sync>
-    traits::ExposureFile<'a, ExposureFileViewRefs<'a, P>, ExposureRef<'a, P>>
-for ExposureFileRef<'a, P> {
+impl<'a>
+    traits::ExposureFile<'a, ExposureFileViewRefs<'a>, ExposureRef<'a>>
+for ExposureFileRef<'a> {
     fn id(&self) -> i64 {
         self.inner.id
     }
@@ -282,7 +281,7 @@ for ExposureFileRef<'a, P> {
     }
     async fn views(
         &'a self
-    ) -> Result<&'a ExposureFileViewRefs<'a, P>, Error> {
+    ) -> Result<&'a ExposureFileViewRefs<'a>, Error> {
         match self.views.get() {
             Some(views) => Ok(views),
             None => {
@@ -298,7 +297,7 @@ for ExposureFileRef<'a, P> {
     }
     async fn exposure(
         &'a self
-    ) -> Result<&'a ExposureRef<'a, P>, Error> {
+    ) -> Result<&'a ExposureRef<'a>, Error> {
         match self.parent.get() {
             Some(parent) => Ok(parent),
             None => {
@@ -341,9 +340,9 @@ impl<'a> traits::ExposureFileView<'a, ExposureFile> for ExposureFileView {
 }
 
 #[async_trait]
-impl<'a, P: MCPlatform + Sized + Sync>
-    traits::ExposureFileView<'a, ExposureFileRef<'a, P>>
-for ExposureFileViewRef<'a, P> {
+impl<'a>
+    traits::ExposureFileView<'a, ExposureFileRef<'a>>
+for ExposureFileViewRef<'a> {
     fn id(&self) -> i64 {
         self.inner.id
     }
@@ -364,7 +363,7 @@ for ExposureFileViewRef<'a, P> {
     }
     async fn exposure_file(
         &'a self
-    ) -> Result<&'a ExposureFileRef<'a, P>, Error> {
+    ) -> Result<&'a ExposureFileRef<'a>, Error> {
         match self.parent.get() {
             Some(parent) => Ok(parent),
             None => {

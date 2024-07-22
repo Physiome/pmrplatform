@@ -10,7 +10,7 @@ use gix::{
 
 pub struct GitHandle<'repo, P: MCPlatform + Send + Sync> {
     pub(super) backend: &'repo Backend<P>,
-    pub(super) workspace: WorkspaceRef<'repo, P>,
+    pub(super) workspace: WorkspaceRef<'repo>,
     pub(super) repo: ThreadSafeRepository,
 }
 
@@ -25,7 +25,7 @@ pub struct GitHandleResult<'repo, P: MCPlatform + Send + Sync> {
     pub(super) repo: &'repo ThreadSafeRepository,
     pub(super) commit: ObjectDetached,
     pub(super) target: GitResultTarget,
-    pub(super) workspace: &'repo WorkspaceRef<'repo, P>,
+    pub(super) workspace: &'repo WorkspaceRef<'repo>,
 }
 
 pub(super) mod error;

@@ -23,7 +23,7 @@ pub(crate) struct RawExposureFileCtrl<
 > {
     pub(crate) platform: &'p Platform<MCP, TMP>,
     pub(crate) exposure: ExposureCtrl<'p, MCP, TMP>,
-    pub(crate) exposure_file: ExposureFileRef<'p, MCP>,
+    pub(crate) exposure_file: ExposureFileRef<'p>,
     pub(crate) pathinfo: GitHandleResult<'p, MCP>,
     data_root: PathBuf,
 }

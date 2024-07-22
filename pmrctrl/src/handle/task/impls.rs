@@ -19,7 +19,7 @@ impl<
 > TaskExecutorCtrl<'p, MCP, TMP> {
     pub(crate) fn new(
         platform: &'p Platform<MCP, TMP>,
-        task: TaskRef<'p, TMP>,
+        task: TaskRef<'p>,
     ) -> Self {
         Self {
             platform,

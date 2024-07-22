@@ -51,7 +51,7 @@ impl<
     pub fn new(
         platform: &'p Platform<MCP, TMP>,
         exposure: ExposureCtrl<'p, MCP, TMP>,
-        exposure_file: ExposureFileRef<'p, MCP>,
+        exposure_file: ExposureFileRef<'p>,
         pathinfo: GitHandleResult<'p, MCP>,
     ) -> Self {
         let mut data_root = platform.data_root.join("exposure");
@@ -186,7 +186,7 @@ impl<
         &self.0.pathinfo
     }
 
-    pub fn exposure_file(&self) -> &ExposureFileRef<'p, MCP> {
+    pub fn exposure_file(&self) -> &ExposureFileRef<'p> {
         &self.0.exposure_file
     }
 

@@ -12,37 +12,37 @@ use crate::exposure::traits::ExposureFileViewBackend;
 use crate::platform::MCPlatform;
 use crate::workspace::WorkspaceRef;
 
-pub struct ExposureRef<'a, P: MCPlatform + Sized> {
+pub struct ExposureRef<'a> {
     pub(super) inner: Exposure,
-    pub(super) files: OnceLock<ExposureFileRefs<'a, P>>,
-    pub(super) platform: &'a P,
-    pub(super) parent: OnceLock<WorkspaceRef<'a, P>>,
+    pub(super) files: OnceLock<ExposureFileRefs<'a>>,
+    pub(super) platform: &'a dyn MCPlatform,
+    pub(super) parent: OnceLock<WorkspaceRef<'a>>,
 }
 
-pub struct ExposureRefs<'a, P: MCPlatform + Sized>(pub(super) Vec<ExposureRef<'a, P>>);
+pub struct ExposureRefs<'a>(pub(super) Vec<ExposureRef<'a>>);
 
-pub struct ExposureFileRef<'a, P: MCPlatform + Sized> {
+pub struct ExposureFileRef<'a> {
     pub(super) inner: ExposureFile,
-    pub(super) views: OnceLock<ExposureFileViewRefs<'a, P>>,
-    pub(super) platform: &'a P,
-    pub(super) parent: OnceLock<ExposureRef<'a, P>>,
+    pub(super) views: OnceLock<ExposureFileViewRefs<'a>>,
+    pub(super) platform: &'a dyn MCPlatform,
+    pub(super) parent: OnceLock<ExposureRef<'a>>,
 }
 
-pub struct ExposureFileRefs<'a, P: MCPlatform + Sized>(pub(super) Vec<ExposureFileRef<'a, P>>);
+pub struct ExposureFileRefs<'a>(pub(super) Vec<ExposureFileRef<'a>>);
 
-pub struct ExposureFileViewRef<'a, P: MCPlatform + Sized> {
+pub struct ExposureFileViewRef<'a> {
     pub(super) inner: ExposureFileView,
-    pub(super) platform: &'a P,
-    pub(super) parent: OnceLock<ExposureFileRef<'a, P>>,
+    pub(super) platform: &'a dyn MCPlatform,
+    pub(super) parent: OnceLock<ExposureFileRef<'a>>,
 }
 
-pub struct ExposureFileViewRefs<'a, P: MCPlatform + Sized>(pub(super) Vec<ExposureFileViewRef<'a, P>>);
+pub struct ExposureFileViewRefs<'a>(pub(super) Vec<ExposureFileViewRef<'a>>);
 
 impl Exposure {
-    pub(crate) fn bind<'a, P: MCPlatform + Sized>(
+    pub(crate) fn bind<'a>(
         self,
-        platform: &'a P,
-    ) -> ExposureRef<'a, P> {
+        platform: &'a dyn MCPlatform,
+    ) -> ExposureRef<'a> {
         ExposureRef {
             inner: self,
             // TODO verify that inner.files is also None?
@@ -54,10 +54,10 @@ impl Exposure {
 }
 
 impl Exposures {
-    pub(crate) fn bind<'a, P: MCPlatform + Sized>(
+    pub(crate) fn bind<'a>(
         self,
-        platform: &'a P,
-    ) -> ExposureRefs<'a, P> {
+        platform: &'a dyn MCPlatform,
+    ) -> ExposureRefs<'a> {
         self.0
             .into_iter()
             .map(|v| v.bind(platform))
@@ -66,7 +66,7 @@ impl Exposures {
     }
 }
 
-impl<P: MCPlatform + Sized> ExposureRef<'_, P> {
+impl ExposureRef<'_> {
     pub fn into_inner(self) -> Exposure {
         self.inner
     }
@@ -76,27 +76,27 @@ impl<P: MCPlatform + Sized> ExposureRef<'_, P> {
     }
 }
 
-impl<'a, P: MCPlatform + Sized> ExposureRef<'a, P> {
+impl<'a> ExposureRef<'a> {
     pub async fn get_file(
         &self,
         path: &str,
-    ) -> Result<ExposureFileRef<'a, P>, BackendError> {
+    ) -> Result<ExposureFileRef<'a>, BackendError> {
         Ok(
             self.platform.get_by_exposure_filepath(
                 self.inner.id,
                 path,
             )
                 .await?
-                .bind(&self.platform)
+                .bind(self.platform)
         )
     }
 }
 
 impl ExposureFile {
-    pub(crate) fn bind<'a, P: MCPlatform + Sized>(
+    pub(crate) fn bind<'a>(
         self,
-        platform: &'a P,
-    ) -> ExposureFileRef<'a, P> {
+        platform: &'a dyn MCPlatform,
+    ) -> ExposureFileRef<'a> {
         ExposureFileRef {
             inner: self,
             // TODO verify that inner.views is also None?
@@ -108,10 +108,10 @@ impl ExposureFile {
 }
 
 impl ExposureFiles {
-    pub(crate) fn bind<'a, P: MCPlatform + Sized>(
+    pub(crate) fn bind<'a>(
         self,
-        platform: &'a P,
-    ) -> ExposureFileRefs<'a, P> {
+        platform: &'a dyn MCPlatform,
+    ) -> ExposureFileRefs<'a,> {
         self.0
             .into_iter()
             .map(|v| v.bind(platform))
@@ -120,7 +120,7 @@ impl ExposureFiles {
     }
 }
 
-impl<P: MCPlatform + Sized> ExposureFileRef<'_, P> {
+impl ExposureFileRef<'_> {
     pub fn into_inner(self) -> ExposureFile {
         self.inner
     }
@@ -130,10 +130,10 @@ impl<P: MCPlatform + Sized> ExposureFileRef<'_, P> {
 }
 
 impl ExposureFileView {
-    pub(crate) fn bind<'a, P: MCPlatform + Sized>(
+    pub(crate) fn bind<'a>(
         self,
-        platform: &'a P,
-    ) -> ExposureFileViewRef<'a, P> {
+        platform: &'a dyn MCPlatform,
+    ) -> ExposureFileViewRef<'a> {
         ExposureFileViewRef {
             inner: self,
             platform: platform,
@@ -143,10 +143,10 @@ impl ExposureFileView {
 }
 
 impl ExposureFileViews {
-    pub(crate) fn bind<'a, P: MCPlatform + Sized>(
+    pub(crate) fn bind<'a>(
         self,
-        platform: &'a P,
-    ) -> ExposureFileViewRefs<'a, P> {
+        platform: &'a dyn MCPlatform,
+    ) -> ExposureFileViewRefs<'a> {
         self.0
             .into_iter()
             .map(|v| v.bind(platform))
@@ -155,13 +155,13 @@ impl ExposureFileViews {
     }
 }
 
-impl<'a, P: MCPlatform + Sized> ExposureFileViewRef<'a, P> {
+impl<'a> ExposureFileViewRef<'a> {
     pub async fn update_view_key(
         &mut self,
         view_key: Option<&'a str>,
     ) -> Result<bool, BackendError> {
-        let backend: &dyn ExposureFileViewBackend = self.platform;
-        let result = backend.update_view_key(
+        let result = ExposureFileViewBackend::update_view_key(
+            self.platform,
             self.inner.id,
             view_key,
         ).await?;
@@ -181,8 +181,8 @@ impl<'a, P: MCPlatform + Sized> ExposureFileViewRef<'a, P> {
         &mut self,
         exposure_file_view_task_id: Option<i64>,
     ) -> Result<bool, BackendError> {
-        let backend: &dyn ExposureFileViewBackend = self.platform;
-        let result = backend.update_exposure_file_view_task_id(
+        let result = ExposureFileViewBackend::update_exposure_file_view_task_id(
+            self.platform,
             self.inner.id,
             exposure_file_view_task_id,
         ).await?;
@@ -199,7 +199,7 @@ impl<'a, P: MCPlatform + Sized> ExposureFileViewRef<'a, P> {
     }
 }
 
-impl<P: MCPlatform + Sized> ExposureFileViewRef<'_, P> {
+impl ExposureFileViewRef<'_> {
     pub fn into_inner(self) -> ExposureFileView {
         self.inner
     }

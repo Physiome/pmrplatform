@@ -52,7 +52,7 @@ impl<
     pub fn new(
         platform: &'p Platform<MCP, TMP>,
         git_handle: GitHandle<'p, MCP>,
-        exposure: ExposureRef<'p, MCP>,
+        exposure: ExposureRef<'p>,
     ) -> Self {
         Self(Arc::new(RawExposureCtrl {
             platform,
@@ -104,7 +104,7 @@ impl<
 
     pub fn ctrl_file(
         &'p self,
-        exposure_file_ref: ExposureFileRef<'p, MCP>,
+        exposure_file_ref: ExposureFileRef<'p>,
     ) -> Result<
         ExposureFileCtrl<'p, MCP, TMP>,
         PlatformError
@@ -264,7 +264,7 @@ impl<
         )
     }
 
-    pub fn exposure(&self) -> &ExposureRef<'p, MCP> {
+    pub fn exposure(&self) -> &ExposureRef<'p> {
         &self.0.exposure
     }
 

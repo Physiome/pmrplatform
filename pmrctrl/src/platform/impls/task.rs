@@ -40,7 +40,7 @@ impl<
 
     pub async fn complete_task(
         &self,
-        mut task: TaskRef<'_, TMP>,
+        mut task: TaskRef<'_>,
         exit_status: i64,
     ) -> Result<bool, PlatformError> {
         task.complete(exit_status).await?;

@@ -8,7 +8,7 @@ use crate::backend::Backend;
 pub(crate) struct Handle<'db, P: MCPlatform + Send + Sync> {
     backend: &'db Backend<P>,
     pub(crate) repo_dir: PathBuf,
-    pub(crate) workspace: WorkspaceRef<'db, P>,
+    pub(crate) workspace: WorkspaceRef<'db>,
 }
 
 mod impls;

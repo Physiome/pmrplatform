@@ -4,7 +4,6 @@ use std::{
 };
 use crate::{
     error::ValueError,
-    platform::TMPlatform,
     task::*,
 };
 
@@ -59,10 +58,10 @@ impl TryFrom<&Task> for process::Command {
     }
 }
 
-impl<P: TMPlatform + Sized> TryFrom<&TaskRef<'_, P>> for process::Command {
+impl TryFrom<&TaskRef<'_>> for process::Command {
     type Error = ValueError;
 
-    fn try_from(task: &TaskRef<P>) -> Result<Self, Self::Error> {
+    fn try_from(task: &TaskRef) -> Result<Self, Self::Error> {
         (&task.inner).try_into()
     }
 }
@@ -123,10 +122,10 @@ mod tokio_impls {
         }
     }
 
-    impl<P: TMPlatform + Sized> TryFrom<&TaskRef<'_, P>> for Command {
+    impl TryFrom<&TaskRef<'_>> for Command {
         type Error = ValueError;
 
-        fn try_from(task: &TaskRef<P>) -> Result<Self, Self::Error> {
+        fn try_from(task: &TaskRef) -> Result<Self, Self::Error> {
             (&task.inner).try_into()
         }
     }

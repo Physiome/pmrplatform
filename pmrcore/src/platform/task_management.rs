@@ -20,15 +20,18 @@ use crate::{
 pub trait TMPlatform: TaskBackend
     + TaskTemplateBackend
     + PlatformUrl
+
+    + Send
+    + Sync
 {
+    fn as_dyn(&self) -> &(dyn TMPlatform + Send + Sync);
+
     async fn start_task(
         &self,
-    ) -> Result<Option<TaskRef<Self>>, BackendError>
-    where Self: Sized
-    {
+    ) -> Result<Option<TaskRef>, BackendError> {
         Ok(TaskBackend::start(self)
             .await?
-            .map(|task| task.bind(self))
+            .map(|task| task.bind(self.as_dyn()))
         )
     }
 }
@@ -36,4 +39,11 @@ pub trait TMPlatform: TaskBackend
 impl<P: TaskBackend
     + TaskTemplateBackend
     + PlatformUrl
-> TMPlatform for P {}
+
+    + Send
+    + Sync
+> TMPlatform for P {
+    fn as_dyn(&self) -> &(dyn TMPlatform + Send + Sync) {
+        self
+    }
+}

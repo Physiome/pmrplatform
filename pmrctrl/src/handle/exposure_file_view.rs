@@ -15,7 +15,7 @@ pub struct ExposureFileViewCtrl<
 > {
     pub(crate) platform: &'p Platform<MCP, TMP>,
     // TODO there needs to be an Arc<ExposureFileCtrl> stored here
-    pub exposure_file_view: ExposureFileViewRef<'p, MCP>,
+    pub exposure_file_view: ExposureFileViewRef<'p>,
 }
 
 mod impls;

@@ -9,16 +9,16 @@ use crate::{
     },
 };
 
-pub struct TaskRef<'a, P: TMPlatform + Sized> {
+pub struct TaskRef<'a> {
     pub(super) inner: Task,
-    pub(super) platform: &'a P,
+    pub(super) platform: &'a dyn TMPlatform,
 }
 
 impl Task {
-    pub(crate) fn bind<'a, P: TMPlatform + Sized>(
+    pub(crate) fn bind<'a>(
         self,
-        platform: &'a P,
-    ) -> TaskRef<'a, P> {
+        platform: &'a dyn TMPlatform,
+    ) -> TaskRef<'a> {
         TaskRef {
             inner: self,
             platform: platform,
@@ -26,7 +26,7 @@ impl Task {
     }
 }
 
-impl<P: TMPlatform + Sized> TaskRef<'_, P> {
+impl TaskRef<'_> {
     pub async fn run(
         &mut self,
         pid: i64,
@@ -71,7 +71,7 @@ impl<P: TMPlatform + Sized> TaskRef<'_, P> {
     }
 }
 
-impl<P: TMPlatform + Sized> TaskRef<'_, P> {
+impl TaskRef<'_> {
     pub fn into_inner(self) -> Task {
         self.inner
     }

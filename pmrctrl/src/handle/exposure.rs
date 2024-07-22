@@ -24,7 +24,7 @@ pub(crate) struct RawExposureCtrl<
 > {
     pub(crate) platform: &'p Platform<MCP, TMP>,
     pub(crate) git_handle: GitHandle<'p, MCP>,
-    pub(crate) exposure: ExposureRef<'p, MCP>,
+    pub(crate) exposure: ExposureRef<'p>,
     pub(crate) exposure_file_ctrls: Arc<Mutex<HashMap<String, ExposureFileCtrl<'p, MCP, TMP>>>>,
 }
 

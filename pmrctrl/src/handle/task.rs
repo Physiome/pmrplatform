@@ -12,7 +12,7 @@ pub struct TaskExecutorCtrl<
     TMP: TMPlatform + Sized + Send + Sync,
 > {
     pub(crate) platform: &'p Platform<MCP, TMP>,
-    pub(crate) executor: TMPlatformExecutorInstance<'p, TMP>,
+    pub(crate) executor: TMPlatformExecutorInstance<'p>,
 }
 
 mod impls;

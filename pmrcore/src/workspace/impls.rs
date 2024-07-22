@@ -8,7 +8,6 @@ use crate::error::{
     ValueError,
 };
 use crate::exposure::ExposureRefs;
-use crate::platform::MCPlatform;
 use crate::workspace::*;
 
 impl From<Vec<Workspace>> for Workspaces {
@@ -46,20 +45,20 @@ impl IntoIterator for Workspaces {
     }
 }
 
-impl<'a, P: MCPlatform + Sized> From<Vec<WorkspaceRef<'a, P>>> for WorkspaceRefs<'a, P> {
-    fn from(args: Vec<WorkspaceRef<'a, P>>) -> Self {
+impl<'a> From<Vec<WorkspaceRef<'a>>> for WorkspaceRefs<'a> {
+    fn from(args: Vec<WorkspaceRef<'a>>) -> Self {
         Self(args)
     }
 }
 
-impl<'a, P: MCPlatform + Sized, const N: usize> From<[WorkspaceRef<'a, P>; N]> for WorkspaceRefs<'a, P> {
-    fn from(args: [WorkspaceRef<'a, P>; N]) -> Self {
+impl<'a, const N: usize> From<[WorkspaceRef<'a>; N]> for WorkspaceRefs<'a> {
+    fn from(args: [WorkspaceRef<'a>; N]) -> Self {
         Self(args.into())
     }
 }
 
-impl<'a, P: MCPlatform + Sized> Deref for WorkspaceRefs<'a, P> {
-    type Target = Vec<WorkspaceRef<'a, P>>;
+impl<'a> Deref for WorkspaceRefs<'a> {
+    type Target = Vec<WorkspaceRef<'a>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -92,7 +91,7 @@ impl<'a> traits::Workspace<'a, Exposures> for Workspace {
 }
 
 #[async_trait]
-impl<'a, P: MCPlatform + Sized + Sync> traits::Workspace<'a, ExposureRefs<'a, P>> for WorkspaceRef<'a, P> {
+impl<'a> traits::Workspace<'a, ExposureRefs<'a>> for WorkspaceRef<'a> {
     fn id(&self) -> i64 {
         self.inner.id
     }
@@ -111,7 +110,7 @@ impl<'a, P: MCPlatform + Sized + Sync> traits::Workspace<'a, ExposureRefs<'a, P>
     fn created_ts(&self) -> i64 {
         self.inner.created_ts
     }
-    async fn exposures(&'a self) -> Result<&'a ExposureRefs<'a, P>, Error> {
+    async fn exposures(&'a self) -> Result<&'a ExposureRefs<'a>, Error> {
         match self.exposures.get() {
             Some(exposures) => Ok(exposures),
             None => {

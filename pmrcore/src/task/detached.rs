@@ -19,7 +19,7 @@ impl fmt::Display for TaskDetached {
     }
 }
 
-impl<P: TMPlatform + Sized> TaskRef<'_, P> {
+impl TaskRef<'_> {
     pub fn detach(self) -> TaskDetached {
         TaskDetached {
             inner: self.inner,
@@ -29,10 +29,10 @@ impl<P: TMPlatform + Sized> TaskRef<'_, P> {
 }
 
 impl TaskDetached {
-    pub fn bind<'a, P: TMPlatform + Sized>(
+    pub fn bind<'a>(
         self,
-        platform: &'a P,
-    ) -> Result<TaskRef<'a, P>, BackendError> {
+        platform: &'a dyn TMPlatform,
+    ) -> Result<TaskRef<'a>, BackendError> {
         if self.url == platform.url() {
             Ok(TaskRef {
                 inner: self.inner,

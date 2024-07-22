@@ -23,7 +23,7 @@ impl<'handle, P: MCPlatform + Send + Sync> Handle<'handle, P> {
     pub(crate) fn new(
         backend: &'handle Backend<P>,
         repo_root: PathBuf,
-        workspace: WorkspaceRef<'handle, P>,
+        workspace: WorkspaceRef<'handle>,
     ) -> Self {
         let repo_dir = repo_root.join(workspace.id().to_string());
         Self { backend, repo_dir, workspace }

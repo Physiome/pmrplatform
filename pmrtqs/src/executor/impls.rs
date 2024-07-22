@@ -19,14 +19,14 @@ use tokio::sync::broadcast;
 use crate::error::RunnerError;
 use super::*;
 
-impl<'a, P: TMPlatform + Sync> TMPlatformExecutorInstance<'a, P> {
-    fn new(task: TaskRef<'a, P>) -> Self {
+impl<'a> TMPlatformExecutorInstance<'a> {
+    fn new(task: TaskRef<'a>) -> Self {
         Self {
             task,
         }
     }
 
-    pub fn task(&'a self) -> &TaskRef<'a, P> {
+    pub fn task(&'a self) -> &TaskRef<'a> {
         &self.task
     }
 
@@ -58,28 +58,28 @@ impl<'a, P: TMPlatform + Sync> TMPlatformExecutorInstance<'a, P> {
     }
 }
 
-impl<'a, P: TMPlatform + Sync> From<TaskRef<'a, P>> for TMPlatformExecutorInstance<'a, P> {
-    fn from(task: TaskRef<'a, P>) -> Self {
+impl<'a> From<TaskRef<'a>> for TMPlatformExecutorInstance<'a> {
+    fn from(task: TaskRef<'a>) -> Self {
         Self::new(task)
     }
 }
 
-impl<'a, P: TMPlatform + Sync> From<TMPlatformExecutorInstance<'a, P>> for TaskRef<'a, P> {
-    fn from(executor: TMPlatformExecutorInstance<'a, P>) -> Self {
+impl<'a> From<TMPlatformExecutorInstance<'a>> for TaskRef<'a> {
+    fn from(executor: TMPlatformExecutorInstance<'a>) -> Self {
         executor.task
     }
 }
 
-impl<P: Clone> TMPlatformExecutor<P> {
+impl<P: Clone + Send + Sync> TMPlatformExecutor<P> {
     pub fn new(platform: P) -> Self {
         Self { platform }
     }
 }
 
 #[async_trait]
-impl<P: Clone> traits::Executor for TMPlatformExecutor<P>
+impl<P: Clone + Send + Sync> traits::Executor for TMPlatformExecutor<P>
 where
-    P: TMPlatform + Sync + Send
+    P: TMPlatform
 {
     type Error = RunnerError;
 
@@ -96,7 +96,7 @@ where
         task: TaskDetached,
         _abort_receiver: broadcast::Receiver<()>,
     ) -> Result<(i32, bool), Self::Error> {
-        let mut executor: TMPlatformExecutorInstance<P> = task.bind(&self.platform)?.into();
+        let mut executor: TMPlatformExecutorInstance = task.bind(&self.platform)?.into();
         // the abort token needs to be passed/run with the
         // executor so it knows if the abort is set.
         executor.execute().await

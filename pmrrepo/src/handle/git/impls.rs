@@ -99,7 +99,7 @@ impl<'repo, P: MCPlatform + Send + Sync> GitHandle<'repo, P> {
     pub(crate) fn new(
         backend: &'repo Backend<P>,
         repo_root: PathBuf,
-        workspace: WorkspaceRef<'repo, P>,
+        workspace: WorkspaceRef<'repo>,
     ) -> Result<Self, GixError> {
         let repo_dir = repo_root.join(workspace.id().to_string());
         let repo = gix::open::Options::isolated()
@@ -108,7 +108,7 @@ impl<'repo, P: MCPlatform + Send + Sync> GitHandle<'repo, P> {
         Ok(Self { backend, workspace, repo })
     }
 
-    pub fn workspace(&self) -> &WorkspaceRef<'repo, P> {
+    pub fn workspace(&self) -> &WorkspaceRef<'repo> {
         &self.workspace
     }
 
@@ -348,7 +348,7 @@ impl<'repo, P: MCPlatform + Send + Sync> GitHandleResult<'repo, P> {
         &self.target
     }
 
-    pub fn workspace(&'repo self) -> &WorkspaceRef<'repo, P> {
+    pub fn workspace(&'repo self) -> &WorkspaceRef<'repo> {
         &self.workspace
     }
 
