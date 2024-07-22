@@ -518,7 +518,7 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
     ExposureTaskTemplateBackend::set_file_templates(
         platform.mc_platform.as_ref(),
         exposure_file_id,
-        [vtts[0]].into_iter(),
+        &[vtts[0]],
     ).await?;
     let vttc = exposure_file_ctrl.build_vttc().await?;
     let vtt: &ViewTaskTemplates = (&vttc).into();
@@ -543,7 +543,7 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
     ExposureTaskTemplateBackend::set_file_templates(
         platform.mc_platform.as_ref(),
         exposure_file_id,
-        [vtts[1], vtts[2]].into_iter(),
+        &[vtts[1], vtts[2]],
     ).await?;
     let vttc = exposure_file_ctrl.build_vttc().await?;
     let vtt: &ViewTaskTemplates = (&vttc).into();
@@ -598,7 +598,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     ExposureTaskTemplateBackend::set_file_templates(
         platform.mc_platform.as_ref(),
         exposure_file_id,
-        [vtts[0], vtts[3]].into_iter(),
+        &[vtts[0], vtts[3]],
     ).await?;
     assert_eq!(vtts[0], 1);
     assert_eq!(vtts[3], 4);
@@ -1032,7 +1032,7 @@ async fn test_exposure_file_view_task_sync() -> anyhow::Result<()> {
     ExposureTaskTemplateBackend::set_file_templates(
         platform.mc_platform.as_ref(),
         exposure_file_id,
-        [vtts[0]].into_iter(),
+        &[vtts[0]],
     ).await?;
     let efvttsc = efc.build_vttc().await?;
     let user_input = UserInputMap::from([
@@ -1072,7 +1072,7 @@ async fn test_exposure_file_view_task_run_view_key_success() -> anyhow::Result<(
     ExposureTaskTemplateBackend::set_file_templates(
         platform.mc_platform.as_ref(),
         efc.exposure_file().id(),
-        [vtts[0]].into_iter(),
+        &[vtts[0]],
     ).await?;
     let efvttsc = efc.build_vttc().await?;
     let user_input = UserInputMap::from([
@@ -1122,7 +1122,7 @@ async fn test_exposure_file_view_task_run_task_fail() -> anyhow::Result<()> {
     ExposureTaskTemplateBackend::set_file_templates(
         platform.mc_platform.as_ref(),
         efc.exposure_file().id(),
-        [vtts[0]].into_iter(),
+        &[vtts[0]],
     ).await?;
     let efvttsc = efc.build_vttc().await?;
     let user_input = UserInputMap::from([
@@ -1171,7 +1171,7 @@ async fn test_exposure_file_view_task_run_task_stale() -> anyhow::Result<()> {
     ExposureTaskTemplateBackend::set_file_templates(
         platform.mc_platform.as_ref(),
         efc.exposure_file().id(),
-        [vtts[0]].into_iter(),
+        &[vtts[0]],
     ).await?;
     let efvttsc = efc.build_vttc().await?;
     let user_input = UserInputMap::from([
@@ -1256,7 +1256,7 @@ async fn test_hidden_registries() -> anyhow::Result<()> {
     ExposureTaskTemplateBackend::set_file_templates(
         platform.mc_platform.as_ref(),
         exposure_file_id,
-        [vtts[4]].into_iter(),
+        &[vtts[4]],
     ).await?;
 
     let efvttsc = efc.build_vttc().await?;
@@ -1318,7 +1318,7 @@ async fn test_task_executor_ctrl() -> anyhow::Result<()> {
     ExposureTaskTemplateBackend::set_file_templates(
         platform.mc_platform.as_ref(),
         exposure_file_id,
-        [vtts[0]].into_iter(),
+        &[vtts[0]],
     ).await?;
     let efvttsc = efc.build_vttc().await?;
     let user_input = UserInputMap::from([]);
@@ -1361,7 +1361,7 @@ async fn test_task_executor_ctrl_queued_extra() -> anyhow::Result<()> {
     ExposureTaskTemplateBackend::set_file_templates(
         platform.mc_platform.as_ref(),
         exposure_file_id,
-        [vtts[0]].into_iter(),
+        &[vtts[0]],
     ).await?;
     let efvttsc = efc.build_vttc().await?;
     let user_input = UserInputMap::from([]);
@@ -1410,7 +1410,7 @@ async fn test_task_executor_ctrl_task_failure_then_success() -> anyhow::Result<(
     ExposureTaskTemplateBackend::set_file_templates(
         platform.mc_platform.as_ref(),
         exposure_file_id,
-        [vtts[1]].into_iter(),
+        &[vtts[1]],
     ).await?;
     let efvttsc = efc.build_vttc().await?;
     let user_input = UserInputMap::from([

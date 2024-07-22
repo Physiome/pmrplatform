@@ -13,7 +13,7 @@ pub trait ExposureTaskTemplateBackend {
     async fn set_file_templates(
         &self,
         exposure_file_id: i64,
-        task_template_ids: impl Iterator<Item = i64> + Send,
+        task_template_ids: &[i64],
     ) -> Result<(), BackendError>;
     async fn get_file_templates(
         &self,

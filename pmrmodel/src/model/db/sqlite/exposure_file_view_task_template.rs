@@ -12,7 +12,7 @@ use crate::{
 async fn set_exposure_file_view_task_template_sqlite(
     sqlite: &SqliteBackend,
     exposure_file_id: i64,
-    mut view_task_template_ids: impl Iterator<Item = i64> + Send,
+    view_task_template_ids: &[i64],
 ) -> Result<(), BackendError> {
     // TODO is there a way to insert/delete just the delta?
     let mut tx = sqlite.pool.begin().await?;
@@ -28,7 +28,9 @@ WHERE
     .execute(&mut *tx)
     .await?;
 
-    while let Some(vtti) = view_task_template_ids.next() {
+    let mut vttids = view_task_template_ids.iter();
+
+    while let Some(vtti) = vttids.next() {
         sqlx::query!(
             r#"
 INSERT INTO exposure_file_view_task_template (
@@ -93,7 +95,7 @@ impl ExposureTaskTemplateBackend for SqliteBackend {
     async fn set_file_templates(
         &self,
         exposure_file_id: i64,
-        view_task_template_ids: impl Iterator<Item = i64> + Send,
+        view_task_template_ids: &[i64],
     ) -> Result<(), BackendError> {
         // TODO delete old templates
         set_exposure_file_view_task_template_sqlite(
@@ -151,10 +153,10 @@ mod tests {
             &backend, exposure_id, "some_other_demo_file").await?;
 
         ExposureTaskTemplateBackend::set_file_templates(
-            &backend, exposure_file_1, [v1, v2, v3].into_iter()
+            &backend, exposure_file_1, &[v1, v2, v3],
         ).await?;
         ExposureTaskTemplateBackend::set_file_templates(
-            &backend, exposure_file_2, [v2, v4].into_iter()
+            &backend, exposure_file_2, &[v2, v4],
         ).await?;
 
         let templates1 = ExposureTaskTemplateBackend::get_file_templates(
@@ -168,7 +170,7 @@ mod tests {
         // TODO include following test for delete
 
         ExposureTaskTemplateBackend::set_file_templates(
-            &backend, exposure_file_1, [v2, v4].into_iter()
+            &backend, exposure_file_1, &[v2, v4]
         ).await?;
         let templates1 = ExposureTaskTemplateBackend::get_file_templates(
             &backend, exposure_file_1).await?;

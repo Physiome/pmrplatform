@@ -155,18 +155,11 @@ mock! {
             &self,
             task_id: i64,
         ) -> Result<i64, BackendError>;
-        // Due to conflicting lifetime and mockall seeminging do not
-        // support impl in argument position, and that this mock is
-        // really only a placeholder for only a certain few calls, just
-        // disable this and provide the unimplemented version and be
-        // done with it
-        // pub async fn exposure_task_set_file_templates<I>(
-        //     &self,
-        //     exposure_file_id: i64,
-        //     task_template_ids: I,
-        // ) -> Result<(), BackendError>
-        // where
-        //     I: Iterator<Item = i64> + Send + 'static;
+        pub async fn exposure_task_set_file_templates(
+            &self,
+            exposure_file_id: i64,
+            task_template_ids: &[i64],
+        ) -> Result<(), BackendError>;
         pub async fn exposure_task_get_file_templates(
             &self,
             exposure_file_id: i64,
@@ -494,15 +487,13 @@ impl ExposureFileViewBackend for MockPlatform {
 impl ExposureTaskTemplateBackend for MockPlatform {
     async fn set_file_templates(
         &self,
-        _exposure_file_id: i64,
-        _task_template_ids: impl Iterator<Item = i64> + Send,
+        exposure_file_id: i64,
+        task_template_ids: &[i64],
     ) -> Result<(), BackendError> {
-        // see note above in the commented version of this helper
-        // self.exposure_task_set_file_templates(
-        //     exposure_file_id,
-        //     task_template_ids,
-        // ).await
-        unimplemented!()
+        self.exposure_task_set_file_templates(
+            exposure_file_id,
+            task_template_ids,
+        ).await
     }
     async fn get_file_templates(
         &self,

@@ -200,7 +200,9 @@ pub trait MCPlatform: WorkspaceBackend
             exposure_file_id,
             vttp.view_task_templates
                 .iter()
-                .map(|vtt| vtt.id),
+                .map(|vtt| vtt.id)
+                .collect::<Vec<_>>()
+                .as_slice(),
         ).await?;
         ExposureFileProfileBackend::set_ef_profile(
             self,
