@@ -1,5 +1,5 @@
 use leptos::{
-    ServerFnError,
+    prelude::ServerFnError,
     server,
 };
 use pmrcore::{

@@ -7,11 +7,10 @@ async fn main() -> anyhow::Result<()> {
         routing::get,
     };
     use clap::Parser;
-    use leptos::*;
+    use leptos::prelude::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
     use pmrapp::app::*;
     use pmrapp::conf::Cli;
-    use pmrapp::fileserv::file_and_error_handler;
     use pmrapp::server::workspace::raw_workspace_download;
     use pmrctrl::platform::Platform;
     use pmrmodel::backend::db::{
@@ -28,18 +27,18 @@ async fn main() -> anyhow::Result<()> {
     // <https://github.com/leptos-rs/start-axum#executing-a-server-on-a-remote-machine-without-the-toolchain>
     // Alternately a file can be specified such as Some("Cargo.toml")
     // The file would need to be included with the executable when moved to deployment
-    let conf = get_configuration(None).await.unwrap();
+    let conf = get_configuration(None).unwrap();
     let leptos_options = conf.leptos_options;
     let addr = leptos_options.site_addr;
     let routes = generate_route_list(App);
     dbg!(&routes);
 
     if !Sqlite::database_exists(&args.pmrapp_db_url).await.unwrap_or(false) {
-        logging::warn!("pmrapp database {} does not exist; creating...", &args.pmrapp_db_url);
+        warn!("pmrapp database {} does not exist; creating...", &args.pmrapp_db_url);
         Sqlite::create_database(&args.pmrapp_db_url).await?;
     }
     if !Sqlite::database_exists(&args.pmrtqs_db_url).await.unwrap_or(false) {
-        logging::warn!("pmrtqs database {} does not exist; creating...", &args.pmrtqs_db_url);
+        warn!("pmrtqs database {} does not exist; creating...", &args.pmrtqs_db_url);
         Sqlite::create_database(&args.pmrtqs_db_url).await?;
     }
     let mc = SqliteBackend::from_url(&args.pmrapp_db_url)
@@ -65,14 +64,17 @@ async fn main() -> anyhow::Result<()> {
         .leptos_routes(
             &leptos_options,
             routes,
-            App,
+            {
+                let leptos_options = leptos_options.clone();
+                move || shell(leptos_options.clone())
+            },
         )
-        .fallback(file_and_error_handler)
+        .fallback(leptos_axum::file_and_error_handler(shell))
         .layer(Extension(platform.clone()))
         .with_state(leptos_options);
 
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-    logging::log!("listening on http://{}", &addr);
+    log!("listening on http://{}", &addr);
     axum::serve(listener, app.into_make_service())
         .await
         .unwrap();

@@ -1,23 +1,51 @@
 use crate::error_template::{AppError, ErrorTemplate};
-use leptos::*;
+use leptos::prelude::*;
 use leptos_meta::*;
-use leptos_router::*;
-
-use crate::workspace::{
-    // Workspace,
-    WorkspaceListing,
-    // WorkspaceRoutes,
-    WorkspaceView,
-    WorkspaceCommitPathView,
+use leptos_meta::{
+    MetaTags,
+    Stylesheet,
+    Title,
+    provide_meta_context,
+};
+use leptos_router::{
+    components::{
+        A,
+        ParentRoute,
+        Route,
+        Router,
+        Routes,
+    },
+    hooks::{
+        use_location,
+        use_params_map,
+    },
+    nested_router::Outlet,
+    MatchNestedRoutes,
+    ParamSegment,
+    StaticSegment,
+    WildcardSegment,
 };
 
-use crate::exposure::{
-    // ExposureListing,
-    // ExposureView,
-    // ExposureRedirect,
-    // ExposurePathView,
-    ExposureComponent,
-};
+use crate::exposure::ExposureRoutes;
+use crate::workspace::WorkspaceRoutes;
+
+pub fn shell(options: LeptosOptions) -> impl IntoView {
+    view! {
+        <!DOCTYPE html>
+        <html lang="en">
+            <head>
+                <meta charset="utf-8"/>
+                <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                <AutoReload options=options.clone() />
+                <HydrationScripts options/>
+                <MetaTags/>
+            </head>
+            <body>
+                <App/>
+            </body>
+        </html>
+    }
+}
 
 #[component]
 pub fn App() -> impl IntoView {
@@ -28,7 +56,6 @@ pub fn App() -> impl IntoView {
 
     view! {
 
-
         // injects a stylesheet into the document <head>
         // id=leptos means cargo-leptos will hot-reload this stylesheet
         <Stylesheet id="leptos" href="/pkg/pmrapp.css"/>
@@ -37,54 +64,25 @@ pub fn App() -> impl IntoView {
         <Title text="Physiome Model Repository"/>
 
         // content for this welcome page
-        <Router fallback=|| {
-            let mut outside_errors = Errors::default();
-            outside_errors.insert_with_default_key(AppError::NotFound);
-            view! {
-                <ErrorTemplate outside_errors/>
-            }
-            .into_view()
-        }>
+        <Router>
+        // fallback=|| {
+        //     let mut outside_errors = Errors::default();
+        //     outside_errors.insert_with_default_key(AppError::NotFound);
+        //     view! {
+        //         <ErrorTemplate outside_errors/>
+        //     }
+        //     .into_view()
+        // }>
             <nav>
-                <A href="/" active_class="active">"Home"</A>
-                <a href="/workspace/"
-                    class:active=move || current_url.get()
-                        .starts_with("/workspace/")
-                >"Workspace"</a>
-                <a href="/exposure/"
-                    class:active=move || current_url.get()
-                        .starts_with("/exposure/")
-                >"Exposure"</a>
+                <A href="/">"Home"</A>
+                <A href="/workspace/">"Workspace"</A>
+                <A href="/exposure/">"Exposure"</A>
             </nav>
             <main>
-                <Routes>
-                    <Route path="" view=HomePage/>
-
-                    // Workspaces
-                    // this doesn't work because transparent components does
-                    // not support multiple routes
-                    // <WorkspaceRoutes/>
-                    <Route path="/workspace/" view=WorkspaceListing trailing_slash=TrailingSlash::Exact/>
-                    <Route path="/workspace/:id/" view=WorkspaceView trailing_slash=TrailingSlash::Exact/>
-                    <Route path="/workspace/:id/file/:commit/*path" view=WorkspaceCommitPathView trailing_slash=TrailingSlash::Exact/>
-
-                    // Exposures
-                    // TODO these are bugged because leptos routes can't disambiguate between
-                    // all of the following cases correctly (specifically, the listing route is
-                    // *never* matched when a wildcard path immediately follows a fixed parameter).
-                    // <Route path="/exposure/" view=ExposureListing trailing_slash=TrailingSlash::Exact/>
-                    // <Route path="/exposure/:id/" view=ExposureView trailing_slash=TrailingSlash::Exact/>
-                    // <Route path="/exposure/:id/*path" view=ExposurePathView/>
-
-                    // This will handle everything until the routing bugs are fixed
-                    <Route path="/exposure/:id/*path" view=ExposureComponent/>
-                    // FIXME dropping variables fixes the context?!
-                    // <Route path="/exposure" view=ExposureComponent/>
-
-                    // both of the following cannot work with axum, they duplicate
-                    // moreover, suffix mapping doesn't work.
-                    // <Route path="/exposure/:id/*path" view=ExposureRedirect trailing_slash=TrailingSlash::Exact/>
-                    // <Route path="/exposure/:id/*path/view" view=ExposurePathView trailing_slash=TrailingSlash::Exact/>
+                <Routes fallback=|| "error loading">
+                    <Route path=StaticSegment("") view=HomePage/>
+                    <WorkspaceRoutes/>
+                    <ExposureRoutes/>
                 </Routes>
             </main>
         </Router>
@@ -94,6 +92,7 @@ pub fn App() -> impl IntoView {
 #[component]
 fn HomePage() -> impl IntoView {
     view! {
+        <Title text="Home — Physiome Model Repository"/>
         <div class="main">
             <h1>"Physiome Model Repository"</h1>
             <p>

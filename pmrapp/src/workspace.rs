@@ -1,8 +1,25 @@
 use crate::error_template::{AppError, ErrorTemplate};
-use leptos::*;
+use leptos::logging;
+use leptos::prelude::*;
 use leptos_meta::*;
-use leptos_router::*;
+use leptos_router::{
+    components::{
+        ParentRoute,
+        Route,
+    },
+    hooks::use_params,
+    nested_router::Outlet,
+    params::{
+        Params,
+        ParamsError,
+    },
+    MatchNestedRoutes,
+    ParamSegment,
+    StaticSegment,
+    WildcardSegment,
+};
 use pmrcore::repo::{
+    FileInfo,
     PathObjectInfo,
     RepoResult,
     TreeInfo,
@@ -15,63 +32,35 @@ use crate::workspace::api::{
     get_workspace_info,
 };
 
-/*
-#[component(transparent)]
-pub fn WorkspaceRoutes() -> impl IntoView {
+#[component]
+pub fn WorkspaceRoutes() -> impl MatchNestedRoutes<Dom> + Clone {
     view! {
-        <Route path="/workspace" view=Workspace>
-            <Route path="/" view=WorkspaceListing trailing_slash=TrailingSlash::Exact/>
-            <Route path="listing" view=WorkspaceListing/>
-            <Route path=":id?" view=WorkspaceView>
-                <Route path="" view=WorkspaceView/>
-            </Route>
-        </Route>
-        // <Route path="/workspace/" view=WorkspaceListing trailing_slash=TrailingSlash::Exact/>
-        // <Route path="/workspace/:id/" view=WorkspaceView trailing_slash=TrailingSlash::Exact/>
+        <ParentRoute path=StaticSegment("/workspace") view=WorkspaceRoot>
+            <Route path=StaticSegment("/") view=WorkspaceListing/>
+            <ParentRoute path=ParamSegment("id") view=Workspace>
+                <Route path=StaticSegment("/") view=WorkspaceMain/>
+                <Route path=(StaticSegment("file"), ParamSegment("commit"), WildcardSegment("path"),) view=WorkspaceCommitPath/>
+            </ParentRoute>
+        </ParentRoute>
     }
 }
-*/
 
 #[component]
-pub fn Workspace() -> impl IntoView {
-    // provide_meta_context();
-
+pub fn WorkspaceRoot() -> impl IntoView {
     view! {
-        // injects a stylesheet into the document <head>
-        // id=leptos means cargo-leptos will hot-reload this stylesheet
-        // <Stylesheet id="leptos" href="/pkg/workspace.css"/>
-
-        // sets the document title
-        <Title text="Physiome Model Repository > Workspace"/>
-        <p>Before Workspace outlet</p>
+        <Title text="Workspace — Physiome Model Repository"/>
         <Outlet/>
-        <p>After Workspace outlet</p>
-
-        /*
-        // content for this welcome page
-        <Router fallback=|| {
-            let mut outside_errors = Errors::default();
-            outside_errors.insert_with_default_key(AppError::NotFound);
-            view! {
-                <ErrorTemplate outside_errors/>
-            }
-            .into_view()
-        }>
-            <main>
-            </main>
-        </Router>
-        */
     }
 }
 
 #[component]
 pub fn WorkspaceListing() -> impl IntoView {
-    let workspaces = create_resource(
+    let workspaces = Resource::new(
         move || (),
         move |_| async move {
             let result = list_workspaces().await;
             match result {
-                Ok(ref result) => logging::log!("{}", result.len()),
+                Ok(ref result) => logging::log!("loaded {} workspace entries", result.len()),
                 Err(_) => logging::log!("error loading workspaces"),
             };
             result
@@ -84,10 +73,9 @@ pub fn WorkspaceListing() -> impl IntoView {
             <div>
             <Suspense fallback=move || view! { <p>"Loading..."</p> }>
                 <ErrorBoundary fallback=|errors| {
-                    view! { <ErrorTemplate errors=errors/> }
+                    view! { <ErrorTemplate errors=errors.into()/> }
                 }>
                     {move || {
-                        logging::log!("rendering listing");
                         let workspace_listing = { move || { workspaces
                             .get()
                             .map(move |workspaces| match workspaces {
@@ -95,7 +83,7 @@ pub fn WorkspaceListing() -> impl IntoView {
                                     view! {
                                         <pre class="error">"Server Error: " {e.to_string()}</pre>
                                     }
-                                        .into_view()
+                                        .into_any()
                                 }
                                 Ok(workspaces) => {
                                     workspaces
@@ -112,9 +100,9 @@ pub fn WorkspaceListing() -> impl IntoView {
                                             }
                                         })
                                         .collect_view()
+                                        .into_any()
                                 }
                             })
-                            .unwrap_or_default()
                         }};
                         view! { <div>{workspace_listing}</div> }
                     }}
@@ -131,11 +119,13 @@ pub struct WorkspaceParams {
 }
 
 #[component]
-pub fn WorkspaceView() -> impl IntoView {
+pub fn Workspace() -> impl IntoView {
+    logging::log!("in <Workspace>");
     let params = use_params::<WorkspaceParams>();
-    let resource = create_resource(
+    let resource: Resource<Result<RepoResult, AppError>> = Resource::new(
         move || params.get().map(|p| p.id),
         |id| async move {
+            logging::log!("processing requested workspace {:?}", &id);
             match id {
                 Err(_) => Err(AppError::InternalServerError),
                 Ok(None) => Err(AppError::NotFound),
@@ -145,6 +135,20 @@ pub fn WorkspaceView() -> impl IntoView {
             }
         }
     );
+    provide_context(resource);
+    provide_context(params);
+
+    view! {
+        <Title text="Workspace — Physiome Model Repository"/>
+        <Outlet/>
+    }
+}
+
+#[component]
+pub fn WorkspaceMain() -> impl IntoView {
+    logging::log!("in <WorkspaceMain>");
+
+    let resource = expect_context::<Resource<Result<RepoResult, AppError>>>();
 
     let info = move || match resource.get() {
         Some(Ok(v)) => Ok(v),
@@ -156,11 +160,11 @@ pub fn WorkspaceView() -> impl IntoView {
         info().map(|info| {
             view! {
                 // render content
-                <h1>{info.workspace.description.as_ref().unwrap_or(
-                    &format!("Workspace {}", &info.workspace.id))}</h1>
+                <h1>{info.workspace.description.clone().unwrap_or(
+                    format!("Workspace {}", info.workspace.id))}</h1>
                 <dl>
                     <dt>"Git Repository URI"</dt>
-                    <dd>{&info.workspace.url}</dd>
+                    <dd>{info.workspace.url.clone()}</dd>
                     <div class="workspace-pathinfo">
                         <WorkspaceListingView repo_result=info/>
                     </div>
@@ -177,6 +181,7 @@ pub fn WorkspaceView() -> impl IntoView {
                         <h1>"Something went wrong."</h1>
                         <ul>
                         {// This will not hoist the 404 to the main page?
+                        // an advice suggests that workspace_view render empty?
                         move || errors.get()
                             .into_iter()
                             .map(|(_, error)| view! { <li>{error.to_string()} </li> })
@@ -240,10 +245,8 @@ fn WorkspaceListingView(repo_result: RepoResult) -> impl IntoView {
 }
 
 #[component]
-fn WorkspaceRepoResultView(repo_result: RepoResult) -> impl IntoView {
+fn WorkspaceFileInfoView(repo_result: RepoResult) -> impl IntoView {
     match repo_result.target {
-        PathObjectInfo::TreeInfo(_) =>
-            Some(view! { <div><WorkspaceListingView repo_result/></div> }),
         PathObjectInfo::FileInfo(ref file_info) => {
             let href = format!(
                 "/workspace/{}/rawfile/{}/{}",
@@ -256,14 +259,14 @@ fn WorkspaceRepoResultView(repo_result: RepoResult) -> impl IntoView {
                 <div>
                 <div>{info}</div>
                 <div>
-                    <a href=&href target="_self">"download"</a>
+                    <a href=href.clone() target="_self">"download"</a>
                 </div>
                 {
                     (file_info.mime_type[..5] == *"image").then(||
                         view! {
                             <div>
                                 <p>"Preview"</p>
-                                <img src=&href />
+                                <img src=href.clone() />
                             </div>
                         }
                     )
@@ -271,6 +274,17 @@ fn WorkspaceRepoResultView(repo_result: RepoResult) -> impl IntoView {
                 </div>
             })
         }
+        _ => None,
+    }
+}
+
+#[component]
+fn WorkspaceRepoResultView(repo_result: RepoResult) -> impl IntoView {
+    match repo_result.target {
+        PathObjectInfo::TreeInfo(_) =>
+            Some(view! { <div><WorkspaceListingView repo_result/></div> }.into_any()),
+        PathObjectInfo::FileInfo(_) =>
+            Some(view! { <div><WorkspaceFileInfoView repo_result/></div> }.into_any()),
         _ => None,
     }
 }
@@ -319,6 +333,7 @@ fn WorkspaceTreeInfoRow(
             format!("{}/", &path[0..idx])
         }
     } else {
+        // FIXME this assumes the incoming path has the trailing slash set.
         format!("{}{}", path, if kind == "tree" {
             format!("{}/", name)
         } else {
@@ -339,20 +354,25 @@ fn WorkspaceTreeInfoRow(
 
 #[derive(Params, PartialEq, Clone, Debug)]
 pub struct WorkspaceCommitPathParams {
-    id: Option<i64>,
     commit: Option<String>,
     path: Option<String>,
 }
 
 #[component]
-pub fn WorkspaceCommitPathView() -> impl IntoView {
+pub fn WorkspaceCommitPath() -> impl IntoView {
+    logging::log!("in <WorkspaceCommitPath>");
+    let workspace_params = expect_context::<Memo<Result<WorkspaceParams, ParamsError>>>();
     let params = use_params::<WorkspaceCommitPathParams>();
-    let resource = create_resource(
-        move || params.get().map(|p| (p.id, p.commit, p.path)),
+
+    let resource = Resource::new(
+        move || (
+            workspace_params.get().map(|p| p.id),
+            params.get().map(|p| (p.commit, p.path)),
+        ),
         |p| async move {
             match p {
-                Err(_) => Err(AppError::InternalServerError),
-                Ok((Some(id), commit, path)) => get_workspace_info(id, commit, path)
+                (Err(_), Err(_)) => Err(AppError::InternalServerError),
+                (Ok(Some(id)), Ok((commit, path))) => get_workspace_info(id, commit, path)
                     .await
                     .map_err(|_| AppError::NotFound),
                 _ => Err(AppError::NotFound),
@@ -367,12 +387,12 @@ pub fn WorkspaceCommitPathView() -> impl IntoView {
 
     let view = move || {
         info().map(|info| {
-            // FIXME the other is generated even if unused...
             let href = format!("/workspace/{}/", &info.workspace.id);
-            let other = format!("Workspace {}", &info.workspace.id);
             let desc = info.workspace.description
                 .clone()
-                .unwrap_or(other);
+                .unwrap_or_else(
+                    || format!("Workspace {}", &info.workspace.id)
+                );
             view! {
                 <h1><a href=href>{desc}</a></h1>
                 <div class="workspace-pathinfo">

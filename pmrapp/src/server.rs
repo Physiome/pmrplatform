@@ -1,6 +1,4 @@
-use leptos::{
-    ServerFnError,
-};
+use leptos::prelude::ServerFnError;
 use pmrctrl::platform::Platform;
 
 pub async fn platform() -> Result<Platform, ServerFnError> {

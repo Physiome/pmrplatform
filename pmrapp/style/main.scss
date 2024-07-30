@@ -16,7 +16,7 @@ nav a {
   text-decoration: none;
 }
 
-nav a.active {
+nav a.active, nav a[aria-current="page"] {
   background-color: #c00;
 }
 
