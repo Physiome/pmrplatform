@@ -172,10 +172,17 @@ impl<'p> ExposureCtrl<'p> {
     /// provided, while attempting to extract a potential viewstr suffix
     /// that might be part of this path.
     ///
+    /// Returns some tuple containing `ExposureFileCtrl` and some
+    /// `viewstr`, the `viewstr` is `None` if the path is an exact
+    /// match, otherwise a trailing slash on the same path will set it
+    /// to some empty string.
+    ///
     /// e.g. given an ExposureFile exists at path `dir/file`, providing
     /// path as `dir/file` will result in the identical outcome as the
-    /// underlying `ctrl_path` (with an additional empty str), while
-    /// providing path as `dir/file/view/subpath` will also return the
+    /// underlying `ctrl_path`, with viewstr set to `None`; `dir/file/`
+    /// will result in the same ctrl while viewstr set to `Some("")`.
+    ///
+    /// Providing path as `dir/file/view/subpath` will also return the
     /// ctrl at `dir/file` with the viewstr specified as `view/subpath`.
     /// The viewstr will generally resolve into a view identified by the
     /// first fragment while all subsequent fragments are treated as the
@@ -183,35 +190,20 @@ impl<'p> ExposureCtrl<'p> {
     pub async fn resolve_file_viewstr(
         &'p self,
         path: &'p str,
-    ) -> Option<(ExposureFileCtrl<'p>, &'p str)> {
-        // TODO should a trailing slash resolve to a default empty viewstr?
-        // with an actual empty str be None?
+    ) -> Option<(ExposureFileCtrl<'p>, Option<&'p str>)> {
         // TODO there should be a companion method `resolve_file_view` that
         // will resolve the actual file and view in one shot?
 
-        // If only this could work...
-        // [(path.len(), "")].into_iter()
-        //     .chain(path.rmatch_indices('/'))
-        //     .map(|(idx, _)| {
-        //         let (path, viewstr) = (&path[0..idx], &path[idx + c.len()]);
-        //         match self.ctrl_path(path).await {
-        //             Ok(ctrl) => Some(Ok((ctrl, viewstr))),
-        //             // typically backend error means a path was found,
-        //             // but no ExposureFile, search can end here.
-        //             Err(PlatformError::BackendError(_)) => None,
-        //             Err(e) => Some(Err(e)),
-        //         }
-        //     })
-        //     .take_while(Option::is_some)
-        //     .map(Option::unwrap)
-        //     .find(|s| s.is_ok())
         for (idx, c) in [(path.len(), "")].into_iter()
             .chain(path.rmatch_indices('/'))
         {
             let (path, viewstr) = (&path[0..idx], &path[idx + c.len()..]);
+            if path.chars().last() == Some('/') && c == "" {
+                continue
+            }
             log::trace!("checking path={path:?} viewstr={viewstr:?}");
             match self.ctrl_path(path).await {
-                Ok(ctrl) => return Some((ctrl, viewstr)),
+                Ok(ctrl) => return Some((ctrl, (c == "/").then_some(viewstr))),
                 // typically backend error means a path was found,
                 // but no ExposureFile, search can end here.
                 Err(PlatformError::BackendError(_)) => break,

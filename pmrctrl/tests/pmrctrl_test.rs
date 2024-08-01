@@ -205,33 +205,34 @@ async fn test_platform_exposure_ctrl_resolve_file() -> anyhow::Result<()> {
     assert!(exposure.resolve_file_viewstr("not_dir/nested/file_d")
         .await
         .is_none());
-    // note - a trailing slash will NOT resolve into the empty view, as
-    // the underlying target to be resolved is `dir1/nested/file_d/`
-    // which is invalid.
-    assert!(exposure.resolve_file_viewstr("dir1/nested/file_c/")
-        .await
-        .is_none());
 
     let (efctrl, viewstr) = exposure
         .resolve_file_viewstr("dir1/nested/file_c")
         .await
         .expect("expected valid path not found");
     assert_eq!(efctrl.pathinfo().path(), "dir1/nested/file_c");
-    assert_eq!(viewstr, "");
+    assert_eq!(viewstr, None);
+
+    let (efctrl, viewstr) = exposure
+        .resolve_file_viewstr("dir1/nested/file_c/")
+        .await
+        .expect("expected valid path not found");
+    assert_eq!(efctrl.pathinfo().path(), "dir1/nested/file_c");
+    assert_eq!(viewstr, Some(""));
 
     let (efctrl, viewstr) = exposure
         .resolve_file_viewstr("dir1/nested/file_c/view")
         .await
         .expect("expected valid path not found");
     assert_eq!(efctrl.pathinfo().path(), "dir1/nested/file_c");
-    assert_eq!(viewstr, "view");
+    assert_eq!(viewstr, Some("view"));
 
     let (efctrl, viewstr) = exposure
         .resolve_file_viewstr("dir1/nested/file_c/view/subpath/target")
         .await
         .expect("expected valid path not found");
     assert_eq!(efctrl.pathinfo().path(), "dir1/nested/file_c");
-    assert_eq!(viewstr, "view/subpath/target");
+    assert_eq!(viewstr, Some("view/subpath/target"));
 
     Ok(())
 }
