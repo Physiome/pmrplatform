@@ -182,6 +182,61 @@ async fn test_platform_exposure_ctrl_attach_file() -> anyhow::Result<()> {
 }
 
 #[async_std::test]
+async fn test_platform_exposure_ctrl_resolve_file() -> anyhow::Result<()> {
+    let (_reporoot, platform) = create_sqlite_platform().await?;
+    let exposure = platform.create_exposure(
+        3,
+        "8ae6e9af37c8bd78614545d0ab807348fc46dcab",
+    ).await?;
+    exposure.create_file("dir1/nested/file_c").await?;
+
+    assert!(exposure.resolve_file_viewstr("dir1/nested")
+        .await
+        .is_none());
+    assert!(exposure.resolve_file_viewstr("dir1/nested/file_a")
+        .await
+        .is_none());
+    assert!(exposure.resolve_file_viewstr("dir1/nested/file_a/some/viow")
+        .await
+        .is_none());
+    assert!(exposure.resolve_file_viewstr("dir1/nested/file_d")
+        .await
+        .is_none());
+    assert!(exposure.resolve_file_viewstr("not_dir/nested/file_d")
+        .await
+        .is_none());
+    // note - a trailing slash will NOT resolve into the empty view, as
+    // the underlying target to be resolved is `dir1/nested/file_d/`
+    // which is invalid.
+    assert!(exposure.resolve_file_viewstr("dir1/nested/file_c/")
+        .await
+        .is_none());
+
+    let (efctrl, viewstr) = exposure
+        .resolve_file_viewstr("dir1/nested/file_c")
+        .await
+        .expect("expected valid path not found");
+    assert_eq!(efctrl.pathinfo().path(), "dir1/nested/file_c");
+    assert_eq!(viewstr, "");
+
+    let (efctrl, viewstr) = exposure
+        .resolve_file_viewstr("dir1/nested/file_c/view")
+        .await
+        .expect("expected valid path not found");
+    assert_eq!(efctrl.pathinfo().path(), "dir1/nested/file_c");
+    assert_eq!(viewstr, "view");
+
+    let (efctrl, viewstr) = exposure
+        .resolve_file_viewstr("dir1/nested/file_c/view/subpath/target")
+        .await
+        .expect("expected valid path not found");
+    assert_eq!(efctrl.pathinfo().path(), "dir1/nested/file_c");
+    assert_eq!(viewstr, "view/subpath/target");
+
+    Ok(())
+}
+
+#[async_std::test]
 async fn test_platform_create_exposure_bad_commit() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let exposure = platform.create_exposure(

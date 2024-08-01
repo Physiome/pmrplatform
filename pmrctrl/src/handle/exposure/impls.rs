@@ -127,6 +127,8 @@ impl<'p> ExposureCtrl<'p> {
         )
     }
 
+    /// Acquire a ExposureFileCtrl using the exact workspace_file_path
+    /// being provided.
     pub async fn ctrl_path(
         &'p self,
         workspace_file_path: &'p str,
@@ -139,8 +141,11 @@ impl<'p> ExposureCtrl<'p> {
             Some(self.0.exposure.commit_id()),
             Some(workspace_file_path),
         )?;
+        // FIXME What if pathinfo is a tree?  There is currently no way
+        // to provide a ctrl for that.
+
         // path exists, so create the exposure file
-        // TODO need to check if exposure_file_ctrls
+        // TODO need to check if already present in exposure_file_ctrls
         let exposure_file = self.0.platform.mc_platform.get_exposure_file_by_id_path(
             self.0.exposure.id(),
             workspace_file_path,
@@ -161,6 +166,61 @@ impl<'p> ExposureCtrl<'p> {
                 .deref()
                 .clone()
         )
+    }
+
+    /// Resolve a ExposureFileCtrl using the workspace_file_path being
+    /// provided, while attempting to extract a potential viewstr suffix
+    /// that might be part of this path.
+    ///
+    /// e.g. given an ExposureFile exists at path `dir/file`, providing
+    /// path as `dir/file` will result in the identical outcome as the
+    /// underlying `ctrl_path` (with an additional empty str), while
+    /// providing path as `dir/file/view/subpath` will also return the
+    /// ctrl at `dir/file` with the viewstr specified as `view/subpath`.
+    /// The viewstr will generally resolve into a view identified by the
+    /// first fragment while all subsequent fragments are treated as the
+    /// subpath within that view.
+    pub async fn resolve_file_viewstr(
+        &'p self,
+        path: &'p str,
+    ) -> Option<(ExposureFileCtrl<'p>, &'p str)> {
+        // TODO should a trailing slash resolve to a default empty viewstr?
+        // with an actual empty str be None?
+        // TODO there should be a companion method `resolve_file_view` that
+        // will resolve the actual file and view in one shot?
+
+        // If only this could work...
+        // [(path.len(), "")].into_iter()
+        //     .chain(path.rmatch_indices('/'))
+        //     .map(|(idx, _)| {
+        //         let (path, viewstr) = (&path[0..idx], &path[idx + c.len()]);
+        //         match self.ctrl_path(path).await {
+        //             Ok(ctrl) => Some(Ok((ctrl, viewstr))),
+        //             // typically backend error means a path was found,
+        //             // but no ExposureFile, search can end here.
+        //             Err(PlatformError::BackendError(_)) => None,
+        //             Err(e) => Some(Err(e)),
+        //         }
+        //     })
+        //     .take_while(Option::is_some)
+        //     .map(Option::unwrap)
+        //     .find(|s| s.is_ok())
+        for (idx, c) in [(path.len(), "")].into_iter()
+            .chain(path.rmatch_indices('/'))
+        {
+            let (path, viewstr) = (&path[0..idx], &path[idx + c.len()..]);
+            log::trace!("checking path={path:?} viewstr={viewstr:?}");
+            match self.ctrl_path(path).await {
+                Ok(ctrl) => return Some((ctrl, viewstr)),
+                // typically backend error means a path was found,
+                // but no ExposureFile, search can end here.
+                Err(PlatformError::BackendError(_)) => break,
+                Err(_) => continue,
+            }
+        }
+        // TODO it may be useful to disambiguate _which_ failure happened,
+        // e.g. if path found but no exposure file.
+        None
     }
 
     /// List all underlying files associated with the workspace at the
