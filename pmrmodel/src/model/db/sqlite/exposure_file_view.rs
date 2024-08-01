@@ -108,6 +108,40 @@ WHERE
     Ok(rec)
 }
 
+async fn get_exposure_file_view_by_file_view_key_sqlite(
+    sqlite: &SqliteBackend,
+    exposure_file_id: i64,
+    view_key: &str,
+) -> Result<ExposureFileView, BackendError> {
+    let rec = sqlx::query!(r#"
+SELECT
+    id,
+    exposure_file_id,
+    view_task_template_id,
+    exposure_file_view_task_id,
+    view_key,
+    updated_ts
+FROM exposure_file_view
+WHERE
+    exposure_file_id = ?1 AND
+    view_key = ?2
+"#,
+        exposure_file_id,
+        view_key,
+    )
+    .map(|row| ExposureFileView {
+        id: row.id,
+        exposure_file_id: row.exposure_file_id,
+        view_task_template_id: row.view_task_template_id,
+        exposure_file_view_task_id: row.exposure_file_view_task_id,
+        view_key: row.view_key,
+        updated_ts: row.updated_ts,
+    })
+    .fetch_one(&*sqlite.pool)
+    .await?;
+    Ok(rec)
+}
+
 async fn list_exposure_file_views_for_exposure_file_sqlite(
     sqlite: &SqliteBackend,
     exposure_file_id: i64,
@@ -261,6 +295,18 @@ impl ExposureFileViewBackend for SqliteBackend {
             &self,
             exposure_file_id,
             view_task_template_id,
+        ).await
+    }
+
+    async fn get_by_file_view_key(
+        &self,
+        exposure_file_id: i64,
+        view_key: &str,
+    ) -> Result<ExposureFileView, BackendError> {
+        get_exposure_file_view_by_file_view_key_sqlite(
+            &self,
+            exposure_file_id,
+            view_key,
         ).await
     }
 
