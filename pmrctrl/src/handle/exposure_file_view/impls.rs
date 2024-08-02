@@ -1,21 +1,59 @@
 use pmrcore::{
     exposure::{
+        ExposureFileViewRef,
         task::traits::ExposureTaskBackend,
-        traits::ExposureFileView as _,
+        traits::{
+            ExposureFile as _,
+            ExposureFileView as _,
+        },
     },
     task::{
         Task,
         traits::TaskBackend,
     },
 };
+use std::fmt;
 
 use super::ExposureFileViewCtrl;
 use crate::{
     error::PlatformError,
-    handle::view_task_template::VTTCTask,
+    handle::{
+        ExposureFileCtrl,
+        view_task_template::VTTCTask,
+    },
+    platform::Platform,
 };
 
+impl fmt::Debug for ExposureFileViewCtrl<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ExposureFileViewCtrl<'_>")
+            .field("platform", &self.platform)
+            .field("exposure_file.id", &self.exposure_file.exposure_file().id())
+            .field("exposure_file_view.id", &self.exposure_file_view.id())
+            .field("exposure_file_view.view_key", &self.exposure_file_view.view_key())
+            .field("view_path", &self.view_path)
+            .finish()
+    }
+}
+
 impl<'p> ExposureFileViewCtrl<'p> {
+    pub(crate) fn new<S>(
+        platform: &'p Platform,
+        exposure_file_view: ExposureFileViewRef<'p>,
+        exposure_file: ExposureFileCtrl<'p>,
+        view_path: Option<S>,
+    ) -> Self
+    where
+        S: Into<String>
+    {
+        Self {
+            platform,
+            exposure_file_view,
+            exposure_file,
+            view_path: view_path.map(Into::into),
+        }
+    }
+
     /// Queue a Task created by ViewTaskTemplateCtrl
     ///
     /// This consumes the incoming task.
@@ -44,5 +82,17 @@ impl<'p> ExposureFileViewCtrl<'p> {
             .update_exposure_file_view_task_id(Some(efv_id))
             .await?;
         Ok((efv_id, task.id))
+    }
+
+    pub fn exposure_file_ctrl(&self) -> &ExposureFileCtrl<'p> {
+        &self.exposure_file
+    }
+
+    pub fn view_key(&self) -> Option<&str> {
+        self.exposure_file_view.view_key()
+    }
+
+    pub fn view_path(&self) -> Option<&str> {
+        self.view_path.as_deref()
     }
 }

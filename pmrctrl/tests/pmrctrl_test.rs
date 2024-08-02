@@ -45,7 +45,13 @@ use pmrmodel::{
         PreparedChoiceRegistry,
     },
 };
-use pmrctrl::platform::Platform;
+use pmrctrl::{
+    error::{
+        CtrlError,
+        PlatformError,
+    },
+    platform::Platform,
+};
 use std::{
     path::PathBuf,
     fs::read_to_string,
@@ -190,21 +196,33 @@ async fn test_platform_exposure_ctrl_resolve_file() -> anyhow::Result<()> {
     ).await?;
     exposure.create_file("dir1/nested/file_c").await?;
 
-    assert!(exposure.resolve_file_viewstr("dir1/nested")
-        .await
-        .is_none());
-    assert!(exposure.resolve_file_viewstr("dir1/nested/file_a")
-        .await
-        .is_none());
-    assert!(exposure.resolve_file_viewstr("dir1/nested/file_a/some/viow")
-        .await
-        .is_none());
-    assert!(exposure.resolve_file_viewstr("dir1/nested/file_d")
-        .await
-        .is_none());
-    assert!(exposure.resolve_file_viewstr("not_dir/nested/file_d")
-        .await
-        .is_none());
+    let err = exposure.resolve_file_viewstr("dir1/nested")
+        .await.unwrap_err();
+    assert!(matches!(err, PlatformError::CtrlError(
+        CtrlError::EFCNotFound(p)) if p == "dir1/nested"));
+
+    let err = exposure.resolve_file_viewstr("dir1/nested/file_a")
+        .await.unwrap_err();
+    assert!(matches!(err, PlatformError::CtrlError(
+        CtrlError::EFCNotFound(p)) if p == "dir1/nested/file_a"));
+
+    // TODO this example shows how the error points out that the path
+    // exists at some prefix, but `some/view` is ignored.  Determine
+    // if there should be a better representation for this case.
+    let err = exposure.resolve_file_viewstr("dir1/nested/file_a/some/view")
+        .await.unwrap_err();
+    assert!(matches!(err, PlatformError::CtrlError(
+        CtrlError::EFCNotFound(p)) if p == "dir1/nested/file_a"));
+
+    let err = exposure.resolve_file_viewstr("dir1/nested/file_d")
+        .await.unwrap_err();
+    assert!(matches!(err, PlatformError::CtrlError(
+        CtrlError::EFCNotFound(p)) if p == "dir1/nested"));
+
+    let err = exposure.resolve_file_viewstr("not_dir/nested/file_d")
+        .await.unwrap_err();
+    assert!(matches!(err, PlatformError::CtrlError(
+        CtrlError::UnknownPath(p)) if p == "not_dir/nested/file_d"));
 
     let (efctrl, viewstr) = exposure
         .resolve_file_viewstr("dir1/nested/file_c")
@@ -233,6 +251,65 @@ async fn test_platform_exposure_ctrl_resolve_file() -> anyhow::Result<()> {
         .expect("expected valid path not found");
     assert_eq!(efctrl.pathinfo().path(), "dir1/nested/file_c");
     assert_eq!(viewstr, Some("view/subpath/target"));
+
+    Ok(())
+}
+
+#[async_std::test]
+async fn test_platform_exposure_ctrl_resolve_view() -> anyhow::Result<()> {
+    let (_reporoot, platform) = create_sqlite_platform().await?;
+    let vtts = make_example_view_task_templates(&platform).await?;
+    let exposure = platform.create_exposure(
+        3,
+        "8ae6e9af37c8bd78614545d0ab807348fc46dcab",
+    ).await?;
+    let efc = exposure.create_file("dir1/nested/file_c").await?;
+
+    // go through the long and arduous process of setting the view the
+    // long and "standard" way...
+    ExposureTaskTemplateBackend::set_file_templates(
+        platform.mc_platform.as_ref(),
+        efc.exposure_file().id(),
+        &[vtts[1]],
+    ).await?;
+    let efvttsc = efc.build_vttc().await?;
+    let user_input = UserInputMap::from([]);
+    let tasks = efvttsc.create_tasks_from_input(&user_input)?;
+    let (exposure_file_view_id, _) = efc.process_vttc_tasks(tasks).await?[0];
+    let mut task = platform.tm_platform.as_ref()
+        .start_task()
+        .await?
+        .expect("task was queued");
+    task.run(12345).await?;
+    platform.complete_task(task, 0).await?;
+
+    let efv = platform.mc_platform.as_ref()
+        .get_exposure_file_view(exposure_file_view_id)
+        .await?;
+    assert_eq!(efv.view_key(), Some("example_view2"));
+
+    // This hits the exact file
+    let result = exposure.resolve_file_view("dir1/nested/file_c")
+        .await.unwrap().unwrap_err();
+    assert_eq!(efc.exposure_file().clone_inner(), result.exposure_file().clone_inner());
+
+    // TODO could resolve into a better error type under CtrlError
+    assert!(exposure.resolve_file_view("dir1/nested/file_c/example_view1").await.is_err());
+
+    let result = exposure.resolve_file_view("dir1/nested/file_c/example_view2").await?
+        .expect("somehow this is an Err(ExposureFileCtrl)");
+    assert_eq!(result.view_key(), Some("example_view2"));
+    assert_eq!(result.view_path(), None);
+
+    let result = exposure.resolve_file_view("dir1/nested/file_c/example_view2/").await?
+        .expect("somehow this is an Err(ExposureFileCtrl)");
+    assert_eq!(result.view_key(), Some("example_view2"));
+    assert_eq!(result.view_path(), Some(""));
+
+    let result = exposure.resolve_file_view("dir1/nested/file_c/example_view2/sub/view").await?
+        .expect("somehow this is an Err(ExposureFileCtrl)");
+    assert_eq!(result.view_key(), Some("example_view2"));
+    assert_eq!(result.view_path(), Some("sub/view"));
 
     Ok(())
 }

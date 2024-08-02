@@ -25,9 +25,13 @@ use crate::{
     handle::{
         ExposureCtrl,
         ExposureFileCtrl,
+        ExposureFileViewCtrl,
         exposure::RawExposureCtrl,
     },
-    error::PlatformError,
+    error::{
+        CtrlError,
+        PlatformError,
+    },
     platform::Platform,
 };
 
@@ -190,10 +194,9 @@ impl<'p> ExposureCtrl<'p> {
     pub async fn resolve_file_viewstr(
         &'p self,
         path: &'p str,
-    ) -> Option<(ExposureFileCtrl<'p>, Option<&'p str>)> {
+    ) -> Result<(ExposureFileCtrl<'p>, Option<&'p str>), PlatformError> {
         // TODO there should be a companion method `resolve_file_view` that
         // will resolve the actual file and view in one shot?
-
         for (idx, c) in [(path.len(), "")].into_iter()
             .chain(path.rmatch_indices('/'))
         {
@@ -203,16 +206,29 @@ impl<'p> ExposureCtrl<'p> {
             }
             log::trace!("checking path={path:?} viewstr={viewstr:?}");
             match self.ctrl_path(path).await {
-                Ok(ctrl) => return Some((ctrl, (c == "/").then_some(viewstr))),
-                // typically backend error means a path was found,
-                // but no ExposureFile, search can end here.
-                Err(PlatformError::BackendError(_)) => break,
+                Ok(ctrl) => return Ok((ctrl, (c == "/").then_some(viewstr))),
+                // assume BackendError here means the expected database
+                // entry for ExposureFile is missing
+                Err(PlatformError::BackendError(_)) => return Err(
+                    CtrlError::EFCNotFound(path.to_string()).into()),
                 Err(_) => continue,
             }
         }
         // TODO it may be useful to disambiguate _which_ failure happened,
         // e.g. if path found but no exposure file.
-        None
+        Err(CtrlError::UnknownPath(path.to_string()).into())
+    }
+
+    pub async fn resolve_file_view(
+        &'p self,
+        path: &'p str,
+    ) -> Result<Result<ExposureFileViewCtrl<'p>, ExposureFileCtrl<'p>>, PlatformError> {
+        match self.resolve_file_viewstr(path).await {
+            Ok((efc, Some(viewstr))) => Ok(Ok(efc.resolve_view_by_viewstr(viewstr).await?)),
+            // this should signify a direct file hit.
+            Ok((efc, None)) => Ok(Err(efc)),
+            Err(e) => Err(e),
+        }
     }
 
     /// List all underlying files associated with the workspace at the

@@ -19,6 +19,8 @@ pub enum PlatformError {
     #[error(transparent)]
     CoreError(#[from] Error),
     #[error(transparent)]
+    CtrlError(#[from] CtrlError),
+    #[error(transparent)]
     IOError(#[from] std::io::Error),
     #[error(transparent)]
     PmrRepoError(#[from] PmrRepoError),
@@ -28,4 +30,17 @@ pub enum PlatformError {
     TaskError(#[from] TaskError),
     #[error(transparent)]
     ValueError(#[from] ValueError),
+}
+
+#[derive(Debug, PartialEq, Error)]
+pub enum CtrlError {
+    /// Path that isn't known under the associated resource
+    #[error("unknown path: {0}")]
+    UnknownPath(String),
+    /// Path is valid, but is not associated with a ExposureFileCtrl
+    #[error("exposure file not found: {0}")]
+    EFCNotFound(String),
+    // TODO how to disambiguate a path that shares a known path, but it
+    // might or might not have a ExposureFile which might or might not
+    // have a ExposureFileView
 }

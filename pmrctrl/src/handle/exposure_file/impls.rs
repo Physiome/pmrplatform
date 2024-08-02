@@ -13,6 +13,7 @@ use pmrcore::{
 };
 use pmrrepo::handle::GitHandleResult;
 use std::{
+    fmt,
     path::Path,
     sync::Arc,
 };
@@ -33,6 +34,16 @@ use crate::{
 impl Clone for ExposureFileCtrl<'_> {
     fn clone(&self) -> Self {
         Self(Arc::clone(&self.0))
+    }
+}
+
+impl fmt::Debug for ExposureFileCtrl<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ExposureFileCtrl<'_>")
+            .field("platform", &self.0.platform)
+            .field("exposure_id", &self.0.exposure.exposure().id())
+            .field("exposure_file_id", &self.0.exposure_file.id())
+            .finish()
     }
 }
 
@@ -86,10 +97,38 @@ impl<'p> ExposureFileCtrl<'p> {
             .mc_platform
             .get_exposure_file_view(exposure_file_view_id)
             .await?;
-        Ok(ExposureFileViewCtrl {
-            platform: self.0.platform,
+        Ok(ExposureFileViewCtrl::new(
+            self.0.platform,
             exposure_file_view,
-        })
+            self.clone(),
+            None::<String>,
+        ))
+    }
+
+    /// Returns an ExposureFileViewCtrl for an existing view by the
+    /// provided viewstr, which is a str that is `/` separated and
+    /// the first segment is parsed as the view_key
+    pub async fn resolve_view_by_viewstr(
+        &self,
+        viewstr: &str,
+    ) -> Result<ExposureFileViewCtrl<'p>, PlatformError> {
+        let mut splitter = viewstr.splitn(2, '/');
+        let view_key = splitter.next().expect("must have first part");
+        let view_path = splitter.next();
+        let exposure_file_view = self.0
+            .platform
+            .mc_platform
+            .get_exposure_file_view_by_file_view_key(
+                self.exposure_file().id(),
+                view_key,
+            )
+            .await?;
+        Ok(ExposureFileViewCtrl::new(
+            self.0.platform,
+            exposure_file_view,
+            self.clone(),
+            view_path,
+        ))
     }
 
     /// Ensure a view from a view task template id
@@ -118,10 +157,12 @@ impl<'p> ExposureFileCtrl<'p> {
                     .unwrap_or(view_task_template_id),
             )
             .await?;
-        Ok(ExposureFileViewCtrl {
-            platform: self.0.platform,
+        Ok(ExposureFileViewCtrl::new(
+            self.0.platform,
             exposure_file_view,
-        })
+            self.clone(),
+            None::<String>,
+        ))
     }
 
     /// Build a EFViewTaskTemplatesCtrl.
