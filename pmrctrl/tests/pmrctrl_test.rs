@@ -46,10 +46,7 @@ use pmrmodel::{
     },
 };
 use pmrctrl::{
-    error::{
-        CtrlError,
-        PlatformError,
-    },
+    error::CtrlError,
     platform::Platform,
 };
 use std::{
@@ -198,31 +195,26 @@ async fn test_platform_exposure_ctrl_resolve_file() -> anyhow::Result<()> {
 
     let err = exposure.resolve_file_viewstr("dir1/nested")
         .await.unwrap_err();
-    assert!(matches!(err, PlatformError::CtrlError(
-        CtrlError::EFCNotFound(p)) if p == "dir1/nested"));
+    assert!(matches!(err, CtrlError::EFCNotFound(p) if p == "dir1/nested"));
 
     let err = exposure.resolve_file_viewstr("dir1/nested/file_a")
         .await.unwrap_err();
-    assert!(matches!(err, PlatformError::CtrlError(
-        CtrlError::EFCNotFound(p)) if p == "dir1/nested/file_a"));
+    assert!(matches!(err, CtrlError::EFCNotFound(p) if p == "dir1/nested/file_a"));
 
     // TODO this example shows how the error points out that the path
     // exists at some prefix, but `some/view` is ignored.  Determine
     // if there should be a better representation for this case.
     let err = exposure.resolve_file_viewstr("dir1/nested/file_a/some/view")
         .await.unwrap_err();
-    assert!(matches!(err, PlatformError::CtrlError(
-        CtrlError::EFCNotFound(p)) if p == "dir1/nested/file_a"));
+    assert!(matches!(err, CtrlError::EFCNotFound(p) if p == "dir1/nested/file_a"));
 
     let err = exposure.resolve_file_viewstr("dir1/nested/file_d")
         .await.unwrap_err();
-    assert!(matches!(err, PlatformError::CtrlError(
-        CtrlError::EFCNotFound(p)) if p == "dir1/nested"));
+    assert!(matches!(err, CtrlError::EFCNotFound(p) if p == "dir1/nested"));
 
     let err = exposure.resolve_file_viewstr("not_dir/nested/file_d")
         .await.unwrap_err();
-    assert!(matches!(err, PlatformError::CtrlError(
-        CtrlError::UnknownPath(p)) if p == "not_dir/nested/file_d"));
+    assert!(matches!(err, CtrlError::UnknownPath(p) if p == "not_dir/nested/file_d"));
 
     let (efctrl, viewstr) = exposure
         .resolve_file_viewstr("dir1/nested/file_c")

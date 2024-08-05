@@ -19,7 +19,10 @@ use std::{
 };
 
 use crate::{
-    error::PlatformError,
+    error::{
+        CtrlError,
+        PlatformError,
+    },
     handle::{
         ExposureCtrl,
         ExposureFileCtrl,
@@ -111,7 +114,7 @@ impl<'p> ExposureFileCtrl<'p> {
     pub async fn resolve_view_by_viewstr(
         &self,
         viewstr: &str,
-    ) -> Result<ExposureFileViewCtrl<'p>, PlatformError> {
+    ) -> Result<ExposureFileViewCtrl<'p>, CtrlError> {
         let mut splitter = viewstr.splitn(2, '/');
         let view_key = splitter.next().expect("must have first part");
         let view_path = splitter.next();
@@ -122,7 +125,9 @@ impl<'p> ExposureFileCtrl<'p> {
                 self.exposure_file().id(),
                 view_key,
             )
-            .await?;
+            .await
+            // Assumes all DB errors to be this issue.
+            .map_err(|_| CtrlError::EFVCNotFound(view_key.to_string()))?;
         Ok(ExposureFileViewCtrl::new(
             self.0.platform,
             exposure_file_view,

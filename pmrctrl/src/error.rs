@@ -32,6 +32,7 @@ pub enum PlatformError {
     ValueError(#[from] ValueError),
 }
 
+// These errors only list the main errors, not the preceding path/ids
 #[derive(Debug, PartialEq, Error)]
 pub enum CtrlError {
     /// Path that isn't known under the associated resource
@@ -43,4 +44,8 @@ pub enum CtrlError {
     // TODO how to disambiguate a path that shares a known path, but it
     // might or might not have a ExposureFile which might or might not
     // have a ExposureFileView
+
+    /// For the ExposureFile, view_key not found.
+    #[error("view_key not found: {0}")]
+    EFVCNotFound(String),
 }

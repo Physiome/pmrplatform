@@ -194,7 +194,7 @@ impl<'p> ExposureCtrl<'p> {
     pub async fn resolve_file_viewstr(
         &'p self,
         path: &'p str,
-    ) -> Result<(ExposureFileCtrl<'p>, Option<&'p str>), PlatformError> {
+    ) -> Result<(ExposureFileCtrl<'p>, Option<&'p str>), CtrlError> {
         // TODO there should be a companion method `resolve_file_view` that
         // will resolve the actual file and view in one shot?
         for (idx, c) in [(path.len(), "")].into_iter()
@@ -222,7 +222,7 @@ impl<'p> ExposureCtrl<'p> {
     pub async fn resolve_file_view(
         &'p self,
         path: &'p str,
-    ) -> Result<Result<ExposureFileViewCtrl<'p>, ExposureFileCtrl<'p>>, PlatformError> {
+    ) -> Result<Result<ExposureFileViewCtrl<'p>, ExposureFileCtrl<'p>>, CtrlError> {
         match self.resolve_file_viewstr(path).await {
             Ok((efc, Some(viewstr))) => Ok(Ok(efc.resolve_view_by_viewstr(viewstr).await?)),
             // this should signify a direct file hit.
