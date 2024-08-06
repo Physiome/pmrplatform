@@ -1,4 +1,3 @@
-use crate::error_template::{AppError, ErrorTemplate};
 use leptos::logging;
 use leptos::prelude::*;
 use leptos_meta::*;
@@ -22,6 +21,8 @@ use leptos_router::{
 
 mod api;
 
+use crate::error::AppError;
+use crate::error_template::ErrorTemplate;
 use crate::exposure::api::{
     list,
     list_files,
@@ -90,9 +91,7 @@ pub fn ExposureListing() -> impl IntoView {
             <h1>"Listing of exposures"</h1>
             <div>
             <Suspense fallback=move || view! { <p>"Loading..."</p> }>
-                <ErrorBoundary fallback=|errors| {
-                    view! { <ErrorTemplate errors=errors.into()/> }
-                }>
+                <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
                     <div>{listing}</div>
                 </ErrorBoundary>
             </Suspense>
@@ -166,9 +165,7 @@ pub fn ExposureMain() -> impl IntoView {
     view! {
         <div class="main">
             <Suspense fallback=move || view! { <p>"Loading..."</p> }>
-                <ErrorBoundary fallback=|errors| {
-                    view! { <ErrorTemplate errors=errors.into()/> }
-                }>
+                <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
                     <div>{listing}</div>
                 </ErrorBoundary>
             </Suspense>
@@ -232,11 +229,9 @@ pub fn ExposureFile() -> impl IntoView {
         <div class="main">
             <h1>ExposureFile</h1>
             <Suspense fallback=move || view! { <p>"Loading..."</p> }>
-                <ErrorBoundary fallback=|errors| {
-                    view! { <ErrorTemplate errors=errors.into()/> }
-                }>
+                // <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
                     <div>{ep_view}</div>
-                </ErrorBoundary>
+                // </ErrorBoundary>
             </Suspense>
         </div>
     }

@@ -1,4 +1,3 @@
-use crate::error_template::{AppError, ErrorTemplate};
 use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_meta::{
@@ -26,6 +25,8 @@ use leptos_router::{
     WildcardSegment,
 };
 
+use crate::error::AppError;
+use crate::error_template::ErrorTemplate;
 use crate::exposure::ExposureRoutes;
 use crate::workspace::WorkspaceRoutes;
 
@@ -65,21 +66,20 @@ pub fn App() -> impl IntoView {
 
         // content for this welcome page
         <Router>
-        // fallback=|| {
-        //     let mut outside_errors = Errors::default();
-        //     outside_errors.insert_with_default_key(AppError::NotFound);
-        //     view! {
-        //         <ErrorTemplate outside_errors/>
-        //     }
-        //     .into_view()
-        // }>
             <nav>
                 <A href="/">"Home"</A>
                 <A href="/workspace/">"Workspace"</A>
                 <A href="/exposure/">"Exposure"</A>
             </nav>
             <main>
-                <Routes fallback=|| "error loading">
+                <Routes fallback=|| {
+                    let mut errors = Errors::default();
+                    errors.insert_with_default_key(AppError::NotFound);
+                    view! {
+                        <ErrorTemplate errors/>
+                    }
+                    .into_view()
+                }>
                     <Route path=StaticSegment("") view=HomePage/>
                     <WorkspaceRoutes/>
                     <ExposureRoutes/>

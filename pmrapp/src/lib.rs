@@ -1,6 +1,7 @@
 pub mod app;
 #[cfg(feature = "ssr")]
 pub mod conf;
+pub mod error;
 pub mod error_template;
 pub mod exposure;
 #[cfg(feature = "ssr")]

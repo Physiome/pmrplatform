@@ -1,4 +1,3 @@
-use crate::error_template::{AppError, ErrorTemplate};
 use leptos::logging;
 use leptos::prelude::*;
 use leptos_meta::*;
@@ -27,6 +26,8 @@ use pmrcore::repo::{
 
 mod api;
 
+use crate::error::AppError;
+use crate::error_template::ErrorTemplate;
 use crate::workspace::api::{
     list_workspaces,
     get_workspace_info,
@@ -72,9 +73,7 @@ pub fn WorkspaceListing() -> impl IntoView {
             <h1>"Listing of workspaces"</h1>
             <div>
             <Suspense fallback=move || view! { <p>"Loading..."</p> }>
-                <ErrorBoundary fallback=|errors| {
-                    view! { <ErrorTemplate errors=errors.into()/> }
-                }>
+                <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
                     {move || {
                         let workspace_listing = { move || { workspaces
                             .get()
@@ -175,22 +174,7 @@ pub fn WorkspaceMain() -> impl IntoView {
 
     view! {
         <Suspense fallback=move || view! { <p>"Loading workspace..."</p> }>
-            <ErrorBoundary fallback=|errors| {
-                view! {
-                    <div class="error">
-                        <h1>"Something went wrong."</h1>
-                        <ul>
-                        {// This will not hoist the 404 to the main page?
-                        // an advice suggests that workspace_view render empty?
-                        move || errors.get()
-                            .into_iter()
-                            .map(|(_, error)| view! { <li>{error.to_string()} </li> })
-                            .collect_view()
-                        }
-                        </ul>
-                    </div>
-                }
-            }>
+            <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
                 {workspace_view}
             </ErrorBoundary>
         </Suspense>
@@ -404,20 +388,7 @@ pub fn WorkspaceCommitPath() -> impl IntoView {
 
     view! {
         <Suspense fallback=move || view! { <p>"Loading info..."</p> }>
-            <ErrorBoundary fallback=|errors| {
-                view! {
-                    <div class="error">
-                        <h1>"Something went wrong."</h1>
-                        <ul>
-                        {move || errors.get()
-                            .into_iter()
-                            .map(|(_, error)| view! { <li>{error.to_string()} </li> })
-                            .collect_view()
-                        }
-                        </ul>
-                    </div>
-                }
-            }>
+            <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
                 {view}
             </ErrorBoundary>
         </Suspense>

@@ -18,7 +18,7 @@ use pmrctrl::platform::Platform;
 use pmrrepo::handle::GitResultTarget;
 use std::io::Write;
 
-use crate::error_template::AppError;
+use crate::error::AppError;
 
 
 pub async fn raw_workspace_download(
