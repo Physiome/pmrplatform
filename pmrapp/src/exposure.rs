@@ -4,7 +4,6 @@ use leptos_meta::*;
 use leptos_router::{
     components::{
         ParentRoute,
-        Redirect,
         Route,
     },
     hooks::use_params,
@@ -15,6 +14,7 @@ use leptos_router::{
     },
     MatchNestedRoutes,
     ParamSegment,
+    SsrMode,
     StaticSegment,
     WildcardSegment,
 };
@@ -26,7 +26,7 @@ use crate::error_template::ErrorTemplate;
 use crate::exposure::api::{
     list,
     list_files,
-    get_file,
+    resolve_exposure_path,
 };
 
 #[component]
@@ -36,7 +36,7 @@ pub fn ExposureRoutes() -> impl MatchNestedRoutes<Dom> + Clone {
             <Route path=StaticSegment("/") view=ExposureListing/>
             <ParentRoute path=ParamSegment("id") view=Exposure>
                 <Route path=StaticSegment("/") view=ExposureMain/>
-                <Route path=WildcardSegment("path") view=ExposureFile/>
+                <Route path=WildcardSegment("path") view=ExposureFile ssr=SsrMode::Async/>
             </ParentRoute>
         </ParentRoute>
     }
@@ -183,54 +183,56 @@ pub fn ExposureFile() -> impl IntoView {
     let root_params = expect_context::<Memo<Result<ExposureParams, ParamsError>>>();
     let params = use_params::<ExposureFileParams>();
 
-    let file = Resource::new(
+    let file = Resource::new_blocking(
         move || (
             root_params.get().map(|p| p.id),
             params.get().map(|p| p.path),
         ),
         |p| async move {
-            // FIXME this needs to resolve the path down - we need to manually
-            // disambiguate the view suffix here as it isn't possible to do
-            // suffix after wildcard paths.
             match p {
-                (Ok(Some(id)), Ok(Some(path))) => get_file(id, path.clone())
+                (Ok(Some(id)), Ok(Some(path))) => resolve_exposure_path(id, path.clone())
                     .await
                     .map_err(|_| AppError::NotFound),
-                // can't acquire the required parameters
                 _ => Err(AppError::InternalServerError),
             }
         }
     );
-    let ep_view = move || { file.get().map(
-        move |file| match file {
+
+    let ep_view = Suspend::new(async move {
+        match file.await {
             // TODO figure out how to redirect to the workspace.
-            Ok(value) => Ok(match value {
-                // Again, need to figure out the disambiguation handling
-                Ok(file) => (),
-                // view! {
-                //     <h1>
-                //         "Exposure "{file.id}
-                //         " - ExposureFile "{file.workspace_file_path}
-                //     </h1>
-                // }.into_any(),
-                Err(path) => (),
-                // view! {
-                //     <h1>"path "{path}</h1>
-                //     // <Redirect
-                //     //     path=path
-                //     // />
-                // }.into_any()
-            }),
+            Ok(Ok((ef, efv))) => Ok(view! {
+                <h1>
+                    "Exposure "{ef.id}
+                    " - ExposureFile "{ef.workspace_file_path}
+                    " - ExposureFileView "{efv.view_key}
+                </h1>
+            }.into_any()),
+            Ok(Err(e)) => match e {
+                AppError::Redirect(path) => {
+                    #[cfg(not(feature = "ssr"))]
+                    {
+                        logging::log!("trying window location");
+                        let window = leptos::prelude::tachys::dom::window();
+                        if let Ok(_) = window.location().replace(&path) {
+                        } else {
+                            logging::error!("fail to replace location with {path}");
+                        };
+                    }
+                    Ok(view! { "Redirecting to "<a href=path.clone()>{path.clone()}</a> }.into_any())
+                }
+                _ => Err(AppError::NotFound),
+            }
             _ => Err(AppError::NotFound),
-        })
-    };
+        }
+    });
 
     view! {
         <div class="main">
-            <h1>ExposureFile</h1>
             <Suspense fallback=move || view! { <p>"Loading..."</p> }>
+                <h1>ExposureFile</h1>
                 // <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
-                    <div>{ep_view}</div>
+                <div>{ep_view}</div>
                 // </ErrorBoundary>
             </Suspense>
         </div>

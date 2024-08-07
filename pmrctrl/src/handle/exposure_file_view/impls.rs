@@ -88,6 +88,10 @@ impl<'p> ExposureFileViewCtrl<'p> {
         &self.exposure_file
     }
 
+    pub fn exposure_file_view(&self) -> &ExposureFileViewRef<'p> {
+        &self.exposure_file_view
+    }
+
     pub fn view_key(&self) -> Option<&str> {
         self.exposure_file_view.view_key()
     }
