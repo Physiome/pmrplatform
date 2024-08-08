@@ -14,6 +14,7 @@ use leptos_router::{
     },
     MatchNestedRoutes,
     ParamSegment,
+    SsrMode,
     StaticSegment,
     WildcardSegment,
 };
@@ -35,12 +36,16 @@ use crate::workspace::api::{
 
 #[component]
 pub fn WorkspaceRoutes() -> impl MatchNestedRoutes<Dom> + Clone {
+    let ssr = SsrMode::Async;
     view! {
-        <ParentRoute path=StaticSegment("/workspace") view=WorkspaceRoot>
+        <ParentRoute path=StaticSegment("/workspace") view=WorkspaceRoot ssr>
             <Route path=StaticSegment("/") view=WorkspaceListing/>
             <ParentRoute path=ParamSegment("id") view=Workspace>
                 <Route path=StaticSegment("/") view=WorkspaceMain/>
-                <Route path=(StaticSegment("file"), ParamSegment("commit"), WildcardSegment("path"),) view=WorkspaceCommitPath/>
+                <Route
+                    path=(StaticSegment("file"), ParamSegment("commit"), WildcardSegment("path"),)
+                    view=WorkspaceCommitPath
+                    />
             </ParentRoute>
         </ParentRoute>
     }
@@ -121,7 +126,7 @@ pub struct WorkspaceParams {
 pub fn Workspace() -> impl IntoView {
     logging::log!("in <Workspace>");
     let params = use_params::<WorkspaceParams>();
-    let resource: Resource<Result<RepoResult, AppError>> = Resource::new(
+    let resource: Resource<Result<RepoResult, AppError>> = Resource::new_blocking(
         move || params.get().map(|p| p.id),
         |id| async move {
             logging::log!("processing requested workspace {:?}", &id);
@@ -348,7 +353,7 @@ pub fn WorkspaceCommitPath() -> impl IntoView {
     let workspace_params = expect_context::<Memo<Result<WorkspaceParams, ParamsError>>>();
     let params = use_params::<WorkspaceCommitPathParams>();
 
-    let resource = Resource::new(
+    let resource = Resource::new_blocking(
         move || (
             workspace_params.get().map(|p| p.id),
             params.get().map(|p| (p.commit, p.path)),

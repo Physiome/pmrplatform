@@ -31,12 +31,13 @@ use crate::exposure::api::{
 
 #[component]
 pub fn ExposureRoutes() -> impl MatchNestedRoutes<Dom> + Clone {
+    let ssr = SsrMode::Async;
     view! {
-        <ParentRoute path=StaticSegment("/exposure") view=ExposureRoot>
+        <ParentRoute path=StaticSegment("/exposure") view=ExposureRoot ssr>
             <Route path=StaticSegment("/") view=ExposureListing/>
             <ParentRoute path=ParamSegment("id") view=Exposure>
                 <Route path=StaticSegment("/") view=ExposureMain/>
-                <Route path=WildcardSegment("path") view=ExposureFile ssr=SsrMode::Async/>
+                <Route path=WildcardSegment("path") view=ExposureFile/>
             </ParentRoute>
         </ParentRoute>
     }
@@ -210,12 +211,18 @@ pub fn ExposureFile() -> impl IntoView {
             }.into_any()),
             Ok(Err(e)) => match e {
                 AppError::Redirect(path) => {
+                    // Ensures the 302 FOUND status code is set, as the server function cannot do it
+                    // reliably due to its dual usage in CSR and SSR
+                    #[cfg(feature = "ssr")]
+                    {
+                        let res = expect_context::<leptos_axum::ResponseOptions>();
+                        res.set_status(http::StatusCode::FOUND);
+                    }
                     #[cfg(not(feature = "ssr"))]
                     {
                         logging::log!("trying window location");
                         let window = leptos::prelude::tachys::dom::window();
-                        if let Ok(_) = window.location().replace(&path) {
-                        } else {
+                        if let Err(_) = window.location().replace(&path) {
                             logging::error!("fail to replace location with {path}");
                         };
                     }
@@ -230,10 +237,10 @@ pub fn ExposureFile() -> impl IntoView {
     view! {
         <div class="main">
             <Suspense fallback=move || view! { <p>"Loading..."</p> }>
-                <h1>ExposureFile</h1>
-                // <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
-                <div>{ep_view}</div>
-                // </ErrorBoundary>
+                <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
+                    <h1>ExposureFile</h1>
+                    <div>{ep_view}</div>
+                </ErrorBoundary>
             </Suspense>
         </div>
     }

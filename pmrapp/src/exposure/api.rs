@@ -52,9 +52,9 @@ pub async fn resolve_exposure_path(
             efvc.exposure_file_ctrl().exposure_file().clone_inner(),
             efvc.exposure_file_view().clone_inner()
         ))),
-        Err(CtrlError::UnknownPath(_)) => Err(AppError::NotFound.into()),
-        // this _may_ be tested with a redirect
-        _ => {
+        Ok(Err(_)) | Err(CtrlError::EFCNotFound(_)) => {
+            // since the request path has a direct hit on file, doesn't
+            // matter if ExposureFileCtrl found or not.
             let exposure = ec.exposure();
             let path = format!(
                 "/workspace/{}/rawfile/{}/{}",
@@ -64,6 +64,8 @@ pub async fn resolve_exposure_path(
             );
             redirect(path.as_str());
             Ok(Err(AppError::Redirect(path).into()))
-        }
+        },
+        // CtrlError::UnknownPath(_) | CtrlError::EFVCNotFound(_)
+        _ => Err(AppError::NotFound.into()),
     }
 }
