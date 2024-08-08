@@ -281,27 +281,36 @@ async fn test_platform_exposure_ctrl_resolve_view() -> anyhow::Result<()> {
     assert_eq!(efv.view_key(), Some("example_view2"));
 
     // This hits the exact file
-    let result = exposure.resolve_file_view("dir1/nested/file_c")
-        .await.unwrap().unwrap_err();
-    assert_eq!(efc.exposure_file().clone_inner(), result.exposure_file().clone_inner());
+    let (efc_r, efvc_r) = exposure.resolve_file_view("dir1/nested/file_c").await;
+    assert_eq!(efc_r?.exposure_file().clone_inner(), efc.exposure_file().clone_inner());
+    assert_eq!(efvc_r.unwrap_err(), CtrlError::None);
 
-    // TODO could resolve into a better error type under CtrlError
-    assert!(exposure.resolve_file_view("dir1/nested/file_c/example_view1").await.is_err());
+    // this should query for a view with an empty string
+    let (efc_r, efvc_r) = exposure.resolve_file_view("dir1/nested/file_c/").await;
+    assert_eq!(efc_r?.exposure_file().clone_inner(), efc.exposure_file().clone_inner());
+    assert_eq!(efvc_r.unwrap_err(), CtrlError::EFVCNotFound("".to_string()));
 
-    let result = exposure.resolve_file_view("dir1/nested/file_c/example_view2").await?
-        .expect("somehow this is an Err(ExposureFileCtrl)");
-    assert_eq!(result.view_key(), Some("example_view2"));
-    assert_eq!(result.view_path(), None);
+    let (efc_r, efvc_r) = exposure.resolve_file_view("dir1/nested/file_c/example_view1").await;
+    assert_eq!(efc_r?.exposure_file().clone_inner(), efc.exposure_file().clone_inner());
+    assert_eq!(efvc_r.unwrap_err(), CtrlError::EFVCNotFound("example_view1".to_string()));
 
-    let result = exposure.resolve_file_view("dir1/nested/file_c/example_view2/").await?
-        .expect("somehow this is an Err(ExposureFileCtrl)");
-    assert_eq!(result.view_key(), Some("example_view2"));
-    assert_eq!(result.view_path(), Some(""));
+    let (efc_r, efvc_r) = exposure.resolve_file_view("dir1/nested/file_c/example_view2").await;
+    assert_eq!(efc_r?.exposure_file().clone_inner(), efc.exposure_file().clone_inner());
+    let efvc_r = efvc_r?;
+    assert_eq!(efvc_r.view_key(), Some("example_view2"));
+    assert_eq!(efvc_r.view_path(), None);
 
-    let result = exposure.resolve_file_view("dir1/nested/file_c/example_view2/sub/view").await?
-        .expect("somehow this is an Err(ExposureFileCtrl)");
-    assert_eq!(result.view_key(), Some("example_view2"));
-    assert_eq!(result.view_path(), Some("sub/view"));
+    let (efc_r, efvc_r) = exposure.resolve_file_view("dir1/nested/file_c/example_view2/").await;
+    assert_eq!(efc_r?.exposure_file().clone_inner(), efc.exposure_file().clone_inner());
+    let efvc_r = efvc_r?;
+    assert_eq!(efvc_r.view_key(), Some("example_view2"));
+    assert_eq!(efvc_r.view_path(), Some(""));
+
+    let (efc_r, efvc_r) = exposure.resolve_file_view("dir1/nested/file_c/example_view2/sub/view").await;
+    assert_eq!(efc_r?.exposure_file().clone_inner(), efc.exposure_file().clone_inner());
+    let efvc_r = efvc_r?;
+    assert_eq!(efvc_r.view_key(), Some("example_view2"));
+    assert_eq!(efvc_r.view_path(), Some("sub/view"));
 
     Ok(())
 }

@@ -222,12 +222,11 @@ impl<'p> ExposureCtrl<'p> {
     pub async fn resolve_file_view(
         &'p self,
         path: &'p str,
-    ) -> Result<Result<ExposureFileViewCtrl<'p>, ExposureFileCtrl<'p>>, CtrlError> {
+    ) -> (Result<ExposureFileCtrl<'p>, CtrlError>, Result<ExposureFileViewCtrl<'p>, CtrlError>) {
         match self.resolve_file_viewstr(path).await {
-            Ok((efc, Some(viewstr))) => Ok(Ok(efc.resolve_view_by_viewstr(viewstr).await?)),
-            // this should signify a direct file hit.
-            Ok((efc, None)) => Ok(Err(efc)),
-            Err(e) => Err(e),
+            Ok((efc, Some(viewstr))) => (Ok(efc.clone()), efc.resolve_view_by_viewstr(viewstr).await),
+            Ok((efc, None)) => (Ok(efc), Err(CtrlError::None)),
+            Err(e) => (Err(e), Err(CtrlError::None)),
         }
     }
 

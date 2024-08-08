@@ -34,8 +34,10 @@ pub async fn list_files(id: i64) -> Result<Vec<(String, bool)>, ServerFnError> {
 pub async fn resolve_exposure_path(
     id: i64,
     path: String,
-) -> Result<Result<(ExposureFile, ExposureFileView), AppError>, ServerFnError> {
+) -> Result<Result<(ExposureFile, Option<ExposureFileView>), AppError>, ServerFnError> {
     // TODO when there is a proper error type for id not found, use that
+    // TODO ExposureFileView is a placeholder - the real type that should be returned
+    // is something that can readily be turned into an IntoView.
     use pmrcore::exposure::traits::Exposure as _;
     use pmrctrl::error::CtrlError;
 
@@ -43,11 +45,11 @@ pub async fn resolve_exposure_path(
     let ec = platform.get_exposure(id).await?;
 
     match ec.resolve_file_view(path.as_ref()).await {
-        Ok(Ok(efvc)) => Ok(Ok((
-            efvc.exposure_file_ctrl().exposure_file().clone_inner(),
-            efvc.exposure_file_view().clone_inner()
+        (Ok(efc), Ok(efvc)) => Ok(Ok((
+            efc.exposure_file().clone_inner(),
+            Some(efvc.exposure_file_view().clone_inner()),
         ))),
-        Ok(Err(_)) | Err(CtrlError::EFCNotFound(_)) => {
+        (_, Err(CtrlError::None)) => {
             // since the request path has a direct hit on file, doesn't
             // matter if ExposureFileCtrl found or not.
             let exposure = ec.exposure();
@@ -58,8 +60,13 @@ pub async fn resolve_exposure_path(
                 path,
             );
             // leptos_axum::redirect(path.as_str());
+            // returning this as an Ok(Err(..)) to avoid redirecting while this is a resposne for csr
             Ok(Err(AppError::Redirect(path).into()))
         },
+        (Ok(efc), Err(CtrlError::EFVCNotFound(viewstr))) if viewstr == "" => Ok(Ok((
+            efc.exposure_file().clone_inner(),
+            None,
+        ))),
         // CtrlError::UnknownPath(_) | CtrlError::EFVCNotFound(_)
         _ => Err(AppError::NotFound.into()),
     }

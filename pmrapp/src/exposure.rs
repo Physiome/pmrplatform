@@ -142,7 +142,11 @@ pub fn ExposureMain() -> impl IntoView {
             <a href=format!("/exposure/{id}/{file}")>
                 {file.clone()}
             </a>
-            " - "{flag}
+            " - "{flag.then(|| view! {
+                <a href=format!("/exposure/{id}/{file}/")>
+                    {flag}
+                </a>
+            }.into_any()).unwrap_or("false".into_any())}
         </li>
     };
     let listing = move || { files.get().map(
@@ -201,18 +205,25 @@ pub fn ExposureFile() -> impl IntoView {
         }
     );
 
-    let ep_view = Suspend::new(async move {
+    let ep_view = move || Suspend::new(async move {
         match file.await {
             // TODO figure out how to redirect to the workspace.
-            Ok(Ok((ef, efv))) => Ok(view! {
+            Ok(Ok((ef, Some(efv)))) => Ok(view! {
                 <h1>
                     "Exposure "{ef.id}
                     " - ExposureFile "{ef.workspace_file_path}
                     " - ExposureFileView "{efv.view_key}
                 </h1>
             }.into_any()),
+            Ok(Ok((ef, None))) => Ok(view! {
+                <h1>
+                    "Exposure "{ef.id}
+                    " - ExposureFile "{ef.workspace_file_path}
+                    " - Listing of all views"
+                </h1>
+            }.into_any()),
             Ok(Err(e)) => match e {
-                AppError::Redirect(path) => Ok(view! { <Redirect path/> }.into_any()),
+                AppError::Redirect(path) => Ok(view! { <Redirect path show_link=true/> }.into_any()),
                 _ => Err(AppError::NotFound),
             }
             _ => Err(AppError::NotFound),
