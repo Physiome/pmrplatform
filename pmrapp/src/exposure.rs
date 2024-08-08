@@ -23,6 +23,7 @@ mod api;
 
 use crate::error::AppError;
 use crate::error_template::ErrorTemplate;
+use crate::component::{Redirect, RedirectTS};
 use crate::exposure::api::{
     list,
     list_files,
@@ -88,6 +89,7 @@ pub fn ExposureListing() -> impl IntoView {
     };
 
     view! {
+        <RedirectTS />
         <div class="main">
             <h1>"Listing of exposures"</h1>
             <div>
@@ -137,11 +139,10 @@ pub fn ExposureMain() -> impl IntoView {
     );
     let file_entry_view = move |(id, (file, flag)): (i64, (String, bool))| view! {
         <li>
-          // <li>{file} - {flag}</li>
-          <a href=format!("/exposure/{id}/{file}")>
-              {file.clone()}
-          </a>
-          " - "{flag}
+            <a href=format!("/exposure/{id}/{file}")>
+                {file.clone()}
+            </a>
+            " - "{flag}
         </li>
     };
     let listing = move || { files.get().map(
@@ -149,6 +150,7 @@ pub fn ExposureMain() -> impl IntoView {
             Err(_) => Err(AppError::NotFound),
             Ok(files) => {
                 Ok(view! {
+                    <RedirectTS/>
                     <h1>"Viewing exposure "{id}</h1>
                     <ul>{
                         zip(
@@ -210,24 +212,7 @@ pub fn ExposureFile() -> impl IntoView {
                 </h1>
             }.into_any()),
             Ok(Err(e)) => match e {
-                AppError::Redirect(path) => {
-                    // Ensures the 302 FOUND status code is set, as the server function cannot do it
-                    // reliably due to its dual usage in CSR and SSR
-                    #[cfg(feature = "ssr")]
-                    {
-                        let res = expect_context::<leptos_axum::ResponseOptions>();
-                        res.set_status(http::StatusCode::FOUND);
-                    }
-                    #[cfg(not(feature = "ssr"))]
-                    {
-                        logging::log!("trying window location");
-                        let window = leptos::prelude::tachys::dom::window();
-                        if let Err(_) = window.location().replace(&path) {
-                            logging::error!("fail to replace location with {path}");
-                        };
-                    }
-                    Ok(view! { "Redirecting to "<a href=path.clone()>{path.clone()}</a> }.into_any())
-                }
+                AppError::Redirect(path) => Ok(view! { <Redirect path/> }.into_any()),
                 _ => Err(AppError::NotFound),
             }
             _ => Err(AppError::NotFound),

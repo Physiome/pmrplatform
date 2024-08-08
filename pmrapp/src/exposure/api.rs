@@ -39,11 +39,6 @@ pub async fn resolve_exposure_path(
     use pmrcore::exposure::traits::Exposure as _;
     use pmrctrl::error::CtrlError;
 
-    use leptos_axum::redirect;
-    use leptos_axum::ResponseOptions;
-    use leptos::context::use_context;
-    use http::StatusCode;
-
     let platform = platform().await?;
     let ec = platform.get_exposure(id).await?;
 
@@ -62,7 +57,7 @@ pub async fn resolve_exposure_path(
                 exposure.commit_id(),
                 path,
             );
-            redirect(path.as_str());
+            // leptos_axum::redirect(path.as_str());
             Ok(Err(AppError::Redirect(path).into()))
         },
         // CtrlError::UnknownPath(_) | CtrlError::EFVCNotFound(_)

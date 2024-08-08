@@ -19,7 +19,6 @@ use leptos_router::{
     WildcardSegment,
 };
 use pmrcore::repo::{
-    FileInfo,
     PathObjectInfo,
     RepoResult,
     TreeInfo,
@@ -29,6 +28,7 @@ mod api;
 
 use crate::error::AppError;
 use crate::error_template::ErrorTemplate;
+use crate::component::RedirectTS;
 use crate::workspace::api::{
     list_workspaces,
     get_workspace_info,
@@ -74,6 +74,7 @@ pub fn WorkspaceListing() -> impl IntoView {
     );
 
     view! {
+        <RedirectTS/>
         <div class="main">
             <h1>"Listing of workspaces"</h1>
             <div>

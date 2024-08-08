@@ -1,4 +1,5 @@
 pub mod app;
+pub mod component;
 #[cfg(feature = "ssr")]
 pub mod conf;
 pub mod error;

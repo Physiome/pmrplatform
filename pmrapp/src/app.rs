@@ -1,5 +1,4 @@
 use leptos::prelude::*;
-use leptos_meta::*;
 use leptos_meta::{
     MetaTags,
     Stylesheet,
@@ -9,20 +8,11 @@ use leptos_meta::{
 use leptos_router::{
     components::{
         A,
-        ParentRoute,
         Route,
         Router,
         Routes,
     },
-    hooks::{
-        use_location,
-        use_params_map,
-    },
-    nested_router::Outlet,
-    MatchNestedRoutes,
-    ParamSegment,
     StaticSegment,
-    WildcardSegment,
 };
 
 use crate::error::AppError;
@@ -52,8 +42,6 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
 pub fn App() -> impl IntoView {
     // Provides context that manages stylesheets, titles, meta tags, etc.
     provide_meta_context();
-
-    let current_url = Signal::derive(move || use_location().pathname.get());
 
     view! {
 
