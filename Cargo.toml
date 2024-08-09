@@ -1,8 +1,6 @@
 [workspace]
 members = [
     "pmrapp",
-    "pmrapp_client",
-    "pmrapp_server",
     "pmrctrl",
     "pmrcore",
     "pmrmodel",
@@ -22,8 +20,6 @@ resolver = "2"
 
 [patch.crates-io]
 pmrapp = { path = "./pmrapp" }
-pmrapp_client = { path = "./pmrapp_client" }
-pmrapp_server = { path = "./pmrapp_server" }
 pmrctrl = { path = "./pmrctrl" }
 pmrmodel = { path = "./pmrmodel" }
 pmrcore = { path = "./pmrcore" }

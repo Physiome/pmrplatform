@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "main"
+      - "testing"
   pull_request:
     branches:
       - "main"
@@ -16,14 +17,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - name: Install wasm-pack
-      run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-    - name: Build
-      run: |
-        cargo build
-        wasm-pack build pmrapp_client --target web
-        cargo build --bin pmrapp_server --package pmrapp_server
+
+    - name: Add wasm32-unknown-unknown
+      run: rustup target add wasm32-unknown-unknown
+
+    - name: Install binstall
+      uses: cargo-bins/cargo-binstall@main
+
+    - name: Install wasm-bindgen
+      run: cargo binstall wasm-bindgen-cli --no-confirm
+
+    - name: Install cargo-leptos
+      run: cargo binstall cargo-leptos --no-confirm
+
+    - name: Build pmrplatform
+      run: cargo build
+
+    - name: Build pmrapp (with cargo-leptos)
+      run: cargo leptos build
+
     - name: Run tests
       run: |
         cargo test --all-features
-        cargo test --package pmrapp_server --package pmrapp_client
+        cargo test --package pmrapp
