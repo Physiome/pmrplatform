@@ -208,7 +208,7 @@ pub fn ExposureFile() -> impl IntoView {
 
     let view_key_entry = move |(ef, view_key): (&ExposureFile, String)| view! {
         <li>
-            <a href=format!("/exposure/{}/{}/{}", ef.id, ef.workspace_file_path, view_key)>
+            <a href=format!("/exposure/{}/{}/{}", ef.exposure_id, ef.workspace_file_path, view_key)>
                 {view_key.clone()}
             </a>
         </li>
@@ -219,14 +219,14 @@ pub fn ExposureFile() -> impl IntoView {
             // TODO figure out how to redirect to the workspace.
             Ok(Ok((ef, Ok(efv)))) => Ok(view! {
                 <h1>
-                    "Exposure "{ef.id}
+                    "Exposure "{ef.exposure_id}
                     " - ExposureFile "{ef.workspace_file_path}
                     " - ExposureFileView "{efv.view_key}
                 </h1>
             }.into_any()),
             Ok(Ok((ef, Err(view_keys)))) => Ok(view! {
                 <h1>
-                    "Exposure "{ef.id}
+                    "Exposure "{ef.exposure_id}
                     " - ExposureFile "{ef.workspace_file_path.clone()}
                     " - Listing of all views"
                 </h1>
