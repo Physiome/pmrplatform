@@ -35,6 +35,7 @@ pub enum PlatformError {
 // These errors only list the main errors, not the preceding path/ids
 #[derive(Debug, PartialEq, Error)]
 pub enum CtrlError {
+    /// This typically function as a placeholder for not haven't tried
     #[error("None")]
     None,
     /// Path that isn't known under the associated resource

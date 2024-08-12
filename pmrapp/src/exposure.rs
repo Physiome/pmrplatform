@@ -18,6 +18,7 @@ use leptos_router::{
     StaticSegment,
     WildcardSegment,
 };
+use pmrcore::exposure::ExposureFile;
 
 mod api;
 
@@ -205,22 +206,35 @@ pub fn ExposureFile() -> impl IntoView {
         }
     );
 
+    let view_key_entry = move |(ef, view_key): (&ExposureFile, String)| view! {
+        <li>
+            <a href=format!("/exposure/{}/{}/{}", ef.id, ef.workspace_file_path, view_key)>
+                {view_key.clone()}
+            </a>
+        </li>
+    };
+
     let ep_view = move || Suspend::new(async move {
         match file.await {
             // TODO figure out how to redirect to the workspace.
-            Ok(Ok((ef, Some(efv)))) => Ok(view! {
+            Ok(Ok((ef, Ok(efv)))) => Ok(view! {
                 <h1>
                     "Exposure "{ef.id}
                     " - ExposureFile "{ef.workspace_file_path}
                     " - ExposureFileView "{efv.view_key}
                 </h1>
             }.into_any()),
-            Ok(Ok((ef, None))) => Ok(view! {
+            Ok(Ok((ef, Err(view_keys)))) => Ok(view! {
                 <h1>
                     "Exposure "{ef.id}
-                    " - ExposureFile "{ef.workspace_file_path}
+                    " - ExposureFile "{ef.workspace_file_path.clone()}
                     " - Listing of all views"
                 </h1>
+                <ul>{
+                    view_keys.into_iter()
+                        .map(|k| view_key_entry((&ef, k)))
+                        .collect_view()
+                }</ul>
             }.into_any()),
             Ok(Err(e)) => match e {
                 AppError::Redirect(path) => Ok(view! { <Redirect path show_link=true/> }.into_any()),
