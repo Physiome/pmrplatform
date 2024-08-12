@@ -43,10 +43,8 @@ pub fn Redirect(
 
 #[component]
 pub fn RedirectTS() -> impl IntoView {
-    let current_url = Signal::derive(move || use_location().pathname.get());
-    current_url.with(|url| {
-        (url.chars().last() != Some('/')).then(|| view! {
+    Signal::derive(move || use_location().pathname.get())
+        .with(|url| {(url.chars().last() != Some('/')).then(|| view! {
             <Redirect path=format!("{url}/")/>
-        })
-    })
+        })})
 }
