@@ -18,7 +18,8 @@ use leptos_router::{
     StaticSegment,
     WildcardSegment,
 };
-use pmrcore::exposure::ExposureFile;
+use pmrcore::exposure;
+use std::str::FromStr;
 
 mod api;
 
@@ -29,6 +30,10 @@ use crate::exposure::api::{
     list,
     list_files,
     resolve_exposure_path,
+};
+use crate::view::{
+    EFView,
+    ExposureFileView,
 };
 
 #[component]
@@ -206,7 +211,7 @@ pub fn ExposureFile() -> impl IntoView {
         }
     );
 
-    let view_key_entry = move |(ef, view_key): (&ExposureFile, String)| view! {
+    let view_key_entry = move |(ef, view_key): (&exposure::ExposureFile, String)| view! {
         <li>
             <a href=format!("/exposure/{}/{}/{}", ef.exposure_id, ef.workspace_file_path, view_key)>
                 {view_key.clone()}
@@ -217,13 +222,22 @@ pub fn ExposureFile() -> impl IntoView {
     let ep_view = move || Suspend::new(async move {
         match file.await {
             // TODO figure out how to redirect to the workspace.
-            Ok(Ok((ef, Ok(efv)))) => Ok(view! {
-                <h1>
-                    "Exposure "{ef.exposure_id}
-                    " - ExposureFile "{ef.workspace_file_path}
-                    " - ExposureFileView "{efv.view_key}
-                </h1>
-            }.into_any()),
+            Ok(Ok((ef, Ok(efv)))) => {
+                let view_key = efv.view_key.clone();
+                let view_key = EFView::from_str(&view_key
+                    .expect("API failed to produce a fully formed ExposureFileView")
+                )?;
+                provide_context(ef);
+                provide_context(efv);
+                Ok(view! {
+                    // <h1>
+                    //     "Exposure "{ef.exposure_id}
+                    //     " - ExposureFile "{ef.workspace_file_path}
+                    // </h1>
+                    // TODO display the appropriate view via registry of views?
+                    <ExposureFileView view_key/>
+                }.into_any())
+            }
             Ok(Ok((ef, Err(view_keys)))) => Ok(view! {
                 <h1>
                     "Exposure "{ef.exposure_id}

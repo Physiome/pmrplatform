@@ -8,8 +8,11 @@ pub enum AppError {
     Redirect(String),
     #[error("404 Not Found")]
     NotFound,
+
     #[error("500 Internal Server Error")]
     InternalServerError,
+    #[error("500 Internal Server Error")]
+    ViewNotImplemented,
 }
 
 impl AppError {
