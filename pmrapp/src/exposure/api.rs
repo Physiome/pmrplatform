@@ -73,10 +73,16 @@ pub async fn resolve_exposure_path(
                 exposure.commit_id(),
                 path,
             );
-            // Not using the integration as it's not currently set up properly yet
-            // (the redirect hooks are missing for server functions for the routes)
+            // Not using this built-in axum integration.
             // leptos_axum::redirect(path.as_str());
-            // returning this as an Ok(Err(..)) to avoid redirecting while this is a response for csr
+            //
+            // Reason for doing our own thing here is because the target
+            // is an endpoint outside of the leptos application and thus
+            // not routable/renderable using CSR.
+            //
+            // Returning the path as an Ok(Err(..)) to indicate a proper
+            // result that isn't a ServerFnError, but still an inner Err
+            // to facilitate this custom redirect handling.
             Ok(Err(AppError::Redirect(path).into()))
         },
         (Ok(efc), Err(CtrlError::EFVCNotFound(viewstr))) if viewstr == "" => Ok(Ok((
