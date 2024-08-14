@@ -21,7 +21,7 @@ use leptos_router::{
 use pmrcore::exposure;
 use std::str::FromStr;
 
-mod api;
+pub mod api;
 
 use crate::error::AppError;
 use crate::error_template::ErrorTemplate;
@@ -191,6 +191,9 @@ pub struct ExposureFileParams {
     path: Option<String>,
 }
 
+#[derive(Clone, Debug)]
+pub struct ViewPath(pub Option<String>);
+
 #[component]
 pub fn ExposureFile() -> impl IntoView {
     let root_params = expect_context::<Memo<Result<ExposureParams, ParamsError>>>();
@@ -222,13 +225,14 @@ pub fn ExposureFile() -> impl IntoView {
     let ep_view = move || Suspend::new(async move {
         match file.await {
             // TODO figure out how to redirect to the workspace.
-            Ok(Ok((ef, Ok(efv)))) => {
+            Ok(Ok((ef, Ok((efv, view_path))))) => {
                 let view_key = efv.view_key.clone();
                 let view_key = EFView::from_str(&view_key
                     .expect("API failed to produce a fully formed ExposureFileView")
                 )?;
                 provide_context(ef);
                 provide_context(efv);
+                provide_context(ViewPath(view_path));
                 Ok(view! {
                     // <h1>
                     //     "Exposure "{ef.exposure_id}

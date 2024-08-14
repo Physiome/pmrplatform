@@ -9,6 +9,7 @@ use pmrcore::{
         ExposureFileView,
     },
 };
+use leptos::server_fn::codec::Rkyv;
 #[cfg(feature = "ssr")]
 use crate::server::platform;
 
@@ -34,7 +35,7 @@ pub async fn list_files(id: i64) -> Result<Vec<(String, bool)>, ServerFnError> {
 pub async fn resolve_exposure_path(
     id: i64,
     path: String,
-) -> Result<Result<(ExposureFile, Result<ExposureFileView, Vec<String>>), AppError>, ServerFnError> {
+) -> Result<Result<(ExposureFile, Result<(ExposureFileView, Option<String>), Vec<String>>), AppError>, ServerFnError> {
     // TODO when there is a proper error type for id not found, use that
     // TODO ExposureFileView is a placeholder - the real type that should be returned
     // is something that can readily be turned into an IntoView.
@@ -61,7 +62,10 @@ pub async fn resolve_exposure_path(
     match ec.resolve_file_view(path.as_ref()).await {
         (Ok(efc), Ok(efvc)) => Ok(Ok((
             efc.exposure_file().clone_inner(),
-            Ok(efvc.exposure_file_view().clone_inner()),
+            Ok((
+                efvc.exposure_file_view().clone_inner(),
+                efvc.view_path().map(str::to_string),
+            )),
         ))),
         (_, Err(CtrlError::None)) => {
             // since the request path has a direct hit on file, doesn't
@@ -98,4 +102,22 @@ pub async fn resolve_exposure_path(
         // CtrlError::UnknownPath(_) | CtrlError::EFVCNotFound(_)
         _ => Err(AppError::NotFound.into()),
     }
+}
+
+// TODO this should NOT be a full-on server function, but should be something
+// that is only available on the server side, with dedicated client functions
+// for each specific response type.  This is only acceptable in a prototype.
+// FIXME remove server macro
+#[server(ReadBlob, "/api", output = Rkyv)]
+pub async fn read_blob(
+    id: i64,
+    path: String,
+    efvid: i64,
+    key: String,
+) -> Result<Box<[u8]>, ServerFnError> {
+    let platform = platform().await?;
+    let ec = platform.get_exposure(id).await?;
+    let efc = ec.ctrl_path(&path).await?;
+    let efvc = efc.get_view(efvid).await?;
+    Ok(efvc.read_blob(&key).await?)
 }
