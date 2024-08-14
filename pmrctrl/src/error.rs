@@ -51,4 +51,12 @@ pub enum CtrlError {
     /// For the ExposureFile, view_key not found.
     #[error("view_key not found: {0}")]
     EFVCNotFound(String),
+
+    /// This error indicates that the ExposureFileView is incomplete,
+    /// it is likely missing a valid `view_key`.
+    #[error("ExposureFileView incomplete")]
+    EFVCIncomplete,
+    /// No such blob
+    #[error("blob not found: {0}")]
+    EFVCBlobNotFound(String),
 }

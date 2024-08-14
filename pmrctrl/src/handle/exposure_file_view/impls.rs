@@ -12,11 +12,21 @@ use pmrcore::{
         traits::TaskBackend,
     },
 };
-use std::fmt;
+use std::{
+    fmt,
+    path::{
+        Component,
+        Path,
+        PathBuf,
+    },
+};
 
 use super::ExposureFileViewCtrl;
 use crate::{
-    error::PlatformError,
+    error::{
+        CtrlError,
+        PlatformError,
+    },
     handle::{
         ExposureFileCtrl,
         view_task_template::VTTCTask,
@@ -84,6 +94,18 @@ impl<'p> ExposureFileViewCtrl<'p> {
         Ok((efv_id, task.id))
     }
 
+    pub async fn read_blob(&self, path: &str) -> Result<Box<[u8]>, CtrlError> {
+        let mut target = self.data_root()?;
+        Path::new(path).components()
+            .for_each(|p| if let Component::Normal(s) = p {
+                target.push(<&str>::try_from(s)
+                    .expect("this started as a valid str"))
+            });
+        async_std::fs::read(target).await
+            .map(Vec::into_boxed_slice)
+            .map_err(|_| CtrlError::EFVCBlobNotFound(path.to_string()))
+    }
+
     pub fn exposure_file_ctrl(&self) -> &ExposureFileCtrl<'p> {
         &self.exposure_file
     }
@@ -98,5 +120,16 @@ impl<'p> ExposureFileViewCtrl<'p> {
 
     pub fn view_path(&self) -> Option<&str> {
         self.view_path.as_deref()
+    }
+
+    pub fn data_root(&self) -> Result<PathBuf, CtrlError> {
+        self.exposure_file_view
+            .view_key()
+            .map(|view_key| {
+                let mut target = PathBuf::from(self.exposure_file_ctrl().data_root());
+                target.push(view_key);
+                target
+            })
+            .ok_or(CtrlError::EFVCIncomplete)
     }
 }

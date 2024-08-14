@@ -579,8 +579,13 @@ async fn make_example_runnable_task_templates<'p>(
 ) -> anyhow::Result<Vec<i64>> {
     build_test_binary_once!(sentinel, "../testing");
     build_test_binary_once!(exit_code, "../testing");
-    let sentinel = path_to_sentinel().into_string().expect("a valid string");
-    let exit_code = path_to_exit_code().into_string().expect("a valid string");
+    build_test_binary_once!(iorw, "../testing");
+    let sentinel = path_to_sentinel().into_string()
+        .expect("failed to build testing/sentinel");
+    let exit_code = path_to_exit_code().into_string()
+        .expect("failed to build testing/exit_code");
+    let iorw = path_to_iorw().into_string()
+        .expect("failed to build testing/iorw");
 
     let mut result: Vec<i64> = Vec::new();
     result.push(platform.adds_view_task_template(
@@ -609,6 +614,36 @@ async fn make_example_runnable_task_templates<'p>(
                         "default": null,
                         "choice_fixed": false,
                         "choice_source": null,
+                        "choices": []
+                    }}
+                ]
+            }}
+        }}"#))?
+    ).await?);
+    result.push(platform.adds_view_task_template(
+        serde_json::from_str(&format!(r#"{{
+            "view_key": "iorw",
+            "description": "Input/Output Read/Write",
+            "task_template": {{
+                "bin_path": "{iorw}",
+                "version_id": "1.0.0",
+                "args": [
+                    {{
+                        "flag": null,
+                        "flag_joined": false,
+                        "prompt": "",
+                        "default": "workspace_file_path",
+                        "choice_fixed": true,
+                        "choice_source": "workspace_file_path",
+                        "choices": []
+                    }},
+                    {{
+                        "flag": null,
+                        "flag_joined": false,
+                        "prompt": "",
+                        "default": "working_dir",
+                        "choice_fixed": true,
+                        "choice_source": "working_dir",
                         "choices": []
                     }}
                 ]
@@ -1586,6 +1621,74 @@ async fn test_task_executor_ctrl_task_failure_then_success() -> anyhow::Result<(
         .get_exposure_file_view(exposure_file_view_id)
         .await?;
     assert_eq!(efv.view_key(), Some("exit_code_0"));
+
+    Ok(())
+}
+
+#[async_std::test]
+async fn test_resolve_exposure_file_view_read_blob() -> anyhow::Result<()> {
+    let (root, platform) = create_sqlite_platform().await?;
+    let vtts = make_example_runnable_task_templates(&platform).await?;
+    let exposure = platform.create_exposure(
+        3,
+        "8ae6e9af37c8bd78614545d0ab807348fc46dcab",
+    ).await?;
+    let efc = exposure.create_file("dir1/nested/file_c").await?;
+
+    ExposureTaskTemplateBackend::set_file_templates(
+        platform.mc_platform.as_ref(),
+        efc.exposure_file().id(),
+        &[vtts[2]],
+    ).await?;
+    let efvttsc = efc.build_vttc().await?;
+    let user_input = UserInputMap::from([]);
+    let tasks = efvttsc.create_tasks_from_input(&user_input)?;
+    efc.process_vttc_tasks(tasks).await?;
+
+    // should we try to get the exposure file view manually anyway...
+    let efvc = efc.get_view(1).await?;
+    // ... it will be found that it is in an incomplete state.
+    assert_eq!(
+        efvc.read_blob("size").await,
+        Err(CtrlError::EFVCIncomplete),
+    );
+
+    let task_executor_ctrl = platform.start_task().await?
+        .expect("a task is queued");
+    let (code, result) = task_executor_ctrl.execute().await?;
+    assert_eq!(code, 0);
+    assert_eq!(result, true);
+
+    let (efc2, efvc) = exposure
+        .resolve_file_view("dir1/nested/file_c/iorw")
+        .await;
+    assert_eq!(efc.exposure_file().id(), efc2?.exposure_file().id());
+    let efvc = efvc?;
+    assert_eq!(efvc.view_key(), Some("iorw"));
+
+    let target = root.path()
+        .join("data")
+        .join("exposure")
+        .join(exposure.exposure().id().to_string())
+        .join(efc.exposure_file().id().to_string())
+        .join("iorw")
+        .join("size");
+    assert!(target.exists());
+
+    let size = efvc.read_blob("size").await?;
+    assert_eq!(size, "13".as_bytes().into());
+    // pardir tokens and absolute paths should all be ignored
+    assert_eq!(efvc.read_blob("../../size").await?, "13".as_bytes().into());
+    assert_eq!(efvc.read_blob("/../../size").await?, "13".as_bytes().into());
+
+    assert_eq!(
+        efvc.read_blob("../1/size").await,
+        Err(CtrlError::EFVCBlobNotFound("../1/size".to_string())),
+    );
+    assert_eq!(
+        efvc.read_blob("nothere").await,
+        Err(CtrlError::EFVCBlobNotFound("nothere".to_string())),
+    );
 
     Ok(())
 }

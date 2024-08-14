@@ -14,7 +14,7 @@ use pmrcore::{
 use pmrrepo::handle::GitHandleResult;
 use std::{
     fmt,
-    path::Path,
+    path::PathBuf,
     sync::Arc,
 };
 
@@ -57,15 +57,11 @@ impl<'p> ExposureFileCtrl<'p> {
         exposure_file: ExposureFileRef<'p>,
         pathinfo: GitHandleResult<'p>,
     ) -> Self {
-        let mut data_root = platform.data_root.join("exposure");
-        data_root.push(exposure.exposure().id().to_string());
-        data_root.push(exposure_file.id().to_string());
         Self(Arc::new(RawExposureFileCtrl {
             platform,
             exposure,
             exposure_file,
             pathinfo,
-            data_root,
         }))
     }
 
@@ -224,7 +220,10 @@ impl<'p> ExposureFileCtrl<'p> {
         &self.0.exposure_file
     }
 
-    pub fn data_root(&self) -> &Path {
-        self.0.data_root.as_ref()
+    pub fn data_root(&self) -> PathBuf {
+        let mut data_root = self.0.platform.data_root.join("exposure");
+        data_root.push(self.0.exposure.exposure().id().to_string());
+        data_root.push(self.0.exposure_file.id().to_string());
+        data_root
     }
 }
