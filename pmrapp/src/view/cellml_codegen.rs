@@ -18,7 +18,7 @@ pub fn CellMLCodegen() -> impl IntoView {
             async move {
                 let k = k.map(|k| {
                     match k.as_str() {
-                        "C" => Some("code.C.c"),
+                        "c" => Some("code.C.c"),
                         "python" => Some("code.Python.py"),
                         _ => None
                     }
@@ -41,18 +41,39 @@ pub fn CellMLCodegen() -> impl IntoView {
             match view_path {
                 None => Ok(view! {
                     <ul>
-                        <li><a href="cellml_codegen/C">"C"</a></li>
+                        <li><a href="cellml_codegen/c">"C"</a></li>
                         <li><a href="cellml_codegen/python">"Python"</a></li>
                     </ul>
                 }.into_any()),
-                Some(_) => {
+                Some(view_path) => {
                     match code.await {
                         Some(Ok(code)) => {
                             let code = String::from_utf8(code.into_vec())
                                 .map_err(|_| AppError::InternalServerError)?;
                             Ok(view! {
-                                <div><a href="..">Back</a></div>
-                                <code><pre>{code}</pre></code>
+                                <div><a href="../cellml_codegen">Back</a></div>
+                                <pre><code class=format!("language-{view_path}")>{code}</code></pre>
+                                <link rel="stylesheet" href="/highlight-github.min.css"/>
+                                <script async id="hljs" src="/highlight-bundle.min.js"></script>
+                                <script>"
+                                var events = [];
+                                if (!window.hljs.highlightAll) {
+                                    events.push(new Promise(function(r) {
+                                        document.querySelector('#hljs').addEventListener('load', r, false);
+                                    }));
+                                }
+                                if (!window._hydrated) {
+                                    events.push(new Promise(function(r) {
+                                        document.addEventListener('_hydrated', r, false);
+                                    }));
+                                }
+                                Promise.all(events).then(function() {
+                                    hljs.highlightAll();
+                                });
+                                if (events.length) {
+                                    console.log(`waiting on ${events.length} events`);
+                                }
+                                "</script>
                             }.into_any())
                         },
                         _ => Err(AppError::NotFound)
