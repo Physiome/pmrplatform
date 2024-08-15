@@ -19,6 +19,9 @@ pub fn CellMLCodegen() -> impl IntoView {
                 let k = k.map(|k| {
                     match k.as_str() {
                         "c" => Some("code.C.c"),
+                        "c_ida" => Some("code.C_IDA.c"),
+                        "fortran" => Some("code.F77.f77"),
+                        "matlab" => Some("code.MATLAB.m"),
                         "python" => Some("code.Python.py"),
                         _ => None
                     }
@@ -42,17 +45,25 @@ pub fn CellMLCodegen() -> impl IntoView {
                 None => Ok(view! {
                     <ul>
                         <li><a href="cellml_codegen/c">"C"</a></li>
+                        <li><a href="cellml_codegen/c_ida">"C (Implicit Differential Algebraic equation system solver)"</a></li>
+                        <li><a href="cellml_codegen/fortran">"Fortran 77"</a></li>
+                        <li><a href="cellml_codegen/matlab">"MATLAB"</a></li>
                         <li><a href="cellml_codegen/python">"Python"</a></li>
                     </ul>
                 }.into_any()),
                 Some(view_path) => {
+                    let lang = match view_path.as_str() {
+                        "c_ida" => "c",
+                        "fortran" => "fortran",
+                        v => v,
+                    };
                     match code.await {
                         Some(Ok(code)) => {
                             let code = String::from_utf8(code.into_vec())
                                 .map_err(|_| AppError::InternalServerError)?;
                             Ok(view! {
                                 <div><a href="../cellml_codegen">Back</a></div>
-                                <pre><code class=format!("language-{view_path}")>{code}</code></pre>
+                                <pre><code class=format!("language-{lang}")>{code}</code></pre>
                                 <link rel="stylesheet" href="/highlight-github.min.css"/>
                                 <script async id="hljs" src="/highlight-bundle.min.js"></script>
                                 <script>"
