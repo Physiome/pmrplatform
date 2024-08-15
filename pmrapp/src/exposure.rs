@@ -99,11 +99,11 @@ pub fn ExposureListing() -> impl IntoView {
         <div class="main">
             <h1>"Listing of exposures"</h1>
             <div>
-            <Suspense fallback=move || view! { <p>"Loading..."</p> }>
+            <Transition fallback=move || view! { <p>"Loading..."</p> }>
                 <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
                     <div>{listing}</div>
                 </ErrorBoundary>
-            </Suspense>
+            </Transition>
             </div>
         </div>
     }
@@ -177,11 +177,11 @@ pub fn ExposureMain() -> impl IntoView {
 
     view! {
         <div class="main">
-            <Suspense fallback=move || view! { <p>"Loading..."</p> }>
+            <Transition fallback=move || view! { <p>"Loading..."</p> }>
                 <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
                     <div>{listing}</div>
                 </ErrorBoundary>
-            </Suspense>
+            </Transition>
         </div>
     }
 }
@@ -264,12 +264,12 @@ pub fn ExposureFile() -> impl IntoView {
 
     view! {
         <div class="main">
-            <Suspense fallback=move || view! { <p>"Loading..."</p> }>
+            <Transition fallback=move || view! { <p>"Loading..."</p> }>
                 <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
                     <h1>ExposureFile</h1>
                     <div>{ep_view}</div>
                 </ErrorBoundary>
-            </Suspense>
+            </Transition>
         </div>
     }
 }

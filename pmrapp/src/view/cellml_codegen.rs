@@ -69,10 +69,10 @@ pub fn CellMLCodegen() -> impl IntoView {
             " - ExposureFile "{ef.workspace_file_path}
         </h1>
         <h3>"This is "{efv.view_key}", at path "{view_path}</h3>
-        <Suspense fallback=move || view! { <p>"Loading..."</p> }>
+        <Transition fallback=move || view! { <p>"Loading..."</p> }>
             <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
                 {code_view}
             </ErrorBoundary>
-        </Suspense>
+        </Transition>
     }
 }

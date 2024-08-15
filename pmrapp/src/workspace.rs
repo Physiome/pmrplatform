@@ -78,7 +78,7 @@ pub fn WorkspaceListing() -> impl IntoView {
         <div class="main">
             <h1>"Listing of workspaces"</h1>
             <div>
-            <Suspense fallback=move || view! { <p>"Loading..."</p> }>
+            <Transition fallback=move || view! { <p>"Loading..."</p> }>
                 <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
                     {move || {
                         let workspace_listing = { move || { workspaces
@@ -112,7 +112,7 @@ pub fn WorkspaceListing() -> impl IntoView {
                         view! { <div>{workspace_listing}</div> }
                     }}
                 </ErrorBoundary>
-            </Suspense>
+            </Transition>
             </div>
         </div>
     }
@@ -179,11 +179,11 @@ pub fn WorkspaceMain() -> impl IntoView {
     };
 
     view! {
-        <Suspense fallback=move || view! { <p>"Loading workspace..."</p> }>
+        <Transition fallback=move || view! { <p>"Loading workspace..."</p> }>
             <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
                 {workspace_view}
             </ErrorBoundary>
-        </Suspense>
+        </Transition>
     }
 }
 
@@ -393,10 +393,10 @@ pub fn WorkspaceCommitPath() -> impl IntoView {
     };
 
     view! {
-        <Suspense fallback=move || view! { <p>"Loading info..."</p> }>
+        <Transition fallback=move || view! { <p>"Loading info..."</p> }>
             <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
                 {view}
             </ErrorBoundary>
-        </Suspense>
+        </Transition>
     }
 }

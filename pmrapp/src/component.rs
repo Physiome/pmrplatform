@@ -30,14 +30,14 @@ pub fn Redirect(
         path
     });
     view! {
-        <Suspense fallback=|| view! {}>
+        <Transition fallback=|| view! {}>
             {move || Suspend::new(async move {
                 let path = res_path.await;
                 show_link.then(|| view! {
                     "Redirecting to "<a href=path.clone()>{path.clone()}</a>
                 })
             })}
-        </Suspense>
+        </Transition>
     }
 }
 
