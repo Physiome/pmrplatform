@@ -74,6 +74,24 @@ pub fn WorkspaceListing() -> impl IntoView {
         },
     );
 
+    let workspace_listing = move || Suspend::new(async move {
+        workspaces.await.map(|workspaces| workspaces
+            .into_iter()
+            .map(move |workspace| {
+                view! {
+                    <div>
+                        <div><a href=format!("/workspace/{}/", workspace.id)>
+                            "Workspace "{workspace.id}
+                        </a></div>
+                        <div>{workspace.url}</div>
+                        <div>{workspace.description}</div>
+                    </div>
+                }
+            })
+            .collect_view()
+        )
+    });
+
     view! {
         <RedirectTS/>
         <div class="main">
@@ -81,37 +99,7 @@ pub fn WorkspaceListing() -> impl IntoView {
             <div>
             <Transition fallback=move || view! { <p>"Loading..."</p> }>
                 <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
-                    {move || {
-                        let workspace_listing = { move || { workspaces
-                            .get()
-                            .map(move |workspaces| match workspaces {
-                                Err(e) => {
-                                    view! {
-                                        <pre class="error">"Server Error: " {e.to_string()}</pre>
-                                    }
-                                        .into_any()
-                                }
-                                Ok(workspaces) => {
-                                    workspaces
-                                        .into_iter()
-                                        .map(move |workspace| {
-                                            view! {
-                                                <div>
-                                                    <div><a href=format!("/workspace/{}/", workspace.id)>
-                                                        "Workspace "{workspace.id}
-                                                    </a></div>
-                                                    <div>{workspace.url}</div>
-                                                    <div>{workspace.description}</div>
-                                                </div>
-                                            }
-                                        })
-                                        .collect_view()
-                                        .into_any()
-                                }
-                            })
-                        }};
-                        view! { <div>{workspace_listing}</div> }
-                    }}
+                    {workspace_listing}
                 </ErrorBoundary>
             </Transition>
             </div>

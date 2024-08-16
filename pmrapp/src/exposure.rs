@@ -73,27 +73,20 @@ pub fn ExposureListing() -> impl IntoView {
             result
         },
     );
-    let listing = move || { exposures
-        .get()
-        .map(move |exposures| match exposures {
-            Err(e) => view! {
-                <pre class="error">"Server Error: " {e.to_string()}</pre>
-            }
-                .into_any(),
-            Ok(exposures) => exposures
-                .into_iter()
-                .map(move |exposure| view! {
-                    <div>
-                        <div><a href=format!("/exposure/{}/", exposure.id)>
-                            "Exposure "{exposure.id}
-                        </a></div>
-                        <div>{exposure.description}</div>
-                    </div>
-                })
-                .collect_view()
-                .into_any()
-        })
-    };
+    let exposure_listing = move || Suspend::new(async move {
+        exposures.await.map(|exposures| exposures
+            .into_iter()
+            .map(move |exposure| view! {
+                <div>
+                    <div><a href=format!("/exposure/{}/", exposure.id)>
+                        "Exposure "{exposure.id}
+                    </a></div>
+                    <div>{exposure.description}</div>
+                </div>
+            })
+            .collect_view()
+        )
+    });
 
     view! {
         <RedirectTS />
@@ -102,7 +95,7 @@ pub fn ExposureListing() -> impl IntoView {
             <div>
             <Transition fallback=move || view! { <p>"Loading..."</p> }>
                 <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
-                    <div>{listing}</div>
+                    {exposure_listing}
                 </ErrorBoundary>
             </Transition>
             </div>
@@ -127,9 +120,28 @@ pub fn Exposure() -> impl IntoView {
 }
 
 #[component]
-pub fn ExposureMain() -> impl IntoView {
-    use std::iter::{repeat, zip};
+pub fn ExposureFileListing(id: i64, files: Vec<(String, bool)>) -> impl IntoView {
+    view! {
+        <ul>{files.into_iter()
+            .map(|(file, flag)| view! {
+                <li>
+                    <a href=format!("/exposure/{id}/{file}")>
+                        {file.clone()}
+                    </a>
+                    " - "{flag.then(|| view! {
+                        <a href=format!("/exposure/{id}/{file}/")>
+                            {flag}
+                        </a>
+                    }.into_any()).unwrap_or("false".into_any())}
+                </li>
+            })
+            .collect_view()
+        }</ul>
+    }
+}
 
+#[component]
+pub fn ExposureMain() -> impl IntoView {
     let params = expect_context::<Memo<Result<ExposureParams, ParamsError>>>();
     let id = move || params.get().map(|p| p.id);
     let files = Resource::new(
@@ -144,43 +156,19 @@ pub fn ExposureMain() -> impl IntoView {
             }
         }
     );
-    let file_entry_view = move |(id, (file, flag)): (i64, (String, bool))| view! {
-        <li>
-            <a href=format!("/exposure/{id}/{file}")>
-                {file.clone()}
-            </a>
-            " - "{flag.then(|| view! {
-                <a href=format!("/exposure/{id}/{file}/")>
-                    {flag}
-                </a>
-            }.into_any()).unwrap_or("false".into_any())}
-        </li>
-    };
-    let listing = move || { files.get().map(
-        move |files| match files {
-            Err(_) => Err(AppError::NotFound),
-            Ok(files) => {
-                Ok(view! {
-                    <RedirectTS/>
-                    <h1>"Viewing exposure "{id}</h1>
-                    <ul>{
-                        zip(
-                            repeat(id().unwrap().unwrap()),
-                            files.into_iter(),
-                        )
-                            .map(file_entry_view)
-                            .collect_view()
-                    }</ul>
-                }.into_view())
-            }
+    let file_listing = move || Suspend::new(async move {
+        files.await.map(|files| view! {
+            <ExposureFileListing id=id().unwrap().unwrap() files=files/>
         })
-    };
+    });
 
     view! {
+        <RedirectTS/>
         <div class="main">
+            <h1>"Viewing exposure "{id}</h1>
             <Transition fallback=move || view! { <p>"Loading..."</p> }>
                 <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
-                    <div>{listing}</div>
+                    {file_listing}
                 </ErrorBoundary>
             </Transition>
         </div>
@@ -267,8 +255,7 @@ pub fn ExposureFile() -> impl IntoView {
         <div class="main">
             <Transition fallback=move || view! { <p>"Loading..."</p> }>
                 <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
-                    <h1>ExposureFile</h1>
-                    <div>{ep_view}</div>
+                    {ep_view}
                 </ErrorBoundary>
             </Transition>
         </div>
