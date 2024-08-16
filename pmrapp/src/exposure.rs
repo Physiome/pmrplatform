@@ -48,6 +48,7 @@ pub fn ExposureRoutes() -> impl MatchNestedRoutes<Dom> + Clone {
             </ParentRoute>
         </ParentRoute>
     }
+    .into_inner()
 }
 
 #[component]

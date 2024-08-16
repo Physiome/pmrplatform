@@ -49,6 +49,7 @@ pub fn WorkspaceRoutes() -> impl MatchNestedRoutes<Dom> + Clone {
             </ParentRoute>
         </ParentRoute>
     }
+    .into_inner()
 }
 
 #[component]
