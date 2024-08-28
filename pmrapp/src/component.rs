@@ -48,3 +48,27 @@ pub fn RedirectTS() -> impl IntoView {
             <Redirect path=format!("{url}/")/>
         })})
 }
+
+#[component]
+pub fn CodeBlock(code: String, lang: String) -> impl IntoView {
+    let (inner, set_inner) = signal(String::new());
+    #[cfg(feature = "ssr")]
+    {
+        // this is unused.
+        drop(lang);
+        set_inner.set(html_escape::encode_text(&code).into_owned());
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        let result = crate::client::wbg::highlight(code, lang);
+        Effect::new(move |_| {
+            match result.clone() {
+                Ok(r) => set_inner.set(r),
+                Err(e) => logging::error!("{e:?}"),
+            }
+        });
+    }
+    view! {
+        <pre><code inner_html=inner></code></pre>
+    }
+}

@@ -4,6 +4,7 @@ use crate::error::AppError;
 use crate::error_template::ErrorTemplate;
 use crate::exposure::ViewPath;
 use crate::exposure::api::read_blob;
+use crate::component::CodeBlock;
 
 #[component]
 pub fn CellMLCodegen() -> impl IntoView {
@@ -56,35 +57,14 @@ pub fn CellMLCodegen() -> impl IntoView {
                         "c_ida" => "c",
                         "fortran" => "fortran",
                         v => v,
-                    };
+                    }.to_string();
                     match code.await {
                         Some(Ok(code)) => {
                             let code = String::from_utf8(code.into_vec())
                                 .map_err(|_| AppError::InternalServerError)?;
                             Ok(view! {
                                 <div><a href="../cellml_codegen">Back</a></div>
-                                <pre><code class=format!("language-{lang}")>{code}</code></pre>
-                                <link rel="stylesheet" href="/highlight-github.min.css"/>
-                                <script async id="hljs" src="/highlight-bundle.min.js"></script>
-                                <script>"
-                                var events = [];
-                                if (!window.hljs.highlightAll) {
-                                    events.push(new Promise(function(r) {
-                                        document.querySelector('#hljs').addEventListener('load', r, false);
-                                    }));
-                                }
-                                if (!window._hydrated) {
-                                    events.push(new Promise(function(r) {
-                                        document.addEventListener('_hydrated', r, false);
-                                    }));
-                                }
-                                Promise.all(events).then(function() {
-                                    hljs.highlightAll();
-                                });
-                                if (events.length) {
-                                    console.log(`waiting on ${events.length} events`);
-                                }
-                                "</script>
+                                <CodeBlock code lang/>
                             }.into_any())
                         },
                         _ => Err(AppError::NotFound)

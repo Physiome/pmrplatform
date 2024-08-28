@@ -8,6 +8,15 @@ application framework for the integration between various components.
 
 ## Building `pmrapp`
 
+The front-end does depend on JavaScript sourced from `npm`, so Node.js
+will also need to be available.  Install and build the JavaScript bundle
+with the following commands:
+
+```bash
+npm install
+npx webpack
+```
+
 Ensure the Rust compiler can produce the wasm target, which may be done
 using `rustup target add wasm32-unknown-unknown`.
 

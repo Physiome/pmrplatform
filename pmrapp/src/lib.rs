@@ -1,4 +1,6 @@
 pub mod app;
+#[cfg(not(feature = "ssr"))]
+pub mod client;
 pub mod component;
 #[cfg(feature = "ssr")]
 pub mod conf;
