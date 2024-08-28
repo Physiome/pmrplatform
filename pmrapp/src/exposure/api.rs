@@ -14,14 +14,19 @@ use crate::error::AppError;
 
 #[cfg(feature = "ssr")]
 mod ssr {
-    pub use crate::server::platform;
-    pub use pmrcore::exposure::traits::ExposureBackend;
+    pub use ammonia::{
+        Builder,
+        UrlRelative,
+    };
     pub use pmrcore::exposure::traits::{
         Exposure as _,
+        ExposureBackend,
         ExposureFile as _,
         ExposureFileView as _,
     };
     pub use pmrctrl::error::CtrlError;
+    pub use std::borrow::Cow;
+    pub use crate::server::platform;
 }
 #[cfg(feature = "ssr")]
 use self::ssr::*;
@@ -122,4 +127,28 @@ pub async fn read_blob(
     let efc = ec.ctrl_path(&path).await?;
     let efvc = efc.get_view(efvid).await?;
     Ok(efvc.read_blob(&key).await?)
+}
+
+// for now restricting this to just the `index.html`.
+#[server(ReadSafeIndexHtml, "/api", output = Rkyv)]
+pub async fn read_safe_index_html(
+    id: i64,
+    path: String,
+    efvid: i64,
+) -> Result<String, ServerFnError> {
+    fn evaluate(url: &str) -> Option<Cow<str>> {
+        match url.as_bytes() {
+            [b'/', ..] => Some(url.into()),
+            _ => Some(["../", url].concat().into()),
+        }
+    }
+
+    let blob = read_blob(id, path.clone(), efvid, "index.html".to_string())
+        .await?
+        .into_vec();
+    Ok(Builder::new()
+        .url_relative(UrlRelative::Custom(Box::new(evaluate)))
+        .clean(&String::from_utf8_lossy(&blob))
+        .to_string()
+    )
 }
