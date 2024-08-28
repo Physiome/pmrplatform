@@ -6,13 +6,17 @@ use pmrcore::{
     repo::RepoResult,
     workspace::Workspaces,
 };
+
 #[cfg(feature = "ssr")]
-use crate::server::platform;
+mod ssr {
+    pub use pmrcore::workspace::traits::WorkspaceBackend;
+    pub use crate::server::platform;
+}
+#[cfg(feature = "ssr")]
+use self::ssr::*;
 
 #[server]
 pub async fn list_workspaces() -> Result<Workspaces, ServerFnError> {
-    use pmrcore::workspace::traits::WorkspaceBackend;
-
     let platform = platform().await?;
     Ok(WorkspaceBackend::list_workspaces(platform.mc_platform.as_ref())
         .await?)

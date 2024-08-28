@@ -10,15 +10,24 @@ use pmrcore::{
     },
 };
 use leptos::server_fn::codec::Rkyv;
-#[cfg(feature = "ssr")]
-use crate::server::platform;
-
 use crate::error::AppError;
+
+#[cfg(feature = "ssr")]
+mod ssr {
+    pub use crate::server::platform;
+    pub use pmrcore::exposure::traits::ExposureBackend;
+    pub use pmrcore::exposure::traits::{
+        Exposure as _,
+        ExposureFile as _,
+        ExposureFileView as _,
+    };
+    pub use pmrctrl::error::CtrlError;
+}
+#[cfg(feature = "ssr")]
+use self::ssr::*;
 
 #[server]
 pub async fn list() -> Result<Exposures, ServerFnError> {
-    use pmrcore::exposure::traits::ExposureBackend;
-
     let platform = platform().await?;
     Ok(ExposureBackend::list(platform.mc_platform.as_ref())
         .await?)
@@ -48,13 +57,6 @@ pub async fn resolve_exposure_path(
     // 2-tuple with the first element being the ExposureFile and the
     // second being a result that would be the ExposureFileView or a
     // vec of strings of valid view_keys that could be navigated to.
-
-    use pmrcore::exposure::traits::{
-        Exposure as _,
-        ExposureFile as _,
-        ExposureFileView as _,
-    };
-    use pmrctrl::error::CtrlError;
 
     let platform = platform().await?;
     let ec = platform.get_exposure(id).await?;
