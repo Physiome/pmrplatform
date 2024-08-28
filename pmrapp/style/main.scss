@@ -4,6 +4,12 @@ body {
   font-family: 'Arial', sans-serif;
   margin: 0 auto;
   max-width: 90rem;
+  min-height: 100vh;
+  display: grid;
+  grid-template-areas:
+      'nav'
+      'main';
+  grid-template-rows: auto 1fr;
 }
 
 nav {
@@ -35,6 +41,34 @@ table.file-listing td.gitobj-blob span::before {
   content: '\1f4c4 ';
 }
 
+main {
+  grid-area: main;
+  display: grid;
+  grid-template-areas:
+    'article'
+    'sidebar'
+    'footer';
+}
+
+main > article {
+  grid-area: article;
+}
+
+main > aside {
+  grid-area: sidebar;
+}
+
+main > footer {
+  grid-area: footer;
+  font-size: 75%;
+}
+
+main pre {
+  white-space: pre-wrap;
+  max-width: calc(100vw - 350px);
+  overflow: auto;
+}
+
 #indicator, #indicator div {
   height: 10px;
 }
@@ -47,6 +81,16 @@ table.file-listing td.gitobj-blob span::before {
 
 .workspace-pathinfo img {
   max-width: 100%;
+}
+
+@media (min-width: 768px) {
+  main {
+    grid-template-areas:
+      'article sidebar'
+      'footer footer';
+    grid-template-rows: 1fr 25px;
+    grid-template-columns: 1fr 330px;
+  }
 }
 
 @keyframes loading_indicator {

@@ -60,20 +60,46 @@ pub fn App() -> impl IntoView {
                 <A href="/exposure/">"Exposure"</A>
             </nav>
             <main>
-                <Routes fallback=|| {
-                    let mut errors = Errors::default();
-                    errors.insert_with_default_key(AppError::NotFound);
-                    view! {
-                        <ErrorTemplate errors/>
-                    }
-                    .into_view()
-                }>
-                    <Route path=StaticSegment("") view=HomePage/>
-                    <WorkspaceRoutes/>
-                    <ExposureRoutes/>
-                </Routes>
+                <article>
+                    <Routes fallback=|| {
+                        let mut errors = Errors::default();
+                        errors.insert_with_default_key(AppError::NotFound);
+                        view! {
+                            <ErrorTemplate errors/>
+                        }
+                        .into_view()
+                    }>
+                        <Route path=StaticSegment("") view=HomePage/>
+                        <WorkspaceRoutes/>
+                        <ExposureRoutes/>
+                    </Routes>
+                </article>
+                <aside>
+                    <ViewsAvailable/>
+                    <Navigation/>
+                </aside>
+                <footer>"Copyright 2024 IUPS Physiome Project"</footer>
             </main>
         </Router>
+    }
+}
+
+#[component]
+fn ViewsAvailable() -> impl IntoView {
+    // TODO signals/events?
+    view! {
+        <section>
+            <h4>Views Available</h4>
+        </section>
+    }
+}
+
+#[component]
+fn Navigation() -> impl IntoView {
+    view! {
+        <section>
+            <h4>Navigation</h4>
+        </section>
     }
 }
 
