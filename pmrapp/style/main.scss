@@ -52,6 +52,7 @@ main {
 
 main > article {
   grid-area: article;
+  padding: 0 1em;
 }
 
 main > aside {
@@ -60,7 +61,7 @@ main > aside {
 
 main > footer {
   grid-area: footer;
-  font-size: 75%;
+  padding: 0 1em;
 }
 
 main pre {

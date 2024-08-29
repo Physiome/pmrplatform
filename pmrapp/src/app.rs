@@ -20,6 +20,18 @@ use crate::error_template::ErrorTemplate;
 use crate::exposure::ExposureRoutes;
 use crate::workspace::WorkspaceRoutes;
 
+pub mod portlet;
+use self::portlet::{
+    navigation::{
+        Navigation,
+        NavigationCtx,
+    },
+    views_available::{
+        ViewsAvailable,
+        ViewsAvailableCtx,
+    },
+};
+
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {
         <!DOCTYPE html>
@@ -43,8 +55,15 @@ pub fn App() -> impl IntoView {
     // Provides context that manages stylesheets, titles, meta tags, etc.
     provide_meta_context();
 
-    view! {
+    // signals + contexts for portlets.
+    let (navigation_ctx, set_navigation_ctx) = arc_signal(None::<NavigationCtx>);
+    let (views_available_ctx, set_views_available_ctx) = arc_signal(None::<ViewsAvailableCtx>);
+    provide_context(navigation_ctx);
+    provide_context(set_navigation_ctx);
+    provide_context(views_available_ctx);
+    provide_context(set_views_available_ctx);
 
+    view! {
         // injects a stylesheet into the document <head>
         // id=leptos means cargo-leptos will hot-reload this stylesheet
         <Stylesheet id="leptos" href="/pkg/pmrapp.css"/>
@@ -78,28 +97,11 @@ pub fn App() -> impl IntoView {
                     <ViewsAvailable/>
                     <Navigation/>
                 </aside>
-                <footer>"Copyright 2024 IUPS Physiome Project"</footer>
+                <footer>
+                    <small>"Copyright 2024 IUPS Physiome Project"</small>
+                </footer>
             </main>
         </Router>
-    }
-}
-
-#[component]
-fn ViewsAvailable() -> impl IntoView {
-    // TODO signals/events?
-    view! {
-        <section>
-            <h4>Views Available</h4>
-        </section>
-    }
-}
-
-#[component]
-fn Navigation() -> impl IntoView {
-    view! {
-        <section>
-            <h4>Navigation</h4>
-        </section>
     }
 }
 
