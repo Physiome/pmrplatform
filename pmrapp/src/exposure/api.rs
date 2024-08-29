@@ -1,15 +1,17 @@
 use leptos::{
     prelude::ServerFnError,
     server,
+    server_fn::codec::Rkyv,
 };
 use pmrcore::{
     exposure::{
+        Exposure,
         Exposures,
         ExposureFile,
         ExposureFileView,
     },
 };
-use leptos::server_fn::codec::Rkyv;
+use serde::{Serialize, Deserialize};
 use crate::error::AppError;
 
 #[cfg(feature = "ssr")]
@@ -38,11 +40,19 @@ pub async fn list() -> Result<Exposures, ServerFnError> {
         .await?)
 }
 
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ExposureInfo {
+    pub exposure: Exposure,
+    pub files: Vec<(String, bool)>,
+}
+
 #[server]
-pub async fn list_files(id: i64) -> Result<Vec<(String, bool)>, ServerFnError> {
+pub async fn list_files(id: i64) -> Result<ExposureInfo, ServerFnError> {
     let platform = platform().await?;
     let ctrl = platform.get_exposure(id).await?;
-    Ok(ctrl.list_files_info().await?)
+    let files = ctrl.list_files_info().await?;
+    let exposure = ctrl.exposure().clone_inner();
+    Ok(ExposureInfo { exposure, files })
 }
 
 #[server]

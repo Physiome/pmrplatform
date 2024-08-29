@@ -70,6 +70,8 @@ async fn main() -> anyhow::Result<()> {
             },
         )
         .fallback(leptos_axum::file_and_error_handler(shell))
+        // TODO add an additional handler that will filter out the body
+        // for status code 3xx to optimize output.
         .layer(Extension(platform.clone()))
         .with_state(leptos_options);
 

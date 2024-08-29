@@ -30,6 +30,7 @@ use crate::exposure::api::{
     list,
     list_files,
     resolve_exposure_path,
+    ExposureInfo,
 };
 use crate::view::{
     EFView,
@@ -112,6 +113,22 @@ pub struct ExposureParams {
 pub fn Exposure() -> impl IntoView {
     let params = use_params::<ExposureParams>();
     provide_context(params);
+
+    // TODO this is a little silly but works for now...
+    let params = expect_context::<Memo<Result<ExposureParams, ParamsError>>>();
+    provide_context(Resource::new_blocking(
+        move || params.get().map(|p| p.id),
+        |p| async move {
+            match p {
+                Err(_) => Err(AppError::InternalServerError),
+                Ok(Some(id)) => list_files(id)
+                    .await
+                    .map_err(|_| AppError::NotFound),
+                _ => Err(AppError::NotFound),
+            }
+        }
+    ));
+
     view! {
         <Title text="Exposure — Physiome Model Repository"/>
         <Outlet/>
@@ -142,30 +159,17 @@ pub fn ExposureFileListing(id: i64, files: Vec<(String, bool)>) -> impl IntoView
 
 #[component]
 pub fn ExposureMain() -> impl IntoView {
-    let params = expect_context::<Memo<Result<ExposureParams, ParamsError>>>();
-    let id = move || params.get().map(|p| p.id);
-    let files = Resource::new(
-        move || params.get().map(|p| p.id),
-        |p| async move {
-            match p {
-                Err(_) => Err(AppError::InternalServerError),
-                Ok(Some(id)) => list_files(id)
-                    .await
-                    .map_err(|_| AppError::NotFound),
-                _ => Err(AppError::NotFound),
-            }
-        }
-    );
+    let exposure_info = expect_context::<Resource<Result<ExposureInfo, AppError>>>();
     let file_listing = move || Suspend::new(async move {
-        files.await.map(|files| view! {
-            <ExposureFileListing id=id().unwrap().unwrap() files=files/>
+        exposure_info.await.map(|info| view! {
+            <h1>"Viewing exposure "{info.exposure.id}</h1>
+            <ExposureFileListing id=info.exposure.id files=info.files/>
         })
     });
 
     view! {
         <RedirectTS/>
         <div class="main">
-            <h1>"Viewing exposure "{id}</h1>
             <Transition fallback=move || view! { <p>"Loading..."</p> }>
                 <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
                     {file_listing}

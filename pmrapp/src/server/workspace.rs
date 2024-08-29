@@ -54,6 +54,9 @@ pub async fn raw_workspace_download(
                             // possible to avoid copying these bytes?
                             match (&mut buffer).write(&object.object.data) {
                                 Ok(_) => Ok((
+                                    // TODO include last modified info for the file
+                                    // at least for the commit, but ideally when the
+                                    // file actually changed.
                                     [(header::CONTENT_TYPE, info.mime_type)],
                                     buffer
                                 ).into_response()),
