@@ -36,6 +36,7 @@ use crate::view::{
     EFView,
     ExposureFileView,
 };
+use crate::app::portlet::NavigationCtx;
 
 #[component]
 pub fn ExposureRoutes() -> impl MatchNestedRoutes<Dom> + Clone {
@@ -189,17 +190,18 @@ pub struct ViewPath(pub Option<String>);
 
 #[component]
 pub fn ExposureFile() -> impl IntoView {
-    let root_params = expect_context::<Memo<Result<ExposureParams, ParamsError>>>();
     let params = use_params::<ExposureFileParams>();
 
+    let ctx = expect_context::<ArcWriteSignal<Option<NavigationCtx>>>();
+    logging::log!("setting NavigationCtx");
+    ctx.set(Some(NavigationCtx(vec![])));
+
     let file = Resource::new_blocking(
-        move || (
-            root_params.get().map(|p| p.id),
-            params.get().map(|p| p.path),
-        ),
+        move || params.get().map(|p| p.path),
         |p| async move {
-            match p {
-                (Ok(Some(id)), Ok(Some(path))) => resolve_exposure_path(id, path.clone())
+            let exposure_info = expect_context::<Resource<Result<ExposureInfo, AppError>>>().await;
+            match (exposure_info, p) {
+                (Ok(info), Ok(Some(path))) => resolve_exposure_path(info.exposure.id, path.clone())
                     .await
                     .map_err(|_| AppError::NotFound),
                 _ => Err(AppError::InternalServerError),
