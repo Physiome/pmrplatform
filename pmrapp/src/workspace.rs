@@ -58,8 +58,8 @@ pub fn WorkspaceRoutes() -> impl MatchNestedRoutes<Dom> + Clone {
 
 #[component]
 pub fn WorkspaceRoot() -> impl IntoView {
-    expect_context::<ArcWriteSignal<NavigationCtx>>().set(NavigationCtx(None));
-    expect_context::<ArcWriteSignal<ViewsAvailableCtx>>().set(ViewsAvailableCtx(None));
+    expect_context::<ArcWriteSignal<Option<Resource<NavigationCtx>>>>().set(None);
+    expect_context::<ArcWriteSignal<Option<Resource<ViewsAvailableCtx>>>>().set(None);
     view! {
         <Title text="Workspace — Physiome Model Repository"/>
         <Outlet/>

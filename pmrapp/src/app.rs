@@ -56,10 +56,10 @@ pub fn App() -> impl IntoView {
     provide_meta_context();
 
     // signals + contexts for portlets.
-    let (navigation_ctx, set_navigation_ctx) = arc_signal(NavigationCtx(None));
-    let (views_available_ctx, set_views_available_ctx) = arc_signal(ViewsAvailableCtx(None));
+    let (navigation_ctx, set_navigation_ctx) = arc_signal(None::<Resource<NavigationCtx>>);
     provide_context(navigation_ctx);
     provide_context(set_navigation_ctx);
+    let (views_available_ctx, set_views_available_ctx) = arc_signal(None::<Resource<ViewsAvailableCtx>>);
     provide_context(views_available_ctx);
     provide_context(set_views_available_ctx);
 
@@ -107,8 +107,8 @@ pub fn App() -> impl IntoView {
 
 #[component]
 fn HomePage() -> impl IntoView {
-    expect_context::<ArcWriteSignal<NavigationCtx>>().set(NavigationCtx(None));
-    expect_context::<ArcWriteSignal<ViewsAvailableCtx>>().set(ViewsAvailableCtx(None));
+    expect_context::<ArcWriteSignal<Option<Resource<NavigationCtx>>>>().set(None);
+    expect_context::<ArcWriteSignal<Option<Resource<ViewsAvailableCtx>>>>().set(None);
     view! {
         <Title text="Home — Physiome Model Repository"/>
         <div class="main">
