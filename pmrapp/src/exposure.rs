@@ -8,10 +8,7 @@ use leptos_router::{
     },
     hooks::use_params,
     nested_router::Outlet,
-    params::{
-        Params,
-        ParamsError,
-    },
+    params::Params,
     MatchNestedRoutes,
     ParamSegment,
     SsrMode,
@@ -36,7 +33,11 @@ use crate::view::{
     EFView,
     ExposureFileView,
 };
-use crate::app::portlet::NavigationCtx;
+use crate::app::portlet::{
+    ViewsAvailableCtx,
+    NavigationCtx,
+    NavigationItem,
+};
 
 #[component]
 pub fn ExposureRoutes() -> impl MatchNestedRoutes<Dom> + Clone {
@@ -56,6 +57,8 @@ pub fn ExposureRoutes() -> impl MatchNestedRoutes<Dom> + Clone {
 #[component]
 pub fn ExposureRoot() -> impl IntoView {
     // provide_meta_context();
+    expect_context::<ArcWriteSignal<NavigationCtx>>().set(NavigationCtx(None));
+    expect_context::<ArcWriteSignal<ViewsAvailableCtx>>().set(ViewsAvailableCtx(None));
     view! {
         <Title text="Exposure — Physiome Model Repository"/>
         <Outlet/>
@@ -64,6 +67,8 @@ pub fn ExposureRoot() -> impl IntoView {
 
 #[component]
 pub fn ExposureListing() -> impl IntoView {
+    expect_context::<ArcWriteSignal<NavigationCtx>>().set(NavigationCtx(None));
+    expect_context::<ArcWriteSignal<ViewsAvailableCtx>>().set(ViewsAvailableCtx(None));
     let exposures = Resource::new(
         move || (),
         move |_| async move {
@@ -112,11 +117,10 @@ pub struct ExposureParams {
 
 #[component]
 pub fn Exposure() -> impl IntoView {
-    let params = use_params::<ExposureParams>();
-    provide_context(params);
+    expect_context::<ArcWriteSignal<NavigationCtx>>().set(NavigationCtx(None));
+    expect_context::<ArcWriteSignal<ViewsAvailableCtx>>().set(ViewsAvailableCtx(None));
 
-    // TODO this is a little silly but works for now...
-    let params = expect_context::<Memo<Result<ExposureParams, ParamsError>>>();
+    let params = use_params::<ExposureParams>();
     provide_context(Resource::new_blocking(
         move || params.get().map(|p| p.id),
         |p| async move {
@@ -130,11 +134,45 @@ pub fn Exposure() -> impl IntoView {
         }
     ));
 
+    let effect = move || {
+        let exposure_info = expect_context::<Resource<Result<ExposureInfo, AppError>>>();
+        Suspend::new(async move {
+            let exposure_info = exposure_info.await;
+            let navctx = NavigationCtx(exposure_info.map(|info| {
+                let exposure_id = info.exposure.id;
+                // TODO should derive from exposure.files when it contains title/description
+                info.files
+                    .into_iter()
+                    .filter_map(move |(file, flag)| {
+                        flag.then(|| {
+                            let href = format!("/exposure/{exposure_id}/{file}");
+                            let text = file.clone();
+                            let title = None;
+                            NavigationItem { href, text, title }
+                        })
+                    })
+                    .collect::<Vec<_>>()
+            }).ok());
+            // FIXME this somehow isn't isomorphic because of the delay in loading
+            // so for whatever reason the reactive system will not put this in at
+            // the right time, and the reason is that the portlet isn't doing the
+            // rendering in a suspense and the signal isn't passing a resource...
+            // anyway for now this is okay for the prototype.
+            Effect::new_isomorphic(move |_| {
+                let nav = expect_context::<ArcWriteSignal<NavigationCtx>>();
+                nav.set(navctx.clone());
+            });
+            ""
+        })
+    };
+
     view! {
         <Title text="Exposure — Physiome Model Repository"/>
+        <Suspense>
+            {effect}
+        </Suspense>
         <Outlet/>
     }
-
 }
 
 #[component]
@@ -192,9 +230,8 @@ pub struct ViewPath(pub Option<String>);
 pub fn ExposureFile() -> impl IntoView {
     let params = use_params::<ExposureFileParams>();
 
-    let ctx = expect_context::<ArcWriteSignal<Option<NavigationCtx>>>();
-    logging::log!("setting NavigationCtx");
-    ctx.set(Some(NavigationCtx(vec![])));
+    expect_context::<ArcWriteSignal<NavigationCtx>>()
+        .set(NavigationCtx(Some(vec![])));
 
     let file = Resource::new_blocking(
         move || params.get().map(|p| p.path),

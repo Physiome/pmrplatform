@@ -8,14 +8,14 @@ pub struct ViewAvailableItem {
 }
 
 #[derive(Clone, Debug)]
-pub struct ViewsAvailableCtx(pub Vec<ViewAvailableItem>);
+pub struct ViewsAvailableCtx(pub Option<Vec<ViewAvailableItem>>);
 
 #[component]
 pub(in crate::app) fn ViewsAvailable() -> impl IntoView {
-    let ctx = expect_context::<ArcReadSignal<Option<ViewsAvailableCtx>>>();
-    move || ctx.get().map(|views_available| view! {
+    let ctx = expect_context::<ArcReadSignal<ViewsAvailableCtx>>();
+    move || ctx.get().0.map(|views_available| view! {
         <section>
-            <h4>"Views Available "{views_available.0.len()}</h4>
+            <h4>"Views Available "{views_available.len()}</h4>
         </section>
     })
 }

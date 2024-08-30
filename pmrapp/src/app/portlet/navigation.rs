@@ -8,14 +8,21 @@ pub struct NavigationItem {
 }
 
 #[derive(Clone, Debug)]
-pub struct NavigationCtx(pub Vec<NavigationItem>);
+pub struct NavigationCtx(pub Option<Vec<NavigationItem>>);
 
 #[component]
 pub(in crate::app) fn Navigation() -> impl IntoView {
-    let navigation_ctx = expect_context::<ArcReadSignal<Option<NavigationCtx>>>();
-    move || navigation_ctx.get().map(|navigation| view! {
-        <section>
-            <h4>{format!("Navigation {:?}", navigation.0.len())}</h4>
-        </section>
-    })
+    // TODO this might actually need to be a Resource<NavigationCtx>, and
+    // the set context will have to be done at the root of the element so it
+    // picks up in time?
+    let ctx = expect_context::<ArcReadSignal<NavigationCtx>>();
+    move || {
+        ctx.get().0.map(|navigation| {
+            view! {
+                <section>
+                    <h4>"Navigation: "{navigation.len()}</h4>
+                </section>
+            }
+        })
+    }
 }

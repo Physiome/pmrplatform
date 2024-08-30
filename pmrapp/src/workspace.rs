@@ -33,6 +33,10 @@ use crate::workspace::api::{
     list_workspaces,
     get_workspace_info,
 };
+use crate::app::portlet::{
+    ViewsAvailableCtx,
+    NavigationCtx,
+};
 
 #[component]
 pub fn WorkspaceRoutes() -> impl MatchNestedRoutes<Dom> + Clone {
@@ -54,6 +58,8 @@ pub fn WorkspaceRoutes() -> impl MatchNestedRoutes<Dom> + Clone {
 
 #[component]
 pub fn WorkspaceRoot() -> impl IntoView {
+    expect_context::<ArcWriteSignal<NavigationCtx>>().set(NavigationCtx(None));
+    expect_context::<ArcWriteSignal<ViewsAvailableCtx>>().set(ViewsAvailableCtx(None));
     view! {
         <Title text="Workspace — Physiome Model Repository"/>
         <Outlet/>
