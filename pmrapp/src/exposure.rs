@@ -145,7 +145,7 @@ pub fn Exposure() -> impl IntoView {
                         .into_iter()
                         .filter_map(move |(file, flag)| {
                             flag.then(|| {
-                                let href = format!("/exposure/{exposure_id}/{file}");
+                                let href = format!("/exposure/{exposure_id}/{file}/");
                                 let text = file.clone();
                                 let title = None;
                                 NavigationItem { href, text, title }
@@ -240,10 +240,20 @@ pub fn ExposureFile() -> impl IntoView {
         </li>
     };
 
+    // TODO could this be encapsulated in a function provided by the portlet?
+    let (views_available, set_views_available) = signal(None::<ViewsAvailableCtx>);
+    expect_context::<ArcWriteSignal<Option<Resource<ViewsAvailableCtx>>>>().set(Some(
+        Resource::new(
+            move || views_available.get(),
+            |views_available| async move { views_available.unwrap_or(ViewsAvailableCtx(None)) },
+        )
+    ));
+
     let ep_view = move || Suspend::new(async move {
         match file.await {
             // TODO figure out how to redirect to the workspace.
             Ok(Ok((ef, Ok((efv, view_path))))) => {
+                set_views_available.set(Some((&ef).into()));
                 let view_key = efv.view_key.clone();
                 let view_key = EFView::from_str(&view_key
                     .expect("API failed to produce a fully formed ExposureFileView")
@@ -255,18 +265,21 @@ pub fn ExposureFile() -> impl IntoView {
                     <ExposureFileView view_key/>
                 }.into_any())
             }
-            Ok(Ok((ef, Err(view_keys)))) => Ok(view! {
-                <h1>
-                    "Exposure "{ef.exposure_id}
-                    " - ExposureFile "{ef.workspace_file_path.clone()}
-                    " - Listing of all views"
-                </h1>
-                <ul>{
-                    view_keys.into_iter()
-                        .map(|k| view_key_entry((&ef, k)))
-                        .collect_view()
-                }</ul>
-            }.into_any()),
+            Ok(Ok((ef, Err(view_keys)))) => {
+                set_views_available.set(Some((&ef).into()));
+                Ok(view! {
+                    <h1>
+                        "Exposure "{ef.exposure_id}
+                        " - ExposureFile "{ef.workspace_file_path.clone()}
+                        " - Listing of all views"
+                    </h1>
+                    <ul>{
+                        view_keys.into_iter()
+                            .map(|k| view_key_entry((&ef, k)))
+                            .collect_view()
+                    }</ul>
+                }.into_any())
+            },
             Ok(Err(e)) => match e {
                 AppError::Redirect(path) => Ok(view! { <Redirect path show_link=true/> }.into_any()),
                 _ => Err(AppError::NotFound),

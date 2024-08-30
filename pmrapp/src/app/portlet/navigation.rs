@@ -1,4 +1,5 @@
 use leptos::prelude::*;
+use leptos_router::components::A;
 use serde::{Serialize, Deserialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -30,10 +31,20 @@ pub(in crate::app) fn Navigation() -> impl IntoView {
                     // can be calculated to avoid the sidebar grid space being reserved?
                     // Unless of course there is a CSS-based solution.
                     match resource {
-                        Some(resource) => resource.await.0.map(|navigation| view! {
-                            <section>
-                                <h4>"Navigation: "{navigation.len()}</h4>
-                            </section>
+                        Some(resource) => resource.await.0.map(|navigation| {
+                            let view = navigation.into_iter()
+                                .map(|NavigationItem { href, text, .. }| view! {
+                                    <li><A href>{text}</A></li>
+                                })
+                                .collect_view();
+                            view! {
+                                <section>
+                                    <h4>"Navigation"</h4>
+                                    <ul>
+                                        {view}
+                                    </ul>
+                                </section>
+                            }
                         }),
                         _ => None,
                     }

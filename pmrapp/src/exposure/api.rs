@@ -77,13 +77,17 @@ pub async fn resolve_exposure_path(
     let ec = platform.get_exposure(id).await?;
 
     match ec.resolve_file_view(path.as_ref()).await {
-        (Ok(efc), Ok(efvc)) => Ok(Ok((
-            efc.exposure_file().clone_inner(),
-            Ok((
-                efvc.exposure_file_view().clone_inner(),
-                efvc.view_path().map(str::to_string),
-            )),
-        ))),
+        (Ok(efc), Ok(efvc)) => {
+            // to ensure the views is populated
+            efc.exposure_file().views().await?;
+            Ok(Ok((
+                efc.exposure_file().clone_inner(),
+                Ok((
+                    efvc.exposure_file_view().clone_inner(),
+                    efvc.view_path().map(str::to_string),
+                )),
+            )))
+        },
         (_, Err(CtrlError::None)) => {
             // since the request path has a direct hit on file, doesn't
             // matter if ExposureFileCtrl found or not.
@@ -106,16 +110,20 @@ pub async fn resolve_exposure_path(
             // to facilitate this custom redirect handling.
             Ok(Err(AppError::Redirect(path).into()))
         },
-        (Ok(efc), Err(CtrlError::EFVCNotFound(viewstr))) if viewstr == "" => Ok(Ok((
-            efc.exposure_file().clone_inner(),
-            Err(efc.exposure_file()
-                .views()
-                .await?
-                .iter()
-                .filter_map(|v| v.view_key().map(str::to_string))
-                .collect::<Vec<_>>()
-            ),
-        ))),
+        (Ok(efc), Err(CtrlError::EFVCNotFound(viewstr))) if viewstr == "" => {
+            // to ensure the views is populated
+            efc.exposure_file().views().await?;
+            Ok(Ok((
+                efc.exposure_file().clone_inner(),
+                Err(efc.exposure_file()
+                    .views()
+                    .await?
+                    .iter()
+                    .filter_map(|v| v.view_key().map(str::to_string))
+                    .collect::<Vec<_>>()
+                ),
+            )))
+        },
         // CtrlError::UnknownPath(_) | CtrlError::EFVCNotFound(_)
         _ => Err(AppError::NotFound.into()),
     }

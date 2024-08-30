@@ -6,6 +6,6 @@ pub use self::navigation::{
     NavigationCtx,
 };
 pub use self::views_available::{
-    ViewAvailableItem,
+    ViewsAvailableItem,
     ViewsAvailableCtx,
 };

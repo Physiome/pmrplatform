@@ -125,7 +125,14 @@ impl ExposureFileRef<'_> {
         self.inner
     }
     pub fn clone_inner(&self) -> ExposureFile {
-        self.inner.clone()
+        let mut inner = self.inner.clone();
+        inner.views = self.views.get().map(|v| v
+            .iter()
+            .map(|v| v.clone_inner())
+            .collect::<Vec<_>>()
+            .into()
+        );
+        inner
     }
 }
 
