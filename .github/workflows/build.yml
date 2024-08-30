@@ -33,10 +33,18 @@ jobs:
     - name: Build pmrplatform
       run: cargo build
 
+    - name: Build pmrapp (with webpack)
+      run: |
+        cd pmrapp
+        npm install
+        npx webpack
+        cd ..
+
     - name: Build pmrapp (with cargo-leptos)
       run: cargo leptos build
 
     - name: Run tests
       run: |
         cargo test --all-features
-        cargo test --package pmrapp
+        cargo test --package pmrapp --features=hydrate
+        cargo test --package pmrapp --features=ssr
