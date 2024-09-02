@@ -22,6 +22,7 @@ use crate::workspace::WorkspaceRoutes;
 
 pub mod portlet;
 use self::portlet::{
+    provide_portlet_context,
     navigation::{
         Navigation,
         NavigationCtx,
@@ -54,23 +55,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
 pub fn App() -> impl IntoView {
     // Provides context that manages stylesheets, titles, meta tags, etc.
     provide_meta_context();
-
-    // TODO could this be encapsulated in a function provided by the portlet?
-    let (navigation, set_navigation) = signal(None::<NavigationCtx>);
-    let (navigation_ctx, _) = arc_signal(Resource::new(
-        move || navigation.get(),
-        |navigation| async move { navigation.unwrap_or(NavigationCtx(None)) },
-    ));
-    provide_context(navigation_ctx);
-    provide_context(set_navigation);
-
-    let (views_available, set_views_available) = signal(None::<ViewsAvailableCtx>);
-    let (views_available_ctx, _) = arc_signal(Resource::new(
-        move || views_available.get(),
-        |views_available| async move { views_available.unwrap_or(ViewsAvailableCtx(None)) },
-    ));
-    provide_context(views_available_ctx);
-    provide_context(set_views_available);
+    provide_portlet_context();
 
     view! {
         // injects a stylesheet into the document <head>

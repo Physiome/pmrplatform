@@ -14,7 +14,7 @@ pub struct ViewsAvailableItem {
 pub struct ViewsAvailableCtx(pub Option<Vec<ViewsAvailableItem>>);
 
 #[component]
-pub(in crate::app) fn ViewsAvailable() -> impl IntoView {
+pub fn ViewsAvailable() -> impl IntoView {
     let ctx = expect_context::<ArcReadSignal<Resource<ViewsAvailableCtx>>>();
     let resource = ctx.get();
     view! {
@@ -41,6 +41,16 @@ pub(in crate::app) fn ViewsAvailable() -> impl IntoView {
             })
         }</Transition>
     }
+}
+
+pub(super) fn provide_views_available_portlet_context() {
+    let (views_available, set_views_available) = signal(None::<ViewsAvailableCtx>);
+    let (views_available_ctx, _) = arc_signal(Resource::new(
+        move || views_available.get(),
+        |views_available| async move { views_available.unwrap_or(ViewsAvailableCtx(None)) },
+    ));
+    provide_context(views_available_ctx);
+    provide_context(set_views_available);
 }
 
 impl From<&ExposureFile> for ViewsAvailableCtx {

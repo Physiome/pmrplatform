@@ -17,7 +17,7 @@ pub struct NavigationItem {
 pub struct NavigationCtx(pub Option<Vec<NavigationItem>>);
 
 #[component]
-pub(in crate::app) fn Navigation() -> impl IntoView {
+pub fn Navigation() -> impl IntoView {
     // TODO this might actually need to be a Resource<NavigationCtx>, and
     // the set context will have to be done at the root of the element so it
     // picks up in time?
@@ -47,4 +47,14 @@ pub(in crate::app) fn Navigation() -> impl IntoView {
             })
         }</Transition>
     }
+}
+
+pub(super) fn provide_navigation_portlet_context() {
+    let (navigation, set_navigation) = signal(None::<NavigationCtx>);
+    let (navigation_ctx, _) = arc_signal(Resource::new(
+        move || navigation.get(),
+        |navigation| async move { navigation.unwrap_or(NavigationCtx(None)) },
+    ));
+    provide_context(navigation_ctx);
+    provide_context(set_navigation);
 }
