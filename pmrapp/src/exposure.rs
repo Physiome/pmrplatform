@@ -34,9 +34,11 @@ use crate::view::{
     ExposureFileView,
 };
 use crate::app::portlet::{
-    ViewsAvailableCtx,
+    ExposureSourceCtx,
+    ExposureSourceItem,
     NavigationCtx,
     NavigationItem,
+    ViewsAvailableCtx,
 };
 
 #[component]
@@ -65,6 +67,7 @@ pub fn ExposureRoot() -> impl IntoView {
 #[component]
 pub fn ExposureListing() -> impl IntoView {
     // TODO figure out what kind of navigation needed here.
+    expect_context::<WriteSignal<Option<ExposureSourceCtx>>>().set(None);
     expect_context::<WriteSignal<Option<NavigationCtx>>>().set(None);
     expect_context::<WriteSignal<Option<ViewsAvailableCtx>>>().set(None);
 
@@ -130,9 +133,18 @@ pub fn Exposure() -> impl IntoView {
         }
     ));
 
-    let nav_portlet = move || Suspend::new(async move {
+    let portlets = move || Suspend::new(async move {
         let exposure_info = expect_context::<Resource<Result<ExposureInfo, AppError>>>()
             .await;
+        expect_context::<WriteSignal<Option<ExposureSourceCtx>>>()
+            .set(exposure_info.as_ref().map(|info| {
+                ExposureSourceItem {
+                    commit_id: info.exposure.commit_id.clone(),
+                    workspace_id: info.exposure.id.to_string(),
+                    // TODO put in the workspace title.
+                    workspace_title: format!("Workspace {}", info.exposure.workspace_id),
+                }.into()
+            }).ok());
         expect_context::<WriteSignal<Option<NavigationCtx>>>()
             .set(exposure_info.map(|info| {
                 let exposure_id = info.exposure.id;
@@ -154,7 +166,7 @@ pub fn Exposure() -> impl IntoView {
     view! {
         <Title text="Exposure — Physiome Model Repository"/>
         <Suspense>
-            {nav_portlet}
+            {portlets}
         </Suspense>
         <Outlet/>
     }

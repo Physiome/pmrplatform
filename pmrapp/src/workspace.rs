@@ -34,8 +34,9 @@ use crate::workspace::api::{
     get_workspace_info,
 };
 use crate::app::portlet::{
-    ViewsAvailableCtx,
+    ExposureSourceCtx,
     NavigationCtx,
+    ViewsAvailableCtx,
 };
 
 #[component]
@@ -58,6 +59,7 @@ pub fn WorkspaceRoutes() -> impl MatchNestedRoutes<Dom> + Clone {
 
 #[component]
 pub fn WorkspaceRoot() -> impl IntoView {
+    expect_context::<WriteSignal<Option<ExposureSourceCtx>>>().set(None);
     expect_context::<WriteSignal<Option<NavigationCtx>>>().set(None);
     expect_context::<WriteSignal<Option<ViewsAvailableCtx>>>().set(None);
     view! {

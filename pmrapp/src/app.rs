@@ -23,6 +23,10 @@ use crate::workspace::WorkspaceRoutes;
 pub mod portlet;
 use self::portlet::{
     provide_portlet_context,
+    exposure_source::{
+        ExposureSource,
+        ExposureSourceCtx,
+    },
     navigation::{
         Navigation,
         NavigationCtx,
@@ -90,6 +94,7 @@ pub fn App() -> impl IntoView {
                     </Routes>
                 </article>
                 <aside>
+                    <ExposureSource/>
                     <ViewsAvailable/>
                     <Navigation/>
                 </aside>
@@ -103,6 +108,7 @@ pub fn App() -> impl IntoView {
 
 #[component]
 fn HomePage() -> impl IntoView {
+    expect_context::<WriteSignal<Option<ExposureSourceCtx>>>().set(None);
     expect_context::<WriteSignal<Option<NavigationCtx>>>().set(None);
     expect_context::<WriteSignal<Option<ViewsAvailableCtx>>>().set(None);
     view! {
