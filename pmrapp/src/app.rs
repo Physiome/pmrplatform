@@ -67,11 +67,13 @@ pub fn App() -> impl IntoView {
 
         // content for this welcome page
         <Router>
-            <nav>
-                <A href="/">"Home"</A>
-                <A href="/workspace/">"Workspace"</A>
-                <A href="/exposure/">"Exposure"</A>
-            </nav>
+            <header>
+                <nav>
+                    <A href="/">"Home"</A>
+                    <A href="/workspace/">"Workspace"</A>
+                    <A href="/exposure/">"Exposure"</A>
+                </nav>
+            </header>
             <main>
                 <article>
                     <Routes fallback=|| {

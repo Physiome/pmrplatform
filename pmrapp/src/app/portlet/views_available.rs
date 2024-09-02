@@ -32,9 +32,11 @@ pub fn ViewsAvailable() -> impl IntoView {
                     view! {
                         <section>
                             <h4>"Views Available"</h4>
-                            <ul>
-                                {view}
-                            </ul>
+                            <nav>
+                                <ul>
+                                    {view}
+                                </ul>
+                            </nav>
                         </section>
                     }
                 })

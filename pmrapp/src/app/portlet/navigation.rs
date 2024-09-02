@@ -38,9 +38,11 @@ pub fn Navigation() -> impl IntoView {
                     view! {
                         <section>
                             <h4>"Navigation"</h4>
-                            <ul>
-                                {view}
-                            </ul>
+                            <nav>
+                                <ul>
+                                    {view}
+                                </ul>
+                            </nav>
                         </section>
                     }
                 })

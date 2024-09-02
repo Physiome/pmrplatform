@@ -12,19 +12,19 @@ body {
   grid-template-rows: auto 1fr;
 }
 
-nav {
+body > header > nav {
   display: flex;
   background-color: #333;
   color: #fff;
 }
 
-nav a {
+body > header > nav a {
   color: #fff;
   padding: 0.5em 2em;
   text-decoration: none;
 }
 
-nav a.active, nav a[aria-current="page"] {
+body > header > nav a.active, body > header > nav a[aria-current="page"] {
   background-color: #c00;
 }
 
@@ -78,27 +78,27 @@ main > aside > section > h4 {
   margin-bottom: 0.33em;
 }
 
-main > aside > section > ul {
+main > aside > section > nav > ul {
   margin: 0;
   padding: 0;
 }
 
-main > aside > section > ul > li {
+main > aside > section > nav > ul > li {
   display: block;
 }
 
-main > aside > section > ul > li > a {
+main > aside > section > nav > ul > li > a {
   display: block;
   text-decoration: none;
   line-height: 1.5em;
   color: #000;
 }
 
-main > aside > section > ul > li > a[aria-current="page"] {
+main > aside > section > nav > ul > li > a[aria-current="page"] {
   background: #e8e8e8;
 }
 
-main > aside > section > ul > li > a:hover {
+main > aside > section > nav > ul > li > a:hover {
   background: #e0e0e0;
 }
 
