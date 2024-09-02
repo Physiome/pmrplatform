@@ -70,6 +70,38 @@ main pre {
   overflow: auto;
 }
 
+main > aside > section {
+  margin-right: 1em;
+}
+
+main > aside > section > h4 {
+  margin-bottom: 0.33em;
+}
+
+main > aside > section > ul {
+  margin: 0;
+  padding: 0;
+}
+
+main > aside > section > ul > li {
+  display: block;
+}
+
+main > aside > section > ul > li > a {
+  display: block;
+  text-decoration: none;
+  line-height: 1.5em;
+  color: #000;
+}
+
+main > aside > section > ul > li > a[aria-current="page"] {
+  background: #e8e8e8;
+}
+
+main > aside > section > ul > li > a:hover {
+  background: #e0e0e0;
+}
+
 #indicator, #indicator div {
   height: 10px;
 }
