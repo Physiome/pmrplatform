@@ -65,8 +65,8 @@ pub fn ExposureRoot() -> impl IntoView {
 #[component]
 pub fn ExposureListing() -> impl IntoView {
     // TODO figure out what kind of navigation needed here.
-    expect_context::<ArcWriteSignal<Option<Resource<NavigationCtx>>>>().set(None);
-    expect_context::<ArcWriteSignal<Option<Resource<ViewsAvailableCtx>>>>().set(None);
+    expect_context::<WriteSignal<Option<NavigationCtx>>>().set(None);
+    expect_context::<WriteSignal<Option<ViewsAvailableCtx>>>().set(None);
 
     let exposures = Resource::new(
         move || (),
@@ -130,35 +130,32 @@ pub fn Exposure() -> impl IntoView {
         }
     ));
 
-    let params = use_params::<ExposureParams>();
-    expect_context::<ArcWriteSignal<Option<Resource<NavigationCtx>>>>().set(Some(
-        Resource::new_blocking(
-            move || params.get().map(|p| p.id),
-            move |_| async move {
-                // XXX the params being a proxy/hack as we have this resource
-                let exposure_info = expect_context::<Resource<Result<ExposureInfo, AppError>>>()
-                    .await;
-                NavigationCtx(exposure_info.map(|info| {
-                    let exposure_id = info.exposure.id;
-                    // TODO should derive from exposure.files when it contains title/description
-                    info.files
-                        .into_iter()
-                        .filter_map(move |(file, flag)| {
-                            flag.then(|| {
-                                let href = format!("/exposure/{exposure_id}/{file}/");
-                                let text = file.clone();
-                                let title = None;
-                                NavigationItem { href, text, title }
-                            })
+    let nav_portlet = move || Suspend::new(async move {
+        let exposure_info = expect_context::<Resource<Result<ExposureInfo, AppError>>>()
+            .await;
+        expect_context::<WriteSignal<Option<NavigationCtx>>>()
+            .set(exposure_info.map(|info| {
+                let exposure_id = info.exposure.id;
+                // TODO should derive from exposure.files when it contains title/description
+                NavigationCtx(Some(info.files
+                    .into_iter()
+                    .filter_map(move |(file, flag)| {
+                        flag.then(|| {
+                            let href = format!("/exposure/{exposure_id}/{file}/");
+                            let text = file.clone();
+                            let title = None;
+                            NavigationItem { href, text, title }
                         })
-                        .collect::<Vec<_>>()
-                }).ok())
-            }
-        )
-    ));
+                    })
+                    .collect::<Vec<_>>()))
+            }).ok());
+    });
 
     view! {
         <Title text="Exposure — Physiome Model Repository"/>
+        <Suspense>
+            {nav_portlet}
+        </Suspense>
         <Outlet/>
     }
 }
@@ -186,7 +183,7 @@ pub fn ExposureFileListing(id: i64, files: Vec<(String, bool)>) -> impl IntoView
 
 #[component]
 pub fn ExposureMain() -> impl IntoView {
-    expect_context::<ArcWriteSignal<Option<Resource<ViewsAvailableCtx>>>>().set(None);
+    expect_context::<WriteSignal<Option<ViewsAvailableCtx>>>().set(None);
 
     let exposure_info = expect_context::<Resource<Result<ExposureInfo, AppError>>>();
     let file_listing = move || Suspend::new(async move {
@@ -240,20 +237,12 @@ pub fn ExposureFile() -> impl IntoView {
         </li>
     };
 
-    // TODO could this be encapsulated in a function provided by the portlet?
-    let (views_available, set_views_available) = signal(None::<ViewsAvailableCtx>);
-    expect_context::<ArcWriteSignal<Option<Resource<ViewsAvailableCtx>>>>().set(Some(
-        Resource::new(
-            move || views_available.get(),
-            |views_available| async move { views_available.unwrap_or(ViewsAvailableCtx(None)) },
-        )
-    ));
-
     let ep_view = move || Suspend::new(async move {
         match file.await {
             // TODO figure out how to redirect to the workspace.
             Ok(Ok((ef, Ok((efv, view_path))))) => {
-                set_views_available.set(Some((&ef).into()));
+                expect_context::<WriteSignal<Option<ViewsAvailableCtx>>>()
+                    .set(Some((&ef).into()));
                 let view_key = efv.view_key.clone();
                 let view_key = EFView::from_str(&view_key
                     .expect("API failed to produce a fully formed ExposureFileView")
@@ -266,7 +255,8 @@ pub fn ExposureFile() -> impl IntoView {
                 }.into_any())
             }
             Ok(Ok((ef, Err(view_keys)))) => {
-                set_views_available.set(Some((&ef).into()));
+                expect_context::<WriteSignal<Option<ViewsAvailableCtx>>>()
+                    .set(Some((&ef).into()));
                 Ok(view! {
                     <h1>
                         "Exposure "{ef.exposure_id}

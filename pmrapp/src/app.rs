@@ -55,13 +55,22 @@ pub fn App() -> impl IntoView {
     // Provides context that manages stylesheets, titles, meta tags, etc.
     provide_meta_context();
 
-    // signals + contexts for portlets.
-    let (navigation_ctx, set_navigation_ctx) = arc_signal(None::<Resource<NavigationCtx>>);
+    // TODO could this be encapsulated in a function provided by the portlet?
+    let (navigation, set_navigation) = signal(None::<NavigationCtx>);
+    let (navigation_ctx, _) = arc_signal(Resource::new(
+        move || navigation.get(),
+        |navigation| async move { navigation.unwrap_or(NavigationCtx(None)) },
+    ));
     provide_context(navigation_ctx);
-    provide_context(set_navigation_ctx);
-    let (views_available_ctx, set_views_available_ctx) = arc_signal(None::<Resource<ViewsAvailableCtx>>);
+    provide_context(set_navigation);
+
+    let (views_available, set_views_available) = signal(None::<ViewsAvailableCtx>);
+    let (views_available_ctx, _) = arc_signal(Resource::new(
+        move || views_available.get(),
+        |views_available| async move { views_available.unwrap_or(ViewsAvailableCtx(None)) },
+    ));
     provide_context(views_available_ctx);
-    provide_context(set_views_available_ctx);
+    provide_context(set_views_available);
 
     view! {
         // injects a stylesheet into the document <head>
@@ -107,8 +116,8 @@ pub fn App() -> impl IntoView {
 
 #[component]
 fn HomePage() -> impl IntoView {
-    expect_context::<ArcWriteSignal<Option<Resource<NavigationCtx>>>>().set(None);
-    expect_context::<ArcWriteSignal<Option<Resource<ViewsAvailableCtx>>>>().set(None);
+    expect_context::<WriteSignal<Option<NavigationCtx>>>().set(None);
+    expect_context::<WriteSignal<Option<ViewsAvailableCtx>>>().set(None);
     view! {
         <Title text="Home — Physiome Model Repository"/>
         <div class="main">

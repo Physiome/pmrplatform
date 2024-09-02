@@ -15,36 +15,31 @@ pub struct ViewsAvailableCtx(pub Option<Vec<ViewsAvailableItem>>);
 
 #[component]
 pub(in crate::app) fn ViewsAvailable() -> impl IntoView {
-    let ctx = expect_context::<ArcReadSignal<Option<Resource<ViewsAvailableCtx>>>>();
-    move || {
-        let resource = ctx.get();
-        view! {
-            <Transition>{
-                move || Suspend::new(async move {
-                    // TODO maybe set a flag via a signal so that the appropriate class
-                    // can be calculated to avoid the sidebar grid space being reserved?
-                    // Unless of course there is a CSS-based solution.
-                    match resource {
-                        Some(resource) => resource.await.0.map(|views_available| {
-                            let view = views_available.into_iter()
-                                .map(|ViewsAvailableItem { href, text, .. }| view! {
-                                    <li><A href>{text}</A></li>
-                                })
-                                .collect_view();
-                            view! {
-                                <section>
-                                    <h4>"Views Available"</h4>
-                                    <ul>
-                                        {view}
-                                    </ul>
-                                </section>
-                            }
-                        }),
-                        _ => None,
+    let ctx = expect_context::<ArcReadSignal<Resource<ViewsAvailableCtx>>>();
+    let resource = ctx.get();
+    view! {
+        <Transition>{
+            move || Suspend::new(async move {
+                // TODO maybe set a flag via a signal so that the appropriate class
+                // can be calculated to avoid the sidebar grid space being reserved?
+                // Unless of course there is a CSS-based solution.
+                resource.await.0.map(|views_available| {
+                    let view = views_available.into_iter()
+                        .map(|ViewsAvailableItem { href, text, .. }| view! {
+                            <li><A href>{text}</A></li>
+                        })
+                        .collect_view();
+                    view! {
+                        <section>
+                            <h4>"Views Available"</h4>
+                            <ul>
+                                {view}
+                            </ul>
+                        </section>
                     }
                 })
-            }</Transition>
-        }
+            })
+        }</Transition>
     }
 }
 
