@@ -23,18 +23,12 @@ use crate::workspace::WorkspaceRoutes;
 pub mod portlet;
 use self::portlet::{
     provide_portlet_context,
-    exposure_source::{
-        ExposureSource,
-        ExposureSourceCtx,
-    },
-    navigation::{
-        Navigation,
-        NavigationCtx,
-    },
-    views_available::{
-        ViewsAvailable,
-        ViewsAvailableCtx,
-    },
+    ExposureSource,
+    ExposureSourceCtx,
+    Navigation,
+    NavigationCtx,
+    ViewsAvailable,
+    ViewsAvailableCtx,
 };
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {

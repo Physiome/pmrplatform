@@ -3,14 +3,17 @@ pub(super) mod navigation;
 pub(super) mod views_available;
 
 pub use self::exposure_source::{
+    ExposureSource,
     ExposureSourceItem,
     ExposureSourceCtx,
 };
 pub use self::navigation::{
+    Navigation,
     NavigationItem,
     NavigationCtx,
 };
 pub use self::views_available::{
+    ViewsAvailable,
     ViewsAvailableItem,
     ViewsAvailableCtx,
 };

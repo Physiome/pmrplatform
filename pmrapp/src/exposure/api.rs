@@ -10,6 +10,7 @@ use pmrcore::{
         ExposureFile,
         ExposureFileView,
     },
+    workspace::Workspace,
 };
 use serde::{Serialize, Deserialize};
 use crate::error::AppError;
@@ -44,15 +45,17 @@ pub async fn list() -> Result<Exposures, ServerFnError> {
 pub struct ExposureInfo {
     pub exposure: Exposure,
     pub files: Vec<(String, bool)>,
+    pub workspace: Workspace,
 }
 
 #[server]
-pub async fn list_files(id: i64) -> Result<ExposureInfo, ServerFnError> {
+pub async fn get_exposure_info(id: i64) -> Result<ExposureInfo, ServerFnError> {
     let platform = platform().await?;
     let ctrl = platform.get_exposure(id).await?;
     let files = ctrl.list_files_info().await?;
     let exposure = ctrl.exposure().clone_inner();
-    Ok(ExposureInfo { exposure, files })
+    let workspace = platform.mc_platform.get_workspace(exposure.workspace_id).await?.into_inner();
+    Ok(ExposureInfo { exposure, files, workspace })
 }
 
 #[server]

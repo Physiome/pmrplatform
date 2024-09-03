@@ -25,7 +25,7 @@ use crate::error_template::ErrorTemplate;
 use crate::component::{Redirect, RedirectTS};
 use crate::exposure::api::{
     list,
-    list_files,
+    get_exposure_info,
     resolve_exposure_path,
     ExposureInfo,
 };
@@ -125,7 +125,7 @@ pub fn Exposure() -> impl IntoView {
         |p| async move {
             match p {
                 Err(_) => Err(AppError::InternalServerError),
-                Ok(Some(id)) => list_files(id)
+                Ok(Some(id)) => get_exposure_info(id)
                     .await
                     .map_err(|_| AppError::NotFound),
                 _ => Err(AppError::NotFound),
@@ -140,9 +140,10 @@ pub fn Exposure() -> impl IntoView {
             .set(exposure_info.as_ref().map(|info| {
                 ExposureSourceItem {
                     commit_id: info.exposure.commit_id.clone(),
-                    workspace_id: info.exposure.id.to_string(),
+                    workspace_id: info.exposure.workspace_id.to_string(),
                     // TODO put in the workspace title.
-                    workspace_title: format!("Workspace {}", info.exposure.workspace_id),
+                    workspace_title: info.workspace.description.clone().unwrap_or(
+                        format!("Workspace {}", info.exposure.workspace_id)),
                 }.into()
             }).ok());
         expect_context::<WriteSignal<Option<NavigationCtx>>>()

@@ -31,10 +31,10 @@ pub fn ExposureSource() -> impl IntoView {
                             <h4>"Source"</h4>
                             <div>"
                                 Derived from workspace "
-                                <a href=format!("/workspace/{workspace_id}")>{workspace_title.clone()}</a>
+                                <a href=format!("/workspace/{workspace_id}/")>{workspace_title.clone()}</a>
                                 " at changeset "
                                 <a href=format!("/workspace/{workspace_id}/file/{commit_id}/")>
-                                    {commit_id[..12].to_string()}
+                                    {commit_id.get(..12).unwrap_or(&commit_id).to_string()}
                                 </a>
                                 ".
                             "</div>

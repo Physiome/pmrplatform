@@ -89,10 +89,10 @@ pub fn WorkspaceListing() -> impl IntoView {
                 view! {
                     <div>
                         <div><a href=format!("/workspace/{}/", workspace.id)>
-                            "Workspace "{workspace.id}
+                            {workspace.description.unwrap_or_else(|| format!("Workspace {}", workspace.id))}
                         </a></div>
                         <div>{workspace.url}</div>
-                        <div>{workspace.description}</div>
+                        <div>{workspace.long_description.unwrap_or("".to_string())}</div>
                     </div>
                 }
             })
