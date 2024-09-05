@@ -42,7 +42,14 @@ use sqlx::{
     Sqlite,
     migrate::MigrateDatabase,
 };
-use std::fs;
+use std::{
+    fs,
+    io::{
+        stdin,
+        BufReader,
+    },
+};
+
 
 
 #[derive(Debug, Parser)]
@@ -83,6 +90,11 @@ enum Commands {
     Task {
         #[command(subcommand)]
         cmd: TaskCmd,
+    },
+    #[command(arg_required_else_help = true)]
+    Vtt {
+        #[command(subcommand)]
+        cmd: VttCmd,
     },
 }
 
@@ -142,18 +154,37 @@ enum ProfileCmd {
         profile_id: i64,
     },
     #[command(arg_required_else_help = true)]
-    Vtt {
+    Assign {
         profile_id: i64,
-        task_template_id: i64,
-        view_key: String,
-        description: String,
+        vtt_id: i64,
     },
-    // TODO dump a profile to JSON?
+    #[command(arg_required_else_help = true)]
+    Remove {
+        profile_id: i64,
+        vtt_id: i64,
+    },
 }
 
 #[derive(Debug, Subcommand)]
 enum TaskCmd {
     ExecOneShot,
+}
+
+#[derive(Debug, Subcommand)]
+enum VttCmd {
+    Import {
+        input: Option<std::path::PathBuf>,
+    },
+    #[command(arg_required_else_help = true)]
+    Link {
+        task_template_id: i64,
+        view_key: String,
+        description: String,
+    },
+    #[command(arg_required_else_help = true)]
+    Export {
+        id: i64,
+    }
 }
 
 #[derive(Debug, Subcommand)]
@@ -236,7 +267,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::Task { cmd } => {
             parse_task(&platform, cmd).await?;
         },
-        // TODO exposure (view template) profiles
+        Commands::Vtt { cmd } => {
+            parse_vtt(&platform, cmd).await?;
+        },
     }
 
     Ok(())
@@ -331,25 +364,21 @@ async fn parse_profile<'p>(
             };
             println!("{output}");
         },
-        // profile vtt assign [x]
-        // profile vtt remove [ ]
-        ProfileCmd::Vtt { profile_id, task_template_id, view_key, description } => {
-            let id = ViewTaskTemplateBackend::insert_view_task_template(
-                platform.mc_platform.as_ref(),
-                &view_key,
-                &description,
-                task_template_id,
-            ).await?;
-            println!("created under profile id: {profile_id} a new exposure file view task template id: {id} with view_key {view_key} using template {task_template_id}");
+        ProfileCmd::Assign { profile_id, vtt_id } => {
             ProfileViewsBackend::insert_profile_views(
                 platform.mc_platform.as_ref(),
                 profile_id,
-                id,
+                vtt_id,
             ).await?;
-
-            let vtt = platform.get_view_task_template(id).await?;
-            let output = serde_json::to_string_pretty(&vtt)?;
-            println!("{output}");
+            println!("assigned ViewTaskTemplate {vtt_id} to Profile {profile_id}");
+        },
+        ProfileCmd::Remove { profile_id, vtt_id } => {
+            ProfileViewsBackend::delete_profile_views(
+                platform.mc_platform.as_ref(),
+                profile_id,
+                vtt_id,
+            ).await?;
+            println!("removed ViewTaskTemplate {vtt_id} from Profile {profile_id}");
         },
     }
     Ok(())
@@ -373,6 +402,41 @@ async fn parse_task<'p>(
                     println!("no outstanding job");
                 }
             };
+        }
+    }
+    Ok(())
+}
+
+async fn parse_vtt<'p>(
+    platform: &'p Platform,
+    arg: VttCmd,
+) -> anyhow::Result<()> {
+    match arg {
+        VttCmd::Import { input } => {
+            let id = platform.adds_view_task_template(
+                match input {
+                    Some(path) => serde_json::from_reader(BufReader::new(fs::File::open(path)?))?,
+                    None => serde_json::from_reader(BufReader::new(stdin()))?,
+                }
+            ).await?;
+            println!("imported ViewTaskTemplate {id}");
+        }
+        VttCmd::Link { task_template_id, view_key, description } => {
+            let id = ViewTaskTemplateBackend::insert_view_task_template(
+                platform.mc_platform.as_ref(),
+                &view_key,
+                &description,
+                task_template_id,
+            ).await?;
+            println!(
+                "created ViewTaskTemplate {id} linked to TaskTemplate {task_template_id} with \
+                view_key {view_key}"
+            );
+        }
+        VttCmd::Export { id } => {
+            let result = platform.get_view_task_template(id).await?;
+            let output = serde_json::to_string_pretty(&result)?;
+            println!("{output}");
         }
     }
     Ok(())

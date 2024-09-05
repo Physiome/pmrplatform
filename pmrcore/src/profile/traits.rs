@@ -59,7 +59,7 @@ pub trait ProfileViewsBackend {
         profile_id: i64,
         view_task_template_id: i64,
     ) -> Result<i64, BackendError>;
-    async fn delete_profile_views_by_fields(
+    async fn delete_profile_views(
         &self,
         profile_id: i64,
         view_task_template_id: i64,

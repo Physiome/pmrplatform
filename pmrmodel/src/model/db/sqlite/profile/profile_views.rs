@@ -32,7 +32,7 @@ VALUES ( ?1, ?2 )
     Ok(id)
 }
 
-async fn delete_profile_views_by_fields_sqlite(
+async fn delete_profile_views_sqlite(
     sqlite: &SqliteBackend,
     profile_id: i64,
     view_task_template_id: i64,
@@ -99,12 +99,12 @@ impl ProfileViewsBackend for SqliteBackend {
         ).await
     }
 
-    async fn delete_profile_views_by_fields(
+    async fn delete_profile_views(
         &self,
         profile_id: i64,
         view_task_template_id: i64,
     ) -> Result<bool, BackendError> {
-        delete_profile_views_by_fields_sqlite(
+        delete_profile_views_sqlite(
             &self,
             profile_id,
             view_task_template_id,
@@ -183,7 +183,7 @@ mod testing {
         assert_eq!(p3_vttps.len(), 2);
         assert_eq!(p4_vttps.len(), 0);
 
-        pvb.delete_profile_views_by_fields(p3, v3).await?;
+        pvb.delete_profile_views(p3, v3).await?;
         let p3_vttps = pvb.get_view_task_templates_for_profile(p3).await?;
 
         assert_eq!(p3_vttps.as_ref(), [ViewTaskTemplate {

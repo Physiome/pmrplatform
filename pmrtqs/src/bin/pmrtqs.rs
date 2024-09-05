@@ -18,6 +18,13 @@ use sqlx::{
     Sqlite,
     migrate::MigrateDatabase,
 };
+use std::{
+    fs::File,
+    io::{
+        stdin,
+        BufReader,
+    },
+};
 
 use pmrtqs::executor::TMPlatformExecutorInstance;
 
@@ -59,6 +66,11 @@ enum Commands {
     Choice {
         #[command(subcommand)]
         choice: Choice,
+    },
+    /// Import a complete task template
+    Import {
+        /// Path to the JSON containing the complete task template; omit to read from stdin.
+        input: Option<std::path::PathBuf>,
     },
     ExecOneShot,
 }
@@ -167,6 +179,16 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Choice { choice } => {
             parse_choice(choice, &backend).await?
+        }
+        Commands::Import { input } => {
+            let result = TaskTemplateBackend::adds_task_template(
+                &backend,
+                match input {
+                    Some(path) => serde_json::from_reader(BufReader::new(File::open(path)?))?,
+                    None => serde_json::from_reader(BufReader::new(stdin()))?,
+                }
+            ).await?;
+            println!("program '{}' imported as id: {}", &result.bin_path, result.id);
         }
         Commands::ExecOneShot => {
             match backend
