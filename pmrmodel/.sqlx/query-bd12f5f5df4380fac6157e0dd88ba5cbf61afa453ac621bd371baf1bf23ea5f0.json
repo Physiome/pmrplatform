@@ -6,27 +6,27 @@
       {
         "name": "id",
         "ordinal": 0,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "exposure_file_view_id",
         "ordinal": 1,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "view_task_template_id",
         "ordinal": 2,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "task_id",
         "ordinal": 3,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "created_ts",
         "ordinal": 4,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "ready",

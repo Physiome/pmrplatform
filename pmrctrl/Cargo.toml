@@ -18,7 +18,7 @@ pmrrepo = "0.1.0"
 pmrtqs = "0.1.0"
 serde = { version = "1.0.59", features = ["serde_derive"] }
 serde_json = "1.0.59"
-sqlx = { version = "0.7.0", features = ["sqlite"] }
+sqlx = { version = "0.8.0", features = ["sqlite"] }
 stderrlog = "0.5.1"
 thiserror = "1.0"
 tokio = { version = "1.35", features = [ "sync" ] }

@@ -6,17 +6,17 @@
       {
         "name": "id",
         "ordinal": 0,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "exposure_file_id",
         "ordinal": 1,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "profile_id",
         "ordinal": 2,
-        "type_info": "Int64"
+        "type_info": "Integer"
       }
     ],
     "parameters": {

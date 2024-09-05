@@ -6,7 +6,7 @@
       {
         "name": "id",
         "ordinal": 0,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "description",
@@ -16,12 +16,12 @@
       {
         "name": "workspace_id",
         "ordinal": 2,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "workspace_tag_id",
         "ordinal": 3,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "commit_id",
@@ -31,12 +31,12 @@
       {
         "name": "created_ts",
         "ordinal": 5,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "default_file_id",
         "ordinal": 6,
-        "type_info": "Int64"
+        "type_info": "Integer"
       }
     ],
     "parameters": {

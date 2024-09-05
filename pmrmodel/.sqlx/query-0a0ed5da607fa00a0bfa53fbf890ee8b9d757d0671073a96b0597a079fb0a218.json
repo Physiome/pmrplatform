@@ -6,7 +6,7 @@
       {
         "name": "id",
         "ordinal": 0,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "url",
@@ -16,7 +16,7 @@
       {
         "name": "superceded_by_id",
         "ordinal": 2,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "description",
@@ -31,7 +31,7 @@
       {
         "name": "created_ts",
         "ordinal": 5,
-        "type_info": "Int64"
+        "type_info": "Integer"
       }
     ],
     "parameters": {

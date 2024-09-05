@@ -79,7 +79,7 @@ RETURNING final_task_template_arg_id
     .await?;
     tx.commit().await?;
 
-    Ok(rec.final_task_template_arg_id)
+    Ok(Some(rec.final_task_template_arg_id))
 }
 
 async fn get_task_template_by_id_sqlite(

@@ -6,14 +6,14 @@
       {
         "name": "final_task_template_arg_id",
         "ordinal": 0,
-        "type_info": "Int64"
+        "type_info": "Integer"
       }
     ],
     "parameters": {
       "Right": 1
     },
     "nullable": [
-      true
+      false
     ]
   },
   "hash": "2441fb95d9133c8e73f01fed852100d5cbb02cba3647b545b2b7ed88614b0dba"
