@@ -58,11 +58,16 @@ pub async fn get_exposure_info(id: i64) -> Result<ExposureInfo, ServerFnError> {
     Ok(ExposureInfo { exposure, files, workspace })
 }
 
+pub type ResolveExposurePathResult = Result<
+    (ExposureFile, Result<(ExposureFileView, Option<String>), Vec<String>>),
+    AppError,
+>;
+
 #[server]
 pub async fn resolve_exposure_path(
     id: i64,
     path: String,
-) -> Result<Result<(ExposureFile, Result<(ExposureFileView, Option<String>), Vec<String>>), AppError>, ServerFnError> {
+) -> Result<ResolveExposurePathResult, ServerFnError> {
     // TODO when there is a proper error type for id not found, use that
     // TODO ExposureFileView is a placeholder - the real type that should be returned
     // is something that can readily be turned into an IntoView.
