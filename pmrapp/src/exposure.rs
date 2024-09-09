@@ -132,10 +132,10 @@ pub fn Exposure() -> impl IntoView {
             }
         }
     ));
+    let exposure_info = expect_context::<Resource<Result<ExposureInfo, AppError>>>();
 
     let portlets = move || Suspend::new(async move {
-        let exposure_info = expect_context::<Resource<Result<ExposureInfo, AppError>>>()
-            .await;
+        let exposure_info = exposure_info.await;
         expect_context::<WriteSignal<Option<ExposureSourceCtx>>>()
             .set(exposure_info.as_ref().map(|info| {
                 ExposureSourceItem {
@@ -229,11 +229,11 @@ pub struct ViewPath(pub Option<String>);
 #[component]
 pub fn ExposureFile() -> impl IntoView {
     let params = use_params::<ExposureFileParams>();
+    let exposure_info = expect_context::<Resource<Result<ExposureInfo, AppError>>>();
     let file = Resource::new_blocking(
         move || params.get().map(|p| p.path),
-        |p| async move {
-            let exposure_info = expect_context::<Resource<Result<ExposureInfo, AppError>>>().await;
-            match (exposure_info, p) {
+        move |p| async move {
+            match (exposure_info.await, p) {
                 (Ok(info), Ok(Some(path))) => resolve_exposure_path(info.exposure.id, path.clone())
                     .await
                     .map_err(|_| AppError::NotFound),
