@@ -4,6 +4,7 @@ members = [
     "pmrctrl",
     "pmrcore",
     "pmrmodel",
+    "pmrrbac",
     "pmrrepo",
     "pmrtqs",
     "testing",
@@ -23,6 +24,7 @@ pmrapp = { path = "./pmrapp" }
 pmrctrl = { path = "./pmrctrl" }
 pmrmodel = { path = "./pmrmodel" }
 pmrcore = { path = "./pmrcore" }
+pmrrbac = { path = "./pmrrbac" }
 pmrrepo = { path = "./pmrrepo" }
 pmrtqs = { path = "./pmrtqs" }
 

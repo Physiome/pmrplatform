@@ -1,0 +1,19 @@
+[package]
+name = "pmrrbac"
+version = "0.1.0"
+
+authors = ["Tommy Yu <tommy.yu@auckland.ac.nz>"]
+edition = "2021"
+
+[dependencies]
+log = { version = "0.4" }
+sqlx-adapter = { version = "1.2.0", default-features = false, features = ["sqlite", "runtime-tokio-native-tls"]}
+thiserror = "1.0"
+tokio = { version = "1.35", features = ["fs", "io-util", "macros"] }
+
+[dev-dependencies]
+anyhow = "1.0.0"
+
+[features]
+
+[lib]
