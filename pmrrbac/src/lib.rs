@@ -12,12 +12,13 @@ p = sub, res, ep, met
 
 [role_definition]
 g = _, _, _
+g2 = _, _
 
 [policy_effect]
 e = some(where (p.eft == allow))
 
 [matchers]
-m = (g(r.sub, p.sub, r.res) || g(r.sub, p.sub, p.res)) && keyMatch2(r.res, p.res) && keyMatch(r.ep, p.ep) && r.met == p.met
+m = (g(r.sub, p.sub, r.res) || g(r.sub, p.sub, p.res) || g2(r.sub, p.sub)) && keyMatch2(r.res, p.res) && keyMatch(r.ep, p.ep) && r.met == p.met
 ";
 
 // this matcher _doesn't_ work for the Rust version, so we just do another check for the None user even if there is Some(...) user.
@@ -36,9 +37,9 @@ const DEFAULT_POLICIES: &str = "\
 manager, /*, *, GET
 manager, /*, *, POST
 
-# readers have limited access
-reader, /*, , GET
-reader, /*, protocol, GET
+# readers have limited access; this should be granted per resource
+# reader, /*, , GET
+# reader, /*, protocol, GET
 
 # owners have everything, including granted access
 owner, /*, , GET           # empty group signifies typical actions (e.g. view)
@@ -97,6 +98,29 @@ impl PmrRbac {
             .unwrap_or("-".to_string())
     }
 
+    /// Create user assigns the reader role to the user through the
+    /// second grouping policy
+    pub async fn create_user(
+        &mut self,
+        user: Option<impl AsRef<str> + std::fmt::Display>,
+    ) -> Result<bool> {
+        self.enforcer.add_named_grouping_policy("g2", vec![
+            Self::to_user(user),
+            "reader".to_string(),
+        ]).await
+    }
+
+    /// Remove users removes the reader role for the second grouping.
+    pub async fn remove_user(
+        &mut self,
+        user: impl AsRef<str> + std::fmt::Display,
+    ) -> Result<bool> {
+        self.enforcer.remove_named_grouping_policy("g2", vec![
+            Self::to_user(Some(user)),
+            "reader".to_string(),
+        ]).await
+    }
+
     /// Grant user specified role at resource.
     /// Creates the relevant casbin grouping policy.
     pub async fn grant(
@@ -127,6 +151,36 @@ impl PmrRbac {
         ]).await
     }
 
+    /// Publish sets the reader role for the provided resource and the
+    /// end point group.
+    pub async fn publish(
+        &mut self,
+        resource: impl Into<String>,
+        endpoint_group: impl Into<String>,
+    ) -> Result<bool> {
+        self.enforcer.add_named_policy("p", vec![
+            "reader".to_string(),
+            resource.into(),
+            endpoint_group.into(),
+            "GET".to_string(),
+        ]).await
+    }
+
+    /// Unpublish removes the reader role from the provided resource and
+    /// the end point group.
+    pub async fn unpublish(
+        &mut self,
+        resource: impl Into<String>,
+        endpoint_group: impl Into<String>,
+    ) -> Result<bool> {
+        self.enforcer.remove_named_policy("p", vec![
+            "reader".to_string(),
+            resource.into(),
+            endpoint_group.into(),
+            "GET".to_string(),
+        ]).await
+    }
+
     /// Validates if the user accessing the path has the required rights.
     pub fn enforce(
         &self,
@@ -135,21 +189,12 @@ impl PmrRbac {
         endpoint_group: impl AsRef<str>,
         http_method: impl AsRef<str>,
     ) -> Result<bool> {
-        Ok(
-            self.enforcer.enforce((
-                Self::to_user(user).as_str(),
-                resource.as_ref(),
-                endpoint_group.as_ref(),
-                http_method.as_ref(),
-            ))?
-            ||
-            self.enforcer.enforce((
-                Self::to_user(None::<&str>).as_str(),
-                resource.as_ref(),
-                endpoint_group.as_ref(),
-                http_method.as_ref(),
-            ))?
-        )
+        self.enforcer.enforce((
+            Self::to_user(user).as_str(),
+            resource.as_ref(),
+            endpoint_group.as_ref(),
+            http_method.as_ref(),
+        ))
     }
 }
 
@@ -164,16 +209,23 @@ mod test {
 
         // admin account has access to every part of the application
         assert!(security.grant(Some("admin"), "manager", "/*").await?);
-        // unregistered users are readers of every part of the application
-        assert!(security.grant(not_logged_in, "reader", "/").await?);
         // alice is the owner of exposure 1
+        assert!(security.create_user(Some("alice")).await?);
         assert!(security.grant(Some("alice"), "owner", "/exposure/1").await?);
         // bob is the owner of exposure 2
+        assert!(security.create_user(Some("bob")).await?);
         assert!(security.grant(Some("bob"), "owner", "/exposure/2").await?);
         // cathy is the editor of exposure 2
         assert!(security.grant(Some("cathy"), "editor", "/exposure/2").await?);
+        // create the anonymous user also
+        assert!(security.create_user(not_logged_in).await?);
+        // make site root publich
+        assert!(security.publish("/", "").await?);
         // make /exposure/1 public
-        assert!(security.grant(not_logged_in, "reader", "/exposure/1").await?);
+        assert!(security.publish("/exposure/1", "").await?);
+        // make /workspace/1 public, also clonable
+        assert!(security.publish("/workspace/1", "").await?);
+        assert!(security.publish("/workspace/1", "protocol").await?);
 
         // everybody should be able to read the site root and index page
         assert!(security.enforce(not_logged_in, "/", "", "GET")?);
