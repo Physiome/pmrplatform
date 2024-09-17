@@ -37,4 +37,6 @@ pub enum ValueError {
     Uninitialized,
     #[error("uninitialized attribute: {0}")]
     UninitializedAttribute(&'static str),
+    #[error("unsupported: {0}")]
+    Unsupported(String),
 }

@@ -6,6 +6,7 @@ use sqlx::{
 use std::sync::Arc;
 
 pub enum MigrationProfile {
+    Pmrac,
     Pmrapp,
     Pmrtqs,
 }
@@ -40,6 +41,9 @@ impl<DB: sqlx::Database> Backend<Pool<DB>> {
         <DB as sqlx::Database>::Connection: sqlx::migrate::Migrate,
     {
         match profile {
+            MigrationProfile::Pmrac => {
+                sqlx::migrate!("migrations/pmrac").run(&*self.pool).await?;
+            }
             MigrationProfile::Pmrapp => {
                 sqlx::migrate!("migrations/pmrapp").run(&*self.pool).await?;
             }
