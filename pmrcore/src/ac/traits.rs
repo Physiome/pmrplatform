@@ -16,6 +16,10 @@ pub trait UserBackend {
         &self,
         id: i64,
     ) -> Result<User, BackendError>;
+    async fn get_user_password(
+        &self,
+        user_id: i64,
+    ) -> Result<String, BackendError>;
     async fn store_user_password(
         &self,
         user_id: i64,
@@ -32,13 +36,13 @@ pub trait PolicyBackend {
     async fn grant_role_to_user(
         &self,
         res: &str,
-        user: User,
+        user: &User,
         role: Role,
     ) -> Result<(), BackendError>;
     async fn revoke_role_from_user(
         &self,
         res: &str,
-        user: User,
+        user: &User,
         role: Role,
     ) -> Result<(), BackendError>;
     async fn assign_policy_to_wf_state(

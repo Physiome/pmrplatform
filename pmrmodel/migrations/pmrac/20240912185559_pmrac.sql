@@ -1,14 +1,15 @@
 CREATE TABLE IF NOT EXISTS 'user' (
     id INTEGER PRIMARY KEY NOT NULL,
     name TEXT NOT NULL,
-    created_at INTEGER NOT NULL
+    created_ts INTEGER NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS user__name ON 'user'(name);
 
 CREATE TABLE IF NOT EXISTS user_email (
     id INTEGER PRIMARY KEY NOT NULL,
     user_id INTEGER NOT NULL,
-    email TEXT NOT NULL
+    email TEXT NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES 'user'(id)
 );
 CREATE INDEX IF NOT EXISTS user_email__user_id_email ON user_email(user_id, email);
 CREATE UNIQUE INDEX IF NOT EXISTS user_email__email ON user_email(email);
@@ -17,7 +18,8 @@ CREATE TABLE IF NOT EXISTS user_password (
     id INTEGER PRIMARY KEY NOT NULL,
     user_id INTEGER NOT NULL,
     password TEXT NOT NULL,
-    created_at INTEGER NOT NULL
+    created_ts INTEGER NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES 'user'(id)
 );
 -- not creating unique index to permit the use case for not reusing
 -- passwords though in the implementation it's likely going to remove
@@ -34,7 +36,8 @@ CREATE TABLE IF NOT EXISTS res_grant (
     id INTEGER PRIMARY KEY NOT NULL,
     res TEXT NOT NULL,
     user_id INTEGER NOT NULL,
-    role TEXT NOT NULL
+    role TEXT NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES 'user'(id)
 );
 CREATE INDEX IF NOT EXISTS res_grant__res ON res_grant(res);
 

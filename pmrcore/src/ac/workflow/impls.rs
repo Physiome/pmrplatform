@@ -11,6 +11,18 @@ impl fmt::Display for State {
     }
 }
 
+impl From<State> for &'static str {
+    fn from(state: State) -> &'static str {
+        match state {
+            State::Private => "Private",
+            State::Pending => "Pending",
+            State::Published => "Published",
+            State::Expired => "Expired",
+            State::Unknown => "Unknown",
+        }
+    }
+}
+
 impl FromStr for State {
     type Err = ValueError;
 

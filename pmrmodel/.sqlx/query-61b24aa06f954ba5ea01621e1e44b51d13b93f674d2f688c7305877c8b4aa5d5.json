@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nDELETE FROM\n    wf_policy\nWHERE\n    state = ?1 AND\n    role = ?2 AND\n    endpoint_group = ?3 AND\n    method = ?4\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "61b24aa06f954ba5ea01621e1e44b51d13b93f674d2f688c7305877c8b4aa5d5"
+}

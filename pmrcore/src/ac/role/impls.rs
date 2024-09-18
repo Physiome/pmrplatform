@@ -11,6 +11,19 @@ impl fmt::Display for Role {
     }
 }
 
+impl From<Role> for &'static str {
+    fn from(role: Role) -> &'static str {
+        match role {
+            Role::Manager => "Manager",
+            Role::Owner => "Owner",
+            Role::Editor => "Editor",
+            Role::Reviewer => "Reviewer",
+            Role::Reader => "Reader",
+            Role::Undefined => "Undefined",
+        }
+    }
+}
+
 impl FromStr for Role {
     type Err = ValueError;
 

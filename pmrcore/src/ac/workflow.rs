@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[non_exhaustive]
-#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Deserialize, Serialize)]
 pub enum State {
     // catch-all when infallable conversion is required
     #[default]
