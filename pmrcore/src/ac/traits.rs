@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use crate::error::BackendError;
 use super::{
+    permit::Policy,
     role::Role,
     user::User,
     workflow::State,
@@ -59,4 +60,17 @@ pub trait PolicyBackend {
         endpoint_group: &str,
         method: &str,
     ) -> Result<(), BackendError>;
+}
+
+#[async_trait]
+pub trait ResourceBackend {
+    async fn set_wf_state_for_res(
+        &self,
+        res: &str,
+        wf_state: State,
+    ) -> Result<(), BackendError>;
+    async fn generate_policy_for_res(
+        &self,
+        res: impl Into<String>,
+    ) -> Result<Policy, BackendError>;
 }

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use crate::ac::user::User;
 
 /// Resource grant
 ///
@@ -24,4 +25,28 @@ pub struct WorkflowPolicy {
     pub role: String,
     pub endpoint_group: String,
     pub method: String,
+}
+
+/// A grant that will be passed onto the enforcer.
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct Grant {
+    pub user: String,
+    pub role: String,
+}
+
+/// A policy entry that will be passed onto the enforcer.
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct Policy {
+    pub role: String,
+    pub endpoint_group: String,
+    pub method: String,
+}
+
+/// Grants and resources associated with the resource ready to be passed
+/// into the enforcer.
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct ResourcePolicy {
+    pub resource: String,
+    pub grants: Vec<Grant>,
+    pub policy: Vec<Policy>,
 }
