@@ -11,6 +11,12 @@ impl fmt::Display for Role {
     }
 }
 
+impl From<Role> for String {
+    fn from(role: Role) -> String {
+        format!("{role}")
+    }
+}
+
 impl From<Role> for &'static str {
     fn from(role: Role) -> &'static str {
         match role {

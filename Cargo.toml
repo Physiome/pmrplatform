@@ -13,6 +13,7 @@ default-members = [
     "pmrctrl",
     "pmrcore",
     "pmrmodel",
+    "pmrrbac",
     "pmrrepo",
     "pmrtqs",
     "testing",

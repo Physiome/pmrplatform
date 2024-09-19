@@ -1,6 +1,7 @@
-use sqlx_adapter::casbin::prelude::*;
-use sqlx_adapter::casbin::Result;
-use sqlx_adapter::SqlxAdapter;
+use pmrcore::ac::role::Role;
+
+use casbin::prelude::*;
+use casbin::Result;
 
 /// The casbin model for pmrapp.
 const DEFAULT_MODEL: &str = "\
@@ -33,47 +34,41 @@ m = (g(r.sub, p.sub, r.res) || g(r.sub, p.sub, p.res) || g2(r.sub, p.sub)) && ke
 /// endpoint group - the name for a given group of endpoints that share something in common
 /// HTTP method - the permitted HTTP method associated with the policy
 const DEFAULT_POLICIES: &str = "\
-# managers can do everything
-manager, /*, *, GET
-manager, /*, *, POST
+# Managers can do everything
+Manager, /*, *, GET
+Manager, /*, *, POST
 
-# readers have limited access; this should be granted per resource
-# reader, /*, , GET
-# reader, /*, protocol, GET
+# Readers have limited access; this should be granted per resource
+# Reader, /*, , GET
+# Reader, /*, protocol, GET
 
-# owners have everything, including granted access
-owner, /*, , GET           # empty group signifies typical actions (e.g. view)
-owner, /*, edit, GET       # edit signifies being able to edit content (e.g. exposure wizard)
-owner, /*, edit, POST
-owner, /*, grant, GET      # grant signifies being able to grant additional access
-owner, /*, grant, POST
-owner, /*, protocol, GET   # protocol signifies git clone/etc
-owner, /*, protocol, POST
+# Owners have everything, including granted access
+Owner, /*, , GET           # empty group signifies typical actions (e.g. view)
+Owner, /*, edit, GET       # edit signifies being able to edit content (e.g. exposure wizard)
+Owner, /*, edit, POST
+Owner, /*, grant, GET      # grant signifies being able to grant additional access
+Owner, /*, grant, POST
+Owner, /*, protocol, GET   # protocol signifies git clone/etc
+Owner, /*, protocol, POST
 
-# editors have everything, can see grants but cannot grant additional access to others
-editor, /*, , GET           # empty group signifies typical actions (e.g. view)
-editor, /*, edit, GET
-editor, /*, edit, POST
-editor, /*, grant, GET
-editor, /*, protocol, GET
-editor, /*, protocol, POST
+# Editors have everything, can see grants but cannot grant additional access to others
+Editor, /*, , GET           # empty group signifies typical actions (e.g. view)
+Editor, /*, edit, GET
+Editor, /*, edit, POST
+Editor, /*, grant, GET
+Editor, /*, protocol, GET
+Editor, /*, protocol, POST
 ";
 
 pub struct PmrRbac {
-    pub enforcer: Enforcer,
+    enforcer: Enforcer,
 }
 
 impl PmrRbac {
-    pub async fn open(db_url: &str) -> Result<Self> {
+    pub async fn new() -> Result<Self> {
         let m = DefaultModel::from_str(DEFAULT_MODEL).await?;
-        let a = SqlxAdapter::new(db_url, 8).await?;
-        let enforcer = Enforcer::new(m, a).await?;
-        log::info!("opened enforcer with backend {db_url}");
-        Ok(Self { enforcer })
-    }
-
-    pub async fn new(db_url: &str) -> Result<Self> {
-        let mut result = Self::open(db_url).await?;
+        let a = MemoryAdapter::default();
+        let mut enforcer = Enforcer::new(m, a).await?;
         let policies = DEFAULT_POLICIES.lines()
             .filter_map(|line| {
                 let result = line
@@ -88,9 +83,9 @@ impl PmrRbac {
             })
             .collect::<Vec<_>>();
         let n = policies.len();
-        result.enforcer.add_named_policies("p", policies).await?;
+        enforcer.add_named_policies("p", policies).await?;
         log::info!("new enforcer set up with {n} policies");
-        Ok(result)
+        Ok(Self { enforcer })
     }
 
     fn to_user(user: Option<impl AsRef<str> + std::fmt::Display>) -> String {
@@ -106,7 +101,7 @@ impl PmrRbac {
     ) -> Result<bool> {
         self.enforcer.add_named_grouping_policy("g2", vec![
             Self::to_user(user),
-            "reader".to_string(),
+            Role::Reader.into(),
         ]).await
     }
 
@@ -117,7 +112,7 @@ impl PmrRbac {
     ) -> Result<bool> {
         self.enforcer.remove_named_grouping_policy("g2", vec![
             Self::to_user(Some(user)),
-            "reader".to_string(),
+            Role::Reader.into(),
         ]).await
     }
 
@@ -136,7 +131,7 @@ impl PmrRbac {
         ]).await
     }
 
-    /// Reovkes user specified role at resource.
+    /// Revokes user specified role at resource.
     /// Removes the relevant casbin grouping policy.
     pub async fn revoke(
         &mut self,
@@ -151,33 +146,35 @@ impl PmrRbac {
         ]).await
     }
 
-    /// Publish sets the reader role for the provided resource and the
-    /// end point group.
-    pub async fn publish(
+    /// Attach a policy.
+    pub async fn attach_policy(
         &mut self,
+        role: Role,
         resource: impl Into<String>,
         endpoint_group: impl Into<String>,
+        http_method: impl Into<String>,
     ) -> Result<bool> {
         self.enforcer.add_named_policy("p", vec![
-            "reader".to_string(),
+            role.into(),
             resource.into(),
             endpoint_group.into(),
-            "GET".to_string(),
+            http_method.into(),
         ]).await
     }
 
-    /// Unpublish removes the reader role from the provided resource and
-    /// the end point group.
-    pub async fn unpublish(
+    /// Deattach a policy.
+    pub async fn deattach_policy(
         &mut self,
+        role: Role,
         resource: impl Into<String>,
         endpoint_group: impl Into<String>,
+        http_method: impl Into<String>,
     ) -> Result<bool> {
         self.enforcer.remove_named_policy("p", vec![
-            "reader".to_string(),
+            role.into(),
             resource.into(),
             endpoint_group.into(),
-            "GET".to_string(),
+            http_method.into(),
         ]).await
     }
 
@@ -204,28 +201,28 @@ mod test {
 
     #[tokio::test]
     async fn demo() -> anyhow::Result<()> {
-        let mut security = PmrRbac::new("sqlite::memory:").await?;
+        let mut security = PmrRbac::new().await?;
         let not_logged_in: Option<&str> = None;
 
         // admin account has access to every part of the application
-        assert!(security.grant(Some("admin"), "manager", "/*").await?);
+        assert!(security.grant(Some("admin"), Role::Manager, "/*").await?);
         // alice is the owner of exposure 1
         assert!(security.create_user(Some("alice")).await?);
-        assert!(security.grant(Some("alice"), "owner", "/exposure/1").await?);
+        assert!(security.grant(Some("alice"), Role::Owner, "/exposure/1").await?);
         // bob is the owner of exposure 2
         assert!(security.create_user(Some("bob")).await?);
-        assert!(security.grant(Some("bob"), "owner", "/exposure/2").await?);
+        assert!(security.grant(Some("bob"), Role::Owner, "/exposure/2").await?);
         // cathy is the editor of exposure 2
-        assert!(security.grant(Some("cathy"), "editor", "/exposure/2").await?);
+        assert!(security.grant(Some("cathy"), Role::Editor, "/exposure/2").await?);
         // create the anonymous user also
         assert!(security.create_user(not_logged_in).await?);
-        // make site root publich
-        assert!(security.publish("/", "").await?);
+        // make site root public
+        assert!(security.attach_policy(Role::Reader, "/", "", "GET").await?);
         // make /exposure/1 public
-        assert!(security.publish("/exposure/1", "").await?);
+        assert!(security.attach_policy(Role::Reader, "/exposure/1", "", "GET").await?);
         // make /workspace/1 public, also clonable
-        assert!(security.publish("/workspace/1", "").await?);
-        assert!(security.publish("/workspace/1", "protocol").await?);
+        assert!(security.attach_policy(Role::Reader, "/workspace/1", "", "GET").await?);
+        assert!(security.attach_policy(Role::Reader, "/workspace/1", "protocol", "GET").await?);
 
         // everybody should be able to read the site root and index page
         assert!(security.enforce(not_logged_in, "/", "", "GET")?);
