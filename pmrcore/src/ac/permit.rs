@@ -28,14 +28,17 @@ pub struct WorkflowPolicy {
 }
 
 /// A grant that will be passed onto the enforcer.
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize, Serialize)]
 pub struct Grant {
+    // this may feel redundant later, but this line signifies the exact
+    // res this was granted for, which may be at a higher level.
+    pub res: String,
     pub user: String,
     pub role: String,
 }
 
 /// A policy entry that will be passed onto the enforcer.
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize, Serialize)]
 pub struct Policy {
     pub role: String,
     pub endpoint_group: String,
@@ -48,5 +51,5 @@ pub struct Policy {
 pub struct ResourcePolicy {
     pub resource: String,
     pub grants: Vec<Grant>,
-    pub policy: Vec<Policy>,
+    pub policies: Vec<Policy>,
 }

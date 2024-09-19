@@ -215,7 +215,6 @@ pub(crate) mod testing {
         PolicyBackend::revoke_role_from_user(&backend, "/", &user, role).await?;
         PolicyBackend::assign_policy_to_wf_state(&backend, state, role, "", "GET").await?;
         PolicyBackend::remove_policy_from_wf_state(&backend, state, role, "", "GET").await?;
-        // TODO build policy
         Ok(())
     }
 

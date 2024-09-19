@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use crate::error::BackendError;
 use super::{
-    permit::Policy,
+    permit::ResourcePolicy,
     role::Role,
     user::User,
     workflow::State,
@@ -71,6 +71,6 @@ pub trait ResourceBackend {
     ) -> Result<(), BackendError>;
     async fn generate_policy_for_res(
         &self,
-        res: impl Into<String>,
-    ) -> Result<Policy, BackendError>;
+        res: impl Into<String> + Send,
+    ) -> Result<ResourcePolicy, BackendError>;
 }

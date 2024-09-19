@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nINSERT INTO res_wf_state (\n    res,\n    state\n)\nVALUES (?1, ?2)\nON CONFLICT(res)\nDO UPDATE SET\n    state = ?2\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "697c70a0d83b118dedda39cc3f3a459ee2eeb53a2460de8808c89af269c86e9e"
+}
