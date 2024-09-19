@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\nSELECT\n    password\nFROM\n    user_password\nWHERE\n    user_id = ?1\nORDER BY created_ts DESC\n        ",
+  "query": "\nSELECT\n    password\nFROM\n    user_password\nWHERE\n    user_id = ?1\nORDER BY id DESC\n        ",
   "describe": {
     "columns": [
       {
@@ -16,5 +16,5 @@
       false
     ]
   },
-  "hash": "8e18b778c3b5ba2ecada15f56772ebb6ffc856b64f72c73d86ea5ddae0c4fc9b"
+  "hash": "d372384bfe40ed3453053bcb064964aaedf35a0689d38ab60e4cbc06a244b3d4"
 }

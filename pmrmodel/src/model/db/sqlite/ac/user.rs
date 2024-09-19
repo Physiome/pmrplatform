@@ -100,7 +100,7 @@ FROM
     user_password
 WHERE
     user_id = ?1
-ORDER BY created_ts DESC
+ORDER BY id DESC
         "#,
         user_id,
     )
@@ -212,10 +212,24 @@ pub(crate) mod testing {
                 created_ts: 1234567890,
             },
         );
+
+        // note that these tests **ONLY** test for the storage and retrieval of passwords,
+        // and has absolutely nothing to do with the security of the incoming passwords
+        // before getting to this API call.
         set_timestamp(0);
         UserBackend::store_user_password(&backend, user_id, "password1").await?;
         set_timestamp(1234567899);
         UserBackend::store_user_password(&backend, user_id, "password2").await?;
+        assert_eq!(UserBackend::get_user_password(&backend, user_id).await?, "password2");
+
+        UserBackend::purge_user_passwords(&backend, user_id).await?;
+        assert!(UserBackend::get_user_password(&backend, user_id).await.is_err());
+
+        UserBackend::store_user_password(&backend, user_id, "password1").await?;
+        UserBackend::store_user_password(&backend, user_id, "password2").await?;
+        UserBackend::store_user_password(&backend, user_id, "password3").await?;
+        assert_eq!(UserBackend::get_user_password(&backend, user_id).await?, "password3");
+
         Ok(())
     }
 
