@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use pmrcore::{
     ac::{
+        agent::Agent,
         role::Role,
         traits::PolicyBackend,
-        user::User,
         workflow::State,
     },
     error::BackendError,
@@ -13,12 +13,13 @@ use crate::{
     backend::db::SqliteBackend,
 };
 
-async fn grant_role_to_user_sqlite(
+async fn grant_role_to_agent_sqlite(
     backend: &SqliteBackend,
     res: &str,
-    user: &User,
+    agent: &Agent,
     role: Role,
 ) -> Result<(), BackendError> {
+    let user_id: Option<i64> = agent.into();
     let role_str = <&'static str>::from(role);
     sqlx::query!(
         r#"
@@ -30,7 +31,7 @@ INSERT INTO res_grant (
 VALUES ( ?1, ?2, ?3 )
         "#,
         res,
-        user.id,
+        user_id,
         role_str,
     )
     .execute(&*backend.pool)
@@ -39,13 +40,14 @@ VALUES ( ?1, ?2, ?3 )
     Ok(())
 }
 
-async fn revoke_role_from_user_sqlite(
+async fn revoke_role_from_agent_sqlite(
     backend: &SqliteBackend,
     res: &str,
-    user: &User,
+    agent: &Agent,
     role: Role,
 ) -> Result<(), BackendError> {
     let role_str = role.to_string();
+    let user_id: Option<i64> = agent.into();
     sqlx::query!(
         r#"
 DELETE FROM
@@ -56,7 +58,7 @@ WHERE
     role = ?3
         "#,
         res,
-        user.id,
+        user_id,
         role_str,
     )
     .execute(&*backend.pool)
@@ -125,30 +127,30 @@ WHERE
 
 #[async_trait]
 impl PolicyBackend for SqliteBackend {
-    async fn grant_role_to_user(
+    async fn grant_role_to_agent(
         &self,
         res: &str,
-        user: &User,
+        agent: &Agent,
         role: Role,
     ) -> Result<(), BackendError> {
-        grant_role_to_user_sqlite(
+        grant_role_to_agent_sqlite(
             &self,
             res,
-            user,
+            agent,
             role,
         ).await
     }
 
-    async fn revoke_role_from_user(
+    async fn revoke_role_from_agent(
         &self,
         res: &str,
-        user: &User,
+        agent: &Agent,
         role: Role,
     ) -> Result<(), BackendError> {
-        revoke_role_from_user_sqlite(
+        revoke_role_from_agent_sqlite(
             &self,
             res,
-            user,
+            agent,
             role,
         ).await
     }
@@ -189,6 +191,7 @@ impl PolicyBackend for SqliteBackend {
 #[cfg(test)]
 pub(crate) mod testing {
     use pmrcore::ac::{
+        agent::Agent,
         role::Role,
         traits::{
             PolicyBackend,
@@ -208,11 +211,11 @@ pub(crate) mod testing {
             .run_migration_profile(MigrationProfile::Pmrac)
             .await?;
         let user_id = UserBackend::add_user(&backend, "test_user").await?;
-        let user = UserBackend::get_user_by_id(&backend, user_id).await?;
+        let agent: Agent = UserBackend::get_user_by_id(&backend, user_id).await?.into();
         let state = State::Published;
         let role = Role::Reader;
-        PolicyBackend::grant_role_to_user(&backend, "/", &user, role).await?;
-        PolicyBackend::revoke_role_from_user(&backend, "/", &user, role).await?;
+        PolicyBackend::grant_role_to_agent(&backend, "/", &agent, role).await?;
+        PolicyBackend::revoke_role_from_agent(&backend, "/", &agent, role).await?;
         PolicyBackend::assign_policy_to_wf_state(&backend, state, role, "", "GET").await?;
         PolicyBackend::remove_policy_from_wf_state(&backend, state, role, "", "GET").await?;
         Ok(())

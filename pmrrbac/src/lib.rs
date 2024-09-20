@@ -22,14 +22,14 @@ e = some(where (p.eft == allow))
 m = (g(r.sub, p.sub, r.res) || g(r.sub, p.sub, p.res) || g2(r.sub, p.sub)) && keyMatch2(r.res, p.res) && keyMatch(r.ep, p.ep) && r.met == p.met
 ";
 
-// this matcher _doesn't_ work for the Rust version, so we just do another check for the None user even if there is Some(...) user.
+// this matcher _doesn't_ work for the Rust version, so we just do another check for the None agent even if there is Some(...) agent.
 // m = (g(r.sub, p.sub, r.res) || g(r.sub, p.sub, p.res) || g("-", p.sub, r.res) || g("-", p.sub, p.res)) && keyMatch2(r.res, p.res) && keyMatch(r.ep, p.ep) && r.met == p.met
 
 /// The default policy for PMR
 ///
 /// The fields are comma separated in the form of: role, route, endpoint group, HTTP method
 ///
-/// role - the name of the role - it will be granted to users
+/// role - the name of the role - it will be granted to agents.
 /// route - the route to a given resource
 /// endpoint group - the name for a given group of endpoints that share something in common
 /// HTTP method - the permitted HTTP method associated with the policy
@@ -88,59 +88,59 @@ impl PmrRbac {
         Ok(Self { enforcer })
     }
 
-    fn to_user(user: Option<impl AsRef<str> + std::fmt::Display>) -> String {
-        user.map(|user| format!("u:{user}"))
+    fn to_agent(agent: Option<impl AsRef<str> + std::fmt::Display>) -> String {
+        agent.map(|agent| format!("u:{agent}"))
             .unwrap_or("-".to_string())
     }
 
-    /// Create user assigns the reader role to the user through the
+    /// Create agent assigns the reader role to the agent through the
     /// second grouping policy
-    pub async fn create_user(
+    pub async fn create_agent(
         &mut self,
-        user: Option<impl AsRef<str> + std::fmt::Display>,
+        agent: Option<impl AsRef<str> + std::fmt::Display>,
     ) -> Result<bool> {
         self.enforcer.add_named_grouping_policy("g2", vec![
-            Self::to_user(user),
+            Self::to_agent(agent),
             Role::Reader.into(),
         ]).await
     }
 
-    /// Remove users removes the reader role for the second grouping.
-    pub async fn remove_user(
+    /// Remove agent removes the reader role for the second grouping.
+    pub async fn remove_agent(
         &mut self,
-        user: impl AsRef<str> + std::fmt::Display,
+        agent: impl AsRef<str> + std::fmt::Display,
     ) -> Result<bool> {
         self.enforcer.remove_named_grouping_policy("g2", vec![
-            Self::to_user(Some(user)),
+            Self::to_agent(Some(agent)),
             Role::Reader.into(),
         ]).await
     }
 
-    /// Grant user specified role at resource.
+    /// Grant agent specified role at resource.
     /// Creates the relevant casbin grouping policy.
     pub async fn grant(
         &mut self,
-        user: Option<impl AsRef<str> + std::fmt::Display>,
+        agent: Option<impl AsRef<str> + std::fmt::Display>,
         role: impl Into<String>,
         resource: impl Into<String>,
     ) -> Result<bool> {
         self.enforcer.add_named_grouping_policy("g", vec![
-            Self::to_user(user),
+            Self::to_agent(agent),
             role.into(),
             resource.into(),
         ]).await
     }
 
-    /// Revokes user specified role at resource.
+    /// Revokes agent specified role at resource.
     /// Removes the relevant casbin grouping policy.
     pub async fn revoke(
         &mut self,
-        user: Option<impl AsRef<str> + std::fmt::Display>,
+        agent: Option<impl AsRef<str> + std::fmt::Display>,
         role: impl Into<String>,
         resource: impl Into<String>,
     ) -> Result<bool> {
         self.enforcer.remove_named_grouping_policy("g", vec![
-            Self::to_user(user),
+            Self::to_agent(agent),
             role.into(),
             resource.into(),
         ]).await
@@ -178,16 +178,16 @@ impl PmrRbac {
         ]).await
     }
 
-    /// Validates if the user accessing the path has the required rights.
+    /// Validates if the agent accessing the path has the required rights.
     pub fn enforce(
         &self,
-        user: Option<impl AsRef<str> + std::fmt::Display>,
+        agent: Option<impl AsRef<str> + std::fmt::Display>,
         resource: impl AsRef<str>,
         endpoint_group: impl AsRef<str>,
         http_method: impl AsRef<str>,
     ) -> Result<bool> {
         self.enforcer.enforce((
-            Self::to_user(user).as_str(),
+            Self::to_agent(agent).as_str(),
             resource.as_ref(),
             endpoint_group.as_ref(),
             http_method.as_ref(),
@@ -207,15 +207,15 @@ mod test {
         // admin account has access to every part of the application
         assert!(security.grant(Some("admin"), Role::Manager, "/*").await?);
         // alice is the owner of exposure 1
-        assert!(security.create_user(Some("alice")).await?);
+        assert!(security.create_agent(Some("alice")).await?);
         assert!(security.grant(Some("alice"), Role::Owner, "/exposure/1").await?);
         // bob is the owner of exposure 2
-        assert!(security.create_user(Some("bob")).await?);
+        assert!(security.create_agent(Some("bob")).await?);
         assert!(security.grant(Some("bob"), Role::Owner, "/exposure/2").await?);
         // cathy is the editor of exposure 2
         assert!(security.grant(Some("cathy"), Role::Editor, "/exposure/2").await?);
-        // create the anonymous user also
-        assert!(security.create_user(not_logged_in).await?);
+        // create the anonymous agent also
+        assert!(security.create_agent(not_logged_in).await?);
         // make site root public
         assert!(security.attach_policy(Role::Reader, "/", "", "GET").await?);
         // make /exposure/1 public
@@ -263,11 +263,11 @@ mod test {
         assert!(security.enforce(Some("cathy"), "/exposure/2", "grant", "GET")?);
         assert!(!security.enforce(Some("cathy"), "/exposure/2", "grant", "POST")?);
 
-        // not logged in users can only view exposure 1
+        // not logged in agents can only view exposure 1
         assert!(security.enforce(not_logged_in, "/exposure/1", "", "GET")?);
         assert!(!security.enforce(not_logged_in, "/exposure/2", "", "GET")?);
 
-        // not logged in users cannot edit/POST etc
+        // not logged in agents cannot edit/POST etc
         assert!(!security.enforce(not_logged_in, "/exposure/1", "edit", "GET")?);
         assert!(!security.enforce(not_logged_in, "/exposure/1", "edit", "POST")?);
         assert!(!security.enforce(not_logged_in, "/exposure/2", "edit", "GET")?);

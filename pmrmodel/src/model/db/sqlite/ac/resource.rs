@@ -58,7 +58,7 @@ SELECT
     res_grant.role AS role
 FROM
     res_grant
-JOIN
+LEFT JOIN
     'user' ON res_grant.user_id == 'user'.id
 WHERE
     res = ?1 or res = "/*"
@@ -67,7 +67,7 @@ WHERE
     )
     .map(|row| Grant {
         res: row.res,
-        user: row.user,
+        agent: row.user,
         role: row.role,
     })
     .fetch_all(&*backend.pool)
@@ -131,6 +131,7 @@ impl ResourceBackend for SqliteBackend {
 #[cfg(test)]
 pub(crate) mod testing {
     use pmrcore::ac::{
+        agent::Agent,
         permit::ResourcePolicy,
         role::Role,
         traits::{
@@ -181,7 +182,8 @@ pub(crate) mod testing {
         let user = UserBackend::get_user_by_id(&backend, user_id).await?;
         let state = State::Published;
         let role = Role::Reader;
-        PolicyBackend::grant_role_to_user(&backend, "/", &user, role).await?;
+        let agent: Agent = user.into();
+        PolicyBackend::grant_role_to_agent(&backend, "/", &agent, role).await?;
         PolicyBackend::assign_policy_to_wf_state(&backend, state, role, "", "GET").await?;
         ResourceBackend::set_wf_state_for_res(&backend, "/", state).await?;
 
@@ -189,14 +191,14 @@ pub(crate) mod testing {
         assert_eq!(policy, serde_json::from_str(r#"{
             "resource": "/",
             "grants": [
-                {"res": "/", "user": "test_user", "role": "Reader"}
+                {"res": "/", "agent": "test_user", "role": "Reader"}
             ],
             "policies": [
                 {"role": "Reader", "endpoint_group": "", "method": "GET"}
             ]
         }"#)?);
 
-        PolicyBackend::revoke_role_from_user(&backend, "/", &user, role).await?;
+        PolicyBackend::revoke_role_from_agent(&backend, "/", &agent, role).await?;
         PolicyBackend::remove_policy_from_wf_state(&backend, state, role, "", "GET").await?;
         let policy = ResourceBackend::generate_policy_for_res(&backend, "/").await?;
         assert_eq!(policy, serde_json::from_str(r#"{
@@ -211,6 +213,28 @@ pub(crate) mod testing {
     }
 
     #[async_std::test]
+    async fn anonymous() -> anyhow::Result<()> {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await?
+            .run_migration_profile(MigrationProfile::Pmrac)
+            .await?;
+        // we only publish here, but no policies/users attached
+        let state = State::Published;
+        let role = Role::Reader;
+        let agent = Agent::Anonymous;
+        ResourceBackend::set_wf_state_for_res(&backend, "/", state).await?;
+        PolicyBackend::grant_role_to_agent(&backend, "/", &agent, role).await?;
+
+        let policy = ResourceBackend::generate_policy_for_res(&backend, "/").await?;
+        assert_eq!(policy, ResourcePolicy {
+            resource: "/".to_string(),
+            grants: serde_json::from_str(r#"[{"res": "/", "user": null, "role": "Reader"}]"#)?,
+            policies: vec![],
+        });
+        Ok(())
+    }
+
+    #[async_std::test]
     async fn multiple() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:")
             .await?
@@ -221,18 +245,20 @@ pub(crate) mod testing {
         UserBackend::add_user(&backend, "user456").await?;
         let user_id = UserBackend::add_user(&backend, "test_user").await?;
         let user = UserBackend::get_user_by_id(&backend, user_id).await?;
+        let agent_user: Agent = user.into();
         let admin_id = UserBackend::add_user(&backend, "admin").await?;
         let admin = UserBackend::get_user_by_id(&backend, admin_id).await?;
-        PolicyBackend::grant_role_to_user(
+        let agent_admin: Agent = admin.into();
+        PolicyBackend::grant_role_to_agent(
             &backend,
             "/*",
-            &admin,
+            &agent_admin,
             Role::Manager,
         ).await?;
-        PolicyBackend::grant_role_to_user(
+        PolicyBackend::grant_role_to_agent(
             &backend,
             "/item/1",
-            &user,
+            &agent_user,
             Role::Owner,
         ).await?;
         PolicyBackend::assign_policy_to_wf_state(
@@ -275,8 +301,8 @@ pub(crate) mod testing {
         assert_eq!(policy, serde_json::from_str(r#"{
             "resource": "/item/1",
             "grants": [
-                {"res": "/*", "user": "admin", "role": "Manager"},
-                {"res": "/item/1", "user": "test_user", "role": "Owner"}
+                {"res": "/*", "agent": "admin", "role": "Manager"},
+                {"res": "/item/1", "agent": "test_user", "role": "Owner"}
             ],
             "policies": [
                 {"role": "Owner", "endpoint_group": "edit", "method": "GET"},
@@ -295,8 +321,8 @@ pub(crate) mod testing {
         assert_eq!(policy, serde_json::from_str(r#"{
             "resource": "/item/1",
             "grants": [
-                {"res": "/*", "user": "admin", "role": "Manager"},
-                {"res": "/item/1", "user": "test_user", "role": "Owner"}
+                {"res": "/*", "agent": "admin", "role": "Manager"},
+                {"res": "/item/1", "agent": "test_user", "role": "Owner"}
             ],
             "policies": [
                 {"role": "Owner", "endpoint_group": "edit", "method": "GET"},

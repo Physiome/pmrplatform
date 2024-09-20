@@ -35,7 +35,7 @@ CREATE INDEX IF NOT EXISTS user_password__user_id ON user_email(user_id);
 CREATE TABLE IF NOT EXISTS res_grant (
     id INTEGER PRIMARY KEY NOT NULL,
     res TEXT NOT NULL,
-    user_id INTEGER NOT NULL,
+    user_id INTEGER,
     role TEXT NOT NULL,
     FOREIGN KEY(user_id) REFERENCES 'user'(id)
 );

@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use crate::error::BackendError;
 use super::{
+    agent::Agent,
     permit::ResourcePolicy,
     role::Role,
     user::User,
@@ -34,16 +35,16 @@ pub trait UserBackend {
 
 #[async_trait]
 pub trait PolicyBackend {
-    async fn grant_role_to_user(
+    async fn grant_role_to_agent(
         &self,
         res: &str,
-        user: &User,
+        agent: &Agent,
         role: Role,
     ) -> Result<(), BackendError>;
-    async fn revoke_role_from_user(
+    async fn revoke_role_from_agent(
         &self,
         res: &str,
-        user: &User,
+        agent: &Agent,
         role: Role,
     ) -> Result<(), BackendError>;
     async fn assign_policy_to_wf_state(

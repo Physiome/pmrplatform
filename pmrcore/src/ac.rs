@@ -1,3 +1,4 @@
+pub mod agent;
 pub mod permit;
 pub mod role;
 pub mod traits;

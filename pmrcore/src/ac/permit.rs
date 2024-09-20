@@ -33,7 +33,7 @@ pub struct Grant {
     // this may feel redundant later, but this line signifies the exact
     // res this was granted for, which may be at a higher level.
     pub res: String,
-    pub user: String,
+    pub agent: Option<String>,
     pub role: String,
 }
 
