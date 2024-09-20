@@ -6,11 +6,13 @@ use pmrcore::{
             Policy,
             ResourcePolicy,
         },
+        role::Role,
         traits::ResourceBackend,
         workflow::State,
     },
     error::BackendError,
 };
+use std::str::FromStr;
 
 use crate::{
     backend::db::SqliteBackend,
@@ -89,7 +91,7 @@ WHERE
         res_str,
     )
     .map(|row| Policy {
-        role: row.role,
+        role: Role::from_str(&row.role).unwrap_or_default(),
         endpoint_group: row.endpoint_group,
         method: row.method,
     })

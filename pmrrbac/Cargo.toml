@@ -14,6 +14,7 @@ tokio = { version = "1.35", features = ["fs", "io-util", "macros", "rt"] }
 
 [dev-dependencies]
 anyhow = "1.0.0"
+serde_json = "1.0.59"
 
 [features]
 

@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
-use crate::ac::user::User;
+use crate::ac::{
+    role::Role,
+    user::User,
+};
 
 /// Resource grant
 ///
@@ -40,7 +43,7 @@ pub struct Grant {
 /// A policy entry that will be passed onto the enforcer.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize, Serialize)]
 pub struct Policy {
-    pub role: String,
+    pub role: Role,
     pub endpoint_group: String,
     pub method: String,
 }

@@ -1,4 +1,11 @@
-use pmrcore::ac::role::Role;
+use pmrcore::ac::{
+    role::Role,
+    permit::{
+        Grant,
+        Policy,
+        ResourcePolicy,
+    },
+};
 
 use casbin::prelude::*;
 use casbin::Result;
@@ -45,7 +52,7 @@ Manager, /*, *, POST
 # Owners have everything, including granted access
 Owner, /*, , GET           # empty group signifies typical actions (e.g. view)
 Owner, /*, edit, GET       # edit signifies being able to edit content (e.g. exposure wizard)
-Owner, /*, edit, POST
+Owner, /*, edit, POST      # this may be removed to prevent published content being edited
 Owner, /*, grant, GET      # grant signifies being able to grant additional access
 Owner, /*, grant, POST
 Owner, /*, protocol, GET   # protocol signifies git clone/etc
@@ -178,6 +185,20 @@ impl PmrRbac {
         ]).await
     }
 
+    pub async fn set_resource_policy(
+        &mut self,
+        policy: ResourcePolicy,
+    ) -> Result<()> {
+        for Grant { res, agent, role } in policy.grants.iter() {
+            self.create_agent(agent.as_ref()).await?;
+            self.grant(agent.as_ref(), role, res).await?;
+        }
+        for Policy { role, endpoint_group, method } in policy.policies.iter() {
+            self.attach_policy(*role, policy.resource.clone(), endpoint_group, method).await?;
+        }
+        Ok(())
+    }
+
     /// Validates if the agent accessing the path has the required rights.
     pub fn enforce(
         &self,
@@ -286,6 +307,68 @@ mod test {
         assert!(security.enforce(Some("admin"), "/exposure/2", "edit", "POST")?);
         assert!(security.enforce(Some("admin"), "/exposure/2", "grant", "GET")?);
         assert!(security.enforce(Some("admin"), "/exposure/2", "grant", "POST")?);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn policy_usage_private() -> anyhow::Result<()> {
+        let not_logged_in: Option<&str> = None;
+        let mut security = PmrRbac::new().await?;
+        // a rough approximation of a private resource
+        security.set_resource_policy(serde_json::from_str(r#"{
+            "resource": "/item/1",
+            "grants": [
+                {"res": "/*", "agent": "admin", "role": "Manager"},
+                {"res": "/item/1", "agent": "alice", "role": "Owner"}
+            ],
+            "policies": [
+                {"role": "Owner", "endpoint_group": "edit", "method": "GET"},
+                {"role": "Owner", "endpoint_group": "edit", "method": "POST"}
+            ]
+        }"#)?).await?;
+
+        assert!(security.enforce(Some("admin"), "/item/1", "", "GET")?);
+        assert!(security.enforce(Some("admin"), "/item/1", "edit", "GET")?);
+        assert!(security.enforce(Some("admin"), "/item/1", "edit", "POST")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "", "GET")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "edit", "GET")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "edit", "POST")?);
+        assert!(!security.enforce(not_logged_in, "/item/1", "", "GET")?);
+        assert!(!security.enforce(not_logged_in, "/item/1", "edit", "GET")?);
+        assert!(!security.enforce(not_logged_in, "/item/1", "edit", "POST")?);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn policy_usage_published() -> anyhow::Result<()> {
+        let not_logged_in: Option<&str> = None;
+        let mut security = PmrRbac::new().await?;
+        // anonymous are allowed as a default agent
+        security.create_agent(not_logged_in).await?;
+        // a rough approximation of a published resource
+        security.set_resource_policy(serde_json::from_str(r#"{
+            "resource": "/item/1",
+            "grants": [
+                {"res": "/*", "agent": "admin", "role": "Manager"},
+                {"res": "/item/1", "agent": "alice", "role": "Owner"}
+            ],
+            "policies": [
+                {"role": "Owner", "endpoint_group": "edit", "method": "GET"},
+                {"role": "Reader", "endpoint_group": "", "method": "GET"}
+            ]
+        }"#)?).await?;
+
+        assert!(security.enforce(Some("admin"), "/item/1", "", "GET")?);
+        assert!(security.enforce(Some("admin"), "/item/1", "edit", "GET")?);
+        assert!(security.enforce(Some("admin"), "/item/1", "edit", "POST")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "", "GET")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "edit", "GET")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "edit", "POST")?);
+        assert!(security.enforce(not_logged_in, "/item/1", "", "GET")?);
+        assert!(!security.enforce(not_logged_in, "/item/1", "edit", "GET")?);
+        assert!(!security.enforce(not_logged_in, "/item/1", "edit", "POST")?);
 
         Ok(())
     }
