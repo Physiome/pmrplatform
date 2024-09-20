@@ -72,6 +72,6 @@ pub trait ResourceBackend {
     ) -> Result<(), BackendError>;
     async fn generate_policy_for_res(
         &self,
-        res: impl Into<String> + Send,
+        res: String,
     ) -> Result<ResourcePolicy, BackendError>;
 }

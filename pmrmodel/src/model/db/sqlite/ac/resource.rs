@@ -121,7 +121,7 @@ impl ResourceBackend for SqliteBackend {
 
     async fn generate_policy_for_res(
         &self,
-        res: impl Into<String> + Send,
+        res: String,
     ) -> Result<ResourcePolicy, BackendError> {
         generate_policy_for_res_sqlite(
             &self,
@@ -154,7 +154,7 @@ pub(crate) mod testing {
             .await?
             .run_migration_profile(MigrationProfile::Pmrac)
             .await?;
-        let policy = ResourceBackend::generate_policy_for_res(&backend, "/").await?;
+        let policy = ResourceBackend::generate_policy_for_res(&backend, "/".into()).await?;
         assert_eq!(policy, ResourcePolicy {
             resource: "/".to_string(),
             grants: vec![],
@@ -164,7 +164,7 @@ pub(crate) mod testing {
         // we only publish here, but no policies/users attached
         let state = State::Published;
         ResourceBackend::set_wf_state_for_res(&backend, "/", state).await?;
-        let policy = ResourceBackend::generate_policy_for_res(&backend, "/").await?;
+        let policy = ResourceBackend::generate_policy_for_res(&backend, "/".into()).await?;
         assert_eq!(policy, ResourcePolicy {
             resource: "/".to_string(),
             grants: vec![],
@@ -189,7 +189,7 @@ pub(crate) mod testing {
         PolicyBackend::assign_policy_to_wf_state(&backend, state, role, "", "GET").await?;
         ResourceBackend::set_wf_state_for_res(&backend, "/", state).await?;
 
-        let policy = ResourceBackend::generate_policy_for_res(&backend, "/").await?;
+        let policy = ResourceBackend::generate_policy_for_res(&backend, "/".into()).await?;
         assert_eq!(policy, serde_json::from_str(r#"{
             "resource": "/",
             "grants": [
@@ -202,7 +202,7 @@ pub(crate) mod testing {
 
         PolicyBackend::revoke_role_from_agent(&backend, "/", &agent, role).await?;
         PolicyBackend::remove_policy_from_wf_state(&backend, state, role, "", "GET").await?;
-        let policy = ResourceBackend::generate_policy_for_res(&backend, "/").await?;
+        let policy = ResourceBackend::generate_policy_for_res(&backend, "/".into()).await?;
         assert_eq!(policy, serde_json::from_str(r#"{
             "resource": "/",
             "grants": [
@@ -227,7 +227,7 @@ pub(crate) mod testing {
         ResourceBackend::set_wf_state_for_res(&backend, "/", state).await?;
         PolicyBackend::grant_role_to_agent(&backend, "/", &agent, role).await?;
 
-        let policy = ResourceBackend::generate_policy_for_res(&backend, "/").await?;
+        let policy = ResourceBackend::generate_policy_for_res(&backend, "/".into()).await?;
         assert_eq!(policy, ResourcePolicy {
             resource: "/".to_string(),
             grants: serde_json::from_str(r#"[{"res": "/", "user": null, "role": "Reader"}]"#)?,
@@ -297,7 +297,7 @@ pub(crate) mod testing {
             "/item/1",
             State::Private,
         ).await?;
-        let mut policy = ResourceBackend::generate_policy_for_res(&backend, "/item/1").await?;
+        let mut policy = ResourceBackend::generate_policy_for_res(&backend, "/item/1".into()).await?;
         policy.grants.sort_unstable();
         policy.policies.sort_unstable();
         assert_eq!(policy, serde_json::from_str(r#"{
@@ -317,7 +317,7 @@ pub(crate) mod testing {
             "/item/1",
             State::Published,
         ).await?;
-        let mut policy = ResourceBackend::generate_policy_for_res(&backend, "/item/1").await?;
+        let mut policy = ResourceBackend::generate_policy_for_res(&backend, "/item/1".into()).await?;
         policy.grants.sort_unstable();
         policy.policies.sort_unstable();
         assert_eq!(policy, serde_json::from_str(r#"{
