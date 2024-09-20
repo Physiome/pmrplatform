@@ -1,6 +1,6 @@
 [package]
 name = "test-pmr"
-version = "0.1.0"
+version = "0.0.0"
 edition = "2021"
 
 [dependencies]
@@ -9,10 +9,10 @@ async-trait = "0.1.50"
 git2 = "0.13"
 gix = "^0.58"
 mockall = "0.10.2"
-pmrcore = "0.1.0"
-pmrctrl = { version = "0.1.0", optional = true }
-pmrmodel = { version = "0.1.0", optional = true }
-pmrrepo = { version = "0.1.0", optional = true }
+pmrcore = "0.0.1"
+pmrctrl = { version = "0.0.1", optional = true }
+pmrmodel = { version = "0.0.1", optional = true }
+pmrrepo = { version = "0.0.1", optional = true }
 tempfile = "3.1.0"
 textwrap-macros = "0.3.0"
 

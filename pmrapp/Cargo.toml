@@ -1,6 +1,6 @@
 [package]
 name = "pmrapp"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
 
 [lib]
@@ -20,11 +20,11 @@ leptos = { version = "0.7.0-beta5", features = [ "rkyv" ] }
 leptos_axum = { version = "0.7.0-beta5", optional = true }
 leptos_meta = { version = "0.7.0-beta5" }
 leptos_router = { version = "0.7.0-beta5" }
-pmrcore = { version = "0.1.0" }
-pmrctrl = { version = "0.1.0", optional = true }
-pmrmodel = { version = "0.1.0", optional = true }
-pmrrepo = { version = "0.1.0", optional = true }
-pmrtqs = { version = "0.1.0", optional = true }
+pmrcore = { version = "0.0.1" }
+pmrctrl = { version = "0.0.1", optional = true }
+pmrmodel = { version = "0.0.1", optional = true }
+pmrrepo = { version = "0.0.1", optional = true }
+pmrtqs = { version = "0.0.1", optional = true }
 serde = { version = "1", features = ["derive"] }
 sqlx = { version = "0.8.0", features = ["sqlite"], optional = true }
 tokio = { version = "1", features = ["rt-multi-thread"], optional = true }

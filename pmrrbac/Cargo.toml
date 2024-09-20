@@ -1,6 +1,6 @@
 [package]
 name = "pmrrbac"
-version = "0.1.0"
+version = "0.0.1"
 
 authors = ["Tommy Yu <tommy.yu@auckland.ac.nz>"]
 edition = "2021"
@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 log = { version = "0.4" }
 casbin = { version = "2.5.0" }
-pmrcore = { version = "0.1", features = ["display"] }
+pmrcore = { version = "0.0.1", features = ["display"] }
 thiserror = "1.0"
 tokio = { version = "1.35", features = ["fs", "io-util", "macros", "rt"] }
 
