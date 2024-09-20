@@ -1,3 +1,5 @@
+use casbin::prelude::*;
+use casbin::Result;
 use pmrcore::ac::{
     role::Role,
     permit::{
@@ -6,9 +8,7 @@ use pmrcore::ac::{
         ResourcePolicy,
     },
 };
-
-use casbin::prelude::*;
-use casbin::Result;
+use std::borrow::Cow;
 
 /// The casbin model for pmrapp.
 const DEFAULT_MODEL: &str = "\
@@ -67,16 +67,112 @@ Editor, /*, protocol, GET
 Editor, /*, protocol, POST
 ";
 
+/// An alternative policy
+///
+/// This one prevents article owners from being able to edit content after publication
+const ALT_POLICIES: &str = "\
+# Managers can do everything
+Manager, /*, *, GET
+Manager, /*, *, POST
+
+# Owners have everything, including granted access
+Owner, /*, , GET           # empty group signifies typical actions (e.g. view)
+Owner, /*, edit, GET       # edit signifies being able to edit content (e.g. exposure wizard)
+# Owner, /*, edit, POST    # removing this prevents owners from being able to edit by default
+Owner, /*, grant, GET      # grant signifies being able to grant additional access
+Owner, /*, grant, POST     # note that the implementation may need to figure out who's granting what
+Owner, /*, protocol, GET   # protocol signifies git clone/etc
+Owner, /*, protocol, POST
+
+# Editors have everything, can see grants but cannot grant additional access to others
+Editor, /*, , GET           # empty group signifies typical actions (e.g. view)
+Editor, /*, edit, GET
+Editor, /*, edit, POST
+Editor, /*, grant, GET
+Editor, /*, protocol, GET
+Editor, /*, protocol, POST
+";
+
+/// Builds a role-based access controller (RBAC) for PMR.
+///
+/// Methods can be chained in order to set the configuration values.
+/// The `PmrRbac` is constructed by calling [`build`].
+///
+/// New instances of the builder can be obtained via `Builder::default`
+/// or `Builder::new`.  The former provides nothing while the latter
+/// provides the default policy.  A third version `Builder::new_limited`
+/// uses the alternative base policy which prevents owners from editing
+/// after publication.
+#[derive(Default)]
+pub struct Builder<'a> {
+    anonymous_reader: bool,
+    base_policy: Cow<'a, str>,
+    default_model: Cow<'a, str>,
+    resource_policy: Option<ResourcePolicy>,
+}
+
+impl<'a> Builder<'a> {
+    pub fn new() -> Self {
+        Self {
+            base_policy: DEFAULT_POLICIES.into(),
+            default_model: DEFAULT_MODEL.into(),
+            .. Default::default()
+        }
+    }
+
+    pub fn new_limited() -> Self {
+        Self {
+            base_policy: ALT_POLICIES.into(),
+            default_model: DEFAULT_MODEL.into(),
+            .. Default::default()
+        }
+    }
+
+    pub fn anonymous_reader(mut self, val: bool) -> Self {
+        self.anonymous_reader = val;
+        self
+    }
+
+    pub fn base_policy(mut self, val: Cow<'a, str>) -> Self {
+        self.base_policy = val;
+        self
+    }
+
+    pub fn default_model(mut self, val: Cow<'a, str>) -> Self {
+        self.default_model = val;
+        self
+    }
+
+    pub fn resource_policy(mut self, val: ResourcePolicy) -> Self {
+        self.resource_policy = Some(val);
+        self
+    }
+
+    pub async fn build(self) -> Result<PmrRbac> {
+        PmrRbac::new(
+            self.anonymous_reader,
+            &self.base_policy,
+            &self.default_model,
+            self.resource_policy,
+        ).await
+    }
+}
+
 pub struct PmrRbac {
     enforcer: Enforcer,
 }
 
 impl PmrRbac {
-    pub async fn new() -> Result<Self> {
-        let m = DefaultModel::from_str(DEFAULT_MODEL).await?;
+    pub async fn new(
+        anonymous_reader: bool,
+        policies: &str,
+        model: &str,
+        resource_policy: Option<ResourcePolicy>,
+    ) -> Result<Self> {
+        let m = DefaultModel::from_str(model).await?;
         let a = MemoryAdapter::default();
         let mut enforcer = Enforcer::new(m, a).await?;
-        let policies = DEFAULT_POLICIES.lines()
+        let policies = policies.lines()
             .filter_map(|line| {
                 let result = line
                     .split('#')
@@ -92,7 +188,14 @@ impl PmrRbac {
         let n = policies.len();
         enforcer.add_named_policies("p", policies).await?;
         log::info!("new enforcer set up with {n} policies");
-        Ok(Self { enforcer })
+        let mut result = Self { enforcer };
+        if anonymous_reader {
+            result.create_agent(None::<&str>).await?;
+        }
+        if let Some(resource_policy) = resource_policy {
+            result.set_resource_policy(resource_policy).await?;
+        }
+        Ok(result)
     }
 
     fn to_agent(agent: Option<impl AsRef<str> + std::fmt::Display>) -> String {
@@ -221,8 +324,20 @@ mod test {
     use super::*;
 
     #[tokio::test]
+    async fn empty() -> anyhow::Result<()> {
+        let mut security = Builder::default()
+            .default_model(DEFAULT_MODEL.into())
+            .build()
+            .await?;
+        // the rules don't actually work without the default
+        assert!(security.grant(Some("admin"), Role::Manager, "/*").await?);
+        assert!(!security.enforce(Some("admin"), "/exposure/1", "", "GET")?);
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn demo() -> anyhow::Result<()> {
-        let mut security = PmrRbac::new().await?;
+        let mut security = Builder::new().build().await?;
         let not_logged_in: Option<&str> = None;
 
         // admin account has access to every part of the application
@@ -314,7 +429,7 @@ mod test {
     #[tokio::test]
     async fn policy_usage_private() -> anyhow::Result<()> {
         let not_logged_in: Option<&str> = None;
-        let mut security = PmrRbac::new().await?;
+        let mut security = Builder::new().build().await?;
         // a rough approximation of a private resource
         security.set_resource_policy(serde_json::from_str(r#"{
             "resource": "/item/1",
@@ -344,21 +459,22 @@ mod test {
     #[tokio::test]
     async fn policy_usage_published() -> anyhow::Result<()> {
         let not_logged_in: Option<&str> = None;
-        let mut security = PmrRbac::new().await?;
-        // anonymous are allowed as a default agent
-        security.create_agent(not_logged_in).await?;
+        let security = Builder::new()
+            .anonymous_reader(true)
+            .resource_policy(serde_json::from_str(r#"{
+                "resource": "/item/1",
+                "grants": [
+                    {"res": "/*", "agent": "admin", "role": "Manager"},
+                    {"res": "/item/1", "agent": "alice", "role": "Owner"}
+                ],
+                "policies": [
+                    {"role": "Owner", "endpoint_group": "edit", "method": "GET"},
+                    {"role": "Reader", "endpoint_group": "", "method": "GET"}
+                ]
+            }"#)?)
+            .build()
+            .await?;
         // a rough approximation of a published resource
-        security.set_resource_policy(serde_json::from_str(r#"{
-            "resource": "/item/1",
-            "grants": [
-                {"res": "/*", "agent": "admin", "role": "Manager"},
-                {"res": "/item/1", "agent": "alice", "role": "Owner"}
-            ],
-            "policies": [
-                {"role": "Owner", "endpoint_group": "edit", "method": "GET"},
-                {"role": "Reader", "endpoint_group": "", "method": "GET"}
-            ]
-        }"#)?).await?;
 
         assert!(security.enforce(Some("admin"), "/item/1", "", "GET")?);
         assert!(security.enforce(Some("admin"), "/item/1", "edit", "GET")?);
@@ -366,6 +482,39 @@ mod test {
         assert!(security.enforce(Some("alice"), "/item/1", "", "GET")?);
         assert!(security.enforce(Some("alice"), "/item/1", "edit", "GET")?);
         assert!(security.enforce(Some("alice"), "/item/1", "edit", "POST")?);
+        assert!(security.enforce(not_logged_in, "/item/1", "", "GET")?);
+        assert!(!security.enforce(not_logged_in, "/item/1", "edit", "GET")?);
+        assert!(!security.enforce(not_logged_in, "/item/1", "edit", "POST")?);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn policy_usage_published_alt() -> anyhow::Result<()> {
+        let not_logged_in: Option<&str> = None;
+        let security = Builder::new_limited()
+            .anonymous_reader(true)
+            .resource_policy(serde_json::from_str(r#"{
+                "resource": "/item/1",
+                "grants": [
+                    {"res": "/*", "agent": "admin", "role": "Manager"},
+                    {"res": "/item/1", "agent": "alice", "role": "Owner"}
+                ],
+                "policies": [
+                    {"role": "Owner", "endpoint_group": "edit", "method": "GET"},
+                    {"role": "Reader", "endpoint_group": "", "method": "GET"}
+                ]
+            }"#)?)
+            .build()
+            .await?;
+        // a rough approximation of a published resource
+
+        assert!(security.enforce(Some("admin"), "/item/1", "", "GET")?);
+        assert!(security.enforce(Some("admin"), "/item/1", "edit", "GET")?);
+        assert!(security.enforce(Some("admin"), "/item/1", "edit", "POST")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "", "GET")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "edit", "GET")?);
+        assert!(!security.enforce(Some("alice"), "/item/1", "edit", "POST")?);
         assert!(security.enforce(not_logged_in, "/item/1", "", "GET")?);
         assert!(!security.enforce(not_logged_in, "/item/1", "edit", "GET")?);
         assert!(!security.enforce(not_logged_in, "/item/1", "edit", "POST")?);
