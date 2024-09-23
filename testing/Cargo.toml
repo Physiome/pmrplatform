@@ -9,6 +9,7 @@ async-trait = "0.1.50"
 git2 = "0.13"
 gix = "^0.58"
 mockall = "0.10.2"
+pmrac = { version = "0.0.1", optional = true }
 pmrcore = "0.0.1"
 pmrctrl = { version = "0.0.1", optional = true }
 pmrmodel = { version = "0.0.1", optional = true }
@@ -20,6 +21,7 @@ textwrap-macros = "0.3.0"
 async-std = "1.5.0"
 
 [features]
+ac = ["model", "dep:pmrac"]
 model = ["dep:pmrmodel"]
 repo = ["dep:pmrrepo"]
-platform = ["model", "repo", "dep:pmrctrl"]
+platform = ["ac", "model", "repo", "dep:pmrctrl"]

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "pmrac",
     "pmrapp",
     "pmrctrl",
     "pmrcore",
@@ -10,6 +11,7 @@ members = [
     "testing",
 ]
 default-members = [
+    "pmrac",
     "pmrctrl",
     "pmrcore",
     "pmrmodel",
@@ -21,6 +23,7 @@ default-members = [
 resolver = "2"
 
 [patch.crates-io]
+pmrac = { path = "./pmrac" }
 pmrapp = { path = "./pmrapp" }
 pmrctrl = { path = "./pmrctrl" }
 pmrmodel = { path = "./pmrmodel" }

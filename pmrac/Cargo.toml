@@ -1,0 +1,23 @@
+[package]
+name = "pmrac"
+version = "0.0.1"
+
+authors = ["Tommy Yu <tommy.yu@auckland.ac.nz>"]
+edition = "2021"
+
+[dependencies]
+argon2 = { version = "0.5.3", features = [ "std" ] }
+casbin = { version = "2.5.0" }
+log = { version = "0.4" }
+pmrcore = { version = "0.0.1", features = [ "display" ] }
+thiserror = "1.0"
+tokio = { version = "1.35", features = [ "fs", "io-util", "macros", "rt" ] }
+
+[dev-dependencies]
+anyhow = "1.0.0"
+async-std = { version = "1.5.0", features = [ "attributes" ] }
+test-pmr = { path = "../testing", features = [ "ac" ] }
+
+[features]
+
+[lib]
