@@ -1,3 +1,7 @@
+use pmrcore::ac::{
+    role::Role,
+    workflow::State,
+};
 use pmrac::{
     Platform,
     error::{
@@ -124,4 +128,102 @@ async fn error_handling_password_autopurge() -> anyhow::Result<()> {
 #[async_std::test]
 async fn error_handling_no_autopurge() -> anyhow::Result<()> {
     error_handling(false).await
+}
+
+#[async_std::test]
+async fn policy() -> anyhow::Result<()> {
+    let platform: Platform = create_sqlite_platform(true).await?;
+    let user = platform.create_user("admin").await?;
+    let state = State::Private;
+    let role = Role::Manager;
+
+    platform.grant_role_to_agent("/", &user, role).await?;
+    platform.revoke_role_from_agent("/", &user, role).await?;
+    platform.assign_policy_to_wf_state(state, role, "", "GET").await?;
+    platform.remove_policy_from_wf_state(state, role, "", "GET").await?;
+
+    Ok(())
+}
+
+#[async_std::test]
+async fn resource_wf_state() -> anyhow::Result<()> {
+    let platform: Platform = create_sqlite_platform(true).await?;
+    let admin = platform.create_user("admin").await?;
+    let user = platform.create_user("test_user").await?;
+
+    platform.grant_role_to_agent(
+        "/*",
+        admin,
+        Role::Manager,
+    ).await?;
+    platform.grant_role_to_agent(
+        "/item/1",
+        user,
+        Role::Owner,
+    ).await?;
+    platform.assign_policy_to_wf_state(
+        State::Published,
+        Role::Reader,
+        "",
+        "GET",
+    ).await?;
+    platform.assign_policy_to_wf_state(
+        State::Private,
+        Role::Owner,
+        "edit",
+        "POST",
+    ).await?;
+    platform.assign_policy_to_wf_state(
+        State::Private,
+        Role::Owner,
+        "edit",
+        "GET",
+    ).await?;
+    platform.assign_policy_to_wf_state(
+        State::Published,
+        Role::Owner,
+        "edit",
+        "GET",
+    ).await?;
+
+    platform.set_wf_state_for_res(
+        "/item/1",
+        State::Private,
+    ).await?;
+
+    let mut policy = platform.generate_policy_for_res("/item/1".into()).await?;
+    policy.grants.sort_unstable();
+    policy.policies.sort_unstable();
+    assert_eq!(policy, serde_json::from_str(r#"{
+        "resource": "/item/1",
+        "grants": [
+            {"res": "/*", "agent": "admin", "role": "Manager"},
+            {"res": "/item/1", "agent": "test_user", "role": "Owner"}
+        ],
+        "policies": [
+            {"role": "Owner", "endpoint_group": "edit", "method": "GET"},
+            {"role": "Owner", "endpoint_group": "edit", "method": "POST"}
+        ]
+    }"#)?);
+
+    platform.set_wf_state_for_res(
+        "/item/1",
+        State::Published,
+    ).await?;
+    let mut policy = platform.generate_policy_for_res("/item/1".into()).await?;
+    policy.grants.sort_unstable();
+    policy.policies.sort_unstable();
+    assert_eq!(policy, serde_json::from_str(r#"{
+        "resource": "/item/1",
+        "grants": [
+            {"res": "/*", "agent": "admin", "role": "Manager"},
+            {"res": "/item/1", "agent": "test_user", "role": "Owner"}
+        ],
+        "policies": [
+            {"role": "Owner", "endpoint_group": "edit", "method": "GET"},
+            {"role": "Reader", "endpoint_group": "", "method": "GET"}
+        ]
+    }"#)?);
+
+    Ok(())
 }

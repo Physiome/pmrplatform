@@ -1,4 +1,7 @@
-use pmrcore::ac::user;
+use pmrcore::ac::{
+    agent::Agent,
+    user,
+};
 
 use crate::{
     Platform,
@@ -27,6 +30,14 @@ impl<'a> User<'a> {
 
     pub fn name(&'a self) -> &'a str {
         self.user.name.as_ref()
+    }
+
+    pub fn clone_inner(&self) -> user::User {
+        self.user.clone()
+    }
+
+    pub fn into_inner(self) -> user::User {
+        self.user
     }
 
     pub async fn update_password(
@@ -68,5 +79,17 @@ impl<'a> User<'a> {
             )
             .await?
         )
+    }
+}
+
+impl From<&User<'_>> for Agent {
+    fn from(user: &User<'_>) -> Self {
+        user.clone_inner().into()
+    }
+}
+
+impl From<User<'_>> for Agent {
+    fn from(user: User<'_>) -> Self {
+        user.into_inner().into()
     }
 }

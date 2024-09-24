@@ -100,6 +100,8 @@ impl<'a> Platform {
     }
 }
 
+// Password management
+
 impl Platform {
     /// Set a user's password using the user's id using the provided
     /// `&str` if a new password may be set.  This will only set the
@@ -154,5 +156,89 @@ impl Platform {
         }
         self.platform.store_user_password(id, &password_hash).await?;
         Ok(())
+    }
+}
+
+// Agent Policy management
+
+impl Platform {
+    pub async fn grant_role_to_agent(
+        &self,
+        res: &str,
+        agent: impl Into<Agent>,
+        role: Role,
+    ) -> Result<(), Error> {
+        Ok(self.platform.grant_role_to_agent(
+            res,
+            &agent.into(),
+            role
+        ).await?)
+    }
+
+    pub async fn revoke_role_from_agent(
+        &self,
+        res: &str,
+        agent: impl Into<Agent>,
+        role: Role,
+    ) -> Result<(), Error> {
+        Ok(self.platform.revoke_role_from_agent(
+            res,
+            &agent.into(),
+            role,
+        ).await?)
+    }
+
+    pub async fn assign_policy_to_wf_state(
+        &self,
+        wf_state: State,
+        role: Role,
+        endpoint_group: &str,
+        method: &str,
+    ) -> Result<(), Error> {
+        Ok(self.platform.assign_policy_to_wf_state(
+            wf_state,
+            role,
+            endpoint_group,
+            method,
+        ).await?)
+    }
+
+    pub async fn remove_policy_from_wf_state(
+        &self,
+        wf_state: State,
+        role: Role,
+        endpoint_group: &str,
+        method: &str,
+    ) -> Result<(), Error> {
+        Ok(self.platform.remove_policy_from_wf_state(
+            wf_state,
+            role,
+            endpoint_group,
+            method,
+        ).await?)
+    }
+}
+
+// Resource management
+
+impl Platform {
+    pub async fn set_wf_state_for_res(
+        &self,
+        res: &str,
+        wf_state: State,
+    ) -> Result<(), Error> {
+        Ok(self.platform.set_wf_state_for_res(
+            res,
+            wf_state,
+        ).await?)
+    }
+
+    pub async fn generate_policy_for_res(
+        &self,
+        res: String,
+    ) -> Result<ResourcePolicy, Error> {
+        Ok(self.platform.generate_policy_for_res(
+            res
+        ).await?)
     }
 }
