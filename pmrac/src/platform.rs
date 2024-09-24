@@ -1,4 +1,12 @@
-use pmrcore::platform::ACPlatform;
+use pmrcore::{
+    ac::{
+        agent::Agent,
+        permit::ResourcePolicy,
+        role::Role,
+        workflow::State,
+    },
+    platform::ACPlatform
+};
 use std::sync::Arc;
 
 use crate::{
@@ -55,8 +63,11 @@ impl Platform {
         let platform = Arc::new(platform);
         Self { platform, password_autopurge }
     }
+}
 
-    pub async fn create_user<'a>(
+// User management.
+impl<'a> Platform {
+    pub async fn create_user(
         &'a self,
         name: &str,
     ) -> Result<User, Error> {
@@ -69,7 +80,7 @@ impl Platform {
     // platform directly and rarely will have to go through the user object, as
     // the user object should typically be acquired as part of the session for
     // the actual agent associated with that session.
-    pub async fn get_user<'a>(
+    pub async fn get_user(
         &'a self,
         id: i64,
     ) -> Result<User, Error> {
@@ -77,6 +88,19 @@ impl Platform {
         Ok(User::new(self, user))
     }
 
+    pub async fn authenticate_user(
+        &'a self,
+        login: &str,
+        password: &str,
+    ) -> Result<User<'a>, Error> {
+        // TODO login can be email also
+        let user = self.platform.get_user_by_name(login).await?;
+        self.verify_user_id_password(user.id, password).await?;
+        Ok(User::new(self, user))
+    }
+}
+
+impl Platform {
     /// Set a user's password using the user's id using the provided
     /// `&str` if a new password may be set.  This will only set the
     /// desired password iff the stored password is New or Reset.

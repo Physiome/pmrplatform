@@ -18,10 +18,11 @@ async fn basic_lifecycle(purge: bool) -> anyhow::Result<()> {
     assert_eq!(admin.name(), "admin");
 
     assert!(matches!(
-        platform.verify_user_id_password(
-            admin.id(),
-            "New",
-        ).await,
+        platform.verify_user_id_password(admin.id(), "New").await,
+        Err(Error::Password(e)) if e == PasswordError::NotVerifiable,
+    ));
+    assert!(matches!(
+        platform.authenticate_user("admin", "New").await,
         Err(Error::Password(e)) if e == PasswordError::NotVerifiable,
     ));
 
@@ -71,6 +72,7 @@ async fn basic_lifecycle(purge: bool) -> anyhow::Result<()> {
     ).await?;
 
     assert!(platform.verify_user_id_password(admin.id(), "Password").await.is_ok());
+    assert!(platform.authenticate_user("admin", "Password").await.is_ok());
 
     platform.force_user_id_password(admin.id(), Password::Reset).await?;
 

@@ -18,6 +18,10 @@ pub trait UserBackend {
         &self,
         id: i64,
     ) -> Result<User, BackendError>;
+    async fn get_user_by_name(
+        &self,
+        name: &str,
+    ) -> Result<User, BackendError>;
     async fn get_user_password(
         &self,
         user_id: i64,

@@ -63,6 +63,32 @@ WHERE
     Ok(recs)
 }
 
+async fn get_user_by_name_sqlite(
+    backend: &SqliteBackend,
+    name: &str,
+) -> Result<User, BackendError> {
+    let recs = sqlx::query!(r#"
+SELECT
+    id,
+    name,
+    created_ts
+FROM
+    'user'
+WHERE
+    name = ?1
+        "#,
+        name,
+    )
+    .map(|row| User {
+        id: row.id,
+        name: row.name,
+        created_ts: row.created_ts,
+    })
+    .fetch_one(&*backend.pool)
+    .await?;
+    Ok(recs)
+}
+
 async fn store_user_password_sqlite(
     backend: &SqliteBackend,
     user_id: i64,
@@ -148,6 +174,16 @@ impl UserBackend for SqliteBackend {
         get_user_by_id_sqlite(
             &self,
             id,
+        ).await
+    }
+
+    async fn get_user_by_name(
+        &self,
+        name: &str,
+    ) -> Result<User, BackendError> {
+        get_user_by_name_sqlite(
+            &self,
+            name,
         ).await
     }
 
