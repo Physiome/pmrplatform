@@ -4,18 +4,35 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
-    Argon2(#[from] argon2::password_hash::Error),
-    #[error(transparent)]
     Backend(#[from] pmrcore::error::BackendError),
     #[error(transparent)]
-    PasswordError(#[from] PasswordError),
+    Password(#[from] PasswordError),
+    #[error(transparent)]
+    Authentication(#[from] AuthenticationError),
+    #[error("Misconfiguration Password")]
+    Misconfiguration,
 }
 
 #[non_exhaustive]
 #[derive(Debug, Error, PartialEq)]
 pub enum PasswordError {
+    #[error(transparent)]
+    Argon2(#[from] argon2::password_hash::Error),
+    #[error("Existing Password")]
+    Existing,
     #[error("Mismatched Password")]
-    MismatchedPassword,
+    Mismatched,
     #[error("Wrong Password")]
-    WrongPassword,
+    Wrong,
+    #[error("Not Verifiable")]
+    NotVerifiable,
+}
+
+#[non_exhaustive]
+#[derive(Debug, Error, PartialEq)]
+pub enum AuthenticationError {
+    #[error(transparent)]
+    Password(#[from] PasswordError),
+    #[error("Restricted")]
+    Restricted,
 }

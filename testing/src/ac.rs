@@ -1,16 +1,20 @@
-use pmrac::Platform;
+use pmrac::platform::{
+    Builder,
+    Platform,
+};
 use pmrmodel::backend::db::{
     MigrationProfile,
     SqliteBackend,
 };
 
-pub async fn create_sqlite_platform() -> anyhow::Result<Platform> {
-    let platform = Platform::new(
-        SqliteBackend::from_url("sqlite::memory:")
+pub async fn create_sqlite_platform(purge: bool) -> anyhow::Result<Platform> {
+    let platform = Builder::new()
+        .platform(SqliteBackend::from_url("sqlite::memory:")
             .await?
             .run_migration_profile(MigrationProfile::Pmrac)
-            .await?,
-    );
+            .await?)
+        .password_autopurge(purge)
+        .build();
     Ok(platform)
 }
 
@@ -20,7 +24,8 @@ mod tests {
 
     #[async_std::test]
     async fn smoke_test_create_platform() -> anyhow::Result<()> {
-        create_sqlite_platform().await?;
+        create_sqlite_platform(true).await?;
+        create_sqlite_platform(false).await?;
         Ok(())
     }
 }
