@@ -7,6 +7,7 @@ use pmrcore::{
     },
     platform::ACPlatform
 };
+use pmrrbac::Builder as PmrRbacBuilder;
 use std::sync::Arc;
 
 use crate::{
@@ -25,16 +26,21 @@ pub struct Builder {
     ac_platform: Option<Arc<dyn ACPlatform>>,
     // automatically purges all but the most recent passwords
     password_autopurge: bool,
+    pmrrbac_builder: PmrRbacBuilder,
 }
 
 pub struct Platform {
     ac_platform: Arc<dyn ACPlatform>,
     password_autopurge: bool,
+    pmrrbac_builder: PmrRbacBuilder,
 }
 
 impl Builder {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            pmrrbac_builder: PmrRbacBuilder::new(),
+            .. Default::default()
+        }
     }
 
     pub fn ac_platform(mut self, val: impl ACPlatform + 'static) -> Self {
@@ -47,10 +53,16 @@ impl Builder {
         self
     }
 
+    pub fn pmrrbac_builder(mut self, val: PmrRbacBuilder) -> Self {
+        self.pmrrbac_builder = val;
+        self
+    }
+
     pub fn build(self) -> Platform {
         Platform {
             ac_platform: self.ac_platform.expect("missing required argument ac_platform"),
             password_autopurge: self.password_autopurge,
+            pmrrbac_builder: self.pmrrbac_builder
         }
     }
 }
@@ -59,11 +71,13 @@ impl Platform {
     pub fn new(
         ac_platform: impl ACPlatform + 'static,
         password_autopurge: bool,
+        pmrrbac_builder: PmrRbacBuilder,
     ) -> Self {
         let ac_platform = Arc::new(ac_platform);
         Self {
             ac_platform,
             password_autopurge,
+            pmrrbac_builder,
         }
     }
 }
@@ -243,5 +257,29 @@ impl Platform {
         Ok(self.ac_platform.generate_policy_for_res(
             res
         ).await?)
+    }
+}
+
+// Enforcement
+
+impl Platform {
+    pub async fn enforce(
+        &self,
+        agent: impl Into<Agent>,
+        res: impl AsRef<str> + ToString,
+        endpoint_group: impl AsRef<str>,
+        http_method: &str,
+    ) -> Result<bool, Error> {
+        Ok(self.pmrrbac_builder
+            .build_with_resource_policy(
+                self.generate_policy_for_res(res.to_string()).await?,
+            )
+            .await?
+            .enforce(
+                <Agent as Into<Option<String>>>::into(agent.into()),
+                res,
+                endpoint_group,
+                http_method,
+            )?)
     }
 }

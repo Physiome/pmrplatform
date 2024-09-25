@@ -8,10 +8,19 @@ impl From<User> for Agent {
 }
 
 impl From<&Agent> for Option<i64> {
-    fn from(agent: &Agent) -> Option<i64> {
+    fn from(agent: &Agent) -> Self {
         match agent {
             Agent::Anonymous => None,
             Agent::User(User { id, .. }) => Some(*id),
+        }
+    }
+}
+
+impl From<Agent> for Option<String> {
+    fn from(agent: Agent) -> Self {
+        match agent {
+            Agent::Anonymous => None,
+            Agent::User(User { name, .. }) => Some(name),
         }
     }
 }

@@ -9,6 +9,7 @@ edition = "2021"
 argon2 = { version = "0.5.3", features = [ "std" ] }
 casbin = { version = "2.5.0" }
 log = { version = "0.4" }
+pmrrbac = { version = "0.0.1" }
 pmrcore = { version = "0.0.1", features = [ "display" ] }
 thiserror = "1.0"
 tokio = { version = "1.35", features = [ "fs", "io-util", "macros", "rt" ] }

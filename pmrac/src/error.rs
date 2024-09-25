@@ -11,6 +11,8 @@ pub enum Error {
     Authentication(#[from] AuthenticationError),
     #[error("Misconfiguration Password")]
     Misconfiguration,
+    #[error(transparent)]
+    Rbac(#[from] pmrrbac::error::Error),
 }
 
 #[non_exhaustive]
