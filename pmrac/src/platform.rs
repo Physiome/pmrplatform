@@ -22,13 +22,13 @@ use crate::{
 #[derive(Clone, Default)]
 pub struct Builder {
     // platform
-    platform: Option<Arc<dyn ACPlatform>>,
+    ac_platform: Option<Arc<dyn ACPlatform>>,
     // automatically purges all but the most recent passwords
     password_autopurge: bool,
 }
 
 pub struct Platform {
-    platform: Arc<dyn ACPlatform>,
+    ac_platform: Arc<dyn ACPlatform>,
     password_autopurge: bool,
 }
 
@@ -37,8 +37,8 @@ impl Builder {
         Self::default()
     }
 
-    pub fn platform(mut self, val: impl ACPlatform + 'static) -> Self {
-        self.platform = Some(Arc::new(val));
+    pub fn ac_platform(mut self, val: impl ACPlatform + 'static) -> Self {
+        self.ac_platform = Some(Arc::new(val));
         self
     }
 
@@ -49,7 +49,7 @@ impl Builder {
 
     pub fn build(self) -> Platform {
         Platform {
-            platform: self.platform.expect("missing required argument platform"),
+            ac_platform: self.ac_platform.expect("missing required argument ac_platform"),
             password_autopurge: self.password_autopurge,
         }
     }
@@ -57,11 +57,14 @@ impl Builder {
 
 impl Platform {
     pub fn new(
-        platform: impl ACPlatform + 'static,
+        ac_platform: impl ACPlatform + 'static,
         password_autopurge: bool,
     ) -> Self {
-        let platform = Arc::new(platform);
-        Self { platform, password_autopurge }
+        let ac_platform = Arc::new(ac_platform);
+        Self {
+            ac_platform,
+            password_autopurge,
+        }
     }
 }
 
@@ -71,7 +74,7 @@ impl<'a> Platform {
         &'a self,
         name: &str,
     ) -> Result<User, Error> {
-        let id = self.platform.add_user(name).await?;
+        let id = self.ac_platform.add_user(name).await?;
         self.force_user_id_password(id, Password::New).await?;
         self.get_user(id).await
     }
@@ -84,7 +87,7 @@ impl<'a> Platform {
         &'a self,
         id: i64,
     ) -> Result<User, Error> {
-        let user = self.platform.get_user_by_id(id).await?;
+        let user = self.ac_platform.get_user_by_id(id).await?;
         Ok(User::new(self, user))
     }
 
@@ -94,7 +97,7 @@ impl<'a> Platform {
         password: &str,
     ) -> Result<User<'a>, Error> {
         // TODO login can be email also
-        let user = self.platform.get_user_by_name(login).await?;
+        let user = self.ac_platform.get_user_by_name(login).await?;
         self.verify_user_id_password(user.id, password).await?;
         Ok(User::new(self, user))
     }
@@ -111,7 +114,7 @@ impl Platform {
         id: i64,
         password: &str,
     ) -> Result<(), Error> {
-        let result = self.platform.get_user_password(id).await;
+        let result = self.ac_platform.get_user_password(id).await;
         let stored_password = result
             .as_deref()
             .map(Password::from_database)
@@ -135,7 +138,7 @@ impl Platform {
         id: i64,
         password: &str,
     ) -> Result<(), Error> {
-        let result = self.platform.get_user_password(id).await;
+        let result = self.ac_platform.get_user_password(id).await;
         let stored_password = result
             .as_deref()
             .map(Password::from_database)
@@ -152,9 +155,9 @@ impl Platform {
     ) -> Result<(), Error> {
         let password_hash = password.to_database()?;
         if self.password_autopurge {
-            self.platform.purge_user_passwords(id).await?;
+            self.ac_platform.purge_user_passwords(id).await?;
         }
-        self.platform.store_user_password(id, &password_hash).await?;
+        self.ac_platform.store_user_password(id, &password_hash).await?;
         Ok(())
     }
 }
@@ -168,7 +171,7 @@ impl Platform {
         agent: impl Into<Agent>,
         role: Role,
     ) -> Result<(), Error> {
-        Ok(self.platform.grant_role_to_agent(
+        Ok(self.ac_platform.grant_role_to_agent(
             res,
             &agent.into(),
             role
@@ -181,7 +184,7 @@ impl Platform {
         agent: impl Into<Agent>,
         role: Role,
     ) -> Result<(), Error> {
-        Ok(self.platform.revoke_role_from_agent(
+        Ok(self.ac_platform.revoke_role_from_agent(
             res,
             &agent.into(),
             role,
@@ -195,7 +198,7 @@ impl Platform {
         endpoint_group: &str,
         method: &str,
     ) -> Result<(), Error> {
-        Ok(self.platform.assign_policy_to_wf_state(
+        Ok(self.ac_platform.assign_policy_to_wf_state(
             wf_state,
             role,
             endpoint_group,
@@ -210,7 +213,7 @@ impl Platform {
         endpoint_group: &str,
         method: &str,
     ) -> Result<(), Error> {
-        Ok(self.platform.remove_policy_from_wf_state(
+        Ok(self.ac_platform.remove_policy_from_wf_state(
             wf_state,
             role,
             endpoint_group,
@@ -227,7 +230,7 @@ impl Platform {
         res: &str,
         wf_state: State,
     ) -> Result<(), Error> {
-        Ok(self.platform.set_wf_state_for_res(
+        Ok(self.ac_platform.set_wf_state_for_res(
             res,
             wf_state,
         ).await?)
@@ -237,7 +240,7 @@ impl Platform {
         &self,
         res: String,
     ) -> Result<ResourcePolicy, Error> {
-        Ok(self.platform.generate_policy_for_res(
+        Ok(self.ac_platform.generate_policy_for_res(
             res
         ).await?)
     }

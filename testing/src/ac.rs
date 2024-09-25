@@ -7,12 +7,16 @@ use pmrmodel::backend::db::{
     SqliteBackend,
 };
 
+pub async fn create_sqlite_backend() -> anyhow::Result<SqliteBackend> {
+    Ok(SqliteBackend::from_url("sqlite::memory:")
+        .await?
+        .run_migration_profile(MigrationProfile::Pmrac)
+        .await?)
+}
+
 pub async fn create_sqlite_platform(purge: bool) -> anyhow::Result<Platform> {
     let platform = Builder::new()
-        .platform(SqliteBackend::from_url("sqlite::memory:")
-            .await?
-            .run_migration_profile(MigrationProfile::Pmrac)
-            .await?)
+        .ac_platform(create_sqlite_backend().await?)
         .password_autopurge(purge)
         .build();
     Ok(platform)
