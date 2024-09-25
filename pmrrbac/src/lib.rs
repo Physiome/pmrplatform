@@ -65,6 +65,11 @@ Editor, /*, edit, POST
 Editor, /*, grant, GET
 Editor, /*, protocol, GET
 Editor, /*, protocol, POST
+
+# Reviewers can only view and edit.
+Reviewer, /*, , GET
+Reviewer, /*, edit, GET
+Reviewer, /*, edit, POST
 ";
 
 /// An alternative policy
@@ -91,6 +96,11 @@ Editor, /*, edit, POST
 Editor, /*, grant, GET
 Editor, /*, protocol, GET
 Editor, /*, protocol, POST
+
+# Reviewers can only view and edit.
+Reviewer, /*, , GET
+Reviewer, /*, edit, GET
+Reviewer, /*, edit, POST
 ";
 
 /// Builds a role-based access controller (RBAC) for PMR.
@@ -452,6 +462,60 @@ mod test {
         assert!(!security.enforce(not_logged_in, "/item/1", "", "GET")?);
         assert!(!security.enforce(not_logged_in, "/item/1", "edit", "GET")?);
         assert!(!security.enforce(not_logged_in, "/item/1", "edit", "POST")?);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn policy_usage_reviewer() -> anyhow::Result<()> {
+        let not_logged_in: Option<&str> = None;
+        // a rough approximation of a resource under review
+        let policy: ResourcePolicy = serde_json::from_str(r#"{
+            "resource": "/item/1",
+            "grants": [
+                {"res": "/*", "agent": "reviewer", "role": "Reviewer"},
+                {"res": "/item/1", "agent": "alice", "role": "Owner"}
+            ],
+            "policies": [
+                {"role": "Reviewer", "endpoint_group": "grant", "method": "POST"},
+                {"role": "Reviewer", "endpoint_group": "edit", "method": "GET"},
+                {"role": "Reviewer", "endpoint_group": "edit", "method": "POST"}
+            ]
+        }"#)?;
+
+        let security = Builder::new()
+            .anonymous_reader(true)
+            .resource_policy(policy.clone())
+            .build()
+            .await?;
+        assert!(!security.enforce(not_logged_in, "/item/1", "", "GET")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "", "GET")?);
+        // this doesn't have the restriction the limited version poses
+        assert!(security.enforce(Some("alice"), "/item/1", "edit", "GET")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "edit", "POST")?);
+        assert!(security.enforce(Some("reviewer"), "/item/1", "", "GET")?);
+        assert!(security.enforce(Some("reviewer"), "/item/1", "edit", "GET")?);
+        assert!(security.enforce(Some("reviewer"), "/item/1", "edit", "POST")?);
+        // this wasn't granted globally by the model, so this should have no effect.
+        assert!(!security.enforce(Some("reviewer"), "/item/1", "grant", "POST")?);
+
+        let security = Builder::new_limited()
+            .anonymous_reader(true)
+            .resource_policy(policy.clone())
+            .build()
+            .await?;
+        assert!(!security.enforce(not_logged_in, "/item/1", "", "GET")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "", "GET")?);
+        // the limited model restricts owners from submitting edits for
+        // resources under review, but has no restrictions on viewing the
+        // edit form.
+        assert!(security.enforce(Some("alice"), "/item/1", "edit", "GET")?);
+        assert!(!security.enforce(Some("alice"), "/item/1", "edit", "POST")?);
+        assert!(security.enforce(Some("reviewer"), "/item/1", "", "GET")?);
+        assert!(security.enforce(Some("reviewer"), "/item/1", "edit", "GET")?);
+        assert!(security.enforce(Some("reviewer"), "/item/1", "edit", "POST")?);
+        // this wasn't granted globally by the model, so this should have no effect.
+        assert!(!security.enforce(Some("reviewer"), "/item/1", "grant", "POST")?);
 
         Ok(())
     }
