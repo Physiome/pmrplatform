@@ -1,5 +1,10 @@
-use casbin::prelude::*;
-use casbin::Result;
+use casbin::{
+    CoreApi,
+    DefaultModel,
+    Enforcer,
+    MemoryAdapter,
+    MgmtApi,
+};
 use pmrcore::ac::{
     role::Role,
     permit::{
@@ -8,7 +13,11 @@ use pmrcore::ac::{
         ResourcePolicy,
     },
 };
-use std::borrow::Cow;
+
+pub mod error {
+    pub use casbin::Error;
+}
+use crate::error::Error;
 
 /// The casbin model for pmrapp.
 const DEFAULT_MODEL: &str = "\
@@ -113,15 +122,15 @@ Reviewer, /*, edit, POST
 /// provides the default policy.  A third version `Builder::new_limited`
 /// uses the alternative base policy which prevents owners from editing
 /// after publication.
-#[derive(Default)]
-pub struct Builder<'a> {
+#[derive(Clone, Debug, Default)]
+pub struct Builder {
     anonymous_reader: bool,
-    base_policy: Cow<'a, str>,
-    default_model: Cow<'a, str>,
+    base_policy: Box<str>,
+    default_model: Box<str>,
     resource_policy: Option<ResourcePolicy>,
 }
 
-impl<'a> Builder<'a> {
+impl Builder {
     pub fn new() -> Self {
         Self {
             base_policy: DEFAULT_POLICIES.into(),
@@ -143,13 +152,13 @@ impl<'a> Builder<'a> {
         self
     }
 
-    pub fn base_policy(mut self, val: Cow<'a, str>) -> Self {
-        self.base_policy = val;
+    pub fn base_policy(mut self, val: &str) -> Self {
+        self.base_policy = val.into();
         self
     }
 
-    pub fn default_model(mut self, val: Cow<'a, str>) -> Self {
-        self.default_model = val;
+    pub fn default_model(mut self, val: &str) -> Self {
+        self.default_model = val.into();
         self
     }
 
@@ -158,12 +167,24 @@ impl<'a> Builder<'a> {
         self
     }
 
-    pub async fn build(self) -> Result<PmrRbac> {
+    pub async fn build(&self) -> Result<PmrRbac, Error> {
         PmrRbac::new(
             self.anonymous_reader,
             &self.base_policy,
             &self.default_model,
-            self.resource_policy,
+            self.resource_policy.clone(),
+        ).await
+    }
+
+    pub async fn build_with_resource_policy(
+        &self,
+        resource_policy: ResourcePolicy,
+    ) -> Result<PmrRbac, Error> {
+        PmrRbac::new(
+            self.anonymous_reader,
+            &self.base_policy,
+            &self.default_model,
+            Some(resource_policy),
         ).await
     }
 }
@@ -178,7 +199,7 @@ impl PmrRbac {
         policies: &str,
         model: &str,
         resource_policy: Option<ResourcePolicy>,
-    ) -> Result<Self> {
+    ) -> Result<Self, Error> {
         let m = DefaultModel::from_str(model).await?;
         let a = MemoryAdapter::default();
         let mut enforcer = Enforcer::new(m, a).await?;
@@ -218,7 +239,7 @@ impl PmrRbac {
     pub async fn create_agent(
         &mut self,
         agent: Option<impl AsRef<str> + std::fmt::Display>,
-    ) -> Result<bool> {
+    ) -> Result<bool, Error> {
         self.enforcer.add_named_grouping_policy("g2", vec![
             Self::to_agent(agent),
             Role::Reader.into(),
@@ -229,7 +250,7 @@ impl PmrRbac {
     pub async fn remove_agent(
         &mut self,
         agent: impl AsRef<str> + std::fmt::Display,
-    ) -> Result<bool> {
+    ) -> Result<bool, Error> {
         self.enforcer.remove_named_grouping_policy("g2", vec![
             Self::to_agent(Some(agent)),
             Role::Reader.into(),
@@ -243,7 +264,7 @@ impl PmrRbac {
         agent: Option<impl AsRef<str> + std::fmt::Display>,
         role: impl Into<String>,
         resource: impl Into<String>,
-    ) -> Result<bool> {
+    ) -> Result<bool, Error> {
         self.enforcer.add_named_grouping_policy("g", vec![
             Self::to_agent(agent),
             role.into(),
@@ -258,7 +279,7 @@ impl PmrRbac {
         agent: Option<impl AsRef<str> + std::fmt::Display>,
         role: impl Into<String>,
         resource: impl Into<String>,
-    ) -> Result<bool> {
+    ) -> Result<bool, Error> {
         self.enforcer.remove_named_grouping_policy("g", vec![
             Self::to_agent(agent),
             role.into(),
@@ -273,7 +294,7 @@ impl PmrRbac {
         resource: impl Into<String>,
         endpoint_group: impl Into<String>,
         http_method: impl Into<String>,
-    ) -> Result<bool> {
+    ) -> Result<bool, Error> {
         self.enforcer.add_named_policy("p", vec![
             role.into(),
             resource.into(),
@@ -289,7 +310,7 @@ impl PmrRbac {
         resource: impl Into<String>,
         endpoint_group: impl Into<String>,
         http_method: impl Into<String>,
-    ) -> Result<bool> {
+    ) -> Result<bool, Error> {
         self.enforcer.remove_named_policy("p", vec![
             role.into(),
             resource.into(),
@@ -301,7 +322,7 @@ impl PmrRbac {
     pub async fn set_resource_policy(
         &mut self,
         policy: ResourcePolicy,
-    ) -> Result<()> {
+    ) -> Result<(), Error> {
         for Grant { res, agent, role } in policy.grants.iter() {
             self.create_agent(agent.as_ref()).await?;
             self.grant(agent.as_ref(), role, res).await?;
@@ -319,7 +340,7 @@ impl PmrRbac {
         resource: impl AsRef<str>,
         endpoint_group: impl AsRef<str>,
         http_method: impl AsRef<str>,
-    ) -> Result<bool> {
+    ) -> Result<bool, Error> {
         self.enforcer.enforce((
             Self::to_agent(agent).as_str(),
             resource.as_ref(),
