@@ -4,6 +4,7 @@ use pmrcore::{
         agent::Agent,
         role::Role,
         traits::PolicyBackend,
+        user::User,
         workflow::State,
     },
     error::BackendError,
@@ -12,6 +13,51 @@ use pmrcore::{
 use crate::{
     backend::db::SqliteBackend,
 };
+
+async fn grant_role_to_user_sqlite(
+    backend: &SqliteBackend,
+    user: &User,
+    role: Role,
+) -> Result<(), BackendError> {
+    let role_str = <&'static str>::from(role);
+    sqlx::query!(
+        r#"
+INSERT INTO user_role (
+    user_id,
+    role
+)
+VALUES ( ?1, ?2 )
+        "#,
+        user.id,
+        role_str,
+    )
+    .execute(&*backend.pool)
+    .await?
+    .last_insert_rowid();
+    Ok(())
+}
+
+async fn revoke_role_from_user_sqlite(
+    backend: &SqliteBackend,
+    user: &User,
+    role: Role,
+) -> Result<(), BackendError> {
+    let role_str = <&'static str>::from(role);
+    sqlx::query!(
+        r#"
+DELETE FROM
+    user_role
+WHERE
+    user_id = ?1 AND
+    role = ?2
+        "#,
+        user.id,
+        role_str,
+    )
+    .execute(&*backend.pool)
+    .await?;
+    Ok(())
+}
 
 async fn grant_res_role_to_agent_sqlite(
     backend: &SqliteBackend,
@@ -46,7 +92,7 @@ async fn revoke_res_role_from_agent_sqlite(
     agent: &Agent,
     role: Role,
 ) -> Result<(), BackendError> {
-    let role_str = role.to_string();
+    let role_str = <&'static str>::from(role);
     let user_id: Option<i64> = agent.into();
     sqlx::query!(
         r#"
@@ -127,6 +173,30 @@ WHERE
 
 #[async_trait]
 impl PolicyBackend for SqliteBackend {
+    async fn grant_role_to_user(
+        &self,
+        user: &User,
+        role: Role,
+    ) -> Result<(), BackendError> {
+        grant_role_to_user_sqlite(
+            &self,
+            user,
+            role,
+        ).await
+    }
+
+    async fn revoke_role_from_user(
+        &self,
+        user: &User,
+        role: Role,
+    ) -> Result<(), BackendError> {
+        revoke_role_from_user_sqlite(
+            &self,
+            user,
+            role,
+        ).await
+    }
+
     async fn grant_res_role_to_agent(
         &self,
         res: &str,

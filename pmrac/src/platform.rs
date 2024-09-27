@@ -3,6 +3,7 @@ use pmrcore::{
         agent::Agent,
         genpolicy::Policy,
         role::Role,
+        user,
         workflow::State,
     },
     platform::ACPlatform
@@ -179,6 +180,28 @@ impl Platform {
 // Agent Policy management
 
 impl Platform {
+    pub async fn grant_role_to_user(
+        &self,
+        user: impl Into<user::User>,
+        role: Role,
+    ) -> Result<(), Error> {
+        Ok(self.ac_platform.grant_role_to_user(
+            &user.into(),
+            role
+        ).await?)
+    }
+
+    pub async fn revoke_role_from_user(
+        &self,
+        user: impl Into<user::User>,
+        role: Role,
+    ) -> Result<(), Error> {
+        Ok(self.ac_platform.revoke_role_from_user(
+            &user.into(),
+            role,
+        ).await?)
+    }
+
     pub async fn grant_res_role_to_agent(
         &self,
         res: &str,

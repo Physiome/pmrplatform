@@ -228,7 +228,8 @@ pub(crate) mod testing {
         let user = UserBackend::get_user_by_id(&backend, user_id).await?;
         let state = State::Published;
         let role = Role::Reader;
-        let agent: Agent = user.into();
+        let agent: Agent = user.clone().into();
+        PolicyBackend::grant_role_to_user(&backend, &user, role).await?;
         PolicyBackend::grant_res_role_to_agent(&backend, "/", &agent, role).await?;
         PolicyBackend::assign_policy_to_wf_state(&backend, state, role, "", "GET").await?;
         ResourceBackend::set_wf_state_for_res(&backend, "/", state).await?;
@@ -241,6 +242,7 @@ pub(crate) mod testing {
         assert_eq!(policy, serde_json::from_str(r#"{
             "resource": "/",
             "user_roles": [
+                {"user": "test_user", "role": "Reader"}
             ],
             "res_grants": [
                 {"res": "/", "agent": "test_user", "role": "Reader"}
@@ -250,6 +252,7 @@ pub(crate) mod testing {
             ]
         }"#)?);
 
+        PolicyBackend::revoke_role_from_user(&backend, &user, role).await?;
         PolicyBackend::revoke_res_role_from_agent(&backend, "/", &agent, role).await?;
         PolicyBackend::remove_policy_from_wf_state(&backend, state, role, "", "GET").await?;
         let policy = ResourceBackend::generate_policy_for_agent_res(

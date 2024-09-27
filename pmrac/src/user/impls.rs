@@ -93,3 +93,15 @@ impl From<User<'_>> for Agent {
         user.into_inner().into()
     }
 }
+
+impl From<&User<'_>> for user::User {
+    fn from(user: &User<'_>) -> Self {
+        user.clone_inner()
+    }
+}
+
+impl From<User<'_>> for user::User {
+    fn from(user: User<'_>) -> Self {
+        user.into_inner()
+    }
+}

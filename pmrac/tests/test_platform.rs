@@ -156,14 +156,22 @@ async fn resource_wf_state() -> anyhow::Result<()> {
     let admin = platform.create_user("admin").await?;
     let user = platform.create_user("test_user").await?;
 
+    platform.grant_role_to_user(
+        &admin,
+        Role::Reader,
+    ).await?;
     platform.grant_res_role_to_agent(
         "/*",
         admin,
         Role::Manager,
     ).await?;
+    platform.grant_role_to_user(
+        &user,
+        Role::Reader,
+    ).await?;
     platform.grant_res_role_to_agent(
         "/item/1",
-        user,
+        &user,
         Role::Owner,
     ).await?;
     platform.assign_policy_to_wf_state(
@@ -217,12 +225,13 @@ async fn resource_wf_state() -> anyhow::Result<()> {
         "/item/1",
         State::Published,
     ).await?;
-    let mut policy = platform.generate_policy_for_agent_res(&Agent::Anonymous, "/item/1".into()).await?;
+    let mut policy = platform.generate_policy_for_agent_res(&user.into(), "/item/1".into()).await?;
     policy.res_grants.sort_unstable();
     policy.role_permits.sort_unstable();
     assert_eq!(policy, serde_json::from_str(r#"{
         "resource": "/item/1",
         "user_roles": [
+            {"user": "test_user", "role": "Reader"}
         ],
         "res_grants": [
             {"res": "/*", "agent": "admin", "role": "Manager"},
@@ -252,28 +261,36 @@ async fn policy_enforcement() -> anyhow::Result<()> {
     platform.assign_policy_to_wf_state(State::Published, Role::Owner, "edit", "GET").await?;
     platform.assign_policy_to_wf_state(State::Published, Role::Reader, "", "GET").await?;
 
+    // there is a welcome page for the site that should be readable by all
+    platform.set_wf_state_for_res("/welcome", State::Published).await?;
+
     let admin = platform.create_user("admin").await?;
     admin.reset_password("admin", "admin").await?;
     platform.grant_res_role_to_agent("/*", admin, Role::Manager).await?;
 
     let reviewer = platform.create_user("reviewer").await?;
     reviewer.reset_password("reviewer", "reviewer").await?;
-    // this makes the reviewer being able to review globally
-    // platform.grant_res_role_to_agent("/*", &reviewer, Role::Reviewer).await?;
-    // we need something actually
-    // Or is this something that can be expressed with casbin as part of the base model/policy?
-    // platform.enable_role_at_state_for_resource(Role::Reviewer, State::Pending, "/*").await?;
+    // this enables the reviewer being able to review resources under pending state
+    platform.grant_role_to_user(&reviewer, Role::Reviewer).await?;
+    platform.grant_role_to_user(&reviewer, Role::Reader).await?;
     platform.grant_res_role_to_agent("/profile/reviewer", reviewer, Role::Owner).await?;
     platform.set_wf_state_for_res("/profile/reviewer", State::Private).await?;
 
     let user = platform.create_user("user").await?;
     user.reset_password("user", "user").await?;
+    platform.grant_role_to_user(&user, Role::Reader).await?;
     platform.grant_res_role_to_agent("/profile/user", user, Role::Owner).await?;
     platform.set_wf_state_for_res("/profile/user", State::Private).await?;
 
     let admin = platform.authenticate_user("admin", "admin").await?;
     let reviewer = platform.authenticate_user("reviewer", "reviewer").await?;
     let user = platform.authenticate_user("user", "user").await?;
+
+    // since the anonymous_reader isn't enabled for the rbac enforcer...
+    assert!(!platform.enforce(Agent::Anonymous, "/welcome", "", "GET").await?);
+    assert!(platform.enforce(&admin, "/welcome", "", "GET").await?);
+    assert!(platform.enforce(&reviewer, "/welcome", "", "GET").await?);
+    assert!(platform.enforce(&user, "/welcome", "", "GET").await?);
 
     assert!(platform.enforce(&admin, "/profile/user", "", "GET").await?);
     assert!(platform.enforce(&user, "/profile/user", "", "GET").await?);
@@ -289,17 +306,23 @@ async fn policy_enforcement() -> anyhow::Result<()> {
     assert!(!platform.enforce(&reviewer, "/news/post/1", "edit", "POST").await?);
 
     platform.set_wf_state_for_res("/news/post/1", State::Pending).await?;
-    // TODO need to figure out the API for this, rather than doing the wildcard as
-    // that doesn't work.  for now, we need to assign the exact reviewer at this exact
-    // moment, rather than the role in a more general way
-    // That said, this address the use case for assigning _specific_ reviewer for the
-    // task and they will have the rights required
-    platform.grant_res_role_to_agent("/news/post/1", &reviewer, Role::Reviewer).await?;
-
     assert!(platform.enforce(&admin, "/news/post/1", "edit", "POST").await?);
     assert!(!platform.enforce(&user, "/news/post/1", "edit", "POST").await?);
     assert!(platform.enforce(&reviewer, "/news/post/1", "edit", "POST").await?);
     assert!(!platform.enforce(&reviewer, "/news/post/1", "grant", "POST").await?);
+    assert!(!platform.enforce(&reviewer, "/news/post/2", "edit", "POST").await?);
+
+    // Reviewer role can be granted for one specific resource, to address the use
+    // case of requring explicit assignments of items for review to specific reviewer.
+    let restricted_reviewer = platform.create_user("restricted_reviewer").await?;
+    platform.grant_res_role_to_agent("/news/post/2", &restricted_reviewer, Role::Reviewer).await?;
+    assert!(!platform.enforce(&restricted_reviewer, "/news/post/2", "edit", "POST").await?);
+    platform.set_wf_state_for_res("/news/post/2", State::Pending).await?;
+    assert!(platform.enforce(&restricted_reviewer, "/news/post/2", "edit", "POST").await?);
+    assert!(!platform.enforce(&restricted_reviewer, "/news/post/1", "edit", "POST").await?);
+    // since they were never granted the general reader role, they won't be able to read
+    // the welcome page either...
+    assert!(!platform.enforce(&restricted_reviewer, "/welcome", "", "GET").await?);
 
     Ok(())
 }

@@ -39,6 +39,16 @@ pub trait UserBackend {
 
 #[async_trait]
 pub trait PolicyBackend {
+    async fn grant_role_to_user(
+        &self,
+        user: &User,
+        role: Role,
+    ) -> Result<(), BackendError>;
+    async fn revoke_role_from_user(
+        &self,
+        user: &User,
+        role: Role,
+    ) -> Result<(), BackendError>;
     async fn grant_res_role_to_agent(
         &self,
         res: &str,
