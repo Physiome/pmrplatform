@@ -7,10 +7,11 @@ use casbin::{
 };
 use pmrcore::ac::{
     role::Role,
-    permit::{
-        Grant,
+    genpolicy::{
         Policy,
-        ResourcePolicy,
+        ResGrant,
+        RolePermit,
+        UserRole,
     },
 };
 
@@ -74,11 +75,6 @@ Editor, /*, edit, POST
 Editor, /*, grant, GET
 Editor, /*, protocol, GET
 Editor, /*, protocol, POST
-
-# Reviewers can only view and edit.
-Reviewer, /*, , GET
-Reviewer, /*, edit, GET
-Reviewer, /*, edit, POST
 ";
 
 /// An alternative policy
@@ -105,11 +101,6 @@ Editor, /*, edit, POST
 Editor, /*, grant, GET
 Editor, /*, protocol, GET
 Editor, /*, protocol, POST
-
-# Reviewers can only view and edit.
-Reviewer, /*, , GET
-Reviewer, /*, edit, GET
-Reviewer, /*, edit, POST
 ";
 
 /// Builds a role-based access controller (RBAC) for PMR.
@@ -127,7 +118,7 @@ pub struct Builder {
     anonymous_reader: bool,
     base_policy: Box<str>,
     default_model: Box<str>,
-    resource_policy: Option<ResourcePolicy>,
+    resource_policy: Option<Policy>,
 }
 
 impl Builder {
@@ -162,7 +153,7 @@ impl Builder {
         self
     }
 
-    pub fn resource_policy(mut self, val: ResourcePolicy) -> Self {
+    pub fn resource_policy(mut self, val: Policy) -> Self {
         self.resource_policy = Some(val);
         self
     }
@@ -178,7 +169,7 @@ impl Builder {
 
     pub async fn build_with_resource_policy(
         &self,
-        resource_policy: ResourcePolicy,
+        resource_policy: Policy,
     ) -> Result<PmrRbac, Error> {
         PmrRbac::new(
             self.anonymous_reader,
@@ -198,7 +189,7 @@ impl PmrRbac {
         anonymous_reader: bool,
         policies: &str,
         model: &str,
-        resource_policy: Option<ResourcePolicy>,
+        resource_policy: Option<Policy>,
     ) -> Result<Self, Error> {
         let m = DefaultModel::from_str(model).await?;
         let a = MemoryAdapter::default();
@@ -221,7 +212,7 @@ impl PmrRbac {
         log::info!("new enforcer set up with {n} policies");
         let mut result = Self { enforcer };
         if anonymous_reader {
-            result.create_agent(None::<&str>).await?;
+            result.grant_agent_role(None::<&str>, Role::Reader).await?;
         }
         if let Some(resource_policy) = resource_policy {
             result.set_resource_policy(resource_policy).await?;
@@ -234,35 +225,37 @@ impl PmrRbac {
             .unwrap_or("-".to_string())
     }
 
-    /// Create agent assigns the reader role to the agent through the
-    /// second grouping policy
-    pub async fn create_agent(
+    /// Grant agent the role, which will enable the agent the role for
+    /// resources that have a policy attached for the role.
+    pub async fn grant_agent_role(
         &mut self,
         agent: Option<impl AsRef<str> + std::fmt::Display>,
+        role: Role,
     ) -> Result<bool, Error> {
         self.enforcer.add_named_grouping_policy("g2", vec![
             Self::to_agent(agent),
-            Role::Reader.into(),
+            role.into(),
         ]).await
     }
 
-    /// Remove agent removes the reader role for the second grouping.
-    pub async fn remove_agent(
+    /// Revoke an implicit role from agent.
+    pub async fn revoke_agent_role(
         &mut self,
         agent: impl AsRef<str> + std::fmt::Display,
+        role: Role,
     ) -> Result<bool, Error> {
         self.enforcer.remove_named_grouping_policy("g2", vec![
             Self::to_agent(Some(agent)),
-            Role::Reader.into(),
+            role.into(),
         ]).await
     }
 
     /// Grant agent specified role at resource.
     /// Creates the relevant casbin grouping policy.
-    pub async fn grant(
+    pub async fn grant_res(
         &mut self,
         agent: Option<impl AsRef<str> + std::fmt::Display>,
-        role: impl Into<String>,
+        role: Role,
         resource: impl Into<String>,
     ) -> Result<bool, Error> {
         self.enforcer.add_named_grouping_policy("g", vec![
@@ -274,10 +267,10 @@ impl PmrRbac {
 
     /// Revokes agent specified role at resource.
     /// Removes the relevant casbin grouping policy.
-    pub async fn revoke(
+    pub async fn revoke_res(
         &mut self,
         agent: Option<impl AsRef<str> + std::fmt::Display>,
-        role: impl Into<String>,
+        role: Role,
         resource: impl Into<String>,
     ) -> Result<bool, Error> {
         self.enforcer.remove_named_grouping_policy("g", vec![
@@ -321,14 +314,16 @@ impl PmrRbac {
 
     pub async fn set_resource_policy(
         &mut self,
-        policy: ResourcePolicy,
+        policy: Policy,
     ) -> Result<(), Error> {
-        for Grant { res, agent, role } in policy.grants.iter() {
-            self.create_agent(agent.as_ref()).await?;
-            self.grant(agent.as_ref(), role, res).await?;
+        for UserRole { user, role } in policy.user_roles.into_iter() {
+            self.grant_agent_role(Some(user), role).await?;
         }
-        for Policy { role, endpoint_group, method } in policy.policies.iter() {
-            self.attach_policy(*role, policy.resource.clone(), endpoint_group, method).await?;
+        for ResGrant { res, agent, role } in policy.res_grants.into_iter() {
+            self.grant_res(agent.as_ref(), role, res).await?;
+        }
+        for RolePermit { role, endpoint_group, method } in policy.role_permits.into_iter() {
+            self.attach_policy(role, policy.resource.clone(), endpoint_group, method).await?;
         }
         Ok(())
     }
@@ -361,7 +356,7 @@ mod test {
             .build()
             .await?;
         // the rules don't actually work without the default
-        assert!(security.grant(Some("admin"), Role::Manager, "/*").await?);
+        assert!(security.grant_res(Some("admin"), Role::Manager, "/*").await?);
         assert!(!security.enforce(Some("admin"), "/exposure/1", "", "GET")?);
         Ok(())
     }
@@ -372,17 +367,17 @@ mod test {
         let not_logged_in: Option<&str> = None;
 
         // admin account has access to every part of the application
-        assert!(security.grant(Some("admin"), Role::Manager, "/*").await?);
+        assert!(security.grant_res(Some("admin"), Role::Manager, "/*").await?);
         // alice is the owner of exposure 1
-        assert!(security.create_agent(Some("alice")).await?);
-        assert!(security.grant(Some("alice"), Role::Owner, "/exposure/1").await?);
+        assert!(security.grant_agent_role(Some("alice"), Role::Reader).await?);
+        assert!(security.grant_res(Some("alice"), Role::Owner, "/exposure/1").await?);
         // bob is the owner of exposure 2
-        assert!(security.create_agent(Some("bob")).await?);
-        assert!(security.grant(Some("bob"), Role::Owner, "/exposure/2").await?);
+        assert!(security.grant_agent_role(Some("bob"), Role::Reader).await?);
+        assert!(security.grant_res(Some("bob"), Role::Owner, "/exposure/2").await?);
         // cathy is the editor of exposure 2
-        assert!(security.grant(Some("cathy"), Role::Editor, "/exposure/2").await?);
+        assert!(security.grant_res(Some("cathy"), Role::Editor, "/exposure/2").await?);
         // create the anonymous agent also
-        assert!(security.create_agent(not_logged_in).await?);
+        assert!(security.grant_agent_role(not_logged_in, Role::Reader).await?);
         // make site root public
         assert!(security.attach_policy(Role::Reader, "/", "", "GET").await?);
         // make /exposure/1 public
@@ -464,11 +459,12 @@ mod test {
         // a rough approximation of a private resource
         security.set_resource_policy(serde_json::from_str(r#"{
             "resource": "/item/1",
-            "grants": [
+            "user_roles": [],
+            "res_grants": [
                 {"res": "/*", "agent": "admin", "role": "Manager"},
                 {"res": "/item/1", "agent": "alice", "role": "Owner"}
             ],
-            "policies": [
+            "role_permits": [
                 {"role": "Owner", "endpoint_group": "edit", "method": "GET"},
                 {"role": "Owner", "endpoint_group": "edit", "method": "POST"}
             ]
@@ -490,15 +486,20 @@ mod test {
     #[tokio::test]
     async fn policy_usage_reviewer() -> anyhow::Result<()> {
         let not_logged_in: Option<&str> = None;
-        // a rough approximation of a resource under review
-        let policy: ResourcePolicy = serde_json::from_str(r#"{
+        // a rough approximation of a resource under review, with reviewer
+        // having **global** access to everything
+        let policy: Policy = serde_json::from_str(r#"{
             "resource": "/item/1",
-            "grants": [
+            "user_roles": [
+                {"user": "reviewer", "role": "Reader"},
+                {"user": "reviewer", "role": "Reviewer"}
+            ],
+            "res_grants": [
                 {"res": "/*", "agent": "reviewer", "role": "Reviewer"},
                 {"res": "/item/1", "agent": "alice", "role": "Owner"}
             ],
-            "policies": [
-                {"role": "Reviewer", "endpoint_group": "grant", "method": "POST"},
+            "role_permits": [
+                {"role": "Reviewer", "endpoint_group": "", "method": "GET"},
                 {"role": "Reviewer", "endpoint_group": "edit", "method": "GET"},
                 {"role": "Reviewer", "endpoint_group": "edit", "method": "POST"}
             ]
@@ -520,6 +521,10 @@ mod test {
         // this wasn't granted globally by the model, so this should have no effect.
         assert!(!security.enforce(Some("reviewer"), "/item/1", "grant", "POST")?);
 
+        assert!(!security.enforce(Some("reviewer"), "/item/2", "", "GET")?);
+        assert!(!security.enforce(Some("reviewer"), "/item/2", "edit", "GET")?);
+        assert!(!security.enforce(Some("reviewer"), "/item/2", "edit", "POST")?);
+
         let security = Builder::new_limited()
             .anonymous_reader(true)
             .resource_policy(policy.clone())
@@ -538,6 +543,50 @@ mod test {
         // this wasn't granted globally by the model, so this should have no effect.
         assert!(!security.enforce(Some("reviewer"), "/item/1", "grant", "POST")?);
 
+        assert!(!security.enforce(Some("reviewer"), "/item/2", "", "GET")?);
+        assert!(!security.enforce(Some("reviewer"), "/item/2", "edit", "GET")?);
+        assert!(!security.enforce(Some("reviewer"), "/item/2", "edit", "POST")?);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn policy_usage_reviewer_unconstrained() -> anyhow::Result<()> {
+        // a rough approximation of a resource under review
+        let policy: Policy = serde_json::from_str(r#"{
+            "resource": "/item/1",
+            "user_roles": [],
+            "res_grants": [
+                {"res": "/*", "agent": "reviewer", "role": "Reviewer"},
+                {"res": "/item/1", "agent": "alice", "role": "Owner"}
+            ],
+            "role_permits": [
+                {"role": "Reviewer", "endpoint_group": "", "method": "GET"},
+                {"role": "Reviewer", "endpoint_group": "edit", "method": "GET"},
+                {"role": "Reviewer", "endpoint_group": "edit", "method": "POST"}
+            ]
+        }"#)?;
+
+
+        let mut security = Builder::new()
+            .anonymous_reader(true)
+            .resource_policy(policy.clone())
+            .build()
+            .await?;
+        // the resource policy doesn't provide additional underlying policies, so this is
+        // manually unconstrained to emulate the default policies defined for editor/manager
+        security.attach_policy(Role::Reviewer, "/*", "", "GET").await?;
+        security.attach_policy(Role::Reviewer, "/*", "edit", "GET").await?;
+        security.attach_policy(Role::Reviewer, "/*", "edit", "POST").await?;
+
+        assert!(security.enforce(Some("reviewer"), "/item/1", "", "GET")?);
+        assert!(security.enforce(Some("reviewer"), "/item/1", "edit", "GET")?);
+        assert!(security.enforce(Some("reviewer"), "/item/1", "edit", "POST")?);
+        // note that /item/2 will also be permitted despite the resource only has /item/1
+        assert!(security.enforce(Some("reviewer"), "/item/2", "", "GET")?);
+        assert!(security.enforce(Some("reviewer"), "/item/2", "edit", "GET")?);
+        assert!(security.enforce(Some("reviewer"), "/item/2", "edit", "POST")?);
+        // anyway, the model may be possible to have further simplification.
         Ok(())
     }
 
@@ -548,11 +597,12 @@ mod test {
             .anonymous_reader(true)
             .resource_policy(serde_json::from_str(r#"{
                 "resource": "/item/1",
-                "grants": [
+                "user_roles": [],
+                "res_grants": [
                     {"res": "/*", "agent": "admin", "role": "Manager"},
                     {"res": "/item/1", "agent": "alice", "role": "Owner"}
                 ],
-                "policies": [
+                "role_permits": [
                     {"role": "Owner", "endpoint_group": "edit", "method": "GET"},
                     {"role": "Reader", "endpoint_group": "", "method": "GET"}
                 ]
@@ -581,11 +631,12 @@ mod test {
             .anonymous_reader(true)
             .resource_policy(serde_json::from_str(r#"{
                 "resource": "/item/1",
-                "grants": [
+                "user_roles": [],
+                "res_grants": [
                     {"res": "/*", "agent": "admin", "role": "Manager"},
                     {"res": "/item/1", "agent": "alice", "role": "Owner"}
                 ],
-                "policies": [
+                "role_permits": [
                     {"role": "Owner", "endpoint_group": "edit", "method": "GET"},
                     {"role": "Reader", "endpoint_group": "", "method": "GET"}
                 ]

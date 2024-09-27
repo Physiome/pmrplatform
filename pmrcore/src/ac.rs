@@ -1,4 +1,5 @@
 pub mod agent;
+pub mod genpolicy;
 pub mod permit;
 pub mod role;
 pub mod traits;

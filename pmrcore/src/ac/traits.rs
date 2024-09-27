@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use crate::error::BackendError;
 use super::{
     agent::Agent,
-    permit::ResourcePolicy,
+    genpolicy::Policy,
     role::Role,
     user::User,
     workflow::State,
@@ -39,13 +39,13 @@ pub trait UserBackend {
 
 #[async_trait]
 pub trait PolicyBackend {
-    async fn grant_role_to_agent(
+    async fn grant_res_role_to_agent(
         &self,
         res: &str,
         agent: &Agent,
         role: Role,
     ) -> Result<(), BackendError>;
-    async fn revoke_role_from_agent(
+    async fn revoke_res_role_from_agent(
         &self,
         res: &str,
         agent: &Agent,
@@ -74,8 +74,9 @@ pub trait ResourceBackend {
         res: &str,
         wf_state: State,
     ) -> Result<(), BackendError>;
-    async fn generate_policy_for_res(
+    async fn generate_policy_for_agent_res(
         &self,
+        agent: &Agent,
         res: String,
-    ) -> Result<ResourcePolicy, BackendError>;
+    ) -> Result<Policy, BackendError>;
 }

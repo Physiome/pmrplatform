@@ -1,7 +1,7 @@
 use pmrcore::{
     ac::{
         agent::Agent,
-        permit::ResourcePolicy,
+        genpolicy::Policy,
         role::Role,
         workflow::State,
     },
@@ -179,26 +179,26 @@ impl Platform {
 // Agent Policy management
 
 impl Platform {
-    pub async fn grant_role_to_agent(
+    pub async fn grant_res_role_to_agent(
         &self,
         res: &str,
         agent: impl Into<Agent>,
         role: Role,
     ) -> Result<(), Error> {
-        Ok(self.ac_platform.grant_role_to_agent(
+        Ok(self.ac_platform.grant_res_role_to_agent(
             res,
             &agent.into(),
             role
         ).await?)
     }
 
-    pub async fn revoke_role_from_agent(
+    pub async fn revoke_res_role_from_agent(
         &self,
         res: &str,
         agent: impl Into<Agent>,
         role: Role,
     ) -> Result<(), Error> {
-        Ok(self.ac_platform.revoke_role_from_agent(
+        Ok(self.ac_platform.revoke_res_role_from_agent(
             res,
             &agent.into(),
             role,
@@ -250,12 +250,14 @@ impl Platform {
         ).await?)
     }
 
-    pub async fn generate_policy_for_res(
+    pub async fn generate_policy_for_agent_res(
         &self,
+        agent: &Agent,
         res: String,
-    ) -> Result<ResourcePolicy, Error> {
-        Ok(self.ac_platform.generate_policy_for_res(
-            res
+    ) -> Result<Policy, Error> {
+        Ok(self.ac_platform.generate_policy_for_agent_res(
+            agent,
+            res,
         ).await?)
     }
 }
@@ -270,13 +272,17 @@ impl Platform {
         endpoint_group: impl AsRef<str>,
         http_method: &str,
     ) -> Result<bool, Error> {
+        let agent = agent.into();
         Ok(self.pmrrbac_builder
             .build_with_resource_policy(
-                self.generate_policy_for_res(res.to_string()).await?,
+                self.generate_policy_for_agent_res(
+                    &agent,
+                    res.to_string(),
+                ).await?,
             )
             .await?
             .enforce(
-                <Agent as Into<Option<String>>>::into(agent.into()),
+                <Agent as Into<Option<String>>>::into(agent),
                 res,
                 endpoint_group,
                 http_method,

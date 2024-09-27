@@ -26,12 +26,27 @@ CREATE TABLE IF NOT EXISTS user_password (
 -- old passwords when reset.
 CREATE INDEX IF NOT EXISTS user_password__user_id ON user_email(user_id);
 
--- This would group the grants for a given resource for the rbac model
--- if we really want this to be very robust, the role will be an
--- identifier, there would be annotations associating the role name to
--- the role id and then the end points may also associate, but that's
--- too complicated for what we are currently doing, so a simple
--- descriptive string token will suffice for now.
+-- This provides a user with the given role that only becomes active for
+-- any given resource at a workflow state where the role is enabled for
+-- the specific combination of endpoint_group and http method.
+--
+-- In effect, this grants the user the specific role in the system, and
+-- the system will only grant this role to the user for applicable
+-- resources.
+CREATE TABLE IF NOT EXISTS user_role (
+    id INTEGER PRIMARY KEY NOT NULL,
+    user_id INTEGER,
+    role TEXT NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES 'user'(id)
+);
+CREATE INDEX IF NOT EXISTS user_role__user_id ON user_role(user_id);
+
+-- This grants the user a specific role at the resource.  Currently, the
+-- role is a enum encoded in the underlying application; a future
+-- refinement may allow this to be fully user definable.  The grant will
+-- be applied through the Casbin model that implements a form of RBAC
+-- when used in conjunction with the workflow policy and the resource
+-- state.
 CREATE TABLE IF NOT EXISTS res_grant (
     id INTEGER PRIMARY KEY NOT NULL,
     res TEXT NOT NULL,

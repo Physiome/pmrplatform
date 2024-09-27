@@ -1,4 +1,5 @@
 use pmrcore::ac::{
+    agent::Agent,
     role::Role,
     workflow::State,
 };
@@ -141,8 +142,8 @@ async fn policy() -> anyhow::Result<()> {
     let state = State::Private;
     let role = Role::Manager;
 
-    platform.grant_role_to_agent("/", &user, role).await?;
-    platform.revoke_role_from_agent("/", &user, role).await?;
+    platform.grant_res_role_to_agent("/", &user, role).await?;
+    platform.revoke_res_role_from_agent("/", &user, role).await?;
     platform.assign_policy_to_wf_state(state, role, "", "GET").await?;
     platform.remove_policy_from_wf_state(state, role, "", "GET").await?;
 
@@ -155,12 +156,12 @@ async fn resource_wf_state() -> anyhow::Result<()> {
     let admin = platform.create_user("admin").await?;
     let user = platform.create_user("test_user").await?;
 
-    platform.grant_role_to_agent(
+    platform.grant_res_role_to_agent(
         "/*",
         admin,
         Role::Manager,
     ).await?;
-    platform.grant_role_to_agent(
+    platform.grant_res_role_to_agent(
         "/item/1",
         user,
         Role::Owner,
@@ -195,16 +196,18 @@ async fn resource_wf_state() -> anyhow::Result<()> {
         State::Private,
     ).await?;
 
-    let mut policy = platform.generate_policy_for_res("/item/1".into()).await?;
-    policy.grants.sort_unstable();
-    policy.policies.sort_unstable();
+    let mut policy = platform.generate_policy_for_agent_res(&Agent::Anonymous, "/item/1".into()).await?;
+    policy.res_grants.sort_unstable();
+    policy.role_permits.sort_unstable();
     assert_eq!(policy, serde_json::from_str(r#"{
         "resource": "/item/1",
-        "grants": [
+        "user_roles": [
+        ],
+        "res_grants": [
             {"res": "/*", "agent": "admin", "role": "Manager"},
             {"res": "/item/1", "agent": "test_user", "role": "Owner"}
         ],
-        "policies": [
+        "role_permits": [
             {"role": "Owner", "endpoint_group": "edit", "method": "GET"},
             {"role": "Owner", "endpoint_group": "edit", "method": "POST"}
         ]
@@ -214,16 +217,18 @@ async fn resource_wf_state() -> anyhow::Result<()> {
         "/item/1",
         State::Published,
     ).await?;
-    let mut policy = platform.generate_policy_for_res("/item/1".into()).await?;
-    policy.grants.sort_unstable();
-    policy.policies.sort_unstable();
+    let mut policy = platform.generate_policy_for_agent_res(&Agent::Anonymous, "/item/1".into()).await?;
+    policy.res_grants.sort_unstable();
+    policy.role_permits.sort_unstable();
     assert_eq!(policy, serde_json::from_str(r#"{
         "resource": "/item/1",
-        "grants": [
+        "user_roles": [
+        ],
+        "res_grants": [
             {"res": "/*", "agent": "admin", "role": "Manager"},
             {"res": "/item/1", "agent": "test_user", "role": "Owner"}
         ],
-        "policies": [
+        "role_permits": [
             {"role": "Owner", "endpoint_group": "edit", "method": "GET"},
             {"role": "Reader", "endpoint_group": "", "method": "GET"}
         ]
@@ -249,21 +254,21 @@ async fn policy_enforcement() -> anyhow::Result<()> {
 
     let admin = platform.create_user("admin").await?;
     admin.reset_password("admin", "admin").await?;
-    platform.grant_role_to_agent("/*", admin, Role::Manager).await?;
+    platform.grant_res_role_to_agent("/*", admin, Role::Manager).await?;
 
     let reviewer = platform.create_user("reviewer").await?;
     reviewer.reset_password("reviewer", "reviewer").await?;
     // this makes the reviewer being able to review globally
-    // platform.grant_role_to_agent("/*", &reviewer, Role::Reviewer).await?;
+    // platform.grant_res_role_to_agent("/*", &reviewer, Role::Reviewer).await?;
     // we need something actually
     // Or is this something that can be expressed with casbin as part of the base model/policy?
     // platform.enable_role_at_state_for_resource(Role::Reviewer, State::Pending, "/*").await?;
-    platform.grant_role_to_agent("/profile/reviewer", reviewer, Role::Owner).await?;
+    platform.grant_res_role_to_agent("/profile/reviewer", reviewer, Role::Owner).await?;
     platform.set_wf_state_for_res("/profile/reviewer", State::Private).await?;
 
     let user = platform.create_user("user").await?;
     user.reset_password("user", "user").await?;
-    platform.grant_role_to_agent("/profile/user", user, Role::Owner).await?;
+    platform.grant_res_role_to_agent("/profile/user", user, Role::Owner).await?;
     platform.set_wf_state_for_res("/profile/user", State::Private).await?;
 
     let admin = platform.authenticate_user("admin", "admin").await?;
@@ -275,7 +280,7 @@ async fn policy_enforcement() -> anyhow::Result<()> {
     assert!(!platform.enforce(&reviewer, "/profile/user", "", "GET").await?);
 
     // create content owned by user
-    platform.grant_role_to_agent("/news/post/1", &user, Role::Owner).await?;
+    platform.grant_res_role_to_agent("/news/post/1", &user, Role::Owner).await?;
 
     // editable by the user while private
     platform.set_wf_state_for_res("/news/post/1", State::Private).await?;
@@ -289,7 +294,7 @@ async fn policy_enforcement() -> anyhow::Result<()> {
     // moment, rather than the role in a more general way
     // That said, this address the use case for assigning _specific_ reviewer for the
     // task and they will have the rights required
-    platform.grant_role_to_agent("/news/post/1", &reviewer, Role::Reviewer).await?;
+    platform.grant_res_role_to_agent("/news/post/1", &reviewer, Role::Reviewer).await?;
 
     assert!(platform.enforce(&admin, "/news/post/1", "edit", "POST").await?);
     assert!(!platform.enforce(&user, "/news/post/1", "edit", "POST").await?);

@@ -13,7 +13,7 @@ use crate::{
     backend::db::SqliteBackend,
 };
 
-async fn grant_role_to_agent_sqlite(
+async fn grant_res_role_to_agent_sqlite(
     backend: &SqliteBackend,
     res: &str,
     agent: &Agent,
@@ -40,7 +40,7 @@ VALUES ( ?1, ?2, ?3 )
     Ok(())
 }
 
-async fn revoke_role_from_agent_sqlite(
+async fn revoke_res_role_from_agent_sqlite(
     backend: &SqliteBackend,
     res: &str,
     agent: &Agent,
@@ -127,13 +127,13 @@ WHERE
 
 #[async_trait]
 impl PolicyBackend for SqliteBackend {
-    async fn grant_role_to_agent(
+    async fn grant_res_role_to_agent(
         &self,
         res: &str,
         agent: &Agent,
         role: Role,
     ) -> Result<(), BackendError> {
-        grant_role_to_agent_sqlite(
+        grant_res_role_to_agent_sqlite(
             &self,
             res,
             agent,
@@ -141,13 +141,13 @@ impl PolicyBackend for SqliteBackend {
         ).await
     }
 
-    async fn revoke_role_from_agent(
+    async fn revoke_res_role_from_agent(
         &self,
         res: &str,
         agent: &Agent,
         role: Role,
     ) -> Result<(), BackendError> {
-        revoke_role_from_agent_sqlite(
+        revoke_res_role_from_agent_sqlite(
             &self,
             res,
             agent,
@@ -214,8 +214,8 @@ pub(crate) mod testing {
         let agent: Agent = UserBackend::get_user_by_id(&backend, user_id).await?.into();
         let state = State::Published;
         let role = Role::Reader;
-        PolicyBackend::grant_role_to_agent(&backend, "/", &agent, role).await?;
-        PolicyBackend::revoke_role_from_agent(&backend, "/", &agent, role).await?;
+        PolicyBackend::grant_res_role_to_agent(&backend, "/", &agent, role).await?;
+        PolicyBackend::revoke_res_role_from_agent(&backend, "/", &agent, role).await?;
         PolicyBackend::assign_policy_to_wf_state(&backend, state, role, "", "GET").await?;
         PolicyBackend::remove_policy_from_wf_state(&backend, state, role, "", "GET").await?;
         Ok(())
