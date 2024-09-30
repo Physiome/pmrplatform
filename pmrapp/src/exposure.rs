@@ -42,7 +42,7 @@ use crate::app::portlet::{
 };
 
 #[component]
-pub fn ExposureRoutes() -> impl MatchNestedRoutes<Dom> + Clone {
+pub fn ExposureRoutes() -> impl MatchNestedRoutes + Clone {
     let ssr = SsrMode::Async;
     view! {
         <ParentRoute path=StaticSegment("/exposure") view=ExposureRoot ssr>

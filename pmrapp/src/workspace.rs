@@ -40,7 +40,7 @@ use crate::app::portlet::{
 };
 
 #[component]
-pub fn WorkspaceRoutes() -> impl MatchNestedRoutes<Dom> + Clone {
+pub fn WorkspaceRoutes() -> impl MatchNestedRoutes + Clone {
     let ssr = SsrMode::Async;
     view! {
         <ParentRoute path=StaticSegment("/workspace") view=WorkspaceRoot ssr>
