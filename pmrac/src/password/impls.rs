@@ -11,11 +11,27 @@ use argon2::{
 use std::fmt;
 
 use crate::error::PasswordError;
-use super::Password;
+use super::{
+    Password,
+    PasswordStatus,
+};
 
 impl fmt::Display for Password<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(self, f)
+    }
+}
+
+impl From<Password<'_>> for PasswordStatus {
+    fn from(val: Password<'_>) -> Self {
+        match val {
+            Password::Misconfigured => PasswordStatus::Misconfigured,
+            Password::New => PasswordStatus::New,
+            Password::Reset => PasswordStatus::Reset,
+            Password::Restricted => PasswordStatus::Restricted,
+            Password::Hash(_) => PasswordStatus::Hash,
+            Password::Raw(_) => PasswordStatus::Raw,
+        }
     }
 }
 

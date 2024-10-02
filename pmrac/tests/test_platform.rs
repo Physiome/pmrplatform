@@ -9,7 +9,10 @@ use pmrac::{
         Error,
         PasswordError,
     },
-    password::Password,
+    password::{
+        Password,
+        PasswordStatus,
+    },
     platform::Builder,
 };
 use pmrrbac::Builder as PmrRbacBuilder;
@@ -35,6 +38,9 @@ async fn basic_lifecycle(purge: bool) -> anyhow::Result<()> {
         Err(Error::Password(e)) if e == PasswordError::NotVerifiable,
     ));
 
+    let (_, password) = platform.login_status("admin").await?;
+    assert!(matches!(password, PasswordStatus::New));
+
     assert!(matches!(
         admin.reset_password(
             "hunter2",
@@ -55,6 +61,8 @@ async fn basic_lifecycle(purge: bool) -> anyhow::Result<()> {
     ));
 
     assert!(platform.verify_user_id_password(admin.id(), "hunter2").await.is_ok());
+    let (_, password) = platform.login_status("admin").await?;
+    assert!(matches!(password, PasswordStatus::Hash));
 
     assert!(matches!(
         admin.update_password(
@@ -84,6 +92,10 @@ async fn basic_lifecycle(purge: bool) -> anyhow::Result<()> {
     assert!(platform.authenticate_user("admin", "Password").await.is_ok());
 
     platform.force_user_id_password(admin.id(), Password::Reset).await?;
+    assert!(!platform.authenticate_user("admin", "Password").await.is_ok());
+
+    let (_, password) = platform.login_status("admin").await?;
+    assert!(matches!(password, PasswordStatus::Reset));
 
     assert!(matches!(
         platform.verify_user_id_password(
@@ -92,6 +104,9 @@ async fn basic_lifecycle(purge: bool) -> anyhow::Result<()> {
         ).await,
         Err(Error::Password(e)) if e == PasswordError::NotVerifiable,
     ));
+
+    platform.force_user_id_password(admin.id(), Password::new("resetted")).await?;
+    assert!(platform.verify_user_id_password(admin.id(), "resetted").await.is_ok());
 
     Ok(())
 }

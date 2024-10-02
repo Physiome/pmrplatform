@@ -2,15 +2,16 @@ use clap::{
     Parser,
     Subcommand,
 };
-use pmrac::platform::{
-    Builder,
-    Platform,
-};
-use pmrmodel::{
-    backend::db::{
-        MigrationProfile,
-        SqliteBackend,
+use pmrac::{
+    password::Password,
+    platform::{
+        Builder as PlatformBuilder,
+        Platform,
     },
+};
+use pmrmodel::backend::db::{
+    MigrationProfile,
+    SqliteBackend,
 };
 use pmrrbac::Builder as PmrRbacBuilder;
 use sqlx::{
@@ -44,6 +45,27 @@ enum UserCmd {
     Create {
         name: String,
     },
+    #[command(arg_required_else_help = true)]
+    Password {
+        name: String,
+        #[command(subcommand)]
+        cmd: PasswordCmd,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum PasswordCmd {
+    /// Reports the status of the password
+    Check,
+    /// Force a password reset
+    Reset,
+    /// Restrict the user account
+    Restrict,
+    #[command(arg_required_else_help = true)]
+    /// Sets the password for the user
+    Set {
+        password: String,
+    },
 }
 
 #[tokio::main]
@@ -61,7 +83,7 @@ async fn main() -> anyhow::Result<()> {
         log::warn!("pmrac database {} does not exist; creating...", &args.pmrac_db_url);
         Sqlite::create_database(&args.pmrac_db_url).await?
     }
-    let platform = Builder::new()
+    let platform = PlatformBuilder::new()
         .ac_platform(
             SqliteBackend::from_url(&args.pmrac_db_url)
                 .await?
@@ -90,6 +112,38 @@ async fn parse_user<'p>(
             let id = user.id();
             let name = user.name();
             println!("user {name:?} created with id {id}");
+        }
+        UserCmd::Password { name, cmd } => {
+            parse_password(&platform, name, cmd).await?
+        }
+    }
+    Ok(())
+}
+
+async fn parse_password<'p>(
+    platform: &'p Platform,
+    login: String,
+    arg: PasswordCmd,
+) -> anyhow::Result<()> {
+    match arg {
+        PasswordCmd::Check => {
+            let (_, status) = platform.login_status(&login).await?;
+            println!("user's password status: {status:?}");
+        }
+        PasswordCmd::Reset => {
+            let (user, _) = platform.login_status(&login).await?;
+            platform.force_user_id_password(user.id, Password::Reset).await?;
+            println!("forced password reset for {login} on their next login");
+        }
+        PasswordCmd::Restrict => {
+            let (user, _) = platform.login_status(&login).await?;
+            platform.force_user_id_password(user.id, Password::Restricted).await?;
+            println!("restricted account for {login}");
+        }
+        PasswordCmd::Set { password } => {
+            let (user, _) = platform.login_status(&login).await?;
+            platform.force_user_id_password(user.id, Password::new(&password)).await?;
+            println!("updated password for user {login}");
         }
     }
     Ok(())

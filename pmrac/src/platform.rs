@@ -18,7 +18,10 @@ use crate::{
         PasswordError,
     },
     user::User,
-    password::Password,
+    password::{
+        Password,
+        PasswordStatus,
+    },
 };
 
 #[derive(Clone, Default)]
@@ -115,6 +118,21 @@ impl<'a> Platform {
         let user = self.ac_platform.get_user_by_name(login).await?;
         self.verify_user_id_password(user.id, password).await?;
         Ok(User::new(self, user))
+    }
+
+    pub async fn login_status(
+        &self,
+        login: &str,
+    ) -> Result<(user::User, PasswordStatus), Error> {
+        // TODO login can be email also
+        // TODO should report this error better, e.g. need an enum for user not exist
+        let user = self.ac_platform.get_user_by_name(login).await?;
+        let result = self.ac_platform.get_user_password(user.id).await;
+        let password = result
+            .as_deref()
+            .map(Password::from_database)
+            .unwrap_or(Password::Misconfigured);
+        Ok((user, password.into()))
     }
 }
 

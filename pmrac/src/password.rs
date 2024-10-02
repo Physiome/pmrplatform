@@ -12,4 +12,15 @@ pub enum Password<'a> {
     Raw(&'a str),
 }
 
+#[non_exhaustive]
+#[derive(Clone, Debug)]
+pub enum PasswordStatus {
+    Misconfigured,
+    New,
+    Reset,
+    Restricted,
+    Hash,
+    Raw,
+}
+
 mod impls;
