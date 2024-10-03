@@ -34,12 +34,12 @@ impl FromStr for Role {
     type Err = ValueError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "Manager" => Ok(Role::Manager),
-            "Owner" => Ok(Role::Owner),
-            "Editor" => Ok(Role::Editor),
-            "Reviewer" => Ok(Role::Reviewer),
-            "Reader" => Ok(Role::Reader),
+        match s.to_ascii_lowercase().as_ref() {
+            "manager" => Ok(Role::Manager),
+            "owner" => Ok(Role::Owner),
+            "editor" => Ok(Role::Editor),
+            "reviewer" => Ok(Role::Reviewer),
+            "reader" => Ok(Role::Reader),
             // Undefined,
             s => Err(ValueError::Unsupported(s.to_string())),
         }

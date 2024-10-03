@@ -9,6 +9,7 @@ use pmrac::{
         Platform,
     },
 };
+use pmrcore::ac::role::Role;
 use pmrmodel::backend::db::{
     MigrationProfile,
     SqliteBackend,
@@ -18,6 +19,7 @@ use sqlx::{
     Sqlite,
     migrate::MigrateDatabase,
 };
+use std::str::FromStr;
 
 #[derive(Debug, Parser)]
 struct Cli {
@@ -36,6 +38,17 @@ enum Commands {
     User {
         #[command(subcommand)]
         cmd: UserCmd,
+    },
+    #[command(arg_required_else_help = true)]
+    Role {
+        #[command(subcommand)]
+        cmd: RoleCmd,
+    },
+    #[command(arg_required_else_help = true)]
+    Resource {
+        resource: String,
+        #[command(subcommand)]
+        cmd: ResourceCmd,
     },
 }
 
@@ -68,6 +81,29 @@ enum PasswordCmd {
     },
 }
 
+#[derive(Debug, Subcommand)]
+enum RoleCmd {
+    #[command(arg_required_else_help = true)]
+    Grant {
+        login: String,
+        role: String,
+    },
+    #[command(arg_required_else_help = true)]
+    Revoke {
+        login: String,
+        role: String,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum ResourceCmd {
+    #[command(arg_required_else_help = true)]
+    Role {
+        #[command(subcommand)]
+        cmd: RoleCmd,
+    },
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
@@ -96,6 +132,12 @@ async fn main() -> anyhow::Result<()> {
     match args.command {
         Commands::User { cmd } => {
             parse_user(&platform, cmd).await?;
+        },
+        Commands::Role { cmd } => {
+            parse_role(&platform, cmd).await?;
+        },
+        Commands::Resource { resource, cmd } => {
+            parse_resource(&platform, resource, cmd).await?;
         },
     }
 
@@ -144,6 +186,62 @@ async fn parse_password<'p>(
             let (user, _) = platform.login_status(&login).await?;
             platform.force_user_id_password(user.id, Password::new(&password)).await?;
             println!("updated password for user {login}");
+        }
+    }
+    Ok(())
+}
+
+async fn parse_role<'p>(
+    platform: &'p Platform,
+    arg: RoleCmd,
+) -> anyhow::Result<()> {
+    match arg {
+        RoleCmd::Grant { login, role } => {
+            let (user, _) = platform.login_status(&login).await?;
+            let role = Role::from_str(&role)?;
+            platform.grant_role_to_user(user, role).await?;
+            println!("role {role} granted to {login}");
+        }
+        RoleCmd::Revoke { login, role } => {
+            let (user, _) = platform.login_status(&login).await?;
+            let role = Role::from_str(&role)?;
+            platform.revoke_role_from_user(user, role).await?;
+            println!("role {role} revoked from {login}");
+        }
+    }
+    Ok(())
+}
+
+async fn parse_resource<'p>(
+    platform: &'p Platform,
+    resource: String,
+    arg: ResourceCmd,
+) -> anyhow::Result<()> {
+    match arg {
+        ResourceCmd::Role { cmd } => {
+            parse_resource_role(&platform, resource, cmd).await?
+        }
+    }
+    Ok(())
+}
+
+async fn parse_resource_role<'p>(
+    platform: &'p Platform,
+    resource: String,
+    arg: RoleCmd,
+) -> anyhow::Result<()> {
+    match arg {
+        RoleCmd::Grant { login, role } => {
+            let (user, _) = platform.login_status(&login).await?;
+            let role = Role::from_str(&role)?;
+            platform.grant_res_role_to_agent(&resource, user, role).await?;
+            println!("role {role} granted to {login} for resource {resource}");
+        }
+        RoleCmd::Revoke { login, role } => {
+            let (user, _) = platform.login_status(&login).await?;
+            let role = Role::from_str(&role)?;
+            platform.revoke_res_role_from_agent(&resource, user, role).await?;
+            println!("role {role} revoked from {login} for resource {resource}");
         }
     }
     Ok(())
