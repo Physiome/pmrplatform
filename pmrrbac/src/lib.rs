@@ -52,55 +52,55 @@ m = (g(r.sub, p.sub, r.res) || g(r.sub, p.sub, p.res) || g2(r.sub, p.sub)) && ke
 /// HTTP method - the permitted HTTP method associated with the policy
 const DEFAULT_POLICIES: &str = "\
 # Managers can do everything
-Manager, /*, *, GET
-Manager, /*, *, POST
+manager, /*, *, GET
+manager, /*, *, POST
 
-# Readers have limited access; this should be granted per resource
-# Reader, /*, , GET
-# Reader, /*, protocol, GET
+# readers have limited access; this should be granted per resource
+# reader, /*, , GET
+# reader, /*, protocol, GET
 
-# Owners have everything, including granted access
-Owner, /*, , GET           # empty group signifies typical actions (e.g. view)
-Owner, /*, edit, GET       # edit signifies being able to edit content (e.g. exposure wizard)
-Owner, /*, edit, POST      # this may be removed to prevent published content being edited
-Owner, /*, grant, GET      # grant signifies being able to grant additional access
-Owner, /*, grant, POST
-Owner, /*, protocol, GET   # protocol signifies git clone/etc
-Owner, /*, protocol, POST
+# owners have everything, including granted access
+owner, /*, , GET           # empty group signifies typical actions (e.g. view)
+owner, /*, edit, GET       # edit signifies being able to edit content (e.g. exposure wizard)
+owner, /*, edit, POST      # this may be removed to prevent published content being edited
+owner, /*, grant, GET      # grant signifies being able to grant additional access
+owner, /*, grant, POST
+owner, /*, protocol, GET   # protocol signifies git clone/etc
+owner, /*, protocol, POST
 
-# Editors have everything, can see grants but cannot grant additional access to others
-Editor, /*, , GET           # empty group signifies typical actions (e.g. view)
-Editor, /*, edit, GET
-Editor, /*, edit, POST
-Editor, /*, grant, GET
-Editor, /*, protocol, GET
-Editor, /*, protocol, POST
+# editors have everything, can see grants but cannot grant additional access to others
+editor, /*, , GET           # empty group signifies typical actions (e.g. view)
+editor, /*, edit, GET
+editor, /*, edit, POST
+editor, /*, grant, GET
+editor, /*, protocol, GET
+editor, /*, protocol, POST
 ";
 
 /// An alternative policy
 ///
 /// This one prevents article owners from being able to edit content after publication
 const ALT_POLICIES: &str = "\
-# Managers can do everything
-Manager, /*, *, GET
-Manager, /*, *, POST
+# managers can do everything
+manager, /*, *, GET
+manager, /*, *, POST
 
-# Owners have everything, including granted access
-Owner, /*, , GET           # empty group signifies typical actions (e.g. view)
-Owner, /*, edit, GET       # edit signifies being able to edit content (e.g. exposure wizard)
-# Owner, /*, edit, POST    # removing this prevents owners from being able to edit by default
-Owner, /*, grant, GET      # grant signifies being able to grant additional access
-Owner, /*, grant, POST     # note that the implementation may need to figure out who's granting what
-Owner, /*, protocol, GET   # protocol signifies git clone/etc
-Owner, /*, protocol, POST
+# owners have everything, including granted access
+owner, /*, , GET           # empty group signifies typical actions (e.g. view)
+owner, /*, edit, GET       # edit signifies being able to edit content (e.g. exposure wizard)
+# owner, /*, edit, POST    # removing this prevents owners from being able to edit by default
+owner, /*, grant, GET      # grant signifies being able to grant additional access
+owner, /*, grant, POST     # note that the implementation may need to figure out who's granting what
+owner, /*, protocol, GET   # protocol signifies git clone/etc
+owner, /*, protocol, POST
 
-# Editors have everything, can see grants but cannot grant additional access to others
-Editor, /*, , GET           # empty group signifies typical actions (e.g. view)
-Editor, /*, edit, GET
-Editor, /*, edit, POST
-Editor, /*, grant, GET
-Editor, /*, protocol, GET
-Editor, /*, protocol, POST
+# editors have everything, can see grants but cannot grant additional access to others
+editor, /*, , GET           # empty group signifies typical actions (e.g. view)
+editor, /*, edit, GET
+editor, /*, edit, POST
+editor, /*, grant, GET
+editor, /*, protocol, GET
+editor, /*, protocol, POST
 ";
 
 /// Builds a role-based access controller (RBAC) for PMR.

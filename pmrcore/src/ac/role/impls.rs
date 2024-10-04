@@ -7,7 +7,7 @@ use super::Role;
 
 impl fmt::Display for Role {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(self, f)
+        write!(f, "{}", <&'static str>::from(*self))
     }
 }
 
@@ -20,12 +20,12 @@ impl From<Role> for String {
 impl From<Role> for &'static str {
     fn from(role: Role) -> &'static str {
         match role {
-            Role::Manager => "Manager",
-            Role::Owner => "Owner",
-            Role::Editor => "Editor",
-            Role::Reviewer => "Reviewer",
-            Role::Reader => "Reader",
-            Role::Undefined => "Undefined",
+            Role::Manager => "manager",
+            Role::Owner => "owner",
+            Role::Editor => "editor",
+            Role::Reviewer => "reviewer",
+            Role::Reader => "reader",
+            Role::Undefined => "undefined",
         }
     }
 }
@@ -81,13 +81,13 @@ mod test {
     #[test]
     fn smoke() -> anyhow::Result<()> {
         // sample of standard conversions
-        assert_eq!(Role::Manager.to_string(), "Manager");
-        assert_eq!(Role::Manager, Role::from_str("Manager")?);
-        assert_eq!(Role::Owner.to_string(), "Owner");
-        assert_eq!(Role::Owner, Role::from_str("Owner")?);
+        assert_eq!(Role::Manager.to_string(), "manager");
+        assert_eq!(Role::Manager, Role::from_str("manager")?);
+        assert_eq!(Role::Owner.to_string(), "owner");
+        assert_eq!(Role::Owner, Role::from_str("owner")?);
 
         // error conversion
-        assert!(Role::from_str("Undefined").is_err());
+        assert!(Role::from_str("undefined").is_err());
         assert!(matches!(
             Role::from_str("no_such_role")
                 .expect_err("should be an error"),
