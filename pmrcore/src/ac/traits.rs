@@ -79,6 +79,14 @@ pub trait PolicyBackend {
 
 #[async_trait]
 pub trait ResourceBackend {
+    async fn get_res_grants(
+        &self,
+        res: &str,
+    ) -> Result<Vec<(Agent, Role)>, BackendError>;
+    async fn get_wf_state_for_res(
+        &self,
+        res: &str,
+    ) -> Result<State, BackendError>;
     async fn set_wf_state_for_res(
         &self,
         res: &str,

@@ -10,6 +10,7 @@ use pmrcore::{
         },
         role::Role,
         traits::ResourceBackend,
+        user::User,
         workflow::State,
     },
     error::BackendError,
@@ -19,6 +20,61 @@ use std::str::FromStr;
 use crate::{
     backend::db::SqliteBackend,
 };
+
+async fn get_res_grants_sqlite(
+    backend: &SqliteBackend,
+    res: &str,
+) -> Result<Vec<(Agent, Role)>, BackendError> {
+    let results = sqlx::query!(
+        r#"
+SELECT
+    'user'.id as id,
+    'user'.name as name,
+    'user'.created_ts as created_ts,
+    res_grant.role AS role
+FROM
+    res_grant
+LEFT JOIN
+    'user' ON res_grant.user_id == 'user'.id
+WHERE
+    res = ?1
+        "#,
+        res,
+    )
+    .map(|row| (
+        Agent::User(User {
+            id: row.id,
+            name: row.name,
+            created_ts: row.created_ts,
+        }),
+        Role::from_str(&row.role).unwrap_or(Role::default()),
+    ))
+    .fetch_all(&*backend.pool)
+    .await?;
+    Ok(results)
+}
+
+async fn get_wf_state_for_res_sqlite(
+    backend: &SqliteBackend,
+    res: &str,
+) -> Result<State, BackendError> {
+    let state = sqlx::query!(
+        r#"
+SELECT
+    state
+FROM
+    res_wf_state
+WHERE
+    res = ?1
+        "#,
+        res,
+    )
+        .map(|row| State::from_str(&row.state).unwrap_or(State::default()))
+        .fetch_one(&*backend.pool)
+        .await
+        .unwrap_or(State::Unknown);
+    Ok(state)
+}
 
 async fn set_wf_state_for_res_sqlite(
     backend: &SqliteBackend,
@@ -139,6 +195,26 @@ WHERE
 
 #[async_trait]
 impl ResourceBackend for SqliteBackend {
+    async fn get_res_grants(
+        &self,
+        res: &str,
+    ) -> Result<Vec<(Agent, Role)>, BackendError> {
+        get_res_grants_sqlite(
+            &self,
+            res,
+        ).await
+    }
+
+    async fn get_wf_state_for_res(
+        &self,
+        res: &str,
+    ) -> Result<State, BackendError> {
+        get_wf_state_for_res_sqlite(
+            &self,
+            res,
+        ).await
+    }
+
     async fn set_wf_state_for_res(
         &self,
         res: &str,

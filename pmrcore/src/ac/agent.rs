@@ -7,4 +7,6 @@ pub enum Agent {
     User(User),
 }
 
+#[cfg(feature = "display")]
+mod display;
 mod impls;

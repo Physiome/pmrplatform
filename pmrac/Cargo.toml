@@ -32,6 +32,7 @@ bin = [
     "clap",
     "dotenvy",
     "pmrcore/clap",
+    "pmrcore/display",
     "pmrmodel",
     "sqlx",
     "stderrlog",

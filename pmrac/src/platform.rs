@@ -246,6 +246,15 @@ impl Platform {
         ).await?)
     }
 
+    pub async fn get_res_grants(
+        &self,
+        res: &str,
+    ) -> Result<Vec<(Agent, Role)>, Error> {
+        Ok(self.ac_platform.get_res_grants(
+            res,
+        ).await?)
+    }
+
     pub async fn assign_policy_to_wf_state(
         &self,
         wf_state: State,
@@ -280,6 +289,15 @@ impl Platform {
 // Resource management
 
 impl Platform {
+    pub async fn get_wf_state_for_res(
+        &self,
+        res: &str,
+    ) -> Result<State, Error> {
+        Ok(self.ac_platform.get_wf_state_for_res(
+            res,
+        ).await?)
+    }
+
     pub async fn set_wf_state_for_res(
         &self,
         res: &str,

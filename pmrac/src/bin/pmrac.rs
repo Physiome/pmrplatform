@@ -112,7 +112,8 @@ enum ResourceCmd {
     State {
         #[arg(value_enum)]
         state: State,
-    }
+    },
+    Status,
 }
 
 #[tokio::main]
@@ -233,6 +234,14 @@ async fn parse_resource<'p>(
         ResourceCmd::State { state } => {
             platform.set_wf_state_for_res(&resource, state).await?;
             println!("workflow state for resource {resource} set to {state}");
+        }
+        ResourceCmd::Status => {
+            let state = platform.get_wf_state_for_res(&resource).await?;
+            println!("workflow state for resource {resource} is: {state}");
+            let res_grants = platform.get_res_grants(&resource).await?;
+            for (agent, role) in res_grants.into_iter() {
+                println!("{agent} granted role {role}");
+            }
         }
     }
     Ok(())

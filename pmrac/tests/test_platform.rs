@@ -214,10 +214,12 @@ async fn resource_wf_state() -> anyhow::Result<()> {
         "GET",
     ).await?;
 
+    assert_eq!(State::Unknown, platform.get_wf_state_for_res("/item/1",).await?);
     platform.set_wf_state_for_res(
         "/item/1",
         State::Private,
     ).await?;
+    assert_eq!(State::Private, platform.get_wf_state_for_res("/item/1",).await?);
 
     let mut policy = platform.generate_policy_for_agent_res(&Agent::Anonymous, "/item/1".into()).await?;
     policy.res_grants.sort_unstable();
@@ -338,6 +340,10 @@ async fn policy_enforcement() -> anyhow::Result<()> {
     // since they were never granted the general reader role, they won't be able to read
     // the welcome page either...
     assert!(!platform.enforce(&restricted_reviewer, "/welcome", "", "GET").await?);
+
+    let res_grants = platform.get_res_grants("/news/post/1").await?;
+    assert!(matches!(&res_grants[0].0, Agent::User(user) if user.name == "user"));
+    assert!(matches!(&res_grants[0].1, Role::Owner));
 
     Ok(())
 }
