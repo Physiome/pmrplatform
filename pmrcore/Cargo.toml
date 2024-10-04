@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 async-trait = "0.1.50"
 chrono = { version = "0.4", optional = true }
+clap = { version = "4.2", features = [ "derive", "env" ], optional = true }
 gix = { version = "^0.58", optional = true }
 log = { version = "0.4" }
 mime_guess = { version = "2.0.4", optional = true }
@@ -27,6 +28,7 @@ test-binary = "3.0.2"
 test-pmr = { path = "../testing" }
 
 [features]
+clap = ["dep:clap"]
 git = ["dep:gix", "dep:mime_guess"]
 display = ["dep:chrono"]
 sqlx = ["dep:sqlx"]

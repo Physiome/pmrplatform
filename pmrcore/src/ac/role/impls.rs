@@ -46,6 +46,32 @@ impl FromStr for Role {
     }
 }
 
+#[cfg(feature = "clap")]
+mod clap {
+    use ::clap::{
+        ValueEnum,
+        builder::PossibleValue,
+    };
+    use super::*;
+
+    impl ValueEnum for Role {
+        fn value_variants<'a>() -> &'a [Self] {
+            &[Role::Manager, Role::Owner, Role::Editor, Role::Reviewer, Role::Reader]
+        }
+
+        fn to_possible_value(&self) -> Option<PossibleValue> {
+            match self {
+                Role::Manager => Some(PossibleValue::new("manager")),
+                Role::Owner => Some(PossibleValue::new("owner")),
+                Role::Editor => Some(PossibleValue::new("editor")),
+                Role::Reviewer => Some(PossibleValue::new("reviewer")),
+                Role::Reader => Some(PossibleValue::new("reader")),
+                Role::Undefined => None,
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::str::FromStr;

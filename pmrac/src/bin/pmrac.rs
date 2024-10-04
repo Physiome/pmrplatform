@@ -19,7 +19,6 @@ use sqlx::{
     Sqlite,
     migrate::MigrateDatabase,
 };
-use std::str::FromStr;
 
 #[derive(Debug, Parser)]
 struct Cli {
@@ -86,12 +85,14 @@ enum RoleCmd {
     #[command(arg_required_else_help = true)]
     Grant {
         login: String,
-        role: String,
+        #[arg(value_enum)]
+        role: Role,
     },
     #[command(arg_required_else_help = true)]
     Revoke {
         login: String,
-        role: String,
+        #[arg(value_enum)]
+        role: Role,
     },
 }
 
@@ -198,13 +199,11 @@ async fn parse_role<'p>(
     match arg {
         RoleCmd::Grant { login, role } => {
             let (user, _) = platform.login_status(&login).await?;
-            let role = Role::from_str(&role)?;
             platform.grant_role_to_user(user, role).await?;
             println!("role {role} granted to {login}");
         }
         RoleCmd::Revoke { login, role } => {
             let (user, _) = platform.login_status(&login).await?;
-            let role = Role::from_str(&role)?;
             platform.revoke_role_from_user(user, role).await?;
             println!("role {role} revoked from {login}");
         }
@@ -233,13 +232,11 @@ async fn parse_resource_role<'p>(
     match arg {
         RoleCmd::Grant { login, role } => {
             let (user, _) = platform.login_status(&login).await?;
-            let role = Role::from_str(&role)?;
             platform.grant_res_role_to_agent(&resource, user, role).await?;
             println!("role {role} granted to {login} for resource {resource}");
         }
         RoleCmd::Revoke { login, role } => {
             let (user, _) = platform.login_status(&login).await?;
-            let role = Role::from_str(&role)?;
             platform.revoke_res_role_from_agent(&resource, user, role).await?;
             println!("role {role} revoked from {login} for resource {resource}");
         }
