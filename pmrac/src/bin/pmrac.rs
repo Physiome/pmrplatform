@@ -9,7 +9,10 @@ use pmrac::{
         Platform,
     },
 };
-use pmrcore::ac::role::Role;
+use pmrcore::ac::{
+    role::Role,
+    workflow::State,
+};
 use pmrmodel::backend::db::{
     MigrationProfile,
     SqliteBackend,
@@ -103,6 +106,13 @@ enum ResourceCmd {
         #[command(subcommand)]
         cmd: RoleCmd,
     },
+    // use workflow transition instead whenever that gets implemented.
+    // for now just provide a way to set the state directly
+    #[command(arg_required_else_help = true)]
+    State {
+        #[arg(value_enum)]
+        state: State,
+    }
 }
 
 #[tokio::main]
@@ -219,6 +229,10 @@ async fn parse_resource<'p>(
     match arg {
         ResourceCmd::Role { cmd } => {
             parse_resource_role(&platform, resource, cmd).await?
+        }
+        ResourceCmd::State { state } => {
+            platform.set_wf_state_for_res(&resource, state).await?;
+            println!("workflow state for resource {resource} set to {state}");
         }
     }
     Ok(())
