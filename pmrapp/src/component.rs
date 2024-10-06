@@ -10,7 +10,7 @@ pub fn Redirect(
     #[cfg(not(feature = "ssr"))]
     {
         logging::log!("Redirecting CSR to {path}...");
-        let window = leptos::prelude::tachys::dom::window();
+        let window = leptos::prelude::window();
         if let Err(_) = window.location().replace(&path) {
             logging::error!("fail to replace location with {path}");
         };
