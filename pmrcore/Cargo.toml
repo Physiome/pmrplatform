@@ -33,5 +33,6 @@ git = ["dep:gix", "dep:mime_guess"]
 display = ["dep:chrono"]
 sqlx = ["dep:sqlx"]
 tokio = ["dep:tokio"]
+testing = ["tokio/rt"]
 
 [lib]
