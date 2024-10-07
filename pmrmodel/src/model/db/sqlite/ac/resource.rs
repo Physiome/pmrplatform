@@ -10,7 +10,6 @@ use pmrcore::{
         },
         role::Role,
         traits::ResourceBackend,
-        user::User,
         workflow::State,
     },
     error::BackendError,
@@ -20,39 +19,6 @@ use std::str::FromStr;
 use crate::{
     backend::db::SqliteBackend,
 };
-
-async fn get_res_grants_sqlite(
-    backend: &SqliteBackend,
-    res: &str,
-) -> Result<Vec<(Agent, Role)>, BackendError> {
-    let results = sqlx::query!(
-        r#"
-SELECT
-    'user'.id as id,
-    'user'.name as name,
-    'user'.created_ts as created_ts,
-    res_grant.role AS role
-FROM
-    res_grant
-LEFT JOIN
-    'user' ON res_grant.user_id == 'user'.id
-WHERE
-    res = ?1
-        "#,
-        res,
-    )
-    .map(|row| (
-        Agent::User(User {
-            id: row.id,
-            name: row.name,
-            created_ts: row.created_ts,
-        }),
-        Role::from_str(&row.role).unwrap_or(Role::default()),
-    ))
-    .fetch_all(&*backend.pool)
-    .await?;
-    Ok(results)
-}
 
 async fn get_wf_state_for_res_sqlite(
     backend: &SqliteBackend,
@@ -108,6 +74,9 @@ async fn generate_policy_for_agent_res_sqlite(
 ) -> Result<Policy, BackendError> {
     let resource = res.into();
 
+    // note that this explicitly _ignores_ anonymous agents that may have been
+    // assigned roles via `user_role` as the schema currently allows null for
+    // user_id, but whether we should keep this remains an open question
     let user_roles = match agent {
         Agent::User(user) => {
             sqlx::query!(
@@ -195,16 +164,6 @@ WHERE
 
 #[async_trait]
 impl ResourceBackend for SqliteBackend {
-    async fn get_res_grants(
-        &self,
-        res: &str,
-    ) -> Result<Vec<(Agent, Role)>, BackendError> {
-        get_res_grants_sqlite(
-            &self,
-            res,
-        ).await
-    }
-
     async fn get_wf_state_for_res(
         &self,
         res: &str,
@@ -306,7 +265,7 @@ pub(crate) mod testing {
         let role = Role::Reader;
         let agent: Agent = user.clone().into();
         PolicyBackend::grant_role_to_user(&backend, &user, role).await?;
-        PolicyBackend::grant_res_role_to_agent(&backend, "/", &agent, role).await?;
+        PolicyBackend::res_grant_role_to_agent(&backend, "/", &agent, role).await?;
         PolicyBackend::assign_policy_to_wf_state(&backend, state, role, "", "GET").await?;
         ResourceBackend::set_wf_state_for_res(&backend, "/", state).await?;
 
@@ -329,7 +288,7 @@ pub(crate) mod testing {
         }"#)?);
 
         PolicyBackend::revoke_role_from_user(&backend, &user, role).await?;
-        PolicyBackend::revoke_res_role_from_agent(&backend, "/", &agent, role).await?;
+        PolicyBackend::res_revoke_role_from_agent(&backend, "/", &agent, role).await?;
         PolicyBackend::remove_policy_from_wf_state(&backend, state, role, "", "GET").await?;
         let policy = ResourceBackend::generate_policy_for_agent_res(
             &backend,
@@ -360,7 +319,7 @@ pub(crate) mod testing {
         let role = Role::Reader;
         let agent = Agent::Anonymous;
         ResourceBackend::set_wf_state_for_res(&backend, "/", state).await?;
-        PolicyBackend::grant_res_role_to_agent(&backend, "/", &agent, role).await?;
+        PolicyBackend::res_grant_role_to_agent(&backend, "/", &agent, role).await?;
 
         let policy = ResourceBackend::generate_policy_for_agent_res(&backend, &agent, "/".into()).await?;
         assert_eq!(policy, Policy {
@@ -387,13 +346,13 @@ pub(crate) mod testing {
         let admin_id = UserBackend::add_user(&backend, "admin").await?;
         let admin = UserBackend::get_user_by_id(&backend, admin_id).await?;
         let agent_admin: Agent = admin.into();
-        PolicyBackend::grant_res_role_to_agent(
+        PolicyBackend::res_grant_role_to_agent(
             &backend,
             "/*",
             &agent_admin,
             Role::Manager,
         ).await?;
-        PolicyBackend::grant_res_role_to_agent(
+        PolicyBackend::res_grant_role_to_agent(
             &backend,
             "/item/1",
             &agent_user,

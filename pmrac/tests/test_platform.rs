@@ -157,8 +157,8 @@ async fn policy() -> anyhow::Result<()> {
     let state = State::Private;
     let role = Role::Manager;
 
-    platform.grant_res_role_to_agent("/", &user, role).await?;
-    platform.revoke_res_role_from_agent("/", &user, role).await?;
+    platform.res_grant_role_to_agent("/", &user, role).await?;
+    platform.res_revoke_role_from_agent("/", &user, role).await?;
     platform.assign_policy_to_wf_state(state, role, "", "GET").await?;
     platform.remove_policy_from_wf_state(state, role, "", "GET").await?;
 
@@ -175,7 +175,7 @@ async fn resource_wf_state() -> anyhow::Result<()> {
         &admin,
         Role::Reader,
     ).await?;
-    platform.grant_res_role_to_agent(
+    platform.res_grant_role_to_agent(
         "/*",
         admin,
         Role::Manager,
@@ -184,7 +184,7 @@ async fn resource_wf_state() -> anyhow::Result<()> {
         &user,
         Role::Reader,
     ).await?;
-    platform.grant_res_role_to_agent(
+    platform.res_grant_role_to_agent(
         "/item/1",
         &user,
         Role::Owner,
@@ -283,20 +283,20 @@ async fn policy_enforcement() -> anyhow::Result<()> {
 
     let admin = platform.create_user("admin").await?;
     admin.reset_password("admin", "admin").await?;
-    platform.grant_res_role_to_agent("/*", admin, Role::Manager).await?;
+    platform.res_grant_role_to_agent("/*", admin, Role::Manager).await?;
 
     let reviewer = platform.create_user("reviewer").await?;
     reviewer.reset_password("reviewer", "reviewer").await?;
     // this enables the reviewer being able to review resources under pending state
     platform.grant_role_to_user(&reviewer, Role::Reviewer).await?;
     platform.grant_role_to_user(&reviewer, Role::Reader).await?;
-    platform.grant_res_role_to_agent("/profile/reviewer", reviewer, Role::Owner).await?;
+    platform.res_grant_role_to_agent("/profile/reviewer", reviewer, Role::Owner).await?;
     platform.set_wf_state_for_res("/profile/reviewer", State::Private).await?;
 
     let user = platform.create_user("user").await?;
     user.reset_password("user", "user").await?;
     platform.grant_role_to_user(&user, Role::Reader).await?;
-    platform.grant_res_role_to_agent("/profile/user", user, Role::Owner).await?;
+    platform.res_grant_role_to_agent("/profile/user", user, Role::Owner).await?;
     platform.set_wf_state_for_res("/profile/user", State::Private).await?;
 
     let admin = platform.authenticate_user("admin", "admin").await?;
@@ -314,7 +314,8 @@ async fn policy_enforcement() -> anyhow::Result<()> {
     assert!(!platform.enforce(&reviewer, "/profile/user", "", "GET").await?);
 
     // create content owned by user
-    platform.grant_res_role_to_agent("/news/post/1", &user, Role::Owner).await?;
+    platform.res_grant_role_to_agent("/news/post/1", &user, Role::Owner).await?;
+    platform.res_grant_role_to_agent("/news/post/2", &user, Role::Owner).await?;
 
     // editable by the user while private
     platform.set_wf_state_for_res("/news/post/1", State::Private).await?;
@@ -332,18 +333,45 @@ async fn policy_enforcement() -> anyhow::Result<()> {
     // Reviewer role can be granted for one specific resource, to address the use
     // case of requring explicit assignments of items for review to specific reviewer.
     let restricted_reviewer = platform.create_user("restricted_reviewer").await?;
-    platform.grant_res_role_to_agent("/news/post/2", &restricted_reviewer, Role::Reviewer).await?;
+    platform.res_grant_role_to_agent("/news/post/2", &restricted_reviewer, Role::Reviewer).await?;
+    platform.res_grant_role_to_agent("/news/post/3", &restricted_reviewer, Role::Reviewer).await?;
+    platform.res_grant_role_to_agent("/news/post/5", &restricted_reviewer, Role::Reviewer).await?;
     assert!(!platform.enforce(&restricted_reviewer, "/news/post/2", "edit", "POST").await?);
     platform.set_wf_state_for_res("/news/post/2", State::Pending).await?;
     assert!(platform.enforce(&restricted_reviewer, "/news/post/2", "edit", "POST").await?);
     assert!(!platform.enforce(&restricted_reviewer, "/news/post/1", "edit", "POST").await?);
+    assert!(!platform.enforce(&restricted_reviewer, "/news/post/3", "edit", "POST").await?);
     // since they were never granted the general reader role, they won't be able to read
     // the welcome page either...
     assert!(!platform.enforce(&restricted_reviewer, "/welcome", "", "GET").await?);
 
-    let res_grants = platform.get_res_grants("/news/post/1").await?;
-    assert!(matches!(&res_grants[0].0, Agent::User(user) if user.name == "user"));
-    assert!(matches!(&res_grants[0].1, Role::Owner));
+    // retrieve what we have so far
+    assert_eq!(
+        platform.get_res_grants_for_res("/news/post/1").await?,
+        vec![((&user).into(), vec![Role::Owner])],
+    );
+    let mut res_grants = platform.get_res_grants_for_agent(&(&user).into()).await?;
+    res_grants.sort();
+    assert_eq!(
+        vec![
+            ("/news/post/1".to_string(), vec![Role::Owner]),
+            ("/news/post/2".to_string(), vec![Role::Owner]),
+            ("/profile/user".to_string(), vec![Role::Owner]),
+        ],
+        res_grants,
+    );
+
+    platform.res_grant_role_to_agent("/news/post/2", &restricted_reviewer, Role::Editor).await?;
+    let mut res_grants = platform.get_res_grants_for_res("/news/post/2").await?;
+    res_grants.sort();
+    res_grants.iter_mut().for_each(|(_, roles)| roles.sort());
+    assert_eq!(
+        vec![
+            ((&user).into(), vec![Role::Owner]),
+            ((&restricted_reviewer).into(), vec![Role::Editor, Role::Reviewer]),
+        ],
+        res_grants,
+    );
 
     Ok(())
 }

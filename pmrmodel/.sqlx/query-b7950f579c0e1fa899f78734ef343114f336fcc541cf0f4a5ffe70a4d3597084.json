@@ -1,20 +1,20 @@
 {
   "db_name": "SQLite",
-  "query": "\nSELECT\n    'user'.id as id,\n    'user'.name as name,\n    'user'.created_ts as created_ts,\n    res_grant.role AS role\nFROM\n    res_grant\nLEFT JOIN\n    'user' ON res_grant.user_id == 'user'.id\nWHERE\n    res = ?1\n        ",
+  "query": "\nSELECT\n    res_grant.user_id AS user_id,\n    user.name AS user_name,\n    'user'.created_ts as user_created_ts,\n    res_grant.role AS role\nFROM\n    res_grant\nLEFT JOIN\n    'user' ON res_grant.user_id == 'user'.id\nWHERE\n    res_grant.res = ?1\n        ",
   "describe": {
     "columns": [
       {
-        "name": "id",
+        "name": "user_id",
         "ordinal": 0,
         "type_info": "Integer"
       },
       {
-        "name": "name",
+        "name": "user_name",
         "ordinal": 1,
         "type_info": "Text"
       },
       {
-        "name": "created_ts",
+        "name": "user_created_ts",
         "ordinal": 2,
         "type_info": "Integer"
       },
@@ -28,11 +28,11 @@
       "Right": 1
     },
     "nullable": [
-      false,
+      true,
       false,
       false,
       false
     ]
   },
-  "hash": "f581907b14c254e5d5b6974b40204d55f4a74aa8fac0784eccd755fb36c5504b"
+  "hash": "b7950f579c0e1fa899f78734ef343114f336fcc541cf0f4a5ffe70a4d3597084"
 }

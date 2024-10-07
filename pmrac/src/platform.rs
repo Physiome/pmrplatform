@@ -220,38 +220,47 @@ impl Platform {
         ).await?)
     }
 
-    pub async fn grant_res_role_to_agent(
+    pub async fn res_grant_role_to_agent(
         &self,
         res: &str,
         agent: impl Into<Agent>,
         role: Role,
     ) -> Result<(), Error> {
-        Ok(self.ac_platform.grant_res_role_to_agent(
+        Ok(self.ac_platform.res_grant_role_to_agent(
             res,
             &agent.into(),
             role
         ).await?)
     }
 
-    pub async fn revoke_res_role_from_agent(
+    pub async fn res_revoke_role_from_agent(
         &self,
         res: &str,
         agent: impl Into<Agent>,
         role: Role,
     ) -> Result<(), Error> {
-        Ok(self.ac_platform.revoke_res_role_from_agent(
+        Ok(self.ac_platform.res_revoke_role_from_agent(
             res,
             &agent.into(),
             role,
         ).await?)
     }
 
-    pub async fn get_res_grants(
+    pub async fn get_res_grants_for_res(
         &self,
         res: &str,
-    ) -> Result<Vec<(Agent, Role)>, Error> {
-        Ok(self.ac_platform.get_res_grants(
+    ) -> Result<Vec<(Agent, Vec<Role>)>, Error> {
+        Ok(self.ac_platform.get_res_grants_for_res(
             res,
+        ).await?)
+    }
+
+    pub async fn get_res_grants_for_agent(
+        &self,
+        agent: &Agent,
+    ) -> Result<Vec<(String, Vec<Role>)>, Error> {
+        Ok(self.ac_platform.get_res_grants_for_agent(
+            agent,
         ).await?)
     }
 

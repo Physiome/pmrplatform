@@ -35,6 +35,12 @@ impl From<Password<'_>> for PasswordStatus {
     }
 }
 
+impl fmt::Display for PasswordStatus {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
+}
+
 impl<'a> Password<'a> {
     pub fn new(s: &'a str) -> Self {
         Password::Raw(s)

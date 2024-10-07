@@ -37,6 +37,8 @@ pub struct RolePermit {
     pub method: String,
 }
 
+// FIXME should this be AgentRole instead?
+// or are we making the system easier to not allow management of anonymous?
 /// Represents the role granted to the user for the system.  Roles
 /// granted this way is only applicable for resources at some
 /// appropriate state.

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use futures::TryStreamExt;
 use pmrcore::{
     ac::{
         agent::Agent,
@@ -8,6 +9,10 @@ use pmrcore::{
         workflow::State,
     },
     error::BackendError,
+};
+use std::{
+    collections::HashMap,
+    str::FromStr,
 };
 
 use crate::{
@@ -59,7 +64,28 @@ WHERE
     Ok(())
 }
 
-async fn grant_res_role_to_agent_sqlite(
+async fn get_roles_for_user_sqlite(
+    backend: &SqliteBackend,
+    user: &User,
+) -> Result<Vec<Role>, BackendError> {
+    Ok(sqlx::query!(
+        r#"
+SELECT
+    role
+FROM
+    user_role
+WHERE
+    user_id = ?1
+        "#,
+        user.id,
+    )
+    .map(|row| Role::from_str(&row.role).unwrap_or(Role::default()))
+    .fetch_all(&*backend.pool)
+    .await?
+    .into())
+}
+
+async fn res_grant_role_to_agent_sqlite(
     backend: &SqliteBackend,
     res: &str,
     agent: &Agent,
@@ -86,7 +112,7 @@ VALUES ( ?1, ?2, ?3 )
     Ok(())
 }
 
-async fn revoke_res_role_from_agent_sqlite(
+async fn res_revoke_role_from_agent_sqlite(
     backend: &SqliteBackend,
     res: &str,
     agent: &Agent,
@@ -110,6 +136,87 @@ WHERE
     .execute(&*backend.pool)
     .await?;
     Ok(())
+}
+
+async fn get_res_grants_for_res_sqlite(
+    backend: &SqliteBackend,
+    res: &str,
+) -> Result<Vec<(Agent, Vec<Role>)>, BackendError> {
+    let mut result = HashMap::<Option<i64>, (Agent, Vec<Role>)>::new();
+    let mut rows = sqlx::query!(
+        r#"
+SELECT
+    res_grant.user_id AS user_id,
+    user.name AS user_name,
+    'user'.created_ts as user_created_ts,
+    res_grant.role AS role
+FROM
+    res_grant
+LEFT JOIN
+    'user' ON res_grant.user_id == 'user'.id
+WHERE
+    res_grant.res = ?1
+        "#,
+        res,
+    )
+    .fetch(&*backend.pool);
+    while let Some(row) = rows.try_next().await? {
+        result
+            .entry(row.user_id)
+            .and_modify(|(_, roles)| roles.push(
+                Role::from_str(&row.role).unwrap_or(Role::default()),
+            ))
+            .or_insert((
+                match row.user_id {
+                    Some(id) => {
+                        Agent::User(User {
+                            id,
+                            name: row.user_name,
+                            created_ts: row.user_created_ts,
+                        })
+                    },
+                    _ => Agent::Anonymous,
+                },
+                vec![Role::from_str(&row.role).unwrap_or(Role::default())],
+            ));
+    }
+
+    Ok(result.into_values().collect())
+}
+
+async fn get_res_grants_for_agent_sqlite(
+    backend: &SqliteBackend,
+    agent: &Agent,
+) -> Result<Vec<(String, Vec<Role>)>, BackendError> {
+    let mut result = HashMap::<String, Vec<Role>>::new();
+    let user_id: Option<i64> = agent.into();
+    let mut rows = sqlx::query!(
+        r#"
+SELECT
+    res,
+    role
+FROM
+    res_grant
+WHERE
+    res_grant.user_id = ?1
+        "#,
+        user_id,
+    )
+    .fetch(&*backend.pool);
+
+    while let Some(row) = rows.try_next().await? {
+        result
+            .entry(row.res)
+            .and_modify(|roles| roles.push(
+                Role::from_str(&row.role).unwrap_or(Role::default()),
+            ))
+            .or_insert(
+                vec![Role::from_str(&row.role).unwrap_or(Role::default())],
+            );
+    }
+    Ok(result
+        .into_iter()
+        .collect::<Vec<_>>())
 }
 
 async fn assign_policy_to_wf_state_sqlite(
@@ -197,13 +304,23 @@ impl PolicyBackend for SqliteBackend {
         ).await
     }
 
-    async fn grant_res_role_to_agent(
+    async fn get_roles_for_user(
+        &self,
+        user: &User,
+    ) -> Result<Vec<Role>, BackendError> {
+        get_roles_for_user_sqlite(
+            &self,
+            user,
+        ).await
+    }
+
+    async fn res_grant_role_to_agent(
         &self,
         res: &str,
         agent: &Agent,
         role: Role,
     ) -> Result<(), BackendError> {
-        grant_res_role_to_agent_sqlite(
+        res_grant_role_to_agent_sqlite(
             &self,
             res,
             agent,
@@ -211,17 +328,37 @@ impl PolicyBackend for SqliteBackend {
         ).await
     }
 
-    async fn revoke_res_role_from_agent(
+    async fn res_revoke_role_from_agent(
         &self,
         res: &str,
         agent: &Agent,
         role: Role,
     ) -> Result<(), BackendError> {
-        revoke_res_role_from_agent_sqlite(
+        res_revoke_role_from_agent_sqlite(
             &self,
             res,
             agent,
             role,
+        ).await
+    }
+
+    async fn get_res_grants_for_res(
+        &self,
+        res: &str,
+    ) -> Result<Vec<(Agent, Vec<Role>)>, BackendError> {
+        get_res_grants_for_res_sqlite(
+            &self,
+            res,
+        ).await
+    }
+
+    async fn get_res_grants_for_agent(
+        &self,
+        agent: &Agent,
+    ) -> Result<Vec<(String, Vec<Role>)>, BackendError> {
+        get_res_grants_for_agent_sqlite(
+            &self,
+            agent,
         ).await
     }
 
@@ -284,8 +421,18 @@ pub(crate) mod testing {
         let agent: Agent = UserBackend::get_user_by_id(&backend, user_id).await?.into();
         let state = State::Published;
         let role = Role::Reader;
-        PolicyBackend::grant_res_role_to_agent(&backend, "/", &agent, role).await?;
-        PolicyBackend::revoke_res_role_from_agent(&backend, "/", &agent, role).await?;
+        PolicyBackend::res_grant_role_to_agent(&backend, "/", &agent, role).await?;
+        assert_eq!(
+            vec![(agent.clone(), vec![role])],
+            PolicyBackend::get_res_grants_for_res(&backend, "/").await?
+        );
+        assert_eq!(
+            vec![("/".to_string(), vec![role])],
+            PolicyBackend::get_res_grants_for_agent(&backend, &agent).await?,
+        );
+        PolicyBackend::res_revoke_role_from_agent(&backend, "/", &agent, role).await?;
+        assert!(PolicyBackend::get_res_grants_for_res(&backend, "/").await?.is_empty());
+        assert!(PolicyBackend::get_res_grants_for_agent(&backend, &agent).await?.is_empty());
         PolicyBackend::assign_policy_to_wf_state(&backend, state, role, "", "GET").await?;
         PolicyBackend::remove_policy_from_wf_state(&backend, state, role, "", "GET").await?;
         Ok(())

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-// TODO use these structs to represent the underlying for editing and presentation
+use crate::ac::role::Role;
 
 /// Resource grant
 ///
@@ -11,7 +11,8 @@ pub struct ResGrant {
     pub id: i64,
     pub res: String,
     pub user_id: i64,
-    pub role: String,
+    pub user_name: String,
+    pub role: Role,
 }
 
 /// Workflow policy

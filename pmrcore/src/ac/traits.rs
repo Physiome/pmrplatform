@@ -49,18 +49,32 @@ pub trait PolicyBackend {
         user: &User,
         role: Role,
     ) -> Result<(), BackendError>;
-    async fn grant_res_role_to_agent(
+    async fn get_roles_for_user(
+        &self,
+        user: &User,
+    ) -> Result<Vec<Role>, BackendError>;
+
+    async fn res_grant_role_to_agent(
         &self,
         res: &str,
         agent: &Agent,
         role: Role,
     ) -> Result<(), BackendError>;
-    async fn revoke_res_role_from_agent(
+    async fn res_revoke_role_from_agent(
         &self,
         res: &str,
         agent: &Agent,
         role: Role,
     ) -> Result<(), BackendError>;
+    async fn get_res_grants_for_res(
+        &self,
+        res: &str,
+    ) -> Result<Vec<(Agent, Vec<Role>)>, BackendError>;
+    async fn get_res_grants_for_agent(
+        &self,
+        agent: &Agent,
+    ) -> Result<Vec<(String, Vec<Role>)>, BackendError>;
+
     async fn assign_policy_to_wf_state(
         &self,
         wf_state: State,
@@ -79,10 +93,6 @@ pub trait PolicyBackend {
 
 #[async_trait]
 pub trait ResourceBackend {
-    async fn get_res_grants(
-        &self,
-        res: &str,
-    ) -> Result<Vec<(Agent, Role)>, BackendError>;
     async fn get_wf_state_for_res(
         &self,
         res: &str,

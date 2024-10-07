@@ -10,6 +10,7 @@ use pmrac::{
     },
 };
 use pmrcore::ac::{
+    agent::Agent,
     role::Role,
     workflow::State,
 };
@@ -65,6 +66,10 @@ enum UserCmd {
         name: String,
         #[command(subcommand)]
         cmd: PasswordCmd,
+    },
+    #[command(arg_required_else_help = true)]
+    Status {
+        name: String,
     },
 }
 
@@ -170,6 +175,29 @@ async fn parse_user<'p>(
         UserCmd::Password { name, cmd } => {
             parse_password(&platform, name, cmd).await?
         }
+        UserCmd::Status { name } => {
+            use pmrcore::ac::user::User;
+
+            let (
+                User { id, name, created_ts },
+                password_status
+            ) = platform.login_status(&name).await?;
+            println!("id: {id}");
+            println!("name: {name}");
+            println!("created_ts: {created_ts}");
+            println!("status: {password_status}");
+
+            // could have not destructured it but getting it done this way for now...
+            let agent = Agent::User(User { id, name, created_ts });
+            let res_grants = platform.get_res_grants_for_agent(&agent).await?;
+            for (res, roles) in res_grants.into_iter() {
+                let role = roles.into_iter()
+                    .map(<&'static str>::from)
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                println!("role(s) granted for '{res}': [{role}]");
+            }
+        }
     }
     Ok(())
 }
@@ -238,9 +266,13 @@ async fn parse_resource<'p>(
         ResourceCmd::Status => {
             let state = platform.get_wf_state_for_res(&resource).await?;
             println!("workflow state for resource {resource} is: {state}");
-            let res_grants = platform.get_res_grants(&resource).await?;
-            for (agent, role) in res_grants.into_iter() {
-                println!("{agent} granted role {role}");
+            let res_grants = platform.get_res_grants_for_res(&resource).await?;
+            for (agent, roles) in res_grants.into_iter() {
+                let role = roles.into_iter()
+                    .map(<&'static str>::from)
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                println!("{agent} granted role(s) [{role}]");
             }
         }
     }
@@ -255,12 +287,12 @@ async fn parse_resource_role<'p>(
     match arg {
         RoleCmd::Grant { login, role } => {
             let (user, _) = platform.login_status(&login).await?;
-            platform.grant_res_role_to_agent(&resource, user, role).await?;
+            platform.res_grant_role_to_agent(&resource, user, role).await?;
             println!("role {role} granted to {login} for resource {resource}");
         }
         RoleCmd::Revoke { login, role } => {
             let (user, _) = platform.login_status(&login).await?;
-            platform.revoke_res_role_from_agent(&resource, user, role).await?;
+            platform.res_revoke_role_from_agent(&resource, user, role).await?;
             println!("role {role} revoked from {login} for resource {resource}");
         }
     }

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use super::user::User;
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize, Serialize)]
 pub enum Agent {
     Anonymous,
     User(User),
