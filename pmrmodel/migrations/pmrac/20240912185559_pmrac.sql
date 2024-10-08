@@ -14,6 +14,23 @@ CREATE TABLE IF NOT EXISTS user_email (
 CREATE INDEX IF NOT EXISTS user_email__user_id_email ON user_email(user_id, email);
 CREATE UNIQUE INDEX IF NOT EXISTS user_email__email ON user_email(email);
 
+-- To prevent abuse, there needs to be a system to hold new email
+-- addresses to be bound to a specific user.  We don't want the system
+-- to tell any client whether an incoming email address exists within
+-- the system, and to do so an internal toke will be provided
+CREATE TABLE IF NOT EXISTS user_email_bindreq (
+    id INTEGER PRIMARY KEY NOT NULL,
+    email TEXT NOT NULL,
+    origin_user_id INTEGER,  -- it may or may not have a user already attached
+    origin TEXT,  -- some form of hostname/IP address
+    token TEXT,  -- the token to access this record
+    created_ts INTEGER NOT NULL,
+    -- this will disable the token and functionally log a rejection;
+    -- may indicate an ongoing abusive usage by the origin
+    rejected BOOLEAN
+);
+CREATE INDEX IF NOT EXISTS user_email_bindreq__token ON user_email_bindreq(token);
+
 CREATE TABLE IF NOT EXISTS user_password (
     id INTEGER PRIMARY KEY NOT NULL,
     user_id INTEGER NOT NULL,
