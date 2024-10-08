@@ -12,12 +12,18 @@ CREATE TABLE IF NOT EXISTS user_email (
     FOREIGN KEY(user_id) REFERENCES 'user'(id)
 );
 CREATE INDEX IF NOT EXISTS user_email__user_id_email ON user_email(user_id, email);
+-- This does put in a restriction - what about the use case where a user
+-- may have multiple accounts on the system and they can just use one
+-- email address for all of them?  Also multiple concurrent logins at
+-- the same time to toggle between normal/super user?
+-- Anyway, this will be some future work, can't allow scope creep for
+-- now, so leave this restriction in place until a later time.
 CREATE UNIQUE INDEX IF NOT EXISTS user_email__email ON user_email(email);
 
 -- To prevent abuse, there needs to be a system to hold new email
 -- addresses to be bound to a specific user.  We don't want the system
 -- to tell any client whether an incoming email address exists within
--- the system, and to do so an internal toke will be provided
+-- the system, and to do so an internal token will be provided.
 CREATE TABLE IF NOT EXISTS user_email_bindreq (
     id INTEGER PRIMARY KEY NOT NULL,
     email TEXT NOT NULL,
@@ -110,3 +116,22 @@ CREATE TABLE IF NOT EXISTS res_wf_state (
     state TEXT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS res_wf_state__res ON res_wf_state(res);
+
+-- Note that the token for the user_session here SHOULD NOT be conveyed
+-- outside of the system directly (e.g. not even through cookies) - as
+-- the token is equivalent to the key to become the user and the design
+-- here is immutable.  An additional layer will indirectly reference the
+-- token (again locally) - packages such as `tower-sessions` designed
+-- with token cycling in mind to avoid session fixation should provide
+-- the indirect token to this token.
+-- If multiple concurrent logins per session will be implemented, the
+-- actual session provider will hold multiple tokens.
+CREATE TABLE IF NOT EXISTS user_session (
+    token TEXT PRIMARY KEY NOT NULL,
+    user_id INTEGER NOT NULL,
+    origin TEXT,
+    created_ts INTEGER NOT NULL,
+    last_active_ts INTEGER NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES 'user'(id)
+);
+CREATE INDEX IF NOT EXISTS user_session__user_id ON user_session(user_id);

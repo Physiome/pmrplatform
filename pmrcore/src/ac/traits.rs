@@ -4,6 +4,10 @@ use super::{
     agent::Agent,
     genpolicy::Policy,
     role::Role,
+    session::{
+        Session,
+        SessionToken,
+    },
     user::User,
     workflow::State,
 };
@@ -107,4 +111,28 @@ pub trait ResourceBackend {
         agent: &Agent,
         res: String,
     ) -> Result<Policy, BackendError>;
+}
+
+#[async_trait]
+pub trait SessionBackend {
+    async fn save_session(
+        &self,
+        session: &Session,
+    ) -> Result<(), BackendError>;
+    async fn load_session(
+        &self,
+        token: SessionToken,
+    ) -> Result<Session, BackendError>;
+    async fn purge_session(
+        &self,
+        token: SessionToken,
+    ) -> Result<(), BackendError>;
+    /// Get sessions for the user
+    ///
+    /// Note that this returns the entire session, note that the token
+    /// will be returned.
+    async fn user_sessions(
+        &self,
+        user_id: i64,
+    ) -> Result<Vec<Session>, BackendError>;
 }

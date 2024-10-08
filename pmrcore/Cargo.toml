@@ -13,6 +13,7 @@ gix = { version = "^0.58", optional = true }
 log = { version = "0.4" }
 mime_guess = { version = "2.0.4", optional = true }
 num_enum = "0.6.1"
+rand = { version = "0.8.5", optional = true }
 serde = { version = "1.0.59", features = ["serde_derive"] }
 serde_json = "1.0.59"
 sqlx = { version = "0.8.0", features = ["sqlite"], optional = true }
@@ -31,6 +32,8 @@ test-pmr = { path = "../testing" }
 clap = ["dep:clap"]
 git = ["dep:gix", "dep:mime_guess"]
 display = ["dep:chrono"]
+# group all server-only dependencies to this feature.
+server = ["dep:rand"]
 sqlx = ["dep:sqlx"]
 tokio = ["dep:tokio"]
 testing = ["tokio/rt"]
