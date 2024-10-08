@@ -202,7 +202,7 @@ impl Platform {
         &self,
         user: impl Into<user::User>,
         role: Role,
-    ) -> Result<(), Error> {
+    ) -> Result<bool, Error> {
         Ok(self.ac_platform.grant_role_to_user(
             &user.into(),
             role
@@ -213,7 +213,7 @@ impl Platform {
         &self,
         user: impl Into<user::User>,
         role: Role,
-    ) -> Result<(), Error> {
+    ) -> Result<bool, Error> {
         Ok(self.ac_platform.revoke_role_from_user(
             &user.into(),
             role,
@@ -225,7 +225,7 @@ impl Platform {
         res: &str,
         agent: impl Into<Agent>,
         role: Role,
-    ) -> Result<(), Error> {
+    ) -> Result<bool, Error> {
         Ok(self.ac_platform.res_grant_role_to_agent(
             res,
             &agent.into(),
@@ -238,7 +238,7 @@ impl Platform {
         res: &str,
         agent: impl Into<Agent>,
         role: Role,
-    ) -> Result<(), Error> {
+    ) -> Result<bool, Error> {
         Ok(self.ac_platform.res_revoke_role_from_agent(
             res,
             &agent.into(),

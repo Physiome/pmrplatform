@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS user_role (
     FOREIGN KEY(user_id) REFERENCES 'user'(id)
 );
 CREATE INDEX IF NOT EXISTS user_role__user_id ON user_role(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS user_role__user_id_role ON user_role(user_id, role);
 
 -- This grants the user a specific role at the resource.  Currently, the
 -- role is a enum encoded in the underlying application; a future
@@ -55,6 +56,7 @@ CREATE TABLE IF NOT EXISTS res_grant (
     FOREIGN KEY(user_id) REFERENCES 'user'(id)
 );
 CREATE INDEX IF NOT EXISTS res_grant__res ON res_grant(res);
+CREATE UNIQUE INDEX IF NOT EXISTS res_grant__res_user_id_role ON res_grant(res, user_id, role);
 
 -- Workflow state policy - each resource, on top of permission grants it
 -- may hold, will also be at a specific workflow state which will also

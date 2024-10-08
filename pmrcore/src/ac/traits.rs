@@ -43,12 +43,12 @@ pub trait PolicyBackend {
         &self,
         user: &User,
         role: Role,
-    ) -> Result<(), BackendError>;
+    ) -> Result<bool, BackendError>;
     async fn revoke_role_from_user(
         &self,
         user: &User,
         role: Role,
-    ) -> Result<(), BackendError>;
+    ) -> Result<bool, BackendError>;
     async fn get_roles_for_user(
         &self,
         user: &User,
@@ -59,13 +59,13 @@ pub trait PolicyBackend {
         res: &str,
         agent: &Agent,
         role: Role,
-    ) -> Result<(), BackendError>;
+    ) -> Result<bool, BackendError>;
     async fn res_revoke_role_from_agent(
         &self,
         res: &str,
         agent: &Agent,
         role: Role,
-    ) -> Result<(), BackendError>;
+    ) -> Result<bool, BackendError>;
     async fn get_res_grants_for_res(
         &self,
         res: &str,

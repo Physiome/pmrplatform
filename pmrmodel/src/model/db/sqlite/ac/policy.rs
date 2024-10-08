@@ -23,9 +23,9 @@ async fn grant_role_to_user_sqlite(
     backend: &SqliteBackend,
     user: &User,
     role: Role,
-) -> Result<(), BackendError> {
+) -> Result<bool, BackendError> {
     let role_str = <&'static str>::from(role);
-    sqlx::query!(
+    match sqlx::query!(
         r#"
 INSERT INTO user_role (
     user_id,
@@ -37,18 +37,24 @@ VALUES ( ?1, ?2 )
         role_str,
     )
     .execute(&*backend.pool)
-    .await?
-    .last_insert_rowid();
-    Ok(())
+    .await {
+        Ok(_) => Ok(true),
+        Err(e) => {
+            match e.as_database_error() {
+                Some(db_e) if db_e.is_unique_violation() => Ok(false),
+                _ => Err(e)?,
+            }
+        }
+    }
 }
 
 async fn revoke_role_from_user_sqlite(
     backend: &SqliteBackend,
     user: &User,
     role: Role,
-) -> Result<(), BackendError> {
+) -> Result<bool, BackendError> {
     let role_str = <&'static str>::from(role);
-    sqlx::query!(
+    Ok(sqlx::query!(
         r#"
 DELETE FROM
     user_role
@@ -60,8 +66,8 @@ WHERE
         role_str,
     )
     .execute(&*backend.pool)
-    .await?;
-    Ok(())
+    .await?
+    .rows_affected() > 0)
 }
 
 async fn get_roles_for_user_sqlite(
@@ -90,10 +96,10 @@ async fn res_grant_role_to_agent_sqlite(
     res: &str,
     agent: &Agent,
     role: Role,
-) -> Result<(), BackendError> {
+) -> Result<bool, BackendError> {
     let user_id: Option<i64> = agent.into();
     let role_str = <&'static str>::from(role);
-    sqlx::query!(
+    match sqlx::query!(
         r#"
 INSERT INTO res_grant (
     res,
@@ -107,9 +113,15 @@ VALUES ( ?1, ?2, ?3 )
         role_str,
     )
     .execute(&*backend.pool)
-    .await?
-    .last_insert_rowid();
-    Ok(())
+    .await {
+        Ok(_) => Ok(true),
+        Err(e) => {
+            match e.as_database_error() {
+                Some(db_e) if db_e.is_unique_violation() => Ok(false),
+                _ => Err(e)?,
+            }
+        }
+    }
 }
 
 async fn res_revoke_role_from_agent_sqlite(
@@ -117,10 +129,10 @@ async fn res_revoke_role_from_agent_sqlite(
     res: &str,
     agent: &Agent,
     role: Role,
-) -> Result<(), BackendError> {
+) -> Result<bool, BackendError> {
     let role_str = <&'static str>::from(role);
     let user_id: Option<i64> = agent.into();
-    sqlx::query!(
+    Ok(sqlx::query!(
         r#"
 DELETE FROM
     res_grant
@@ -134,8 +146,8 @@ WHERE
         role_str,
     )
     .execute(&*backend.pool)
-    .await?;
-    Ok(())
+    .await?
+    .rows_affected() > 0)
 }
 
 async fn get_res_grants_for_res_sqlite(
@@ -284,7 +296,7 @@ impl PolicyBackend for SqliteBackend {
         &self,
         user: &User,
         role: Role,
-    ) -> Result<(), BackendError> {
+    ) -> Result<bool, BackendError> {
         grant_role_to_user_sqlite(
             &self,
             user,
@@ -296,7 +308,7 @@ impl PolicyBackend for SqliteBackend {
         &self,
         user: &User,
         role: Role,
-    ) -> Result<(), BackendError> {
+    ) -> Result<bool, BackendError> {
         revoke_role_from_user_sqlite(
             &self,
             user,
@@ -319,7 +331,7 @@ impl PolicyBackend for SqliteBackend {
         res: &str,
         agent: &Agent,
         role: Role,
-    ) -> Result<(), BackendError> {
+    ) -> Result<bool, BackendError> {
         res_grant_role_to_agent_sqlite(
             &self,
             res,
@@ -333,7 +345,7 @@ impl PolicyBackend for SqliteBackend {
         res: &str,
         agent: &Agent,
         role: Role,
-    ) -> Result<(), BackendError> {
+    ) -> Result<bool, BackendError> {
         res_revoke_role_from_agent_sqlite(
             &self,
             res,
@@ -418,7 +430,8 @@ pub(crate) mod testing {
             .run_migration_profile(MigrationProfile::Pmrac)
             .await?;
         let user_id = UserBackend::add_user(&backend, "test_user").await?;
-        let agent: Agent = UserBackend::get_user_by_id(&backend, user_id).await?.into();
+        let user = UserBackend::get_user_by_id(&backend, user_id).await?;
+        let agent: Agent = user.clone().into();
         let state = State::Published;
         let role = Role::Reader;
         PolicyBackend::res_grant_role_to_agent(&backend, "/", &agent, role).await?;
@@ -435,6 +448,47 @@ pub(crate) mod testing {
         assert!(PolicyBackend::get_res_grants_for_agent(&backend, &agent).await?.is_empty());
         PolicyBackend::assign_policy_to_wf_state(&backend, state, role, "", "GET").await?;
         PolicyBackend::remove_policy_from_wf_state(&backend, state, role, "", "GET").await?;
+
+        PolicyBackend::grant_role_to_user(&backend, &user, Role::Manager).await?;
+        assert_eq!(
+            &[Role::Manager],
+            PolicyBackend::get_roles_for_user(&backend, &user).await?.as_slice()
+        );
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn test_double() -> anyhow::Result<()> {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await?
+            .run_migration_profile(MigrationProfile::Pmrac)
+            .await?;
+        let user_id = UserBackend::add_user(&backend, "test_user").await?;
+        let user = UserBackend::get_user_by_id(&backend, user_id).await?;
+        let role = Role::Reader;
+        assert!(PolicyBackend::grant_role_to_user(&backend, &user, Role::Manager).await?);
+        assert!(!PolicyBackend::grant_role_to_user(&backend, &user, Role::Manager).await?);
+        assert_eq!(
+            &[Role::Manager],
+            PolicyBackend::get_roles_for_user(&backend, &user).await?.as_slice()
+        );
+        assert!(PolicyBackend::revoke_role_from_user(&backend, &user, Role::Manager).await?);
+        assert!(PolicyBackend::get_roles_for_user(&backend, &user).await?.is_empty());
+        assert!(!PolicyBackend::revoke_role_from_user(&backend, &user, Role::Manager).await?);
+        assert!(PolicyBackend::get_roles_for_user(&backend, &user).await?.is_empty());
+
+        let agent = user.into();
+        assert!(PolicyBackend::res_grant_role_to_agent(&backend, "/", &agent, role).await?);
+        assert!(!PolicyBackend::res_grant_role_to_agent(&backend, "/", &agent, role).await?);
+        assert_eq!(
+            vec![(agent.clone(), vec![role])],
+            PolicyBackend::get_res_grants_for_res(&backend, "/").await?
+        );
+        assert!(PolicyBackend::res_revoke_role_from_agent(&backend, "/", &agent, role).await?);
+        assert!(PolicyBackend::get_res_grants_for_res(&backend, "/").await?.is_empty());
+        assert!(!PolicyBackend::res_revoke_role_from_agent(&backend, "/", &agent, role).await?);
+        assert!(PolicyBackend::get_res_grants_for_res(&backend, "/").await?.is_empty());
+
         Ok(())
     }
 

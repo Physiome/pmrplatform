@@ -238,13 +238,19 @@ async fn parse_role<'p>(
     match arg {
         RoleCmd::Grant { login, role } => {
             let (user, _) = platform.login_status(&login).await?;
-            platform.grant_role_to_user(user, role).await?;
-            println!("role {role} granted to {login}");
+            if platform.grant_role_to_user(user, role).await? {
+                println!("role {role} granted to {login}");
+            } else {
+                println!("role {role} was already granted to {login}");
+            }
         }
         RoleCmd::Revoke { login, role } => {
             let (user, _) = platform.login_status(&login).await?;
-            platform.revoke_role_from_user(user, role).await?;
-            println!("role {role} revoked from {login}");
+            if platform.revoke_role_from_user(user, role).await? {
+                println!("role {role} revoked from {login}");
+            } else {
+                println!("{login} has no role {role} to be revoked");
+            }
         }
     }
     Ok(())
@@ -287,13 +293,19 @@ async fn parse_resource_role<'p>(
     match arg {
         RoleCmd::Grant { login, role } => {
             let (user, _) = platform.login_status(&login).await?;
-            platform.res_grant_role_to_agent(&resource, user, role).await?;
-            println!("role {role} granted to {login} for resource {resource}");
+            if platform.res_grant_role_to_agent(&resource, user, role).await? {
+                println!("role {role} granted to {login} for resource {resource}");
+            } else {
+                println!("role {role} was already granted to {login} for resource {resource}");
+            }
         }
         RoleCmd::Revoke { login, role } => {
             let (user, _) = platform.login_status(&login).await?;
-            platform.res_revoke_role_from_agent(&resource, user, role).await?;
-            println!("role {role} revoked from {login} for resource {resource}");
+            if platform.res_revoke_role_from_agent(&resource, user, role).await? {
+                println!("role {role} revoked from {login} for resource {resource}");
+            } else {
+                println!("{login} has no role {role} for resource {resource}");
+            }
         }
     }
     Ok(())
