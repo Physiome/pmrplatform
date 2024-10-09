@@ -1,8 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Copy, Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct SessionToken(u128);
-
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Session {
     pub token: SessionToken,
@@ -13,3 +10,6 @@ pub struct Session {
 }
 
 mod impls;
+mod token;
+
+pub use token::*;
