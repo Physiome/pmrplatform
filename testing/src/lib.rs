@@ -5,5 +5,7 @@ pub mod chrono;
 pub mod core;
 #[cfg(feature = "platform")]
 pub mod ctrl;
+#[cfg(feature = "rand")]
+pub mod rand;
 #[cfg(feature = "repo")]
 pub mod repo;

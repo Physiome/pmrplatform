@@ -26,7 +26,7 @@ async-std = { version = "1.5.0", features = [ "attributes" ] }
 mockall = "0.10.2"
 tempfile = "3.1.0"
 test-binary = "3.0.2"
-test-pmr = { path = "../testing" }
+test-pmr = { path = "../testing", features = [ "core" ] }
 
 [features]
 clap = ["dep:clap"]

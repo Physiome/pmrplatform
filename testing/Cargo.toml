@@ -15,6 +15,7 @@ pmrcore = "0.0.1"
 pmrctrl = { version = "0.0.1", optional = true }
 pmrmodel = { version = "0.0.1", optional = true }
 pmrrepo = { version = "0.0.1", optional = true }
+rand = { version = "0.8.5", optional = true }
 tempfile = "3.1.0"
 textwrap-macros = "0.3.0"
 
@@ -24,6 +25,8 @@ async-std = "1.5.0"
 [features]
 ac = ["model", "dep:pmrac"]
 chrono = ["dep:chrono"]
-model = ["dep:pmrmodel"]
+core = ["rand"]
+model = ["dep:pmrmodel", "chrono"]
+rand = ["dep:rand"]
 repo = ["dep:pmrrepo"]
 platform = ["ac", "model", "repo", "dep:pmrctrl"]
