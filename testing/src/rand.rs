@@ -5,7 +5,8 @@ use std::{
 };
 
 /// A crappy Rng that xors two different cycles of `u8`s together.  If
-/// they are of different prime number lengths they may have a slightly
+/// they are of different prime number lengths (or at the very least
+/// lengths that are not a factor of the other) they may have a slightly
 /// longer cycle than just working with one cycle.  Only suitable for
 /// generating test values, hilariously unsuitable for anything that
 /// requires any notion of security.

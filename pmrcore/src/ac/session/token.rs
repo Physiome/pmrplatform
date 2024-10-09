@@ -2,8 +2,8 @@
 pub struct SessionToken(u128);
 
 #[cfg(feature="server")]
-mod builder;
+mod factory;
 #[cfg(feature="server")]
-pub use builder::*;
+pub use factory::*;
 
 mod impls;
