@@ -12,5 +12,4 @@ pub struct Session {
     pub last_active_ts: i64,
 }
 
-#[cfg(feature="server")]
 mod impls;

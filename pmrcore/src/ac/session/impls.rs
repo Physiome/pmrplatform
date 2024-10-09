@@ -1,15 +1,7 @@
-pub use super::SessionToken;
+pub use super::*;
 
-mod server {
-    use rand::prelude::*;
-    use super::*;
-
-    impl SessionToken {
-        pub fn new() -> Self {
-            Self(rand::thread_rng().gen())
-        }
-    }
-}
+#[cfg(feature="server")]
+mod server;
 
 mod conversion {
     use std::{
@@ -47,16 +39,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn gen() -> anyhow::Result<()> {
-        let token = SessionToken::new();
-        let s = token.to_string();
-        let p = SessionToken::from_str(&s)?;
-        assert_eq!(token, p);
-        Ok(())
-    }
-
-    #[test]
-    fn parse() -> anyhow::Result<()> {
+    fn parse_token() -> anyhow::Result<()> {
         assert!(SessionToken::from_str("0").is_err());
         assert!(SessionToken::from_str("111111111111111111111111111111111").is_err());
         assert!(SessionToken::from_str("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz").is_err());
