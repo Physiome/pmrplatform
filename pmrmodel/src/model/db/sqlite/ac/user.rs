@@ -1,8 +1,4 @@
 use async_trait::async_trait;
-#[cfg(not(test))]
-use chrono::Utc;
-#[cfg(test)]
-use crate::test::Utc;
 use pmrcore::{
     ac::{
         traits::UserBackend,
@@ -13,6 +9,7 @@ use pmrcore::{
 
 use crate::{
     backend::db::SqliteBackend,
+    chrono::Utc,
 };
 
 async fn add_user_sqlite(
@@ -230,7 +227,7 @@ pub(crate) mod testing {
         MigrationProfile,
         SqliteBackend,
     };
-    use crate::test::set_timestamp;
+    use test_pmr::chrono::set_timestamp;
 
     #[async_std::test]
     async fn test_basic() -> anyhow::Result<()> {

@@ -18,7 +18,7 @@ impl Display for TaskTemplate {
             &self.bin_path,
             &(match &self.args {
                 Some(args) => format!("{}", args.iter().fold(
-                    String::new(), |acc, arg| acc + " " + &arg.to_string())),
+                    String::new(), |acc, arg| [acc, arg.to_string()].join(" "))),
                 None => "?arguments missing?".to_string(),
             }),
             if self.final_task_template_arg_id.is_some() {

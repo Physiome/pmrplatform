@@ -1,8 +1,4 @@
 use async_trait::async_trait;
-#[cfg(not(test))]
-use chrono::Utc;
-#[cfg(test)]
-use crate::test::Utc;
 use pmrcore::{
     error::BackendError,
     profile::ViewTaskTemplate,
@@ -11,6 +7,7 @@ use pmrcore::{
 
 use crate::{
     backend::db::SqliteBackend,
+    chrono::Utc,
 };
 
 async fn insert_view_task_template_sqlite(
@@ -147,12 +144,12 @@ mod testing {
         ViewTaskTemplate,
         traits::ViewTaskTemplateBackend,
     };
+    use test_pmr::chrono::set_timestamp;
+
     use crate::backend::db::{
         MigrationProfile::Pmrapp,
         SqliteBackend,
     };
-
-    use crate::test::set_timestamp;
 
     #[async_std::test]
     async fn test_basic() -> anyhow::Result<()> {

@@ -1,6 +1,4 @@
 use async_trait::async_trait;
-#[cfg(not(test))]
-use chrono::Utc;
 use pmrcore::{
     error::{
         BackendError,
@@ -16,10 +14,8 @@ use pmrcore::{
 
 use crate::{
     backend::db::SqliteBackend,
+    chrono::Utc,
 };
-
-#[cfg(test)]
-use crate::test::Utc;
 
 // TODO document that adds means _add_ing (insert) the _s_tructure.
 

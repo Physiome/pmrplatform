@@ -4,10 +4,11 @@ pub mod backend {
 pub mod error;
 pub mod model;
 pub mod registry;
-
-#[cfg(test)]
-pub mod test;
 pub mod utils;
 
-extern crate chrono;
-extern crate log;
+pub(crate) mod chrono {
+    #[cfg(not(test))]
+    pub use ::chrono::Utc;
+    #[cfg(test)]
+    pub use test_pmr::chrono::Utc;
+}

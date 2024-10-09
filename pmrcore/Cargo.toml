@@ -31,7 +31,8 @@ test-pmr = { path = "../testing" }
 [features]
 clap = ["dep:clap"]
 git = ["dep:gix", "dep:mime_guess"]
-display = ["dep:chrono"]
+chrono = ["dep:chrono", "test-pmr/chrono"]
+display = ["chrono"]
 # group all server-only dependencies to this feature.
 server = ["dep:rand"]
 sqlx = ["dep:sqlx"]

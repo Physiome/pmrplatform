@@ -1,8 +1,4 @@
 use async_trait::async_trait;
-#[cfg(not(test))]
-use chrono::Utc;
-#[cfg(test)]
-use crate::test::Utc;
 use pmrcore::{
     error::{
         BackendError,
@@ -16,6 +12,7 @@ use pmrcore::{
 
 use crate::{
     backend::db::SqliteBackend,
+    chrono::Utc,
 };
 
 async fn insert_exposure_file_view_task_sqlite(

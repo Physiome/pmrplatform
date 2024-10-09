@@ -1,8 +1,4 @@
 use async_trait::async_trait;
-#[cfg(not(test))]
-use chrono::Utc;
-#[cfg(test)]
-use crate::test::Utc;
 use pmrcore::{
     error::BackendError,
     workspace::{
@@ -14,6 +10,7 @@ use pmrcore::{
 
 use crate::{
     backend::db::SqliteBackend,
+    chrono::Utc,
 };
 
 

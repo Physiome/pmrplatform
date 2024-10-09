@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0"
 async-trait = "0.1.50"
+chrono = { version = "0.4", optional = true }
 git2 = "0.13"
 gix = "^0.58"
 mockall = "0.10.2"
@@ -22,6 +23,7 @@ async-std = "1.5.0"
 
 [features]
 ac = ["model", "dep:pmrac"]
+chrono = ["dep:chrono"]
 model = ["dep:pmrmodel"]
 repo = ["dep:pmrrepo"]
 platform = ["ac", "model", "repo", "dep:pmrctrl"]

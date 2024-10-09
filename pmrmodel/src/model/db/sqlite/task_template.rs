@@ -1,6 +1,4 @@
 use async_trait::async_trait;
-#[cfg(not(test))]
-use chrono::Utc;
 use futures::future;
 use pmrcore::{
     error::BackendError,
@@ -16,10 +14,8 @@ use pmrcore::{
 
 use crate::{
     backend::db::SqliteBackend,
+    chrono::Utc,
 };
-
-#[cfg(test)]
-use crate::test::Utc;
 
 async fn add_task_template_sqlite(
     sqlite: &SqliteBackend,

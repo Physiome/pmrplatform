@@ -1,10 +1,12 @@
-use chrono::{LocalResult, TimeZone, Utc};
 use std::fmt::{
     Display,
     Formatter,
     Result,
 };
-use crate::workspace::*;
+use crate::{
+    chrono::{LocalResult, TimeZone, Utc},
+    workspace::*,
+};
 
 impl Display for Workspace {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
