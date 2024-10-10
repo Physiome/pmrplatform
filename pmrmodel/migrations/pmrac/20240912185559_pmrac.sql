@@ -129,7 +129,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS res_wf_state__res ON res_wf_state(res);
 CREATE TABLE IF NOT EXISTS user_session (
     token TEXT PRIMARY KEY NOT NULL,
     user_id INTEGER NOT NULL,
-    origin TEXT,
+    origin TEXT NOT NULL,
     created_ts INTEGER NOT NULL,
     last_active_ts INTEGER NOT NULL,
     FOREIGN KEY(user_id) REFERENCES 'user'(id)

@@ -59,6 +59,10 @@ mod tests {
 
     #[test]
     fn gen_session() -> anyhow::Result<()> {
+        let token_factory = SessionTokenFactory::new();
+        let session = Session::new(&token_factory, 1, "localhost");
+        assert_eq!(session.user_id, 1);
+
         set_timestamp(1491625364);
         let token_factory = SessionTokenFactory::new()
             .rng(MockRng::default());

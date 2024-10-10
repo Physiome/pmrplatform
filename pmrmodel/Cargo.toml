@@ -13,7 +13,7 @@ futures = "0.3"
 itertools = "0.11"
 log = { version = "0.4", features = ["std", "serde"] }
 parking_lot = "0.12"
-pmrcore = { version = "0.0.1", features = ["sqlx", "display"] }
+pmrcore = { version = "0.0.1", features = ["sqlx", "display", "session"] }
 serde = "1.0.59"
 serde_json = "1.0.59"
 sqlx = { version = "0.8.0", features = [ "runtime-async-std-native-tls", "sqlite" ] }
@@ -24,4 +24,4 @@ anyhow = "1.0.0"
 async-std = { version = "1.5.0", features = [ "attributes" ] }
 mockall = "0.10.2"
 tempfile = "3.1.0"
-test-pmr = { path = "../testing", features = ["model"] }
+test-pmr = { path = "../testing", features = ["model", "rand"] }

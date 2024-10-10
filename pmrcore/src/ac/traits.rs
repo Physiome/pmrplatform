@@ -129,10 +129,19 @@ pub trait SessionBackend {
     ) -> Result<(), BackendError>;
     /// Get sessions for the user
     ///
-    /// Note that this returns the entire session, note that the token
-    /// will be returned.
-    async fn user_sessions(
+    /// Note that this returns just the session, tokens will be of the
+    /// empty type.
+    async fn get_user_sessions(
         &self,
         user_id: i64,
     ) -> Result<Vec<Session>, BackendError>;
+    /// Purge all sessions for the user
+    ///
+    /// Optionally a token may be provided to omit from the purge, e.g.
+    /// to keep a current session alive.
+    async fn purge_user_sessions(
+        &self,
+        user_id: i64,
+        token: Option<SessionToken>,
+    ) -> Result<(), BackendError>;
 }

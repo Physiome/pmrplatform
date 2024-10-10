@@ -5,6 +5,7 @@ use crate::{
         traits::{
             PolicyBackend,
             ResourceBackend,
+            SessionBackend,
             UserBackend,
         },
     },
@@ -20,6 +21,7 @@ use crate::{
 pub trait ACPlatform: PolicyBackend
     + ResourceBackend
     + UserBackend
+    + SessionBackend
 
     + PlatformUrl
 
@@ -32,6 +34,7 @@ pub trait ACPlatform: PolicyBackend
 impl<P: PolicyBackend
     + ResourceBackend
     + UserBackend
+    + SessionBackend
 
     + PlatformUrl
 
