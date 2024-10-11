@@ -9,7 +9,11 @@ pub struct Session {
     pub last_active_ts: i64,
 }
 
+#[cfg(feature = "server")]
+mod factory;
 mod impls;
 mod token;
 
+#[cfg(feature = "server")]
+pub use factory::*;
 pub use token::*;

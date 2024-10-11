@@ -4,5 +4,5 @@ pub use super::*;
 impl Session {
 }
 
-#[cfg(feature="session")]
+#[cfg(feature="server")]
 mod server;

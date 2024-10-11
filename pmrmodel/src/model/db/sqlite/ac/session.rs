@@ -196,7 +196,10 @@ impl SessionBackend for SqliteBackend {
 #[cfg(test)]
 pub(crate) mod testing {
     use pmrcore::ac::{
-        session::SessionTokenFactory,
+        session::{
+            SessionFactory,
+            SessionTokenFactory,
+        },
         traits::UserBackend,
     };
     use crate::backend::db::{
@@ -215,11 +218,14 @@ pub(crate) mod testing {
             .await?;
         let user_id = UserBackend::add_user(&backend, "test_user").await?;
         let purge_id = UserBackend::add_user(&backend, "purge_tester").await?;
-        let token_factory = SessionTokenFactory::new()
-            .rng(MockRng::default());
+        let session_factory = SessionFactory::new()
+            .token_factory(
+                SessionTokenFactory::new()
+                    .rng(MockRng::default())
+            );
         let session = <dyn SessionBackend>::new_user_session(
             &backend,
-            &token_factory,
+            &session_factory,
             user_id,
             "".to_string(),
         ).await?;
@@ -233,13 +239,13 @@ pub(crate) mod testing {
 
         <dyn SessionBackend>::new_user_session(
             &backend,
-            &token_factory,
+            &session_factory,
             user_id,
             "".to_string(),
         ).await?;
         let purge = <dyn SessionBackend>::new_user_session(
             &backend,
-            &token_factory,
+            &session_factory,
             purge_id,
             "".to_string(),
         ).await?;
@@ -250,7 +256,7 @@ pub(crate) mod testing {
 
         let keep = <dyn SessionBackend>::new_user_session(
             &backend,
-            &token_factory,
+            &session_factory,
             user_id,
             "".to_string(),
         ).await?;

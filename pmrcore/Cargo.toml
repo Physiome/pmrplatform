@@ -34,7 +34,7 @@ git = ["dep:gix", "dep:mime_guess"]
 chrono = ["dep:chrono", "test-pmr/chrono"]
 display = ["chrono"]
 # group all server-only dependencies to this feature.
-server = ["session"]
+server = ["session", "chrono"]
 session = ["dep:rand"]
 sqlx = ["dep:sqlx"]
 tokio = ["dep:tokio"]
