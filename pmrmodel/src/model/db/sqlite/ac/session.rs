@@ -10,14 +10,17 @@ use pmrcore::{
     error::BackendError,
 };
 
-use crate::backend::db::SqliteBackend;
+use crate::{
+    backend::db::SqliteBackend,
+    chrono::Utc,
+};
 
 async fn save_session_sqlite(
     backend: &SqliteBackend,
     session: &Session,
-) -> Result<(), BackendError> {
+) -> Result<i64, BackendError> {
+    let last_active_ts = Utc::now().timestamp();
     let token_str = session.token.to_string();
-    // TODO should we allow the modification of the last_active_ts?
     sqlx::query!(
         r#"
 INSERT INTO user_session (
@@ -37,11 +40,11 @@ DO UPDATE SET
         session.user_id,
         session.origin,
         session.created_ts,
-        session.last_active_ts,
+        last_active_ts,
     )
     .execute(&*backend.pool)
     .await?;
-    Ok(())
+    Ok(last_active_ts)
 }
 
 async fn load_session_sqlite(
@@ -143,7 +146,7 @@ impl SessionBackend for SqliteBackend {
     async fn save_session(
         &self,
         session: &Session,
-    ) -> Result<(), BackendError> {
+    ) -> Result<i64, BackendError> {
         save_session_sqlite(
             &self,
             session,
@@ -206,7 +209,13 @@ pub(crate) mod testing {
         MigrationProfile,
         SqliteBackend,
     };
-    use test_pmr::rand::MockRng;
+    use test_pmr::{
+        chrono::{
+            Utc,
+            set_timestamp,
+        },
+        rand::MockRng,
+    };
 
     use super::*;
 
@@ -222,7 +231,8 @@ pub(crate) mod testing {
             .token_factory(
                 SessionTokenFactory::new()
                     .rng(MockRng::default())
-            );
+            )
+            .ts_source(|| Utc::now().timestamp());
         let session = <dyn SessionBackend>::new_user_session(
             &backend,
             &session_factory,
@@ -236,6 +246,17 @@ pub(crate) mod testing {
             session.token,
         ).await?;
         assert_eq!(session, stored);
+        set_timestamp(1888777666);
+        let ts = SessionBackend::save_session(
+            &backend,
+            &stored,
+        ).await?;
+        assert_eq!(ts, 1888777666);
+        let updated = SessionBackend::load_session(
+            &backend,
+            session.token,
+        ).await?;
+        assert_eq!(updated.last_active_ts, ts);
 
         <dyn SessionBackend>::new_user_session(
             &backend,

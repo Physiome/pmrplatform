@@ -118,7 +118,7 @@ pub trait SessionBackend {
     async fn save_session(
         &self,
         session: &Session,
-    ) -> Result<(), BackendError>;
+    ) -> Result<i64, BackendError>;
     async fn load_session(
         &self,
         token: SessionToken,
