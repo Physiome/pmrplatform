@@ -1,6 +1,7 @@
 use pmrcore::ac::{
     agent::Agent,
     role::Role,
+    session::SessionFactory,
     workflow::State,
 };
 use pmrac::{
@@ -17,9 +18,12 @@ use pmrac::{
 };
 use pmrrbac::Builder as PmrRbacBuilder;
 
-use test_pmr::ac::{
-    create_sqlite_backend,
-    create_sqlite_platform,
+use test_pmr::{
+    ac::{
+        create_sqlite_backend,
+        create_sqlite_platform,
+    },
+    chrono::Utc,
 };
 
 async fn basic_lifecycle(purge: bool) -> anyhow::Result<()> {
@@ -372,6 +376,46 @@ async fn policy_enforcement() -> anyhow::Result<()> {
         ],
         res_grants,
     );
+
+    Ok(())
+}
+
+#[async_std::test]
+async fn sessions() -> anyhow::Result<()> {
+    let platform = Builder::new()
+        .ac_platform(create_sqlite_backend().await?)
+        .session_factory(
+            SessionFactory::new()
+                .ts_source(|| Utc::now().timestamp())
+        )
+        .build();
+    let user = platform.create_user("test_user").await?;
+    let user_id = user.id();
+
+    // note that a session can be created like this, without a password,
+    // typically this lets new users set up their own initial password.
+    let session = platform.new_user_session(
+        user,
+        "localhost".to_string(),
+    ).await?;
+
+    // FIXME loading may potentially update last_access_ts later?
+    let new_session = platform.load_session(session.session().token).await?;
+    assert_eq!(session.user().id(), new_session.user().id());
+    assert_eq!(session.session(), new_session.session());
+
+    platform.new_user_session(
+        // typically this is done as part of some login workflow
+        platform.get_user(user_id).await?,
+        "localhost".to_string(),
+    ).await?;
+    assert_eq!(2, platform.get_user_sessions(user_id).await?.len());
+
+    // test that saving does bump
+    session.save().await?;
+    let updated_session = platform.load_session(session.session().token).await?;
+    assert_eq!(session.session().origin, updated_session.session().origin);
+    assert_ne!(session.session().last_active_ts, updated_session.session().last_active_ts);
 
     Ok(())
 }

@@ -3,6 +3,11 @@ use pmrcore::{
         agent::Agent,
         genpolicy::Policy,
         role::Role,
+        session::{
+            self,
+            SessionFactory,
+            SessionToken,
+        },
         user,
         workflow::State,
     },
@@ -22,6 +27,7 @@ use crate::{
         Password,
         PasswordStatus,
     },
+    session::Session,
 };
 
 #[derive(Clone, Default)]
@@ -31,12 +37,15 @@ pub struct Builder {
     // automatically purges all but the most recent passwords
     password_autopurge: bool,
     pmrrbac_builder: PmrRbacBuilder,
+    session_factory: Arc<SessionFactory>,
 }
 
+#[derive(Clone)]
 pub struct Platform {
     ac_platform: Arc<dyn ACPlatform>,
     password_autopurge: bool,
     pmrrbac_builder: PmrRbacBuilder,
+    session_factory: Arc<SessionFactory>,
 }
 
 impl Builder {
@@ -62,12 +71,25 @@ impl Builder {
         self
     }
 
+    pub fn session_factory(mut self, val: SessionFactory) -> Self {
+        self.session_factory = Arc::new(val);
+        self
+    }
+
     pub fn build(self) -> Platform {
         Platform {
-            ac_platform: self.ac_platform.expect("missing required argument ac_platform"),
+            ac_platform: self.ac_platform
+                .expect("missing required argument ac_platform"),
             password_autopurge: self.password_autopurge,
-            pmrrbac_builder: self.pmrrbac_builder
+            pmrrbac_builder: self.pmrrbac_builder,
+            session_factory: self.session_factory,
         }
+    }
+}
+
+impl Platform {
+    pub(crate) fn ac_platform(&self) -> &dyn ACPlatform {
+        self.ac_platform.as_ref()
     }
 }
 
@@ -76,12 +98,15 @@ impl Platform {
         ac_platform: impl ACPlatform + 'static,
         password_autopurge: bool,
         pmrrbac_builder: PmrRbacBuilder,
+        session_factory: SessionFactory,
     ) -> Self {
         let ac_platform = Arc::new(ac_platform);
+        let session_factory = Arc::new(session_factory);
         Self {
             ac_platform,
             password_autopurge,
             pmrrbac_builder,
+            session_factory,
         }
     }
 }
@@ -328,6 +353,78 @@ impl Platform {
             res,
         ).await?)
     }
+}
+
+// Session management
+
+impl<'a> Platform {
+    pub async fn new_user_session(
+        &'a self,
+        user: User<'a>,
+        origin: String,
+    ) -> Result<Session<'a>, Error> {
+        // this wouldn't work in stable as trait upcasting is nightly
+        // let session = Session::new(
+        //     &self,
+        //     SessionBackend::save_session(
+        //             self.ac_platform.as_ref(),
+        //             &self.session_factory,
+        //             user.id(),
+        //             origin,
+        //         )
+        //         .await?,
+        //     user,
+        // );
+        // ... so just inline the trivial `new_user_session` here, at
+        // least until this is fully stablized.
+        let session = self.session_factory.create(user.id(), origin);
+        self.ac_platform.save_session(&session).await?;
+        let session = Session::new(&self, session, user);
+        Ok(session)
+    }
+
+    pub async fn load_session(
+        &'a self,
+        token: SessionToken,
+    ) -> Result<Session<'a>, Error> {
+        let session = self.ac_platform.load_session(token).await?;
+        let user = self.get_user(session.user_id).await?;
+        Ok(Session::new(
+            &self,
+            session,
+            user,
+        ))
+    }
+
+    /// simply return a list of sessions without the token for the user_id
+    pub async fn get_user_sessions(
+        &self,
+        user_id: i64,
+    ) -> Result<Vec<session::Session>, Error> {
+        Ok(self.ac_platform.get_user_sessions(user_id).await?)
+    }
+
+    /*
+    // Not implementing the following, as Session<'_> will provide them.
+    pub async fn save_session(
+        &self,
+        session: &Session,
+    ) -> Result<(), Error> {
+    }
+
+    pub async fn purge_session(
+        &self,
+        token: SessionToken,
+    ) -> Result<(), Error> {
+    }
+
+    pub async fn purge_user_sessions(
+        &self,
+        user_id: i64,
+        token: Option<SessionToken>,
+    ) -> Result<(), Error> {
+    }
+    */
 }
 
 // Enforcement

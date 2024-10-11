@@ -34,12 +34,13 @@ VALUES ( ?1, ?2, ?3, ?4, ?5 )
 ON CONFLICT(token)
 DO UPDATE SET
     origin = ?3,
-    last_active_ts = ?5
+    last_active_ts = ?6
         "#,
         token_str,
         session.user_id,
         session.origin,
         session.created_ts,
+        session.last_active_ts,
         last_active_ts,
     )
     .execute(&*backend.pool)
