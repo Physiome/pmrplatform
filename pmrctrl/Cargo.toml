@@ -12,10 +12,10 @@ dotenvy = "0.15.0"
 futures = "0.3"
 log = { version = "0.4", features = ["std", "serde"] }
 parking_lot = "0.12"
-pmrcore = "0.0.1"
-pmrmodel = "0.0.1"
-pmrrepo = "0.0.1"
-pmrtqs = "0.0.1"
+pmrcore = { workspace = true }
+pmrmodel = { workspace = true }
+pmrrepo = { workspace = true }
+pmrtqs = { workspace = true }
 serde = { version = "1.0.59", features = ["serde_derive"] }
 serde_json = "1.0.59"
 sqlx = { version = "0.8.0", features = ["sqlite"] }

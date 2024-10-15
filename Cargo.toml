@@ -22,15 +22,15 @@ default-members = [
 ]
 resolver = "2"
 
-[patch.crates-io]
-pmrac = { path = "./pmrac" }
-pmrapp = { path = "./pmrapp" }
-pmrctrl = { path = "./pmrctrl" }
-pmrmodel = { path = "./pmrmodel" }
-pmrcore = { path = "./pmrcore" }
-pmrrbac = { path = "./pmrrbac" }
-pmrrepo = { path = "./pmrrepo" }
-pmrtqs = { path = "./pmrtqs" }
+[workspace.dependencies]
+pmrac = { path = "./pmrac", version = "0.0.1" }
+pmrapp = { path = "./pmrapp", version = "0.0.1" }
+pmrctrl = { path = "./pmrctrl", version = "0.0.1" }
+pmrmodel = { path = "./pmrmodel", version = "0.0.1" }
+pmrcore = { path = "./pmrcore", version = "0.0.1" }
+pmrrbac = { path = "./pmrrbac", version = "0.0.1" }
+pmrrepo = { path = "./pmrrepo", version = "0.0.1" }
+pmrtqs = { path = "./pmrtqs", version = "0.0.1" }
 
 # Defines a size-optimized profile for the WASM bundle in release mode
 [profile.wasm-release]
