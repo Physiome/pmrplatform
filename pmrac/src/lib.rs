@@ -4,4 +4,4 @@ pub mod platform;
 pub mod session;
 pub mod user;
 
-pub use platform::Platform;
+pub type Platform = std::sync::Arc<platform::Platform>;

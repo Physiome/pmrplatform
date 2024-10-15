@@ -4,12 +4,12 @@ use pmrcore::ac::{
 };
 
 use crate::{
-    Platform,
     error::{
         Error,
         PasswordError,
     },
     password::Password,
+    platform::Platform,
 };
 use super::User;
 

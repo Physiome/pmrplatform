@@ -1,6 +1,6 @@
 use pmrcore::ac::user;
 
-use crate::Platform;
+use crate::platform::Platform;
 
 pub struct User<'a> {
     platform: &'a Platform,

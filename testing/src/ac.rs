@@ -1,6 +1,6 @@
-use pmrac::platform::{
-    Builder,
+use pmrac::{
     Platform,
+    platform::Builder,
 };
 use pmrmodel::backend::db::{
     MigrationProfile,

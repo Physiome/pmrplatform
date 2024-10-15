@@ -30,22 +30,21 @@ use crate::{
     session::Session,
 };
 
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct Builder {
     // platform
-    ac_platform: Option<Arc<dyn ACPlatform>>,
+    ac_platform: Option<Box<dyn ACPlatform>>,
     // automatically purges all but the most recent passwords
     password_autopurge: bool,
     pmrrbac_builder: PmrRbacBuilder,
-    session_factory: Arc<SessionFactory>,
+    session_factory: SessionFactory,
 }
 
-#[derive(Clone)]
 pub struct Platform {
-    ac_platform: Arc<dyn ACPlatform>,
+    ac_platform: Box<dyn ACPlatform>,
     password_autopurge: bool,
     pmrrbac_builder: PmrRbacBuilder,
-    session_factory: Arc<SessionFactory>,
+    session_factory: SessionFactory,
 }
 
 impl Builder {
@@ -57,7 +56,7 @@ impl Builder {
     }
 
     pub fn ac_platform(mut self, val: impl ACPlatform + 'static) -> Self {
-        self.ac_platform = Some(Arc::new(val));
+        self.ac_platform = Some(Box::new(val));
         self
     }
 
@@ -72,42 +71,24 @@ impl Builder {
     }
 
     pub fn session_factory(mut self, val: SessionFactory) -> Self {
-        self.session_factory = Arc::new(val);
+        self.session_factory = val;
         self
     }
 
-    pub fn build(self) -> Platform {
-        Platform {
+    pub fn build(self) -> Arc<Platform> {
+        Arc::new(Platform {
             ac_platform: self.ac_platform
                 .expect("missing required argument ac_platform"),
             password_autopurge: self.password_autopurge,
             pmrrbac_builder: self.pmrrbac_builder,
             session_factory: self.session_factory,
-        }
+        })
     }
 }
 
 impl Platform {
     pub(crate) fn ac_platform(&self) -> &dyn ACPlatform {
         self.ac_platform.as_ref()
-    }
-}
-
-impl Platform {
-    pub fn new(
-        ac_platform: impl ACPlatform + 'static,
-        password_autopurge: bool,
-        pmrrbac_builder: PmrRbacBuilder,
-        session_factory: SessionFactory,
-    ) -> Self {
-        let ac_platform = Arc::new(ac_platform);
-        let session_factory = Arc::new(session_factory);
-        Self {
-            ac_platform,
-            password_autopurge,
-            pmrrbac_builder,
-            session_factory,
-        }
     }
 }
 
