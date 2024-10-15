@@ -417,5 +417,54 @@ async fn sessions() -> anyhow::Result<()> {
     assert_eq!(session.session().origin, updated_session.session().origin);
     assert_ne!(session.session().last_active_ts, updated_session.session().last_active_ts);
 
+    updated_session.logout().await?;
+
+    assert!(platform.load_session(session.session().token).await.is_err());
+
+    Ok(())
+}
+
+#[async_std::test]
+async fn multiple_sessions() -> anyhow::Result<()> {
+    let platform = Builder::new()
+        .ac_platform(create_sqlite_backend().await?)
+        .session_factory(
+            SessionFactory::new()
+                .ts_source(|| Utc::now().timestamp())
+        )
+        .build();
+    let user = platform.create_user("test_user").await?;
+    let user_id = user.id();
+
+    let s1 = platform.new_user_session(
+        platform.get_user(user_id).await?,
+        "site1".to_string()
+    ).await?;
+    let s2 = platform.new_user_session(
+        platform.get_user(user_id).await?,
+        "site2".to_string()
+    ).await?;
+    let s3 = platform.new_user_session(
+        platform.get_user(user_id).await?,
+        "site3".to_string()
+    ).await?;
+
+    s2.logout_others().await?;
+    assert_eq!(1, platform.get_user_sessions(user_id).await?.len());
+    assert!(platform.load_session(s1.session().token).await.is_err());
+    assert!(platform.load_session(s2.session().token).await.is_ok());
+    assert!(platform.load_session(s3.session().token).await.is_err());
+
+    let s4 = platform.new_user_session(
+        platform.get_user(user_id).await?,
+        "site4".to_string()
+    ).await?;
+    assert_eq!(2, platform.get_user_sessions(user_id).await?.len());
+
+    platform.logout_user(user_id).await?;
+    assert_eq!(0, platform.get_user_sessions(user_id).await?.len());
+    assert!(platform.load_session(s2.session().token).await.is_err());
+    assert!(platform.load_session(s4.session().token).await.is_err());
+
     Ok(())
 }

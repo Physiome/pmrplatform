@@ -142,6 +142,6 @@ pub trait SessionBackend {
     async fn purge_user_sessions(
         &self,
         user_id: i64,
-        token: Option<SessionToken>,
+        keep_token: Option<SessionToken>,
     ) -> Result<(), BackendError>;
 }

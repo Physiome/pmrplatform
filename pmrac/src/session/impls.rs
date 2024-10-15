@@ -37,4 +37,23 @@ impl<'a> Session<'a> {
             .save_session(&self.session)
             .await?)
     }
+
+    /// Logout this session.
+    pub async fn logout(self) -> Result<(), Error> {
+        Ok(self.platform
+            .ac_platform()
+            .purge_session(self.session.token)
+            .await?)
+    }
+
+    /// Logout all other sessions assoicated with the user.
+    pub async fn logout_others(&self) -> Result<(), Error> {
+        Ok(self.platform
+            .ac_platform()
+            .purge_user_sessions(
+                self.user().id(),
+                Some(self.session.token),
+            )
+            .await?)
+    }
 }

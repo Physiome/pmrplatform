@@ -396,7 +396,7 @@ impl<'a> Platform {
         ))
     }
 
-    /// simply return a list of sessions without the token for the user_id
+    /// Simply return a list of sessions without the token for the user_id
     pub async fn get_user_sessions(
         &self,
         user_id: i64,
@@ -404,27 +404,13 @@ impl<'a> Platform {
         Ok(self.ac_platform.get_user_sessions(user_id).await?)
     }
 
-    /*
-    // Not implementing the following, as Session<'_> will provide them.
-    pub async fn save_session(
-        &self,
-        session: &Session,
-    ) -> Result<(), Error> {
-    }
-
-    pub async fn purge_session(
-        &self,
-        token: SessionToken,
-    ) -> Result<(), Error> {
-    }
-
-    pub async fn purge_user_sessions(
+    /// Logout all sessions associated with the user_id.
+    pub async fn logout_user(
         &self,
         user_id: i64,
-        token: Option<SessionToken>,
     ) -> Result<(), Error> {
+        Ok(self.ac_platform.purge_user_sessions(user_id, None).await?)
     }
-    */
 }
 
 // Enforcement

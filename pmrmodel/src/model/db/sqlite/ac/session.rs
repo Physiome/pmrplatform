@@ -187,12 +187,12 @@ impl SessionBackend for SqliteBackend {
     async fn purge_user_sessions(
         &self,
         user_id: i64,
-        token: Option<SessionToken>,
+        keep_token: Option<SessionToken>,
     ) -> Result<(), BackendError> {
         purge_user_sessions_sqlite(
             &self,
             user_id,
-            token,
+            keep_token,
         ).await
     }
 }
