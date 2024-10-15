@@ -4,23 +4,23 @@ version = "0.0.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0"
-async-trait = "0.1.50"
-chrono = { version = "0.4", optional = true }
-git2 = "0.13"
-gix = "^0.58"
-mockall = "0.10.2"
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true, optional = true }
+git2 = { workspace = true }
+gix = { workspace = true }
+mockall = { workspace = true }
 pmrac = { workspace = true, optional = true }
 pmrcore = { workspace = true }
 pmrctrl = { workspace = true, optional = true }
 pmrmodel = { workspace = true, optional = true }
 pmrrepo = { workspace = true, optional = true }
-rand = { version = "0.8.5", optional = true }
-tempfile = "3.1.0"
-textwrap-macros = "0.3.0"
+rand = { workspace = true, optional = true }
+tempfile = { workspace = true }
+textwrap-macros = { workspace = true }
 
 [dev-dependencies]
-async-std = "1.5.0"
+async-std = { workspace = true }
 
 [features]
 ac = ["model", "dep:pmrac"]

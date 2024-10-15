@@ -6,15 +6,15 @@ authors = ["Tommy Yu <tommy.yu@auckland.ac.nz>"]
 edition = "2021"
 
 [dependencies]
-log = { version = "0.4" }
-casbin = { version = "2.5.0" }
+log = { workspace = true }
+casbin = { workspace = true }
 pmrcore = { workspace = true, features = ["display"] }
-thiserror = "1.0"
-tokio = { version = "1.35", features = ["fs", "io-util", "macros", "rt"] }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["fs", "io-util", "macros", "rt"] }
 
 [dev-dependencies]
-anyhow = "1.0.0"
-serde_json = "1.0.59"
+anyhow = { workspace = true }
+serde_json = { workspace = true }
 
 [features]
 

@@ -7,21 +7,21 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = "0.1.50"
-chrono = "0.4.31"
-futures = "0.3"
-itertools = "0.11"
-log = { version = "0.4", features = ["std", "serde"] }
-parking_lot = "0.12"
+async-trait = { workspace = true }
+chrono = { workspace = true }
+futures = { workspace = true }
+itertools = { workspace = true }
+log = { workspace = true, features = ["std", "serde"] }
+parking_lot = { workspace = true }
 pmrcore = { workspace = true, features = ["sqlx", "display", "server"] }
-serde = "1.0.59"
-serde_json = "1.0.59"
-sqlx = { version = "0.8.0", features = [ "runtime-async-std-native-tls", "sqlite" ] }
-thiserror = "1.0"
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true, features = ["runtime-async-std-native-tls", "sqlite"] }
+thiserror = { workspace = true }
 
 [dev-dependencies]
-anyhow = "1.0.0"
-async-std = { version = "1.5.0", features = [ "attributes" ] }
-mockall = "0.10.2"
-tempfile = "3.1.0"
+anyhow = { workspace = true }
+async-std = { workspace = true, features = ["attributes"] }
+mockall = { workspace = true }
+tempfile = { workspace = true }
 test-pmr = { path = "../testing", features = ["model", "rand"] }

@@ -6,26 +6,26 @@ authors = ["Tommy Yu <tommy.yu@auckland.ac.nz>"]
 edition = "2021"
 
 [dependencies]
-async-trait = "0.1.50"
-chrono = { version = "0.4", optional = true }
-clap = { version = "4.2", features = [ "derive", "env" ], optional = true }
-gix = { version = "^0.58", optional = true }
-log = { version = "0.4" }
-mime_guess = { version = "2.0.4", optional = true }
-num_enum = "0.6.1"
-rand = { version = "0.8.5", optional = true }
-serde = { version = "1.0.59", features = ["serde_derive"] }
-serde_json = "1.0.59"
-sqlx = { version = "0.8.0", features = ["sqlite"], optional = true }
-tokio = { version = "1.35", features = ["macros", "process"], optional = true }
-thiserror = "1.0"
+async-trait = { workspace = true }
+chrono = { workspace = true, optional = true }
+clap = { workspace = true, features = ["derive", "env"], optional = true }
+gix = { workspace = true, optional = true }
+log = { workspace = true }
+mime_guess = { workspace = true, optional = true }
+num_enum = { workspace = true }
+rand = { workspace = true, optional = true }
+serde = { workspace = true, features = ["serde_derive"] }
+serde_json = { workspace = true }
+sqlx = { workspace = true, features = ["sqlite"], optional = true }
+tokio = { workspace = true, features = ["macros", "process"], optional = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
-anyhow = "1.0.0"
-async-std = { version = "1.5.0", features = [ "attributes" ] }
-mockall = "0.10.2"
-tempfile = "3.1.0"
-test-binary = "3.0.2"
+anyhow = { workspace = true }
+async-std = { workspace = true, features = ["attributes"] }
+mockall = { workspace = true }
+tempfile = { workspace = true }
+test-binary = { workspace = true }
 test-pmr = { path = "../testing", features = [ "core" ] }
 
 [features]
