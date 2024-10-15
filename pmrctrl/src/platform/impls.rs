@@ -16,15 +16,16 @@ use crate::platform::Platform;
 
 impl Platform {
     pub fn new(
-        mc_platform: impl MCPlatform + Send + Sync + 'static,
-        tm_platform: impl TMPlatform + Send + Sync + 'static,
+        ac_platform: pmrac::Platform,
+        mc_platform: impl MCPlatform + 'static,
+        tm_platform: impl TMPlatform + 'static,
         data_root: PathBuf,
         repo_root: PathBuf,
     ) -> Self {
         let mc_platform = Arc::new(mc_platform);
         let tm_platform = Arc::new(tm_platform);
         let repo_backend = Backend::new(mc_platform.clone(), repo_root.clone());
-        Self { mc_platform, tm_platform, data_root, repo_root, repo_backend }
+        Self { ac_platform, mc_platform, tm_platform, data_root, repo_root, repo_backend }
     }
 
     pub fn data_root(&self) -> &Path {

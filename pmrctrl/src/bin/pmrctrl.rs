@@ -2,6 +2,7 @@ use clap::{
     Parser,
     Subcommand,
 };
+use pmrac::platform::Builder as ACPlatformBuilder;
 use pmrcore::{
     exposure::{
         traits::{
@@ -60,6 +61,8 @@ struct Cli {
     pmr_data_root: String,
     #[clap(long, value_name = "PMR_REPO_ROOT", env = "PMR_REPO_ROOT")]
     pmr_repo_root: String,
+    #[clap(long, value_name = "PMRAC_DB_URL", env = "PMRAC_DB_URL")]
+    pmrac_db_url: String,
     #[clap(long, value_name = "PMRAPP_DB_URL", env = "PMRAPP_DB_URL")]
     pmrapp_db_url: String,
     #[clap(long, value_name = "PMRTQS_DB_URL", env = "PMRTQS_DB_URL")]
@@ -228,6 +231,11 @@ async fn main() -> anyhow::Result<()> {
         .init()
         .unwrap();
 
+    if !Sqlite::database_exists(&args.pmrac_db_url).await.unwrap_or(false) {
+        log::warn!("pmrac database {} does not exist; creating...", &args.pmrac_db_url);
+        Sqlite::create_database(&args.pmrac_db_url).await?
+    }
+
     if !Sqlite::database_exists(&args.pmrapp_db_url).await.unwrap_or(false) {
         log::warn!("pmrapp database {} does not exist; creating...", &args.pmrapp_db_url);
         Sqlite::create_database(&args.pmrapp_db_url).await?
@@ -238,6 +246,10 @@ async fn main() -> anyhow::Result<()> {
         Sqlite::create_database(&args.pmrtqs_db_url).await?
     }
 
+    let ac = SqliteBackend::from_url(&args.pmrac_db_url)
+        .await?
+        .run_migration_profile(MigrationProfile::Pmrac)
+        .await?;
     let mc = SqliteBackend::from_url(&args.pmrapp_db_url)
         .await?
         .run_migration_profile(MigrationProfile::Pmrapp)
@@ -248,6 +260,9 @@ async fn main() -> anyhow::Result<()> {
         .await?;
 
     let platform = Platform::new(
+        ACPlatformBuilder::new()
+            .ac_platform(ac)
+            .build(),
         mc,
         tm,
         fs::canonicalize(args.pmr_data_root)?,

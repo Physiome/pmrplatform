@@ -12,6 +12,7 @@ dotenvy = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true, features = ["std", "serde"] }
 parking_lot = { workspace = true }
+pmrac = { workspace = true }
 pmrcore = { workspace = true }
 pmrmodel = { workspace = true }
 pmrrepo = { workspace = true }

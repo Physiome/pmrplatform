@@ -9,6 +9,7 @@ async fn main() -> anyhow::Result<()> {
     use clap::Parser;
     use leptos::prelude::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
+    use pmrac::platform::Builder as ACPlatformBuilder;
     use pmrapp::app::*;
     use pmrapp::conf::Cli;
     use pmrapp::server::workspace::raw_workspace_download;
@@ -33,6 +34,10 @@ async fn main() -> anyhow::Result<()> {
     let routes = generate_route_list(App);
     dbg!(&routes);
 
+    if !Sqlite::database_exists(&args.pmrac_db_url).await.unwrap_or(false) {
+        warn!("pmrac database {} does not exist; creating...", &args.pmrac_db_url);
+        Sqlite::create_database(&args.pmrac_db_url).await?;
+    }
     if !Sqlite::database_exists(&args.pmrapp_db_url).await.unwrap_or(false) {
         warn!("pmrapp database {} does not exist; creating...", &args.pmrapp_db_url);
         Sqlite::create_database(&args.pmrapp_db_url).await?;
@@ -41,6 +46,10 @@ async fn main() -> anyhow::Result<()> {
         warn!("pmrtqs database {} does not exist; creating...", &args.pmrtqs_db_url);
         Sqlite::create_database(&args.pmrtqs_db_url).await?;
     }
+    let ac = SqliteBackend::from_url(&args.pmrac_db_url)
+        .await?
+        .run_migration_profile(MigrationProfile::Pmrac)
+        .await?;
     let mc = SqliteBackend::from_url(&args.pmrapp_db_url)
         .await?
         .run_migration_profile(MigrationProfile::Pmrapp)
@@ -50,6 +59,9 @@ async fn main() -> anyhow::Result<()> {
         .run_migration_profile(MigrationProfile::Pmrtqs)
         .await?;
     let platform = Platform::new(
+        ACPlatformBuilder::new()
+            .ac_platform(ac)
+            .build(),
         mc,
         tm,
         fs::canonicalize(&args.pmr_data_root)?,
