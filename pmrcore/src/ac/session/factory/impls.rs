@@ -11,7 +11,7 @@ impl SessionFactory {
         self
     }
 
-    pub fn ts_source(mut self, val: impl Fn() -> i64 + Send + 'static) -> Self {
+    pub fn ts_source(mut self, val: impl Fn() -> i64 + Send + Sync + 'static) -> Self {
         self.ts_source = Some(Box::new(val));
         self
     }

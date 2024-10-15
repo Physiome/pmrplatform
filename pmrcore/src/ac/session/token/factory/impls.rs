@@ -7,7 +7,7 @@ impl SessionTokenFactory {
         Self::default()
     }
 
-    pub fn rng(mut self, rng: impl RngCore + 'static) -> Self {
+    pub fn rng(mut self, rng: impl RngCore + Send + Sync + 'static) -> Self {
         self.rng = Some(Box::new(Mutex::new(rng)));
         self
     }

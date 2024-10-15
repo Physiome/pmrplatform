@@ -55,7 +55,10 @@ use std::{
 };
 
 use test_binary::build_test_binary_once;
-use test_pmr::ctrl::create_sqlite_platform;
+use test_pmr::{
+    is_send_sync,
+    ctrl::create_sqlite_platform,
+};
 
 #[async_std::test]
 async fn test_platform_create_exposure_list_files() -> anyhow::Result<()> {
@@ -1743,7 +1746,6 @@ async fn test_exposure_file_registry() -> anyhow::Result<()> {
 
 #[test]
 fn test_send_sync_ctrl() {
-    fn is_send_sync<T: Send + Sync>() { }
     is_send_sync::<pmrctrl::handle::ExposureCtrl>();
     is_send_sync::<pmrctrl::handle::ExposureFileCtrl>();
 }

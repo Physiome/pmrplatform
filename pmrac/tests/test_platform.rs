@@ -24,6 +24,7 @@ use test_pmr::{
         create_sqlite_platform,
     },
     chrono::Utc,
+    is_send_sync,
 };
 
 async fn basic_lifecycle(purge: bool) -> anyhow::Result<()> {
@@ -467,4 +468,9 @@ async fn multiple_sessions() -> anyhow::Result<()> {
     assert!(platform.load_session(s4.session().token).await.is_err());
 
     Ok(())
+}
+
+#[test]
+fn test_send_sync_ctrl() {
+    is_send_sync::<pmrac::Platform>();
 }
