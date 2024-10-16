@@ -57,3 +57,20 @@ impl Session {
             .await?)
     }
 }
+
+mod debug {
+    use std::fmt;
+    use super::*;
+
+    impl fmt::Debug for Session {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("Session")
+                .field("session", &self.session().token.to_string())
+                .field("user_id", &self.user.id())
+                .finish()
+        }
+    }
+}
+
+#[cfg(feature="axum-login")]
+mod axum_login;

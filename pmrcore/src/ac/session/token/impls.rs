@@ -60,6 +60,13 @@ impl Serialize for SessionToken {
     }
 }
 
+#[cfg(feature="session")]
+impl SessionToken {
+    pub fn as_bytes(&self) -> &[u8] {
+        bytemuck::bytes_of(&self.0)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;

@@ -6,8 +6,10 @@ authors = ["Tommy Yu <tommy.yu@auckland.ac.nz>"]
 edition = "2021"
 
 [dependencies]
+async-trait = { workspace = true, optional = true }
 anyhow = { workspace = true, optional = true }
 argon2 = { workspace = true, features = ["std"] }
+axum-login = { workspace = true, optional = true }
 casbin = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"], optional = true }
 dotenvy = { workspace = true, optional = true }
@@ -27,6 +29,11 @@ serde_json = { workspace = true }
 test-pmr = { path = "../testing", features = [ "ac" ] }
 
 [features]
+axum-login = [
+    "pmrcore/bytemuck",
+    "dep:async-trait",
+    "dep:axum-login",
+]
 bin = [
     "anyhow",
     "clap",

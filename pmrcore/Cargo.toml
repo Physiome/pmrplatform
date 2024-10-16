@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 async-trait = { workspace = true }
+bytemuck = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
 clap = { workspace = true, features = ["derive", "env"], optional = true }
 gix = { workspace = true, optional = true }
@@ -29,12 +30,13 @@ test-binary = { workspace = true }
 test-pmr = { path = "../testing", features = [ "core" ] }
 
 [features]
+bytemuck = ["dep:bytemuck"]
 clap = ["dep:clap"]
 git = ["dep:gix", "dep:mime_guess"]
 chrono = ["dep:chrono", "test-pmr/chrono"]
 display = ["chrono"]
 # group all server-only dependencies to this feature.
-server = ["session", "chrono"]
+server = ["bytemuck", "session", "chrono"]
 session = ["dep:rand"]
 sqlx = ["dep:sqlx"]
 tokio = ["dep:tokio"]
