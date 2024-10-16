@@ -15,6 +15,7 @@ use leptos_router::{
     StaticSegment,
 };
 
+use crate::ac::ACRoutes;
 use crate::error::AppError;
 use crate::error_template::ErrorTemplate;
 use crate::exposure::ExposureRoutes;
@@ -85,6 +86,7 @@ pub fn App() -> impl IntoView {
                         <Route path=StaticSegment("") view=HomePage/>
                         <WorkspaceRoutes/>
                         <ExposureRoutes/>
+                        <ACRoutes/>
                     </Routes>
                 </article>
                 <aside>

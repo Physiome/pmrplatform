@@ -6,6 +6,7 @@ async fn main() -> anyhow::Result<()> {
         extract::Extension,
         routing::get,
     };
+    use axum_login::AuthManagerLayerBuilder;
     use clap::Parser;
     use leptos::prelude::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
@@ -20,9 +21,26 @@ async fn main() -> anyhow::Result<()> {
     };
     use std::fs;
     use sqlx::{migrate::MigrateDatabase, Sqlite};
+    use time::Duration;
+    use tower::ServiceBuilder;
+    use tower_sessions::{Expiry, MemoryStore, SessionManagerLayer};
 
     dotenvy::dotenv().ok();
     let args = Cli::parse();
+
+    stderrlog::new()
+        .module(module_path!())
+        .module("pmrctrl")
+        .module("pmrtqs")
+        .module("pmrac")
+        // .module("axum_login")
+        // .module("tower_sessions")
+        // .module("tower_sessions_core")
+        .verbosity((args.verbose as usize) + 1)
+        .timestamp(stderrlog::Timestamp::Second)
+        .init()
+        .unwrap();
+
     // Setting get_configuration(None) means we'll be using cargo-leptos's env values
     // For deployment these variables are:
     // <https://github.com/leptos-rs/start-axum#executing-a-server-on-a-remote-machine-without-the-toolchain>
@@ -68,6 +86,19 @@ async fn main() -> anyhow::Result<()> {
         fs::canonicalize(&args.pmr_repo_root)?,
     );
 
+    let session_store = MemoryStore::default();
+    let session_layer = SessionManagerLayer::new(session_store)
+        .with_secure(false)
+        .with_expiry(Expiry::OnInactivity(Duration::days(1)));
+
+    let auth_service = ServiceBuilder::new()
+        .layer(
+            AuthManagerLayerBuilder::new(
+                platform.ac_platform.clone(),
+                session_layer,
+            ).build()
+        );
+
     // build our application with a route
     let app = Router::new()
         .route("/workspace/:workspace_id/rawfile/:commit_id/*path",
@@ -85,6 +116,7 @@ async fn main() -> anyhow::Result<()> {
         // TODO add an additional handler that will filter out the body
         // for status code 3xx to optimize output.
         .layer(Extension(platform.clone()))
+        .layer(auth_service)
         .with_state(leptos_options);
 
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();

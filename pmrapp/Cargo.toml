@@ -10,6 +10,7 @@ crate-type = ["cdylib", "rlib"]
 ammonia = { workspace = true, optional = true }
 anyhow = { workspace = true, optional = true }
 axum = { workspace = true, optional = true }
+axum-login = { workspace = true, optional = true }
 clap = { workspace = true, features = ["derive", "env"], optional = true }
 console_error_panic_hook = { workspace = true }
 dotenvy = { workspace = true, optional = true }
@@ -20,7 +21,7 @@ leptos = { workspace = true, features = ["rkyv"] }
 leptos_axum = { workspace = true, optional = true }
 leptos_meta = { workspace = true }
 leptos_router = { workspace = true }
-pmrac = { workspace = true, optional = true }
+pmrac = { workspace = true, optional = true, features = ["axum-login"] }
 pmrcore = { workspace = true }
 pmrctrl = { workspace = true, optional = true }
 pmrmodel = { workspace = true, optional = true }
@@ -28,12 +29,15 @@ pmrrepo = { workspace = true, optional = true }
 pmrtqs = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 sqlx = { workspace = true, features = ["sqlite"], optional = true }
+stderrlog = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["rt-multi-thread"], optional = true }
 tower = { workspace = true, optional = true }
 tower-http = { workspace = true, features = ["fs"], optional = true }
+tower-sessions = { workspace = true, optional = true }
 wasm-bindgen = { workspace = true }
 web-sys = { workspace = true, features = ["Document", "Event", "EventTarget", "Performance", "Window"], optional = true }
 thiserror = { workspace = true }
+time = { workspace = true }
 tracing = { workspace = true, optional = true }
 http = { workspace = true }
 
@@ -47,6 +51,7 @@ ssr = [
     "dep:ammonia",
     "dep:anyhow",
     "dep:axum",
+    "dep:axum-login",
     "dep:clap",
     "dep:dotenvy",
     "dep:pmrac",
@@ -55,9 +60,11 @@ ssr = [
     "dep:pmrrepo",
     "dep:pmrtqs",
     "dep:sqlx",
+    "dep:stderrlog",
     "dep:tokio",
     "dep:tower",
     "dep:tower-http",
+    "dep:tower-sessions",
     "dep:leptos_axum",
     "leptos/ssr",
     "leptos_meta/ssr",
