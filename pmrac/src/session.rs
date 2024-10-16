@@ -1,14 +1,15 @@
 use pmrcore::ac::session;
 
 use crate::{
-    platform::Platform,
+    Platform,
     user::User,
 };
 
-pub struct Session<'a> {
-    platform: &'a Platform,
+#[derive(Clone)]
+pub struct Session {
+    platform: Platform,
     session: session::Session,
-    user: User<'a>,
+    user: User,
 }
 
 mod impls;

@@ -2,16 +2,16 @@ use pmrcore::ac::session;
 
 use crate::{
     error::Error,
-    platform::Platform,
     user::User,
+    Platform,
 };
 use super::Session;
 
-impl<'a> Session<'a> {
+impl Session {
     pub(crate) fn new(
-        platform: &'a Platform,
+        platform: Platform,
         session: session::Session,
-        user: User<'a>,
+        user: User,
     ) -> Self {
         Self {
             platform,
@@ -20,7 +20,7 @@ impl<'a> Session<'a> {
         }
     }
 
-    pub fn user(&self) -> &User<'a> {
+    pub fn user(&self) -> &User {
         &self.user
     }
 

@@ -4,10 +4,8 @@ use clap::{
 };
 use pmrac::{
     password::Password,
-    platform::{
-        Builder as PlatformBuilder,
-        Platform,
-    },
+    platform::Builder as PlatformBuilder,
+    Platform,
 };
 use pmrcore::ac::{
     agent::Agent,

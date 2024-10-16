@@ -9,13 +9,13 @@ use crate::{
         PasswordError,
     },
     password::Password,
-    platform::Platform,
+    Platform,
 };
 use super::User;
 
-impl<'a> User<'a> {
+impl User {
     pub(crate) fn new(
-        platform: &'a Platform,
+        platform: Platform,
         user: user::User,
     ) -> Self {
         Self {
@@ -28,7 +28,7 @@ impl<'a> User<'a> {
         self.user.id
     }
 
-    pub fn name(&'a self) -> &'a str {
+    pub fn name(&self) -> &str {
         self.user.name.as_ref()
     }
 
@@ -82,26 +82,26 @@ impl<'a> User<'a> {
     }
 }
 
-impl From<&User<'_>> for Agent {
-    fn from(user: &User<'_>) -> Self {
+impl From<&User> for Agent {
+    fn from(user: &User) -> Self {
         user.clone_inner().into()
     }
 }
 
-impl From<User<'_>> for Agent {
-    fn from(user: User<'_>) -> Self {
+impl From<User> for Agent {
+    fn from(user: User) -> Self {
         user.into_inner().into()
     }
 }
 
-impl From<&User<'_>> for user::User {
-    fn from(user: &User<'_>) -> Self {
+impl From<&User> for user::User {
+    fn from(user: &User) -> Self {
         user.clone_inner()
     }
 }
 
-impl From<User<'_>> for user::User {
-    fn from(user: User<'_>) -> Self {
+impl From<User> for user::User {
+    fn from(user: User) -> Self {
         user.into_inner()
     }
 }
