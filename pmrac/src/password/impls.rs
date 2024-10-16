@@ -10,7 +10,10 @@ use argon2::{
 };
 use std::fmt;
 
-use crate::error::PasswordError;
+use crate::error::{
+    AuthenticationError,
+    PasswordError,
+};
 use super::{
     Password,
     PasswordStatus,
@@ -71,14 +74,17 @@ impl<'a> Password<'a> {
         }
     }
 
-    pub fn verify(&'a self, other: &Self) -> Result<(), PasswordError> {
+    pub fn verify(&'a self, other: &Self) -> Result<(), AuthenticationError> {
         match (self, other) {
             (Password::Hash(hash), Password::Raw(raw)) |
             (Password::Raw(raw), Password::Hash(hash)) => {
                 Argon2::default()
                     .verify_password(raw.as_bytes(), hash)
-                    .map_err(|_| PasswordError::Wrong)
+                    .map_err(|_| PasswordError::Wrong)?;
+                Ok(())
             },
+            (Password::Restricted, _) |
+            (_, Password::Restricted) => Err(AuthenticationError::Restricted)?,
             _ => Err(PasswordError::NotVerifiable)?,
         }
     }

@@ -36,11 +36,13 @@ async fn basic_lifecycle(purge: bool) -> anyhow::Result<()> {
 
     assert!(matches!(
         platform.verify_user_id_password(admin.id(), "New").await,
-        Err(Error::Password(e)) if e == PasswordError::NotVerifiable,
+        Err(Error::Authentication(AuthenticationError::Password(e)))
+            if e == PasswordError::NotVerifiable,
     ));
     assert!(matches!(
         platform.authenticate_user("admin", "New").await,
-        Err(Error::Password(e)) if e == PasswordError::NotVerifiable,
+        Err(Error::Authentication(AuthenticationError::Password(e)))
+            if e == PasswordError::NotVerifiable,
     ));
 
     let (_, password) = platform.login_status("admin").await?;
@@ -84,7 +86,8 @@ async fn basic_lifecycle(purge: bool) -> anyhow::Result<()> {
             "password",
             "password",
         ).await,
-        Err(Error::Password(e)) if e == PasswordError::Wrong,
+        Err(Error::Authentication(AuthenticationError::Password(e)))
+            if e == PasswordError::Wrong,
     ));
 
     admin.update_password(
@@ -107,7 +110,8 @@ async fn basic_lifecycle(purge: bool) -> anyhow::Result<()> {
             admin.id(),
             "Reset",
         ).await,
-        Err(Error::Password(e)) if e == PasswordError::NotVerifiable,
+        Err(Error::Authentication(AuthenticationError::Password(e)))
+            if e == PasswordError::NotVerifiable,
     ));
 
     platform.force_user_id_password(admin.id(), Password::new("resetted")).await?;
