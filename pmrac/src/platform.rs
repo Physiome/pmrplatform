@@ -394,6 +394,33 @@ impl<'a> Platform {
     }
 }
 
+// Login methods
+
+impl<'a> Platform {
+    pub async fn authenticate_user_login(
+        &'a self,
+        login: &str,
+        password: &str,
+        origin: String,
+    ) -> Result<Session<'a>, Error> {
+        let user = self.authenticate_user(login, password).await?;
+        let session = self.new_user_session(user, origin).await?;
+        Ok(session)
+    }
+
+    // TODO login via some generated token (e.g. account password reset
+    // token generated via new user or password reset).
+    // pub async fn authenticate_user_token(
+    //     &'a self,
+    //     login: &str,
+    //     token: &str,
+    //     origin: String,
+    // ) -> Result<Session<'a>, Error> {
+    //
+    // When adapting for axum-login, its `Credentials` will be a enum listing
+    // all possible login credentials from above.
+}
+
 // Enforcement
 
 impl Platform {

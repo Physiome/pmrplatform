@@ -470,6 +470,32 @@ async fn multiple_sessions() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[async_std::test]
+async fn authenticate_credentials_into_session() -> anyhow::Result<()> {
+    let platform = Builder::new()
+        .ac_platform(create_sqlite_backend().await?)
+        .build();
+
+    let admin = platform.create_user("admin").await?;
+    admin.reset_password("admin", "admin").await?;
+
+    assert!(platform
+        .authenticate_user_login("admin", "wrong_password", "".to_string())
+        .await
+        .is_err());
+
+    let session = platform.authenticate_user_login(
+        "admin",
+        "admin",
+        "localhost".to_string(),
+    ).await?;
+
+    assert_eq!(session.user().name(), "admin");
+    assert_eq!(session.session().origin, "localhost");
+
+    Ok(())
+}
+
 #[test]
 fn test_send_sync_ctrl() {
     is_send_sync::<pmrac::Platform>();
