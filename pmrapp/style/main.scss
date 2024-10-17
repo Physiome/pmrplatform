@@ -18,6 +18,15 @@ body > header > nav {
   color: #fff;
 }
 
+body > header > nav div {
+  display: inline;
+  padding: 0.5em 0em;
+}
+
+body > header > nav div.filler {
+    flex-grow: 1;
+}
+
 body > header > nav a {
   color: #fff;
   padding: 0.5em 2em;
@@ -142,4 +151,58 @@ main > aside > section > nav > ul > li > a:hover {
   to {
     background-position: -40px 0px;
   }
+}
+
+/* styling for session related elements */
+
+form#sign-in {
+  width: 50vw;
+  margin: auto;
+}
+
+form#sign-in > div {
+  padding: 0.25em 0;
+}
+
+form#sign-in label {
+  display: block;
+  width: 100%;
+  padding: 0.25em 0;
+}
+
+form#sign-in input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.5em;
+}
+
+#session-status {
+  position: relative;
+  display: inline-block;
+}
+
+#session-status > form {
+  display: none;
+}
+
+#session-status:hover > form {
+  padding-top: 0.5em;
+  display: block;
+  position: absolute;
+  width: 100%;
+}
+
+#session-status button {
+  font-family: 'Arial', sans-serif;
+  font-size: inherit;
+  width: 100%;
+  padding: 0.5em 0;
+  background-color: #333;
+  color: #fff;
+  border: 0;
+}
+
+#session-status button:hover {
+  background-color: #c00;
+  cursor: pointer;
 }

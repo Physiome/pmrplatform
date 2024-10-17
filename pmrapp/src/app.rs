@@ -15,7 +15,11 @@ use leptos_router::{
     StaticSegment,
 };
 
-use crate::ac::ACRoutes;
+use crate::ac::{
+    ACRoutes,
+    SessionStatus,
+    provide_session_context,
+};
 use crate::error::AppError;
 use crate::error_template::ErrorTemplate;
 use crate::exposure::ExposureRoutes;
@@ -55,6 +59,7 @@ pub fn App() -> impl IntoView {
     // Provides context that manages stylesheets, titles, meta tags, etc.
     provide_meta_context();
     provide_portlet_context();
+    provide_session_context();
 
     view! {
         // injects a stylesheet into the document <head>
@@ -71,6 +76,8 @@ pub fn App() -> impl IntoView {
                     <A href="/">"Home"</A>
                     <A href="/workspace/">"Workspace"</A>
                     <A href="/exposure/">"Exposure"</A>
+                    <div class="filler"></div>
+                    <SessionStatus/>
                 </nav>
             </header>
             <main>

@@ -31,7 +31,7 @@ mod ssr {
 use self::ssr::*;
 
 #[server]
-pub(crate) async fn authenticate_login_password(
+pub(crate) async fn sign_in_with_login_password(
     // FIXME figure out how to best approach CSRF; maybe this be best moved to the
     // middleware.
     login: String,
@@ -53,6 +53,13 @@ pub(crate) async fn authenticate_login_password(
         },
         Err(e) => Err(e)?,
     }
+}
+
+#[server]
+pub(crate) async fn sign_out() -> Result<(), ServerFnError> {
+    let mut session = session().await?;
+    session.logout().await?;
+    Ok(())
 }
 
 #[server]
