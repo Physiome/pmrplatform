@@ -51,6 +51,11 @@ enum Commands {
         #[command(subcommand)]
         cmd: ResourceCmd,
     },
+    #[command(arg_required_else_help = true)]
+    Policy {
+        #[command(subcommand)]
+        cmd: PolicyCmd,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -119,6 +124,28 @@ enum ResourceCmd {
     Status,
 }
 
+#[derive(Debug, Subcommand)]
+enum PolicyCmd {
+    #[command(arg_required_else_help = true)]
+    Assign {
+        #[arg(value_enum)]
+        state: State,
+        #[arg(value_enum)]
+        role: Role,
+        endpoint_group: String,
+        method: String,
+    },
+    #[command(arg_required_else_help = true)]
+    Remove {
+        #[arg(value_enum)]
+        state: State,
+        #[arg(value_enum)]
+        role: Role,
+        endpoint_group: String,
+        method: String,
+    },
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
@@ -153,6 +180,9 @@ async fn main() -> anyhow::Result<()> {
         },
         Commands::Resource { resource, cmd } => {
             parse_resource(&platform, resource, cmd).await?;
+        },
+        Commands::Policy { cmd } => {
+            parse_policy(&platform, cmd).await?;
         },
     }
 
@@ -305,6 +335,31 @@ async fn parse_resource_role<'p>(
                 println!("{login} has no role {role} for resource {resource}");
             }
         }
+    }
+    Ok(())
+}
+
+async fn parse_policy<'p>(
+    platform: &'p Platform,
+    arg: PolicyCmd,
+) -> anyhow::Result<()> {
+    match arg {
+        PolicyCmd::Assign { state, role, endpoint_group, method } => {
+            platform.assign_policy_to_wf_state(state, role, &endpoint_group, &method).await?;
+            println!(
+                "assigned policy: role {role} having access to a resource's \
+                endpoint_group {endpoint_group:?} while using http method {method} \
+                when the resource is at workflow state {state}."
+            );
+        },
+        PolicyCmd::Remove { state, role, endpoint_group, method } => {
+            platform.remove_policy_from_wf_state(state, role, &endpoint_group, &method).await?;
+            println!(
+                "removed policy: role {role} having access to a resource's \
+                endpoint_group {endpoint_group:?} while using http method {method} \
+                when the resource is at workflow state {state}."
+            );
+        },
     }
     Ok(())
 }
