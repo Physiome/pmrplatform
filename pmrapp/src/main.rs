@@ -19,6 +19,7 @@ async fn main() -> anyhow::Result<()> {
         MigrationProfile,
         SqliteBackend,
     };
+    use pmrrbac::Builder as PmrRbacBuilder;
     use std::fs;
     use sqlx::{migrate::MigrateDatabase, Sqlite};
     use time::Duration;
@@ -33,6 +34,7 @@ async fn main() -> anyhow::Result<()> {
         .module("pmrctrl")
         .module("pmrtqs")
         .module("pmrac")
+        .module("pmrrbac")
         // .module("axum_login")
         // .module("tower_sessions")
         // .module("tower_sessions_core")
@@ -79,6 +81,10 @@ async fn main() -> anyhow::Result<()> {
     let platform = Platform::new(
         ACPlatformBuilder::new()
             .ac_platform(ac)
+            .pmrrbac_builder(
+                PmrRbacBuilder::new()
+                    .anonymous_reader(true)
+            )
             .build(),
         mc,
         tm,

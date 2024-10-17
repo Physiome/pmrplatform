@@ -6,7 +6,7 @@ use leptos_router::{
 };
 use pmrcore::ac::user::User;
 
-mod api;
+pub mod api;
 use api::{
     SignInWithLoginPassword,
     SignOut,

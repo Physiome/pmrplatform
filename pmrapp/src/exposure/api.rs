@@ -29,7 +29,10 @@ mod ssr {
     };
     pub use pmrctrl::error::CtrlError;
     pub use std::borrow::Cow;
-    pub use crate::server::platform;
+    pub use crate::{
+        server::platform,
+        ac::api::enforcer,
+    };
 }
 #[cfg(feature = "ssr")]
 use self::ssr::*;
@@ -50,6 +53,7 @@ pub struct ExposureInfo {
 
 #[server]
 pub async fn get_exposure_info(id: i64) -> Result<ExposureInfo, ServerFnError> {
+    enforcer(format!("/exposure/{id}"), "").await?;
     let platform = platform().await?;
     let ctrl = platform.get_exposure(id).await?;
     let files = ctrl.list_files_info().await?;
@@ -68,6 +72,7 @@ pub async fn resolve_exposure_path(
     id: i64,
     path: String,
 ) -> Result<ResolveExposurePathResult, ServerFnError> {
+    enforcer(format!("/exposure/{id}"), "").await?;
     // TODO when there is a proper error type for id not found, use that
     // TODO ExposureFileView is a placeholder - the real type that should be returned
     // is something that can readily be turned into an IntoView.
@@ -148,6 +153,7 @@ pub async fn read_blob(
     efvid: i64,
     key: String,
 ) -> Result<Box<[u8]>, ServerFnError> {
+    enforcer(format!("/exposure/{id}"), "").await?;
     let platform = platform().await?;
     let ec = platform.get_exposure(id).await?;
     let efc = ec.ctrl_path(&path).await?;
@@ -168,6 +174,8 @@ pub async fn read_safe_index_html(
             _ => Some(["../", url].concat().into()),
         }
     }
+
+    enforcer(format!("/exposure/{id}"), "").await?;
 
     let blob = read_blob(id, path.clone(), efvid, "index.html".to_string())
         .await?

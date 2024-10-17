@@ -6,6 +6,8 @@ use thiserror::Error;
 pub enum AppError {
     #[error("302 Redirect; Location: {0}")]
     Redirect(String),
+    #[error("403 Forbidden")]
+    Forbidden,
     #[error("404 Not Found")]
     NotFound,
 

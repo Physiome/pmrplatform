@@ -171,6 +171,7 @@ impl Builder {
         &self,
         resource_policy: Policy,
     ) -> Result<PmrRbac, Error> {
+        log::trace!("{resource_policy:?}");
         PmrRbac::new(
             self.anonymous_reader,
             &self.base_policy,
@@ -209,12 +210,14 @@ impl PmrRbac {
             .collect::<Vec<_>>();
         let n = policies.len();
         enforcer.add_named_policies("p", policies).await?;
-        log::info!("new enforcer set up with {n} policies");
+        log::debug!("new enforcer set up with {n} policies");
         let mut result = Self { enforcer };
         if anonymous_reader {
+            log::debug!("new enforcer granting anonymous agent role reader");
             result.grant_agent_role(None::<&str>, Role::Reader).await?;
         }
         if let Some(resource_policy) = resource_policy {
+            log::debug!("new enforcer has additional resource policies");
             result.set_resource_policy(resource_policy).await?;
         }
         Ok(result)

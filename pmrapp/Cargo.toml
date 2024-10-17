@@ -21,10 +21,12 @@ leptos = { workspace = true, features = ["rkyv"] }
 leptos_axum = { workspace = true, optional = true }
 leptos_meta = { workspace = true }
 leptos_router = { workspace = true }
+log = { workspace = true, optional = true }
 pmrac = { workspace = true, optional = true, features = ["axum-login"] }
 pmrcore = { workspace = true }
 pmrctrl = { workspace = true, optional = true }
 pmrmodel = { workspace = true, optional = true }
+pmrrbac = { workspace = true, optional = true }
 pmrrepo = { workspace = true, optional = true }
 pmrtqs = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
@@ -54,10 +56,12 @@ ssr = [
     "dep:axum-login",
     "dep:clap",
     "dep:dotenvy",
+    "dep:log",
     "dep:pmrac",
     "dep:pmrctrl",
     "dep:pmrmodel",
     "dep:pmrrepo",
+    "dep:pmrrbac",
     "dep:pmrtqs",
     "dep:sqlx",
     "dep:stderrlog",
