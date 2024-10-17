@@ -37,7 +37,7 @@ VALUES ( ?1, ?2 )
 async fn get_user_by_id_sqlite(
     backend: &SqliteBackend,
     id: i64,
-) -> Result<User, BackendError> {
+) -> Result<Option<User>, BackendError> {
     let recs = sqlx::query!(r#"
 SELECT
     id,
@@ -55,7 +55,7 @@ WHERE
         name: row.name,
         created_ts: row.created_ts,
     })
-    .fetch_one(&*backend.pool)
+    .fetch_optional(&*backend.pool)
     .await?;
     Ok(recs)
 }
@@ -63,7 +63,7 @@ WHERE
 async fn get_user_by_name_sqlite(
     backend: &SqliteBackend,
     name: &str,
-) -> Result<User, BackendError> {
+) -> Result<Option<User>, BackendError> {
     let recs = sqlx::query!(r#"
 SELECT
     id,
@@ -81,7 +81,7 @@ WHERE
         name: row.name,
         created_ts: row.created_ts,
     })
-    .fetch_one(&*backend.pool)
+    .fetch_optional(&*backend.pool)
     .await?;
     Ok(recs)
 }
@@ -167,7 +167,7 @@ impl UserBackend for SqliteBackend {
     async fn get_user_by_id(
         &self,
         id: i64,
-    ) -> Result<User, BackendError> {
+    ) -> Result<Option<User>, BackendError> {
         get_user_by_id_sqlite(
             &self,
             id,
@@ -177,7 +177,7 @@ impl UserBackend for SqliteBackend {
     async fn get_user_by_name(
         &self,
         name: &str,
-    ) -> Result<User, BackendError> {
+    ) -> Result<Option<User>, BackendError> {
         get_user_by_name_sqlite(
             &self,
             name,
@@ -236,7 +236,8 @@ pub(crate) mod testing {
             .run_migration_profile(MigrationProfile::Pmrac)
             .await?;
         let user_id = UserBackend::add_user(&backend, "test_user").await?;
-        let user = UserBackend::get_user_by_id(&backend, user_id).await?;
+        let user = UserBackend::get_user_by_id(&backend, user_id).await?
+            .expect("user is missing?");
         assert_eq!(
             user,
             User {

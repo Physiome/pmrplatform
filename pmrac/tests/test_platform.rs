@@ -29,8 +29,15 @@ use test_pmr::{
 
 async fn basic_lifecycle(purge: bool) -> anyhow::Result<()> {
     let platform = create_sqlite_platform(purge).await?;
+
+    assert!(matches!(
+        platform.authenticate_user("admin", "admin").await,
+        Err(Error::Authentication(AuthenticationError::UnknownUser))
+    ));
+
     let new_user = platform.create_user("admin").await?;
-    let admin = platform.get_user(new_user.id()).await?;
+    let admin = platform.get_user(new_user.id()).await?
+        .expect("admin wasn't created somehow");
     assert_eq!(admin.id(), new_user.id());
     assert_eq!(admin.name(), "admin");
 
@@ -70,6 +77,13 @@ async fn basic_lifecycle(purge: bool) -> anyhow::Result<()> {
     assert!(platform.verify_user_id_password(admin.id(), "hunter2").await.is_ok());
     let (_, password) = platform.login_status("admin").await?;
     assert!(matches!(password, PasswordStatus::Hash));
+
+    assert!(platform.authenticate_user("admin", "hunter2").await.is_ok());
+    assert!(matches!(
+        platform.authenticate_user("admin", "hunter").await,
+        Err(Error::Authentication(AuthenticationError::Password(e)))
+            if e == PasswordError::Wrong,
+    ));
 
     assert!(matches!(
         admin.update_password(
@@ -133,7 +147,8 @@ async fn basic_lifecycle_no_autopurge() -> anyhow::Result<()> {
 async fn error_handling(purge: bool) -> anyhow::Result<()> {
     let platform = create_sqlite_platform(purge).await?;
     let new_user = platform.create_user("admin").await?;
-    let admin = platform.get_user(new_user.id()).await?;
+    let admin = platform.get_user(new_user.id()).await?
+        .expect("admin wasn't created somehow");
 
     platform.force_user_id_password(admin.id(), Password::Restricted).await?;
     assert!(matches!(
@@ -411,7 +426,8 @@ async fn sessions() -> anyhow::Result<()> {
 
     platform.new_user_session(
         // typically this is done as part of some login workflow
-        platform.get_user(user_id).await?,
+        platform.get_user(user_id).await?
+            .expect("user wasn't created somehow"),
         "localhost".to_string(),
     ).await?;
     assert_eq!(2, platform.get_user_sessions(user_id).await?.len());
@@ -442,15 +458,18 @@ async fn multiple_sessions() -> anyhow::Result<()> {
     let user_id = user.id();
 
     let s1 = platform.new_user_session(
-        platform.get_user(user_id).await?,
+        platform.get_user(user_id).await?
+            .expect("user wasn't created somehow"),
         "site1".to_string()
     ).await?;
     let s2 = platform.new_user_session(
-        platform.get_user(user_id).await?,
+        platform.get_user(user_id).await?
+            .expect("user wasn't created somehow"),
         "site2".to_string()
     ).await?;
     let s3 = platform.new_user_session(
-        platform.get_user(user_id).await?,
+        platform.get_user(user_id).await?
+            .expect("user wasn't created somehow"),
         "site3".to_string()
     ).await?;
 
@@ -461,7 +480,8 @@ async fn multiple_sessions() -> anyhow::Result<()> {
     assert!(platform.load_session(s3.session().token).await.is_err());
 
     let s4 = platform.new_user_session(
-        platform.get_user(user_id).await?,
+        platform.get_user(user_id).await?
+            .expect("user wasn't created somehow"),
         "site4".to_string()
     ).await?;
     assert_eq!(2, platform.get_user_sessions(user_id).await?.len());

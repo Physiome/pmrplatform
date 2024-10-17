@@ -430,7 +430,8 @@ pub(crate) mod testing {
             .run_migration_profile(MigrationProfile::Pmrac)
             .await?;
         let user_id = UserBackend::add_user(&backend, "test_user").await?;
-        let user = UserBackend::get_user_by_id(&backend, user_id).await?;
+        let user = UserBackend::get_user_by_id(&backend, user_id).await?
+            .expect("user is missing?");
         let agent: Agent = user.clone().into();
         let state = State::Published;
         let role = Role::Reader;
@@ -464,7 +465,8 @@ pub(crate) mod testing {
             .run_migration_profile(MigrationProfile::Pmrac)
             .await?;
         let user_id = UserBackend::add_user(&backend, "test_user").await?;
-        let user = UserBackend::get_user_by_id(&backend, user_id).await?;
+        let user = UserBackend::get_user_by_id(&backend, user_id).await?
+            .expect("user is missing?");
         let role = Role::Reader;
         assert!(PolicyBackend::grant_role_to_user(&backend, &user, Role::Manager).await?);
         assert!(!PolicyBackend::grant_role_to_user(&backend, &user, Role::Manager).await?);

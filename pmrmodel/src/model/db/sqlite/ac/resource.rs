@@ -260,7 +260,8 @@ pub(crate) mod testing {
             .await?;
 
         let user_id = UserBackend::add_user(&backend, "test_user").await?;
-        let user = UserBackend::get_user_by_id(&backend, user_id).await?;
+        let user = UserBackend::get_user_by_id(&backend, user_id).await?
+            .expect("user is missing?");
         let state = State::Published;
         let role = Role::Reader;
         let agent: Agent = user.clone().into();
@@ -341,10 +342,12 @@ pub(crate) mod testing {
         UserBackend::add_user(&backend, "user321").await?;
         UserBackend::add_user(&backend, "user456").await?;
         let user_id = UserBackend::add_user(&backend, "test_user").await?;
-        let user = UserBackend::get_user_by_id(&backend, user_id).await?;
+        let user = UserBackend::get_user_by_id(&backend, user_id).await?
+            .expect("user is missing?");
         let agent_user: Agent = user.into();
         let admin_id = UserBackend::add_user(&backend, "admin").await?;
-        let admin = UserBackend::get_user_by_id(&backend, admin_id).await?;
+        let admin = UserBackend::get_user_by_id(&backend, admin_id).await?
+            .expect("user is missing?");
         let agent_admin: Agent = admin.into();
         PolicyBackend::res_grant_role_to_agent(
             &backend,

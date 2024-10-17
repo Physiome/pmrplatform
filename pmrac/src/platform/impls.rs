@@ -85,7 +85,8 @@ impl Platform {
     ) -> Result<User, Error> {
         let id = self.0.ac_platform.add_user(name).await?;
         self.force_user_id_password(id, Password::New).await?;
-        self.get_user(id).await
+        Ok(self.get_user(id).await?
+            .expect("the user should have been created"))
     }
 
     // TODO eventually this might go away - the adminstrator will be using this
@@ -95,9 +96,10 @@ impl Platform {
     pub async fn get_user(
         &self,
         id: i64,
-    ) -> Result<User, Error> {
-        let user = self.0.ac_platform.get_user_by_id(id).await?;
-        Ok(User::new(self.clone(), user))
+    ) -> Result<Option<User>, Error> {
+        let user = self.0.ac_platform.get_user_by_id(id).await?
+            .map(|user| User::new(self.clone(), user));
+        Ok(user)
     }
 
     pub async fn authenticate_user(
@@ -106,7 +108,8 @@ impl Platform {
         password: &str,
     ) -> Result<User, Error> {
         // TODO login can be email also
-        let user = self.0.ac_platform.get_user_by_name(login).await?;
+        let user = self.0.ac_platform.get_user_by_name(login).await?
+            .ok_or(AuthenticationError::UnknownUser)?;
         self.verify_user_id_password(user.id, password).await?;
         Ok(User::new(self.clone(), user))
     }
@@ -117,7 +120,8 @@ impl Platform {
     ) -> Result<(user::User, PasswordStatus), Error> {
         // TODO login can be email also
         // TODO should report this error better, e.g. need an enum for user not exist
-        let user = self.0.ac_platform.get_user_by_name(login).await?;
+        let user = self.0.ac_platform.get_user_by_name(login).await?
+            .ok_or(AuthenticationError::UnknownUser)?;
         let result = self.0.ac_platform.get_user_password(user.id).await;
         let password = result
             .as_deref()
@@ -354,7 +358,8 @@ impl Platform {
         token: SessionToken,
     ) -> Result<Session, Error> {
         let session = self.0.ac_platform.load_session(token).await?;
-        let user = self.get_user(session.user_id).await?;
+        let user = self.get_user(session.user_id).await?
+            .ok_or(AuthenticationError::UnknownUser)?;
         Ok(Session::new(
             self.clone(),
             session,

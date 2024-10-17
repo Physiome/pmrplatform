@@ -21,11 +21,11 @@ pub trait UserBackend {
     async fn get_user_by_id(
         &self,
         id: i64,
-    ) -> Result<User, BackendError>;
+    ) -> Result<Option<User>, BackendError>;
     async fn get_user_by_name(
         &self,
         name: &str,
-    ) -> Result<User, BackendError>;
+    ) -> Result<Option<User>, BackendError>;
     async fn get_user_password(
         &self,
         user_id: i64,

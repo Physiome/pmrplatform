@@ -37,4 +37,6 @@ pub enum AuthenticationError {
     Password(#[from] PasswordError),
     #[error("Restricted")]
     Restricted,
+    #[error("UnknownUser")]
+    UnknownUser,
 }

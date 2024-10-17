@@ -101,10 +101,10 @@ fn LoginPage() -> impl IntoView {
 
     view! {
         <h1>"Login Form"</h1>
-        <div>
-            {login_result}
-        </div>
         <ActionForm attr:id="sign-in" action=action>
+            <div>
+                {login_result}
+            </div>
             <div>
                 <label for="login">"Login"</label>
                 <input type="text" name="login" required/>
