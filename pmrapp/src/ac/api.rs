@@ -18,8 +18,6 @@ mod ssr {
         },
         Platform,
     };
-    use axum::http::Method;
-    use leptos_axum::extract;
     use pmrcore::ac::agent::Agent;
     use crate::error::AppError;
     use super::*;
@@ -33,22 +31,20 @@ mod ssr {
 
     pub async fn enforcer(
         resource: impl Into<String>,
-        endpoint_group: impl Into<String>,
+        action: impl Into<String>,
     ) -> Result<(), ServerFnError> {
         let session = session().await?;
         let backend = session.backend;
         let agent: Agent = session.user
             .map(|auth| auth.user().into())
             .unwrap_or(Agent::Anonymous);
-        let method: Method = extract().await?;
         let resource = resource.into();
-        let endpoint_group = endpoint_group.into();
-        log::trace!("enforce on: agent={agent} resource={resource:?} endpoint_group={endpoint_group:?} method={method}");
+        let action = action.into();
+        log::trace!("enforce on: agent={agent} resource={resource:?} action={action:?}");
         if backend.enforce(
             agent,
             resource,
-            endpoint_group,
-            &method.to_string(),
+            action,
         ).await? {
             Ok(())
         } else {

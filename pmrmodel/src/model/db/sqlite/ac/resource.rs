@@ -135,8 +135,7 @@ WHERE
         r#"
 SELECT
     wf_policy.role AS role,
-    wf_policy.endpoint_group AS endpoint_group,
-    wf_policy.method AS method
+    wf_policy.action AS action
 FROM
     res_wf_state
 JOIN
@@ -148,8 +147,7 @@ WHERE
     )
     .map(|row| RolePermit {
         role: Role::from_str(&row.role).unwrap_or_default(),
-        endpoint_group: row.endpoint_group,
-        method: row.method,
+        action: row.action,
     })
     .fetch_all(&*backend.pool)
     .await?;
@@ -267,7 +265,7 @@ pub(crate) mod testing {
         let agent: Agent = user.clone().into();
         PolicyBackend::grant_role_to_user(&backend, &user, role).await?;
         PolicyBackend::res_grant_role_to_agent(&backend, "/", &agent, role).await?;
-        PolicyBackend::assign_policy_to_wf_state(&backend, state, role, "", "GET").await?;
+        PolicyBackend::assign_policy_to_wf_state(&backend, state, role, "").await?;
         ResourceBackend::set_wf_state_for_res(&backend, "/", state).await?;
 
         let policy = ResourceBackend::generate_policy_for_agent_res(
@@ -284,13 +282,13 @@ pub(crate) mod testing {
                 {"res": "/", "agent": "test_user", "role": "Reader"}
             ],
             "role_permits": [
-                {"role": "Reader", "endpoint_group": "", "method": "GET"}
+                {"role": "Reader", "action": ""}
             ]
         }"#)?);
 
         PolicyBackend::revoke_role_from_user(&backend, &user, role).await?;
         PolicyBackend::res_revoke_role_from_agent(&backend, "/", &agent, role).await?;
-        PolicyBackend::remove_policy_from_wf_state(&backend, state, role, "", "GET").await?;
+        PolicyBackend::remove_policy_from_wf_state(&backend, state, role, "").await?;
         let policy = ResourceBackend::generate_policy_for_agent_res(
             &backend,
             &agent,
@@ -366,28 +364,24 @@ pub(crate) mod testing {
             State::Published,
             Role::Reader,
             "",
-            "GET",
         ).await?;
         PolicyBackend::assign_policy_to_wf_state(
             &backend,
             State::Private,
             Role::Owner,
-            "edit",
-            "POST",
+            "editor_edit",
         ).await?;
         PolicyBackend::assign_policy_to_wf_state(
             &backend,
             State::Private,
             Role::Owner,
-            "edit",
-            "GET",
+            "editor_view",
         ).await?;
         PolicyBackend::assign_policy_to_wf_state(
             &backend,
             State::Published,
             Role::Owner,
-            "edit",
-            "GET",
+            "editor_view",
         ).await?;
 
         ResourceBackend::set_wf_state_for_res(
@@ -412,8 +406,8 @@ pub(crate) mod testing {
                 {"res": "/item/1", "agent": "test_user", "role": "Owner"}
             ],
             "role_permits": [
-                {"role": "Owner", "endpoint_group": "edit", "method": "GET"},
-                {"role": "Owner", "endpoint_group": "edit", "method": "POST"}
+                {"role": "Owner", "action": "editor_edit"},
+                {"role": "Owner", "action": "editor_view"}
             ]
         }"#)?);
 
@@ -438,8 +432,8 @@ pub(crate) mod testing {
                 {"res": "/item/1", "agent": "test_user", "role": "Owner"}
             ],
             "role_permits": [
-                {"role": "Owner", "endpoint_group": "edit", "method": "GET"},
-                {"role": "Reader", "endpoint_group": "", "method": "GET"}
+                {"role": "Owner", "action": "editor_view"},
+                {"role": "Reader", "action": ""}
             ]
         }"#)?);
 

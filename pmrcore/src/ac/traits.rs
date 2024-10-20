@@ -83,15 +83,13 @@ pub trait PolicyBackend {
         &self,
         wf_state: State,
         role: Role,
-        endpoint_group: &str,
-        method: &str,
+        action: &str,
     ) -> Result<(), BackendError>;
     async fn remove_policy_from_wf_state(
         &self,
         wf_state: State,
         role: Role,
-        endpoint_group: &str,
-        method: &str,
+        action: &str,
     ) -> Result<(), BackendError>;
 }
 

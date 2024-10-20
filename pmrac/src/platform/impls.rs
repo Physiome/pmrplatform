@@ -263,14 +263,12 @@ impl Platform {
         &self,
         wf_state: State,
         role: Role,
-        endpoint_group: &str,
-        method: &str,
+        action: &str,
     ) -> Result<(), Error> {
         Ok(self.0.ac_platform.assign_policy_to_wf_state(
             wf_state,
             role,
-            endpoint_group,
-            method,
+            action,
         ).await?)
     }
 
@@ -278,14 +276,12 @@ impl Platform {
         &self,
         wf_state: State,
         role: Role,
-        endpoint_group: &str,
-        method: &str,
+        action: &str,
     ) -> Result<(), Error> {
         Ok(self.0.ac_platform.remove_policy_from_wf_state(
             wf_state,
             role,
-            endpoint_group,
-            method,
+            action,
         ).await?)
     }
 }
@@ -418,8 +414,7 @@ impl Platform {
         &self,
         agent: impl Into<Agent>,
         res: impl AsRef<str> + ToString,
-        endpoint_group: impl AsRef<str>,
-        http_method: &str,
+        action: impl AsRef<str>,
     ) -> Result<bool, Error> {
         let agent = agent.into();
         Ok(self.0.pmrrbac_builder
@@ -433,8 +428,7 @@ impl Platform {
             .enforce(
                 <Agent as Into<Option<String>>>::into(agent),
                 res,
-                endpoint_group,
-                http_method,
+                action,
             )?)
     }
 }

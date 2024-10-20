@@ -132,8 +132,7 @@ enum PolicyCmd {
         state: State,
         #[arg(value_enum)]
         role: Role,
-        endpoint_group: String,
-        method: String,
+        action: String,
     },
     #[command(arg_required_else_help = true)]
     Remove {
@@ -141,8 +140,7 @@ enum PolicyCmd {
         state: State,
         #[arg(value_enum)]
         role: Role,
-        endpoint_group: String,
-        method: String,
+        action: String,
     },
 }
 
@@ -344,19 +342,17 @@ async fn parse_policy<'p>(
     arg: PolicyCmd,
 ) -> anyhow::Result<()> {
     match arg {
-        PolicyCmd::Assign { state, role, endpoint_group, method } => {
-            platform.assign_policy_to_wf_state(state, role, &endpoint_group, &method).await?;
+        PolicyCmd::Assign { state, role, action } => {
+            platform.assign_policy_to_wf_state(state, role, &action).await?;
             println!(
-                "assigned policy: role {role} having access to a resource's \
-                endpoint_group {endpoint_group:?} while using http method {method} \
+                "assigned policy: role {role} may use action {action:?} on a resource \
                 when the resource is at workflow state {state}."
             );
         },
-        PolicyCmd::Remove { state, role, endpoint_group, method } => {
-            platform.remove_policy_from_wf_state(state, role, &endpoint_group, &method).await?;
+        PolicyCmd::Remove { state, role, action } => {
+            platform.remove_policy_from_wf_state(state, role, &action).await?;
             println!(
-                "removed policy: role {role} having access to a resource's \
-                endpoint_group {endpoint_group:?} while using http method {method} \
+                "removed policy: role {role} may use action {action:?} on a resource \
                 when the resource is at workflow state {state}."
             );
         },

@@ -235,8 +235,7 @@ async fn assign_policy_to_wf_state_sqlite(
     backend: &SqliteBackend,
     wf_state: State,
     role: Role,
-    endpoint_group: &str,
-    method: &str,
+    action: &str,
 ) -> Result<(), BackendError> {
     let state = <&'static str>::from(wf_state);
     let role = <&'static str>::from(role);
@@ -245,15 +244,13 @@ async fn assign_policy_to_wf_state_sqlite(
 INSERT INTO wf_policy (
     state,
     role,
-    endpoint_group,
-    method
+    action
 )
-VALUES ( ?1, ?2, ?3, ?4 )
+VALUES ( ?1, ?2, ?3 )
         "#,
         state,
         role,
-        endpoint_group,
-        method,
+        action,
     )
     .execute(&*backend.pool)
     .await?
@@ -265,8 +262,7 @@ async fn remove_policy_from_wf_state_sqlite(
     backend: &SqliteBackend,
     state: State,
     role: Role,
-    endpoint_group: &str,
-    method: &str,
+    action: &str,
 ) -> Result<(), BackendError> {
     let state = <&'static str>::from(state);
     let role = <&'static str>::from(role);
@@ -277,13 +273,11 @@ DELETE FROM
 WHERE
     state = ?1 AND
     role = ?2 AND
-    endpoint_group = ?3 AND
-    method = ?4
+    action = ?3
         "#,
         state,
         role,
-        endpoint_group,
-        method,
+        action,
     )
     .execute(&*backend.pool)
     .await?;
@@ -378,15 +372,13 @@ impl PolicyBackend for SqliteBackend {
         &self,
         wf_state: State,
         role: Role,
-        endpoint_group: &str,
-        method: &str,
+        action: &str,
     ) -> Result<(), BackendError> {
         assign_policy_to_wf_state_sqlite(
             &self,
             wf_state,
             role,
-            endpoint_group,
-            method,
+            action,
         ).await
     }
 
@@ -394,15 +386,13 @@ impl PolicyBackend for SqliteBackend {
         &self,
         wf_state: State,
         role: Role,
-        endpoint_group: &str,
-        method: &str,
+        action: &str,
     ) -> Result<(), BackendError> {
         remove_policy_from_wf_state_sqlite(
             &self,
             wf_state,
             role,
-            endpoint_group,
-            method,
+            action,
         ).await
     }
 }
@@ -447,8 +437,8 @@ pub(crate) mod testing {
         PolicyBackend::res_revoke_role_from_agent(&backend, "/", &agent, role).await?;
         assert!(PolicyBackend::get_res_grants_for_res(&backend, "/").await?.is_empty());
         assert!(PolicyBackend::get_res_grants_for_agent(&backend, &agent).await?.is_empty());
-        PolicyBackend::assign_policy_to_wf_state(&backend, state, role, "", "GET").await?;
-        PolicyBackend::remove_policy_from_wf_state(&backend, state, role, "", "GET").await?;
+        PolicyBackend::assign_policy_to_wf_state(&backend, state, role, "").await?;
+        PolicyBackend::remove_policy_from_wf_state(&backend, state, role, "").await?;
 
         PolicyBackend::grant_role_to_user(&backend, &user, Role::Manager).await?;
         assert_eq!(

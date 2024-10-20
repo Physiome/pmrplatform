@@ -23,10 +23,10 @@ use crate::error::Error;
 /// The casbin model for pmrapp.
 const DEFAULT_MODEL: &str = "\
 [request_definition]
-r = sub, res, ep, met
+r = sub, res, act
 
 [policy_definition]
-p = sub, res, ep, met
+p = sub, res, act
 
 [role_definition]
 g = _, _, _
@@ -36,45 +36,41 @@ g2 = _, _
 e = some(where (p.eft == allow))
 
 [matchers]
-m = (g(r.sub, p.sub, r.res) || g(r.sub, p.sub, p.res) || g2(r.sub, p.sub)) && keyMatch2(r.res, p.res) && keyMatch(r.ep, p.ep) && r.met == p.met
+m = (g(r.sub, p.sub, r.res) || g(r.sub, p.sub, p.res) || g2(r.sub, p.sub)) && keyMatch2(r.res, p.res) && keyMatch(r.act, p.act)
 ";
-
-// this matcher _doesn't_ work for the Rust version, so we just do another check for the None agent even if there is Some(...) agent.
-// m = (g(r.sub, p.sub, r.res) || g(r.sub, p.sub, p.res) || g("-", p.sub, r.res) || g("-", p.sub, p.res)) && keyMatch2(r.res, p.res) && keyMatch(r.ep, p.ep) && r.met == p.met
 
 /// The default policy for PMR
 ///
-/// The fields are comma separated in the form of: role, route, endpoint group, HTTP method
+/// The fields are comma separated in the form of: role, route, action
 ///
 /// role - the name of the role - it will be granted to agents.
 /// route - the route to a given resource
-/// endpoint group - the name for a given group of endpoints that share something in common
-/// HTTP method - the permitted HTTP method associated with the policy
+/// action - the name for a given action
 const DEFAULT_POLICIES: &str = "\
 # Managers can do everything
-manager, /*, *, GET
-manager, /*, *, POST
+manager, /*, *
 
 # readers have limited access; this should be granted per resource
-# reader, /*, , GET
-# reader, /*, protocol, GET
+# reader, /*,
+# reader, /*, protocol_read
+# reader, /*, protocol_edit
 
 # owners have everything, including granted access
-owner, /*, , GET           # empty group signifies typical actions (e.g. view)
-owner, /*, edit, GET       # edit signifies being able to edit content (e.g. exposure wizard)
-owner, /*, edit, POST      # this may be removed to prevent published content being edited
-owner, /*, grant, GET      # grant signifies being able to grant additional access
-owner, /*, grant, POST
-owner, /*, protocol, GET   # protocol signifies git clone/etc
-owner, /*, protocol, POST
+owner, /*,                 # empty group signifies typical actions (e.g. the default view)
+owner, /*, editor_view     # *_view allows the view of the editing UI (e.g. exposure wizard)
+owner, /*, editor_edit     # *_edit allows the submission of edits, may be removed, see below
+owner, /*, grant_view      # grant signifies being able to grant additional access
+owner, /*, grant_edit
+owner, /*, protocol_view   # protocol signifies git clone/etc
+owner, /*, protocol_edit
 
 # editors have everything, can see grants but cannot grant additional access to others
-editor, /*, , GET           # empty group signifies typical actions (e.g. view)
-editor, /*, edit, GET
-editor, /*, edit, POST
-editor, /*, grant, GET
-editor, /*, protocol, GET
-editor, /*, protocol, POST
+editor, /*,                 # empty group signifies typical actions (e.g. view)
+editor, /*, editor_view
+editor, /*, editor_edit
+editor, /*, grant_view
+editor, /*, protocol_view
+editor, /*, protocol_edit
 ";
 
 /// An alternative policy
@@ -82,25 +78,24 @@ editor, /*, protocol, POST
 /// This one prevents article owners from being able to edit content after publication
 const ALT_POLICIES: &str = "\
 # managers can do everything
-manager, /*, *, GET
-manager, /*, *, POST
+manager, /*, *
 
 # owners have everything, including granted access
-owner, /*, , GET           # empty group signifies typical actions (e.g. view)
-owner, /*, edit, GET       # edit signifies being able to edit content (e.g. exposure wizard)
-# owner, /*, edit, POST    # removing this prevents owners from being able to edit by default
-owner, /*, grant, GET      # grant signifies being able to grant additional access
-owner, /*, grant, POST     # note that the implementation may need to figure out who's granting what
-owner, /*, protocol, GET   # protocol signifies git clone/etc
-owner, /*, protocol, POST
+owner, /*,                 # empty group signifies typical actions (e.g. view)
+owner, /*, editor_view     # being able to view the editor does not mean changes be accepted by default,
+# owner, /*, editor_edit   # if the associated *_edit action is removed.
+owner, /*, grant_view      # grant signifies being able to grant additional access
+owner, /*, grant_edit      # note that the implementation may need to figure out who's granting what
+owner, /*, protocol_view   # protocol signifies git clone/etc
+owner, /*, protocol_edit
 
 # editors have everything, can see grants but cannot grant additional access to others
-editor, /*, , GET           # empty group signifies typical actions (e.g. view)
-editor, /*, edit, GET
-editor, /*, edit, POST
-editor, /*, grant, GET
-editor, /*, protocol, GET
-editor, /*, protocol, POST
+editor, /*, ,               # empty group signifies typical actions (e.g. view)
+editor, /*, editor_view
+editor, /*, editor_edit
+editor, /*, grant_view
+editor, /*, protocol_view
+editor, /*, protocol_edit
 ";
 
 /// Builds a role-based access controller (RBAC) for PMR.
@@ -201,11 +196,11 @@ impl PmrRbac {
                     .split('#')
                     .next()
                     .expect("split must produce at least one token")
-                    .trim()
                     .split(", ")
+                    .map(str::trim)
                     .map(str::to_string)
                     .collect::<Vec<_>>();
-                (result.len() == 4).then_some(result)
+                (result.len() == 3).then_some(result)
             })
             .collect::<Vec<_>>();
         let n = policies.len();
@@ -288,14 +283,12 @@ impl PmrRbac {
         &mut self,
         role: Role,
         resource: impl Into<String>,
-        endpoint_group: impl Into<String>,
-        http_method: impl Into<String>,
+        action: impl Into<String>,
     ) -> Result<bool, Error> {
         self.enforcer.add_named_policy("p", vec![
             role.into(),
             resource.into(),
-            endpoint_group.into(),
-            http_method.into(),
+            action.into(),
         ]).await
     }
 
@@ -304,14 +297,12 @@ impl PmrRbac {
         &mut self,
         role: Role,
         resource: impl Into<String>,
-        endpoint_group: impl Into<String>,
-        http_method: impl Into<String>,
+        action: impl Into<String>,
     ) -> Result<bool, Error> {
         self.enforcer.remove_named_policy("p", vec![
             role.into(),
             resource.into(),
-            endpoint_group.into(),
-            http_method.into(),
+            action.into(),
         ]).await
     }
 
@@ -325,8 +316,8 @@ impl PmrRbac {
         for ResGrant { res, agent, role } in policy.res_grants.into_iter() {
             self.grant_res(agent.as_ref(), role, res).await?;
         }
-        for RolePermit { role, endpoint_group, method } in policy.role_permits.into_iter() {
-            self.attach_policy(role, policy.resource.clone(), endpoint_group, method).await?;
+        for RolePermit { role, action } in policy.role_permits.into_iter() {
+            self.attach_policy(role, policy.resource.clone(), action).await?;
         }
         Ok(())
     }
@@ -336,14 +327,12 @@ impl PmrRbac {
         &self,
         agent: Option<impl AsRef<str> + std::fmt::Display>,
         resource: impl AsRef<str>,
-        endpoint_group: impl AsRef<str>,
-        http_method: impl AsRef<str>,
+        action: impl AsRef<str>,
     ) -> Result<bool, Error> {
         self.enforcer.enforce((
             Self::to_agent(agent).as_str(),
             resource.as_ref(),
-            endpoint_group.as_ref(),
-            http_method.as_ref(),
+            action.as_ref(),
         ))
     }
 }
@@ -360,7 +349,7 @@ mod test {
             .await?;
         // the rules don't actually work without the default
         assert!(security.grant_res(Some("admin"), Role::Manager, "/*").await?);
-        assert!(!security.enforce(Some("admin"), "/exposure/1", "", "GET")?);
+        assert!(!security.enforce(Some("admin"), "/exposure/1", "")?);
         Ok(())
     }
 
@@ -382,75 +371,75 @@ mod test {
         // create the anonymous agent also
         assert!(security.grant_agent_role(not_logged_in, Role::Reader).await?);
         // make site root public
-        assert!(security.attach_policy(Role::Reader, "/", "", "GET").await?);
+        assert!(security.attach_policy(Role::Reader, "/", "").await?);
         // make /exposure/1 public
-        assert!(security.attach_policy(Role::Reader, "/exposure/1", "", "GET").await?);
+        assert!(security.attach_policy(Role::Reader, "/exposure/1", "").await?);
         // make /workspace/1 public, also clonable
-        assert!(security.attach_policy(Role::Reader, "/workspace/1", "", "GET").await?);
-        assert!(security.attach_policy(Role::Reader, "/workspace/1", "protocol", "GET").await?);
+        assert!(security.attach_policy(Role::Reader, "/workspace/1", "").await?);
+        assert!(security.attach_policy(Role::Reader, "/workspace/1", "protocol_view").await?);
 
         // everybody should be able to read the site root and index page
-        assert!(security.enforce(not_logged_in, "/", "", "GET")?);
-        assert!(security.enforce(Some("alice"), "/", "", "GET")?);
-        assert!(security.enforce(Some("bob"), "/", "", "GET")?);
+        assert!(security.enforce(not_logged_in, "/", "")?);
+        assert!(security.enforce(Some("alice"), "/", "")?);
+        assert!(security.enforce(Some("bob"), "/", "")?);
 
         // alice being the owner, should be able to do everything in exposure 1
-        assert!(security.enforce(Some("alice"), "/exposure/1", "", "GET")?);
-        assert!(security.enforce(Some("alice"), "/exposure/1", "edit", "GET")?);
-        assert!(security.enforce(Some("alice"), "/exposure/1", "edit", "POST")?);
-        assert!(security.enforce(Some("alice"), "/exposure/1", "grant", "GET")?);
-        assert!(security.enforce(Some("alice"), "/exposure/1", "grant", "POST")?);
+        assert!(security.enforce(Some("alice"), "/exposure/1", "")?);
+        assert!(security.enforce(Some("alice"), "/exposure/1", "editor_view")?);
+        assert!(security.enforce(Some("alice"), "/exposure/1", "editor_edit")?);
+        assert!(security.enforce(Some("alice"), "/exposure/1", "grant_view")?);
+        assert!(security.enforce(Some("alice"), "/exposure/1", "grant_edit")?);
         // but wouldn't be able to access management functions
-        assert!(!security.enforce(Some("alice"), "/exposure/1", "manage", "GET")?);
-        assert!(!security.enforce(Some("alice"), "/exposure/1", "manage", "POST")?);
+        assert!(!security.enforce(Some("alice"), "/exposure/1", "manage_view")?);
+        assert!(!security.enforce(Some("alice"), "/exposure/1", "manage_edit")?);
         // and shouldn't be able to read or write to the private exposure 2
-        assert!(!security.enforce(Some("alice"), "/exposure/2", "", "GET")?);
-        assert!(!security.enforce(Some("alice"), "/exposure/2", "edit", "GET")?);
-        assert!(!security.enforce(Some("alice"), "/exposure/2", "edit", "POST")?);
-        assert!(!security.enforce(Some("alice"), "/exposure/2", "grant", "GET")?);
-        assert!(!security.enforce(Some("alice"), "/exposure/2", "grant", "POST")?);
+        assert!(!security.enforce(Some("alice"), "/exposure/2", "")?);
+        assert!(!security.enforce(Some("alice"), "/exposure/2", "editor_view")?);
+        assert!(!security.enforce(Some("alice"), "/exposure/2", "editor_edit")?);
+        assert!(!security.enforce(Some("alice"), "/exposure/2", "grant_view")?);
+        assert!(!security.enforce(Some("alice"), "/exposure/2", "grant_edit")?);
 
         // bob can read exposure 1, but cannot edit
-        assert!(security.enforce(Some("bob"), "/exposure/1", "", "GET")?);
-        assert!(!security.enforce(Some("bob"), "/exposure/1", "edit", "GET")?);
-        assert!(!security.enforce(Some("bob"), "/exposure/1", "edit", "POST")?);
+        assert!(security.enforce(Some("bob"), "/exposure/1", "")?);
+        assert!(!security.enforce(Some("bob"), "/exposure/1", "editor_view")?);
+        assert!(!security.enforce(Some("bob"), "/exposure/1", "editor_edit")?);
         // bob is the natural owner of exposure 2 so can do everything
-        assert!(security.enforce(Some("bob"), "/exposure/2", "", "GET")?);
-        assert!(security.enforce(Some("bob"), "/exposure/2", "edit", "GET")?);
-        assert!(security.enforce(Some("bob"), "/exposure/2", "edit", "POST")?);
-        assert!(security.enforce(Some("bob"), "/exposure/2", "grant", "GET")?);
-        assert!(security.enforce(Some("bob"), "/exposure/2", "grant", "POST")?);
+        assert!(security.enforce(Some("bob"), "/exposure/2", "")?);
+        assert!(security.enforce(Some("bob"), "/exposure/2", "editor_view")?);
+        assert!(security.enforce(Some("bob"), "/exposure/2", "editor_edit")?);
+        assert!(security.enforce(Some("bob"), "/exposure/2", "grant_view")?);
+        assert!(security.enforce(Some("bob"), "/exposure/2", "grant_edit")?);
 
         // cathy is only an editor so she wouldn't be able to grant additional access for others
-        assert!(security.enforce(Some("cathy"), "/exposure/2", "", "GET")?);
-        assert!(security.enforce(Some("cathy"), "/exposure/2", "edit", "GET")?);
-        assert!(security.enforce(Some("cathy"), "/exposure/2", "edit", "POST")?);
-        assert!(security.enforce(Some("cathy"), "/exposure/2", "grant", "GET")?);
-        assert!(!security.enforce(Some("cathy"), "/exposure/2", "grant", "POST")?);
+        assert!(security.enforce(Some("cathy"), "/exposure/2", "")?);
+        assert!(security.enforce(Some("cathy"), "/exposure/2", "editor_view")?);
+        assert!(security.enforce(Some("cathy"), "/exposure/2", "editor_edit")?);
+        assert!(security.enforce(Some("cathy"), "/exposure/2", "grant_view")?);
+        assert!(!security.enforce(Some("cathy"), "/exposure/2", "grant_edit")?);
 
         // not logged in agents can only view exposure 1
-        assert!(security.enforce(not_logged_in, "/exposure/1", "", "GET")?);
-        assert!(!security.enforce(not_logged_in, "/exposure/2", "", "GET")?);
+        assert!(security.enforce(not_logged_in, "/exposure/1", "")?);
+        assert!(!security.enforce(not_logged_in, "/exposure/2", "")?);
 
-        // not logged in agents cannot edit/POST etc
-        assert!(!security.enforce(not_logged_in, "/exposure/1", "edit", "GET")?);
-        assert!(!security.enforce(not_logged_in, "/exposure/1", "edit", "POST")?);
-        assert!(!security.enforce(not_logged_in, "/exposure/2", "edit", "GET")?);
-        assert!(!security.enforce(not_logged_in, "/exposure/2", "edit", "POST")?);
+        // not logged in agents cannot access any of the editor functions
+        assert!(!security.enforce(not_logged_in, "/exposure/1", "editor_view")?);
+        assert!(!security.enforce(not_logged_in, "/exposure/1", "editor_edit")?);
+        assert!(!security.enforce(not_logged_in, "/exposure/2", "editor_view")?);
+        assert!(!security.enforce(not_logged_in, "/exposure/2", "editor_edit")?);
 
         // the admin can do everything so far
-        assert!(security.enforce(Some("admin"), "/exposure/1", "", "GET")?);
-        assert!(security.enforce(Some("admin"), "/exposure/1", "edit", "GET")?);
-        assert!(security.enforce(Some("admin"), "/exposure/1", "edit", "POST")?);
-        assert!(security.enforce(Some("admin"), "/exposure/1", "grant", "GET")?);
-        assert!(security.enforce(Some("admin"), "/exposure/1", "grant", "POST")?);
-        assert!(security.enforce(Some("admin"), "/exposure/1", "manage", "GET")?);
-        assert!(security.enforce(Some("admin"), "/exposure/1", "manage", "POST")?);
-        assert!(security.enforce(Some("admin"), "/exposure/2", "", "GET")?);
-        assert!(security.enforce(Some("admin"), "/exposure/2", "edit", "GET")?);
-        assert!(security.enforce(Some("admin"), "/exposure/2", "edit", "POST")?);
-        assert!(security.enforce(Some("admin"), "/exposure/2", "grant", "GET")?);
-        assert!(security.enforce(Some("admin"), "/exposure/2", "grant", "POST")?);
+        assert!(security.enforce(Some("admin"), "/exposure/1", "")?);
+        assert!(security.enforce(Some("admin"), "/exposure/1", "editor_view")?);
+        assert!(security.enforce(Some("admin"), "/exposure/1", "editor_edit")?);
+        assert!(security.enforce(Some("admin"), "/exposure/1", "grant_view")?);
+        assert!(security.enforce(Some("admin"), "/exposure/1", "grant_edit")?);
+        assert!(security.enforce(Some("admin"), "/exposure/1", "manage_view")?);
+        assert!(security.enforce(Some("admin"), "/exposure/1", "manage_edit")?);
+        assert!(security.enforce(Some("admin"), "/exposure/2", "")?);
+        assert!(security.enforce(Some("admin"), "/exposure/2", "editor_view")?);
+        assert!(security.enforce(Some("admin"), "/exposure/2", "editor_edit")?);
+        assert!(security.enforce(Some("admin"), "/exposure/2", "grant_view")?);
+        assert!(security.enforce(Some("admin"), "/exposure/2", "grant_edit")?);
 
         Ok(())
     }
@@ -468,20 +457,20 @@ mod test {
                 {"res": "/item/1", "agent": "alice", "role": "Owner"}
             ],
             "role_permits": [
-                {"role": "Owner", "endpoint_group": "edit", "method": "GET"},
-                {"role": "Owner", "endpoint_group": "edit", "method": "POST"}
+                {"role": "Owner", "action": "editor_view"},
+                {"role": "Owner", "action": "editor_edit"}
             ]
         }"#)?).await?;
 
-        assert!(security.enforce(Some("admin"), "/item/1", "", "GET")?);
-        assert!(security.enforce(Some("admin"), "/item/1", "edit", "GET")?);
-        assert!(security.enforce(Some("admin"), "/item/1", "edit", "POST")?);
-        assert!(security.enforce(Some("alice"), "/item/1", "", "GET")?);
-        assert!(security.enforce(Some("alice"), "/item/1", "edit", "GET")?);
-        assert!(security.enforce(Some("alice"), "/item/1", "edit", "POST")?);
-        assert!(!security.enforce(not_logged_in, "/item/1", "", "GET")?);
-        assert!(!security.enforce(not_logged_in, "/item/1", "edit", "GET")?);
-        assert!(!security.enforce(not_logged_in, "/item/1", "edit", "POST")?);
+        assert!(security.enforce(Some("admin"), "/item/1", "")?);
+        assert!(security.enforce(Some("admin"), "/item/1", "editor_view")?);
+        assert!(security.enforce(Some("admin"), "/item/1", "editor_edit")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "editor_view")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "editor_edit")?);
+        assert!(!security.enforce(not_logged_in, "/item/1", "")?);
+        assert!(!security.enforce(not_logged_in, "/item/1", "editor_view")?);
+        assert!(!security.enforce(not_logged_in, "/item/1", "editor_edit")?);
 
         Ok(())
     }
@@ -502,9 +491,9 @@ mod test {
                 {"res": "/item/1", "agent": "alice", "role": "Owner"}
             ],
             "role_permits": [
-                {"role": "Reviewer", "endpoint_group": "", "method": "GET"},
-                {"role": "Reviewer", "endpoint_group": "edit", "method": "GET"},
-                {"role": "Reviewer", "endpoint_group": "edit", "method": "POST"}
+                {"role": "Reviewer", "action": ""},
+                {"role": "Reviewer", "action": "editor_view"},
+                {"role": "Reviewer", "action": "editor_edit"}
             ]
         }"#)?;
 
@@ -513,42 +502,42 @@ mod test {
             .resource_policy(policy.clone())
             .build()
             .await?;
-        assert!(!security.enforce(not_logged_in, "/item/1", "", "GET")?);
-        assert!(security.enforce(Some("alice"), "/item/1", "", "GET")?);
+        assert!(!security.enforce(not_logged_in, "/item/1", "")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "")?);
         // this doesn't have the restriction the limited version poses
-        assert!(security.enforce(Some("alice"), "/item/1", "edit", "GET")?);
-        assert!(security.enforce(Some("alice"), "/item/1", "edit", "POST")?);
-        assert!(security.enforce(Some("reviewer"), "/item/1", "", "GET")?);
-        assert!(security.enforce(Some("reviewer"), "/item/1", "edit", "GET")?);
-        assert!(security.enforce(Some("reviewer"), "/item/1", "edit", "POST")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "editor_view")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "editor_edit")?);
+        assert!(security.enforce(Some("reviewer"), "/item/1", "")?);
+        assert!(security.enforce(Some("reviewer"), "/item/1", "editor_view")?);
+        assert!(security.enforce(Some("reviewer"), "/item/1", "editor_edit")?);
         // this wasn't granted globally by the model, so this should have no effect.
-        assert!(!security.enforce(Some("reviewer"), "/item/1", "grant", "POST")?);
+        assert!(!security.enforce(Some("reviewer"), "/item/1", "grant_edit")?);
 
-        assert!(!security.enforce(Some("reviewer"), "/item/2", "", "GET")?);
-        assert!(!security.enforce(Some("reviewer"), "/item/2", "edit", "GET")?);
-        assert!(!security.enforce(Some("reviewer"), "/item/2", "edit", "POST")?);
+        assert!(!security.enforce(Some("reviewer"), "/item/2", "")?);
+        assert!(!security.enforce(Some("reviewer"), "/item/2", "editor_view")?);
+        assert!(!security.enforce(Some("reviewer"), "/item/2", "editor_edit")?);
 
         let security = Builder::new_limited()
             .anonymous_reader(true)
             .resource_policy(policy.clone())
             .build()
             .await?;
-        assert!(!security.enforce(not_logged_in, "/item/1", "", "GET")?);
-        assert!(security.enforce(Some("alice"), "/item/1", "", "GET")?);
+        assert!(!security.enforce(not_logged_in, "/item/1", "")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "")?);
         // the limited model restricts owners from submitting edits for
         // resources under review, but has no restrictions on viewing the
         // edit form.
-        assert!(security.enforce(Some("alice"), "/item/1", "edit", "GET")?);
-        assert!(!security.enforce(Some("alice"), "/item/1", "edit", "POST")?);
-        assert!(security.enforce(Some("reviewer"), "/item/1", "", "GET")?);
-        assert!(security.enforce(Some("reviewer"), "/item/1", "edit", "GET")?);
-        assert!(security.enforce(Some("reviewer"), "/item/1", "edit", "POST")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "editor_view")?);
+        assert!(!security.enforce(Some("alice"), "/item/1", "editor_edit")?);
+        assert!(security.enforce(Some("reviewer"), "/item/1", "")?);
+        assert!(security.enforce(Some("reviewer"), "/item/1", "editor_view")?);
+        assert!(security.enforce(Some("reviewer"), "/item/1", "editor_edit")?);
         // this wasn't granted globally by the model, so this should have no effect.
-        assert!(!security.enforce(Some("reviewer"), "/item/1", "grant", "POST")?);
+        assert!(!security.enforce(Some("reviewer"), "/item/1", "grant_edit")?);
 
-        assert!(!security.enforce(Some("reviewer"), "/item/2", "", "GET")?);
-        assert!(!security.enforce(Some("reviewer"), "/item/2", "edit", "GET")?);
-        assert!(!security.enforce(Some("reviewer"), "/item/2", "edit", "POST")?);
+        assert!(!security.enforce(Some("reviewer"), "/item/2", "")?);
+        assert!(!security.enforce(Some("reviewer"), "/item/2", "editor_view")?);
+        assert!(!security.enforce(Some("reviewer"), "/item/2", "editor_edit")?);
 
         Ok(())
     }
@@ -564,9 +553,9 @@ mod test {
                 {"res": "/item/1", "agent": "alice", "role": "Owner"}
             ],
             "role_permits": [
-                {"role": "Reviewer", "endpoint_group": "", "method": "GET"},
-                {"role": "Reviewer", "endpoint_group": "edit", "method": "GET"},
-                {"role": "Reviewer", "endpoint_group": "edit", "method": "POST"}
+                {"role": "Reviewer", "action": ""},
+                {"role": "Reviewer", "action": "editor_view"},
+                {"role": "Reviewer", "action": "editor_edit"}
             ]
         }"#)?;
 
@@ -578,17 +567,17 @@ mod test {
             .await?;
         // the resource policy doesn't provide additional underlying policies, so this is
         // manually unconstrained to emulate the default policies defined for editor/manager
-        security.attach_policy(Role::Reviewer, "/*", "", "GET").await?;
-        security.attach_policy(Role::Reviewer, "/*", "edit", "GET").await?;
-        security.attach_policy(Role::Reviewer, "/*", "edit", "POST").await?;
+        security.attach_policy(Role::Reviewer, "/*", "").await?;
+        security.attach_policy(Role::Reviewer, "/*", "editor_view").await?;
+        security.attach_policy(Role::Reviewer, "/*", "editor_edit").await?;
 
-        assert!(security.enforce(Some("reviewer"), "/item/1", "", "GET")?);
-        assert!(security.enforce(Some("reviewer"), "/item/1", "edit", "GET")?);
-        assert!(security.enforce(Some("reviewer"), "/item/1", "edit", "POST")?);
+        assert!(security.enforce(Some("reviewer"), "/item/1", "")?);
+        assert!(security.enforce(Some("reviewer"), "/item/1", "editor_view")?);
+        assert!(security.enforce(Some("reviewer"), "/item/1", "editor_edit")?);
         // note that /item/2 will also be permitted despite the resource only has /item/1
-        assert!(security.enforce(Some("reviewer"), "/item/2", "", "GET")?);
-        assert!(security.enforce(Some("reviewer"), "/item/2", "edit", "GET")?);
-        assert!(security.enforce(Some("reviewer"), "/item/2", "edit", "POST")?);
+        assert!(security.enforce(Some("reviewer"), "/item/2", "")?);
+        assert!(security.enforce(Some("reviewer"), "/item/2", "editor_view")?);
+        assert!(security.enforce(Some("reviewer"), "/item/2", "editor_edit")?);
         // anyway, the model may be possible to have further simplification.
         Ok(())
     }
@@ -606,23 +595,23 @@ mod test {
                     {"res": "/item/1", "agent": "alice", "role": "Owner"}
                 ],
                 "role_permits": [
-                    {"role": "Owner", "endpoint_group": "edit", "method": "GET"},
-                    {"role": "Reader", "endpoint_group": "", "method": "GET"}
+                    {"role": "Owner", "action": "editor_view"},
+                    {"role": "Reader", "action": ""}
                 ]
             }"#)?)
             .build()
             .await?;
         // a rough approximation of a published resource
 
-        assert!(security.enforce(Some("admin"), "/item/1", "", "GET")?);
-        assert!(security.enforce(Some("admin"), "/item/1", "edit", "GET")?);
-        assert!(security.enforce(Some("admin"), "/item/1", "edit", "POST")?);
-        assert!(security.enforce(Some("alice"), "/item/1", "", "GET")?);
-        assert!(security.enforce(Some("alice"), "/item/1", "edit", "GET")?);
-        assert!(security.enforce(Some("alice"), "/item/1", "edit", "POST")?);
-        assert!(security.enforce(not_logged_in, "/item/1", "", "GET")?);
-        assert!(!security.enforce(not_logged_in, "/item/1", "edit", "GET")?);
-        assert!(!security.enforce(not_logged_in, "/item/1", "edit", "POST")?);
+        assert!(security.enforce(Some("admin"), "/item/1", "")?);
+        assert!(security.enforce(Some("admin"), "/item/1", "editor_view")?);
+        assert!(security.enforce(Some("admin"), "/item/1", "editor_edit")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "editor_view")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "editor_edit")?);
+        assert!(security.enforce(not_logged_in, "/item/1", "")?);
+        assert!(!security.enforce(not_logged_in, "/item/1", "editor_view")?);
+        assert!(!security.enforce(not_logged_in, "/item/1", "editor_edit")?);
 
         Ok(())
     }
@@ -640,23 +629,23 @@ mod test {
                     {"res": "/item/1", "agent": "alice", "role": "Owner"}
                 ],
                 "role_permits": [
-                    {"role": "Owner", "endpoint_group": "edit", "method": "GET"},
-                    {"role": "Reader", "endpoint_group": "", "method": "GET"}
+                    {"role": "Owner", "action": "editor_view"},
+                    {"role": "Reader", "action": ""}
                 ]
             }"#)?)
             .build()
             .await?;
         // a rough approximation of a published resource
 
-        assert!(security.enforce(Some("admin"), "/item/1", "", "GET")?);
-        assert!(security.enforce(Some("admin"), "/item/1", "edit", "GET")?);
-        assert!(security.enforce(Some("admin"), "/item/1", "edit", "POST")?);
-        assert!(security.enforce(Some("alice"), "/item/1", "", "GET")?);
-        assert!(security.enforce(Some("alice"), "/item/1", "edit", "GET")?);
-        assert!(!security.enforce(Some("alice"), "/item/1", "edit", "POST")?);
-        assert!(security.enforce(not_logged_in, "/item/1", "", "GET")?);
-        assert!(!security.enforce(not_logged_in, "/item/1", "edit", "GET")?);
-        assert!(!security.enforce(not_logged_in, "/item/1", "edit", "POST")?);
+        assert!(security.enforce(Some("admin"), "/item/1", "")?);
+        assert!(security.enforce(Some("admin"), "/item/1", "editor_view")?);
+        assert!(security.enforce(Some("admin"), "/item/1", "editor_edit")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "")?);
+        assert!(security.enforce(Some("alice"), "/item/1", "editor_view")?);
+        assert!(!security.enforce(Some("alice"), "/item/1", "editor_edit")?);
+        assert!(security.enforce(not_logged_in, "/item/1", "")?);
+        assert!(!security.enforce(not_logged_in, "/item/1", "editor_view")?);
+        assert!(!security.enforce(not_logged_in, "/item/1", "editor_edit")?);
 
         Ok(())
     }

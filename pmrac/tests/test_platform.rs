@@ -183,8 +183,8 @@ async fn policy() -> anyhow::Result<()> {
 
     platform.res_grant_role_to_agent("/", &user, role).await?;
     platform.res_revoke_role_from_agent("/", &user, role).await?;
-    platform.assign_policy_to_wf_state(state, role, "", "GET").await?;
-    platform.remove_policy_from_wf_state(state, role, "", "GET").await?;
+    platform.assign_policy_to_wf_state(state, role, "").await?;
+    platform.remove_policy_from_wf_state(state, role, "").await?;
 
     Ok(())
 }
@@ -217,25 +217,21 @@ async fn resource_wf_state() -> anyhow::Result<()> {
         State::Published,
         Role::Reader,
         "",
-        "GET",
     ).await?;
     platform.assign_policy_to_wf_state(
         State::Private,
         Role::Owner,
-        "edit",
-        "POST",
+        "editor_edit",
     ).await?;
     platform.assign_policy_to_wf_state(
         State::Private,
         Role::Owner,
-        "edit",
-        "GET",
+        "editor_view",
     ).await?;
     platform.assign_policy_to_wf_state(
         State::Published,
         Role::Owner,
-        "edit",
-        "GET",
+        "editor_view",
     ).await?;
 
     assert_eq!(State::Unknown, platform.get_wf_state_for_res("/item/1",).await?);
@@ -257,8 +253,8 @@ async fn resource_wf_state() -> anyhow::Result<()> {
             {"res": "/item/1", "agent": "test_user", "role": "Owner"}
         ],
         "role_permits": [
-            {"role": "Owner", "endpoint_group": "edit", "method": "GET"},
-            {"role": "Owner", "endpoint_group": "edit", "method": "POST"}
+            {"role": "Owner", "action": "editor_edit"},
+            {"role": "Owner", "action": "editor_view"}
         ]
     }"#)?);
 
@@ -279,8 +275,8 @@ async fn resource_wf_state() -> anyhow::Result<()> {
             {"res": "/item/1", "agent": "test_user", "role": "Owner"}
         ],
         "role_permits": [
-            {"role": "Owner", "endpoint_group": "edit", "method": "GET"},
-            {"role": "Reader", "endpoint_group": "", "method": "GET"}
+            {"role": "Owner", "action": "editor_view"},
+            {"role": "Reader", "action": ""}
         ]
     }"#)?);
 
@@ -293,14 +289,13 @@ async fn policy_enforcement() -> anyhow::Result<()> {
         .ac_platform(create_sqlite_backend().await?)
         .pmrrbac_builder(PmrRbacBuilder::new_limited())
         .build();
-    platform.assign_policy_to_wf_state(State::Private, Role::Owner, "edit", "GET").await?;
-    platform.assign_policy_to_wf_state(State::Private, Role::Owner, "edit", "POST").await?;
-    platform.assign_policy_to_wf_state(State::Pending, Role::Reviewer, "", "GET").await?;
-    platform.assign_policy_to_wf_state(State::Pending, Role::Reviewer, "", "POST").await?;
-    platform.assign_policy_to_wf_state(State::Pending, Role::Reviewer, "edit", "GET").await?;
-    platform.assign_policy_to_wf_state(State::Pending, Role::Reviewer, "edit", "POST").await?;
-    platform.assign_policy_to_wf_state(State::Published, Role::Owner, "edit", "GET").await?;
-    platform.assign_policy_to_wf_state(State::Published, Role::Reader, "", "GET").await?;
+    platform.assign_policy_to_wf_state(State::Private, Role::Owner, "editor_view").await?;
+    platform.assign_policy_to_wf_state(State::Private, Role::Owner, "editor_edit").await?;
+    platform.assign_policy_to_wf_state(State::Pending, Role::Reviewer, "").await?;
+    platform.assign_policy_to_wf_state(State::Pending, Role::Reviewer, "editor_view").await?;
+    platform.assign_policy_to_wf_state(State::Pending, Role::Reviewer, "editor_edit").await?;
+    platform.assign_policy_to_wf_state(State::Published, Role::Owner, "editor_view").await?;
+    platform.assign_policy_to_wf_state(State::Published, Role::Reader, "").await?;
 
     // there is a welcome page for the site that should be readable by all
     platform.set_wf_state_for_res("/welcome", State::Published).await?;
@@ -328,14 +323,14 @@ async fn policy_enforcement() -> anyhow::Result<()> {
     let user = platform.authenticate_user("user", "user").await?;
 
     // since the anonymous_reader isn't enabled for the rbac enforcer...
-    assert!(!platform.enforce(Agent::Anonymous, "/welcome", "", "GET").await?);
-    assert!(platform.enforce(&admin, "/welcome", "", "GET").await?);
-    assert!(platform.enforce(&reviewer, "/welcome", "", "GET").await?);
-    assert!(platform.enforce(&user, "/welcome", "", "GET").await?);
+    assert!(!platform.enforce(Agent::Anonymous, "/welcome", "").await?);
+    assert!(platform.enforce(&admin, "/welcome", "").await?);
+    assert!(platform.enforce(&reviewer, "/welcome", "").await?);
+    assert!(platform.enforce(&user, "/welcome", "").await?);
 
-    assert!(platform.enforce(&admin, "/profile/user", "", "GET").await?);
-    assert!(platform.enforce(&user, "/profile/user", "", "GET").await?);
-    assert!(!platform.enforce(&reviewer, "/profile/user", "", "GET").await?);
+    assert!(platform.enforce(&admin, "/profile/user", "").await?);
+    assert!(platform.enforce(&user, "/profile/user", "").await?);
+    assert!(!platform.enforce(&reviewer, "/profile/user", "").await?);
 
     // create content owned by user
     platform.res_grant_role_to_agent("/news/post/1", &user, Role::Owner).await?;
@@ -343,16 +338,16 @@ async fn policy_enforcement() -> anyhow::Result<()> {
 
     // editable by the user while private
     platform.set_wf_state_for_res("/news/post/1", State::Private).await?;
-    assert!(platform.enforce(&admin, "/news/post/1", "edit", "POST").await?);
-    assert!(platform.enforce(&user, "/news/post/1", "edit", "POST").await?);
-    assert!(!platform.enforce(&reviewer, "/news/post/1", "edit", "POST").await?);
+    assert!(platform.enforce(&admin, "/news/post/1", "editor_edit").await?);
+    assert!(platform.enforce(&user, "/news/post/1", "editor_edit").await?);
+    assert!(!platform.enforce(&reviewer, "/news/post/1", "editor_edit").await?);
 
     platform.set_wf_state_for_res("/news/post/1", State::Pending).await?;
-    assert!(platform.enforce(&admin, "/news/post/1", "edit", "POST").await?);
-    assert!(!platform.enforce(&user, "/news/post/1", "edit", "POST").await?);
-    assert!(platform.enforce(&reviewer, "/news/post/1", "edit", "POST").await?);
-    assert!(!platform.enforce(&reviewer, "/news/post/1", "grant", "POST").await?);
-    assert!(!platform.enforce(&reviewer, "/news/post/2", "edit", "POST").await?);
+    assert!(platform.enforce(&admin, "/news/post/1", "editor_edit").await?);
+    assert!(!platform.enforce(&user, "/news/post/1", "editor_edit").await?);
+    assert!(platform.enforce(&reviewer, "/news/post/1", "editor_edit").await?);
+    assert!(!platform.enforce(&reviewer, "/news/post/1", "grant_edit").await?);
+    assert!(!platform.enforce(&reviewer, "/news/post/2", "editor_edit").await?);
 
     // Reviewer role can be granted for one specific resource, to address the use
     // case of requring explicit assignments of items for review to specific reviewer.
@@ -360,14 +355,14 @@ async fn policy_enforcement() -> anyhow::Result<()> {
     platform.res_grant_role_to_agent("/news/post/2", &restricted_reviewer, Role::Reviewer).await?;
     platform.res_grant_role_to_agent("/news/post/3", &restricted_reviewer, Role::Reviewer).await?;
     platform.res_grant_role_to_agent("/news/post/5", &restricted_reviewer, Role::Reviewer).await?;
-    assert!(!platform.enforce(&restricted_reviewer, "/news/post/2", "edit", "POST").await?);
+    assert!(!platform.enforce(&restricted_reviewer, "/news/post/2", "editor_edit").await?);
     platform.set_wf_state_for_res("/news/post/2", State::Pending).await?;
-    assert!(platform.enforce(&restricted_reviewer, "/news/post/2", "edit", "POST").await?);
-    assert!(!platform.enforce(&restricted_reviewer, "/news/post/1", "edit", "POST").await?);
-    assert!(!platform.enforce(&restricted_reviewer, "/news/post/3", "edit", "POST").await?);
+    assert!(platform.enforce(&restricted_reviewer, "/news/post/2", "editor_edit").await?);
+    assert!(!platform.enforce(&restricted_reviewer, "/news/post/1", "editor_edit").await?);
+    assert!(!platform.enforce(&restricted_reviewer, "/news/post/3", "editor_edit").await?);
     // since they were never granted the general reader role, they won't be able to read
     // the welcome page either...
-    assert!(!platform.enforce(&restricted_reviewer, "/welcome", "", "GET").await?);
+    assert!(!platform.enforce(&restricted_reviewer, "/welcome", "").await?);
 
     // retrieve what we have so far
     assert_eq!(

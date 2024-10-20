@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\nSELECT\n    wf_policy.role AS role,\n    wf_policy.action AS action\nFROM\n    res_wf_state\nJOIN\n    wf_policy ON res_wf_state.state == wf_policy.state\nWHERE\n    res = ?1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "role",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "action",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "346ac873671e54677506cffb1cd0c6c1862556d51dc45421a279dcb2e72538af"
+}

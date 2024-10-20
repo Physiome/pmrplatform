@@ -28,13 +28,11 @@ pub struct ResGrant {
     pub role: Role,
 }
 
-/// This represents the endpoint_group and HTTP method that the role is
-/// given the permit for.
+/// This represents the action the role is given the permit for.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize, Serialize)]
 pub struct RolePermit {
     pub role: Role,
-    pub endpoint_group: String,
-    pub method: String,
+    pub action: String,
 }
 
 // FIXME should this be AgentRole instead?

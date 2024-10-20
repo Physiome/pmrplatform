@@ -51,7 +51,7 @@ CREATE INDEX IF NOT EXISTS user_password__user_id ON user_email(user_id);
 
 -- This provides a user with the given role that only becomes active for
 -- any given resource at a workflow state where the role is enabled for
--- the specific combination of endpoint_group and http method.
+-- the specific action.
 --
 -- In effect, this grants the user the specific role in the system, and
 -- the system will only grant this role to the user for applicable
@@ -100,12 +100,12 @@ CREATE TABLE IF NOT EXISTS wf_policy (
     -- the following three fields will be passed to the rbac engine.
     -- the role that will be granted for the named state, e.g. "reader"
     role TEXT NOT NULL,
-    -- the endpoint group associated for the role and state, e.g. "" for
-    -- the basic group, or "editor" for granting reviewer access to the
-    -- resource that is under review.
-    endpoint_group TEXT NOT NULL,
-    -- the HTTP method associated with the endpoint group.
-    method TEXT NOT NULL
+    -- formerly this was split into an endpoint group and method, but
+    -- rather than coupling this to HTTP, using a more generic action
+    -- identifier may better describe the intent without being directly
+    -- coupled to some underlying protocol; the basic action is simply
+    -- an empty string.
+    action TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS wf_policy__state ON wf_policy(state);
 

@@ -18,13 +18,12 @@ pub struct ResGrant {
 /// Workflow policy
 ///
 /// For each workflow state there may be multiple roles associated with
-/// the different endpoint groups and HTTP methods.  This struct will
-/// only capture a single such record.
+/// the different actions.  This struct will only capture a single such
+/// record.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct WorkflowPolicy {
     pub id: i64,
     pub state: String,
     pub role: String,
-    pub endpoint_group: String,
-    pub method: String,
+    pub action: String,
 }
