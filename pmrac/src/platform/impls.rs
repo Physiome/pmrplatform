@@ -353,6 +353,7 @@ impl Platform {
         &self,
         token: SessionToken,
     ) -> Result<Session, Error> {
+        // TODO this could use a single SQL/API
         let session = self.0.ac_platform.load_session(token).await?;
         let user = self.get_user(session.user_id).await?
             .ok_or(AuthenticationError::UnknownUser)?;

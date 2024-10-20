@@ -21,6 +21,7 @@ use sqlx::{
     Sqlite,
     migrate::MigrateDatabase,
 };
+use std::time::Instant;
 
 #[derive(Debug, Parser)]
 struct Cli {
@@ -142,6 +143,11 @@ enum PolicyCmd {
         role: Role,
         action: String,
     },
+    Enforce {
+        resource: String,
+        action: String,
+        user: Option<String>,
+    }
 }
 
 #[tokio::main]
@@ -166,7 +172,10 @@ async fn main() -> anyhow::Result<()> {
                 .run_migration_profile(MigrationProfile::Pmrac)
                 .await?
         )
-        .pmrrbac_builder(PmrRbacBuilder::new())
+        .pmrrbac_builder(
+            PmrRbacBuilder::new()
+                .anonymous_reader(true)
+        )
         .build();
 
     match args.command {
@@ -356,6 +365,30 @@ async fn parse_policy<'p>(
                 when the resource is at workflow state {state}."
             );
         },
+        PolicyCmd::Enforce { resource, action, user } => {
+            // TODO emulate the session workflow
+            let instant = Instant::now();
+            let agent = match user {
+                Some(user) => {
+                    let (user, _) = platform.login_status(&user).await?;
+                    user.into()
+                }
+                None => Agent::Anonymous,
+            };
+            let elapsed = instant.elapsed();
+            println!("Acquired login_status for user in {elapsed:?}");
+            let instant = Instant::now();
+            let permit = if platform.enforce(agent.clone(), &resource, &action).await? {
+                "permitted"
+            } else {
+                "not permitted"
+            };
+            let elapsed = instant.elapsed();
+            println!(
+                "{agent} {permit} access to resource {resource} with action {action:?}; \
+                enforcement took {elapsed:?}"
+            );
+        }
     }
     Ok(())
 }
