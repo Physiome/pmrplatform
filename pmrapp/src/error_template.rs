@@ -1,4 +1,5 @@
 use crate::error::AppError;
+use http::status::StatusCode;
 use leptos::{logging::log, prelude::*};
 #[cfg(feature = "ssr")]
 use leptos_axum::ResponseOptions;
@@ -31,22 +32,16 @@ pub fn ErrorTemplate(
     }
 
     view! {
-        <h1>{move || {
-            if errors.read().len() > 1 {
-                "Errors"
-            } else {
-                "Error"
-            }}}
-        </h1>
         {move || {
             errors.get()
                 .into_iter()
                 .map(|error| {
-                    let error_string = error.to_string();
-                    let error_code= error.status_code();
+                    let error_code = error.status_code();
+                    let error_string = (error_code == StatusCode::INTERNAL_SERVER_ERROR)
+                        .then(|| format!("Error: {error}"));
                     view! {
-                        <h2>{error_code.to_string()}</h2>
-                        <p>"Error: " {error_string}</p>
+                        <h1>{error_code.to_string()}</h1>
+                        <p>{error_string}</p>
                     }
                 })
                 .collect_view()

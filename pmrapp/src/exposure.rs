@@ -128,7 +128,7 @@ pub fn Exposure() -> impl IntoView {
                 Err(_) => Err(AppError::InternalServerError),
                 Ok(Some(id)) => get_exposure_info(id)
                     .await
-                    .map_err(|_| AppError::NotFound),
+                    .map_err(AppError::from),
                 _ => Err(AppError::NotFound),
             }
         }

@@ -41,7 +41,8 @@ use self::ssr::*;
 pub async fn list() -> Result<Exposures, ServerFnError> {
     let platform = platform().await?;
     Ok(ExposureBackend::list(platform.mc_platform.as_ref())
-        .await?)
+        .await
+        .map_err(|_| AppError::InternalServerError)?)
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -52,13 +53,19 @@ pub struct ExposureInfo {
 }
 
 #[server]
-pub async fn get_exposure_info(id: i64) -> Result<ExposureInfo, ServerFnError> {
+pub async fn get_exposure_info(id: i64) -> Result<ExposureInfo, ServerFnError<AppError>> {
     enforcer(format!("/exposure/{id}"), "").await?;
     let platform = platform().await?;
-    let ctrl = platform.get_exposure(id).await?;
-    let files = ctrl.list_files_info().await?;
+    let ctrl = platform.get_exposure(id).await
+        .map_err(|_| AppError::InternalServerError)?;
+    let files = ctrl.list_files_info().await
+        .map_err(|_| AppError::InternalServerError)?;
     let exposure = ctrl.exposure().clone_inner();
-    let workspace = platform.mc_platform.get_workspace(exposure.workspace_id).await?.into_inner();
+    let workspace = platform.mc_platform
+        .get_workspace(exposure.workspace_id)
+        .await
+        .map_err(|_| AppError::InternalServerError)?
+        .into_inner();
     Ok(ExposureInfo { exposure, files, workspace })
 }
 
@@ -88,12 +95,16 @@ pub async fn resolve_exposure_path(
     // vec of strings of valid view_keys that could be navigated to.
 
     let platform = platform().await?;
-    let ec = platform.get_exposure(id).await?;
+    let ec = platform.get_exposure(id).await
+        .map_err(|_| AppError::InternalServerError)?;
 
     match ec.resolve_file_view(path.as_ref()).await {
         (Ok(efc), Ok(efvc)) => {
             // to ensure the views is populated
-            efc.exposure_file().views().await?;
+            efc.exposure_file()
+                .views()
+                .await
+                .map_err(|_| AppError::InternalServerError)?;
             Ok(ResolvedExposurePath::Target(
                 efc.exposure_file().clone_inner(),
                 Ok((
@@ -126,12 +137,16 @@ pub async fn resolve_exposure_path(
         },
         (Ok(efc), Err(CtrlError::EFVCNotFound(viewstr))) if viewstr == "" => {
             // to ensure the views is populated
-            efc.exposure_file().views().await?;
+            efc.exposure_file()
+                .views()
+                .await
+                .map_err(|_| AppError::InternalServerError)?;
             Ok(ResolvedExposurePath::Target(
                 efc.exposure_file().clone_inner(),
                 Err(efc.exposure_file()
                     .views()
-                    .await?
+                    .await
+                    .map_err(|_| AppError::InternalServerError)?
                     .iter()
                     .filter_map(|v| v.view_key().map(str::to_string))
                     .collect::<Vec<_>>()
@@ -156,10 +171,15 @@ pub async fn read_blob(
 ) -> Result<Box<[u8]>, ServerFnError> {
     enforcer(format!("/exposure/{id}"), "").await?;
     let platform = platform().await?;
-    let ec = platform.get_exposure(id).await?;
-    let efc = ec.ctrl_path(&path).await?;
-    let efvc = efc.get_view(efvid).await?;
-    Ok(efvc.read_blob(&key).await?)
+    let ec = platform.get_exposure(id).await
+        .map_err(|_| AppError::InternalServerError)?;
+    let efc = ec.ctrl_path(&path).await
+        .map_err(|_| AppError::InternalServerError)?;
+    let efvc = efc.get_view(efvid).await
+        .map_err(|_| AppError::InternalServerError)?;
+    Ok(efvc.read_blob(&key)
+        .await
+        .map_err(|_| AppError::InternalServerError)?)
 }
 
 // for now restricting this to just the `index.html`.
@@ -179,7 +199,8 @@ pub async fn read_safe_index_html(
     enforcer(format!("/exposure/{id}"), "").await?;
 
     let blob = read_blob(id, path.clone(), efvid, "index.html".to_string())
-        .await?
+        .await
+        .map_err(|_| AppError::InternalServerError)?
         .into_vec();
     Ok(Builder::new()
         .url_relative(UrlRelative::Custom(Box::new(evaluate)))
