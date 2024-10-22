@@ -62,16 +62,17 @@ pub async fn get_exposure_info(id: i64) -> Result<ExposureInfo, ServerFnError> {
     Ok(ExposureInfo { exposure, files, workspace })
 }
 
-pub type ResolveExposurePathResult = Result<
-    (ExposureFile, Result<(ExposureFileView, Option<String>), Vec<String>>),
-    AppError,
->;
+#[derive(Clone, Serialize, Deserialize)]
+pub enum ResolvedExposurePath {
+    Target(ExposureFile, Result<(ExposureFileView, Option<String>), Vec<String>>),
+    Redirect(String),
+}
 
 #[server]
 pub async fn resolve_exposure_path(
     id: i64,
     path: String,
-) -> Result<ResolveExposurePathResult, ServerFnError> {
+) -> Result<ResolvedExposurePath, ServerFnError> {
     enforcer(format!("/exposure/{id}"), "").await?;
     // TODO when there is a proper error type for id not found, use that
     // TODO ExposureFileView is a placeholder - the real type that should be returned
@@ -93,13 +94,13 @@ pub async fn resolve_exposure_path(
         (Ok(efc), Ok(efvc)) => {
             // to ensure the views is populated
             efc.exposure_file().views().await?;
-            Ok(Ok((
+            Ok(ResolvedExposurePath::Target(
                 efc.exposure_file().clone_inner(),
                 Ok((
                     efvc.exposure_file_view().clone_inner(),
                     efvc.view_path().map(str::to_string),
                 )),
-            )))
+            ))
         },
         (_, Err(CtrlError::None)) => {
             // since the request path has a direct hit on file, doesn't
@@ -121,12 +122,12 @@ pub async fn resolve_exposure_path(
             // Returning the path as an Ok(Err(..)) to indicate a proper
             // result that isn't a ServerFnError, but still an inner Err
             // to facilitate this custom redirect handling.
-            Ok(Err(AppError::Redirect(path).into()))
+            Ok(ResolvedExposurePath::Redirect(path))
         },
         (Ok(efc), Err(CtrlError::EFVCNotFound(viewstr))) if viewstr == "" => {
             // to ensure the views is populated
             efc.exposure_file().views().await?;
-            Ok(Ok((
+            Ok(ResolvedExposurePath::Target(
                 efc.exposure_file().clone_inner(),
                 Err(efc.exposure_file()
                     .views()
@@ -135,7 +136,7 @@ pub async fn resolve_exposure_path(
                     .filter_map(|v| v.view_key().map(str::to_string))
                     .collect::<Vec<_>>()
                 ),
-            )))
+            ))
         },
         // CtrlError::UnknownPath(_) | CtrlError::EFVCNotFound(_)
         _ => Err(AppError::NotFound.into()),

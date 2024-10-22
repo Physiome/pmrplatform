@@ -28,6 +28,7 @@ use crate::exposure::api::{
     get_exposure_info,
     resolve_exposure_path,
     ExposureInfo,
+    ResolvedExposurePath,
 };
 use crate::view::{
     EFView,
@@ -253,7 +254,7 @@ pub fn ExposureFile() -> impl IntoView {
     let ep_view = move || Suspend::new(async move {
         match file.await {
             // TODO figure out how to redirect to the workspace.
-            Ok(Ok((ef, Ok((efv, view_path))))) => {
+            Ok(ResolvedExposurePath::Target(ef, Ok((efv, view_path)))) => {
                 expect_context::<WriteSignal<Option<ViewsAvailableCtx>>>()
                     .set(Some((&ef).into()));
                 let view_key = efv.view_key.clone();
@@ -267,7 +268,7 @@ pub fn ExposureFile() -> impl IntoView {
                     <ExposureFileView view_key/>
                 }.into_any())
             }
-            Ok(Ok((ef, Err(view_keys)))) => {
+            Ok(ResolvedExposurePath::Target(ef, Err(view_keys))) => {
                 expect_context::<WriteSignal<Option<ViewsAvailableCtx>>>()
                     .set(Some((&ef).into()));
                 Ok(view! {
@@ -283,9 +284,8 @@ pub fn ExposureFile() -> impl IntoView {
                     }</ul>
                 }.into_any())
             },
-            Ok(Err(e)) => match e {
-                AppError::Redirect(path) => Ok(view! { <Redirect path show_link=true/> }.into_any()),
-                _ => Err(AppError::NotFound),
+            Ok(ResolvedExposurePath::Redirect(path)) => {
+                Ok(view! { <Redirect path show_link=true/> }.into_any())
             }
             _ => Err(AppError::NotFound),
         }

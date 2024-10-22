@@ -20,11 +20,11 @@ mod ssr {
     };
     use pmrcore::ac::agent::Agent;
     use crate::error::AppError;
-    use super::*;
 
-    pub async fn session() -> Result<AuthSession<Platform>, ServerFnError> {
+    pub async fn session() -> Result<AuthSession<Platform>, AppError> {
         Ok(leptos_axum::extract::<axum::Extension<AuthSession<Platform>>>()
-            .await?
+            .await
+            .map_err(|_| AppError::InternalServerError)?
             .0
         )
     }
@@ -32,7 +32,7 @@ mod ssr {
     pub async fn enforcer(
         resource: impl Into<String>,
         action: impl Into<String>,
-    ) -> Result<(), ServerFnError> {
+    ) -> Result<(), AppError> {
         let session = session().await?;
         let backend = session.backend;
         let agent: Agent = session.user
@@ -41,14 +41,14 @@ mod ssr {
         let resource = resource.into();
         let action = action.into();
         log::trace!("enforce on: agent={agent} resource={resource:?} action={action:?}");
-        if backend.enforce(
-            agent,
-            resource,
-            action,
-        ).await? {
+        if backend
+            .enforce(agent, resource, action)
+            .await
+            .map_err(|_| AppError::InternalServerError)?
+        {
             Ok(())
         } else {
-            Err(AppError::Forbidden)?
+            Err(AppError::Forbidden)
         }
     }
 }

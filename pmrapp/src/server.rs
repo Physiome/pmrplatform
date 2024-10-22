@@ -1,9 +1,10 @@
-use leptos::prelude::ServerFnError;
 use pmrctrl::platform::Platform;
+use crate::error::AppError;
 
-pub async fn platform() -> Result<Platform, ServerFnError> {
+pub async fn platform() -> Result<Platform, AppError> {
     Ok(leptos_axum::extract::<axum::Extension<Platform>>()
-        .await?
+        .await
+        .map_err(|_| AppError::InternalServerError)?
         .0
     )
 }
