@@ -16,28 +16,17 @@ use api::{
 #[derive(Clone)]
 pub struct AccountCtx {
     pub current_user: ArcResource<Result<Option<User>, ServerFnError>>,
-    pub sign_in_with_login_password: ServerAction<SignInWithLoginPassword>,
-    pub sign_out: ServerAction<SignOut>,
 }
 
 pub fn provide_session_context() {
-    let sa_siwlp = ServerAction::<SignInWithLoginPassword>::new();
-    let sa_so = ServerAction::<SignOut>::new();
-    let sign_in_with_login_password = sa_siwlp.clone();
-    let sign_out = sa_so.clone();
     let current_user = ArcResource::new_blocking(
-        move || (
-            sa_siwlp.version().get(),
-            sa_so.version().get(),
-        ),
+        move || (),
         move |_| async move {
             current_user().await
         },
     );
     provide_context(AccountCtx {
         current_user,
-        sign_in_with_login_password,
-        sign_out,
     });
 }
 
@@ -53,7 +42,7 @@ pub fn ACRoutes() -> impl MatchNestedRoutes + Clone {
 #[component]
 pub fn SessionStatus() -> impl IntoView {
     let account_ctx = expect_context::<AccountCtx>();
-    let action = account_ctx.sign_out.clone();
+    let action = ServerAction::<SignOut>::new();
     let session_status_view = move || {
         let current_user = account_ctx.current_user.clone();
         Suspend::new(async move {
@@ -75,8 +64,13 @@ pub fn SessionStatus() -> impl IntoView {
                 }.into_any())
         })
     };
+    let account_ctx = expect_context::<AccountCtx>();
     view! {
         <div id="session-status">
+            {move || match action.value().get() {
+                Some(Ok(())) => account_ctx.current_user.refetch(),
+                _ => (),
+            }}
             <Suspense>{session_status_view}</Suspense>
         </div>
     }
@@ -85,25 +79,22 @@ pub fn SessionStatus() -> impl IntoView {
 #[component]
 fn LoginPage() -> impl IntoView {
     let account_ctx = expect_context::<AccountCtx>();
-    let action = account_ctx.sign_in_with_login_password.clone();
-
-    let login_result = RwSignal::new(String::new());
-
-    Effect::new(move |_| {
-        action.version().get();
-        match action.value().get() {
-            Some(Ok(true)) => login_result.set("You are logged in.".to_string()),
-            Some(Ok(false)) => login_result.set("Invalid credentials provided.".to_string()),
-            Some(Err(ServerFnError::ServerError(e))) => login_result.set(e.to_string()),
-            _ => return,
-        };
-    });
+    let action = ServerAction::<SignInWithLoginPassword>::new();
 
     view! {
         <h1>"Login Form"</h1>
         <ActionForm attr:id="sign-in" action=action>
             <div>
-                {login_result}
+                {move || {
+                    match action.value().get() {
+                        Some(Ok(s)) => {
+                            account_ctx.current_user.refetch();
+                            s
+                        }
+                        Some(Err(ServerFnError::WrappedServerError(e))) => e.to_string(),
+                        _ => String::new(),
+                    }
+                }}
             </div>
             <div>
                 <label for="login">"Login"</label>

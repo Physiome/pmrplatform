@@ -3,6 +3,11 @@ use leptos::{
     server,
 };
 use pmrcore::ac::user::User;
+use std::{
+    convert::Infallible,
+    fmt,
+    str::FromStr,
+};
 
 #[cfg(feature = "ssr")]
 mod ssr {
@@ -55,28 +60,71 @@ mod ssr {
 #[cfg(feature = "ssr")]
 pub use self::ssr::*;
 
+#[derive(Debug, Copy, Clone)]
+pub enum AuthError {
+    InternalServerError,
+    InvalidCredentials,
+}
+
+impl From<AuthError> for &'static str {
+    fn from(v: AuthError) -> &'static str {
+        match v {
+            AuthError::InternalServerError => "Internal server error",
+            AuthError::InvalidCredentials => "Invalid credentials provided",
+        }
+    }
+}
+
+impl fmt::Display for AuthError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", <&'static str>::from(*self))
+    }
+}
+
+impl FromStr for AuthError {
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "Invalid credentials provided" => AuthError::InvalidCredentials,
+            _ => AuthError::InternalServerError,
+        })
+    }
+}
+
+impl From<ServerFnError<AuthError>> for AuthError {
+    fn from(e: ServerFnError<AuthError>) -> Self {
+        match e {
+            ServerFnError::WrappedServerError(e) => e,
+            _ => Self::InternalServerError,
+        }
+    }
+}
+
 #[server]
 pub(crate) async fn sign_in_with_login_password(
     // FIXME figure out how to best approach CSRF; maybe this be best moved to the
     // middleware.
     login: String,
     password: String,
-) -> Result<bool, ServerFnError> {
-    let mut session = session().await?;
+) -> Result<String, ServerFnError<AuthError>> {
+    let mut session = session().await
+        .map_err(|_| AuthError::InternalServerError)?;
     let creds = Credentials {
         authorization: Authorization::LoginPassword(login, password),
         origin: "localhost".to_string(),  // TODO plug in remote host
     };
     match session.authenticate(creds).await {
         Ok(Some(auth)) => {
-            session.login(&auth).await?;
-            Ok(true)
+            session.login(&auth).await
+                .map_err(|_| AuthError::InternalServerError)?;
+            Ok("You are logged in.".to_string())
         },
         Ok(None) | Err(AxumLoginError::Backend(ACError::Authentication(_))) => {
             // TODO handle restricted account error differently?
-            Ok(false)
+            Err(AuthError::InvalidCredentials.into())
         },
-        Err(e) => Err(e)?,
+        Err(_) => Err(AuthError::InternalServerError.into()),
     }
 }
 
