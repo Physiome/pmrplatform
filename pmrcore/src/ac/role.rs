@@ -1,7 +1,8 @@
+use enumset::{EnumSet, EnumSetType};
 use serde::{Deserialize, Serialize};
 
 #[non_exhaustive]
-#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd, Deserialize, Serialize)]
+#[derive(Debug, Default, EnumSetType, Ord, PartialOrd, Deserialize, Serialize)]
 pub enum Role {
     // catch-all for whenever infallable conversion is needed
     #[default]
@@ -12,5 +13,7 @@ pub enum Role {
     Reviewer,
     Reader,
 }
+
+pub struct Roles(pub(super) EnumSet<Role>);
 
 mod impls;

@@ -3,7 +3,7 @@ use std::{
     str::FromStr,
 };
 use crate::error::ValueError;
-use super::Role;
+use super::*;
 
 impl fmt::Display for Role {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -46,6 +46,27 @@ impl FromStr for Role {
     }
 }
 
+impl Roles {
+    pub fn contains(&self, role: Role) -> bool {
+        self.0 & role == role
+    }
+}
+
+impl FromIterator<Role> for Roles {
+    fn from_iter<I: IntoIterator<Item=Role>>(iter: I) -> Self {
+        Roles(iter.into_iter().collect())
+    }
+}
+
+impl IntoIterator for Roles {
+    type Item = Role;
+    type IntoIter = enumset::EnumSetIter<Role>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 #[cfg(feature = "clap")]
 mod clap {
     use ::clap::{
@@ -75,11 +96,11 @@ mod clap {
 #[cfg(test)]
 mod test {
     use std::str::FromStr;
-    use super::Role;
+    use super::*;
     use crate::error::ValueError;
 
     #[test]
-    fn smoke() -> anyhow::Result<()> {
+    fn smoke_role() -> anyhow::Result<()> {
         // sample of standard conversions
         assert_eq!(Role::Manager.to_string(), "manager");
         assert_eq!(Role::Manager, Role::from_str("manager")?);
@@ -99,6 +120,21 @@ mod test {
             Role::from_str("no_such_role")
                 .unwrap_or_default(),
             Role::Undefined,
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn smoke_roles() -> anyhow::Result<()> {
+        let role_set = Roles::from_iter([
+            Role::Owner,
+            Role::Reader,
+        ]);
+        assert!(role_set.contains(Role::Owner));
+        assert!(!role_set.contains(Role::Manager));
+        assert_eq!(
+            &role_set.into_iter().collect::<Vec<_>>(),
+            &[Role::Owner, Role::Reader],
         );
         Ok(())
     }

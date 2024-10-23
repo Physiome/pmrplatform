@@ -10,6 +10,7 @@ async-trait = { workspace = true }
 bytemuck = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
 clap = { workspace = true, features = ["derive", "env"], optional = true }
+enumset = { workspace = true }
 gix = { workspace = true, optional = true }
 log = { workspace = true }
 mime_guess = { workspace = true, optional = true }
