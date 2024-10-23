@@ -248,10 +248,7 @@ async fn resource_wf_state() -> anyhow::Result<()> {
         "resource": "/item/1",
         "user_roles": [
         ],
-        "res_grants": [
-            {"res": "/*", "agent": "admin", "role": "Manager"},
-            {"res": "/item/1", "agent": "test_user", "role": "Owner"}
-        ],
+        "res_grants": [],
         "role_permits": [
             {"role": "Owner", "action": "editor_edit"},
             {"role": "Owner", "action": "editor_view"}
@@ -271,7 +268,6 @@ async fn resource_wf_state() -> anyhow::Result<()> {
             {"user": "test_user", "role": "Reader"}
         ],
         "res_grants": [
-            {"res": "/*", "agent": "admin", "role": "Manager"},
             {"res": "/item/1", "agent": "test_user", "role": "Owner"}
         ],
         "role_permits": [

@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\nSELECT\n    res_grant.res as res,\n    'user'.name as user,\n    res_grant.role AS role\nFROM\n    res_grant\nLEFT JOIN\n    'user' ON res_grant.user_id == 'user'.id\nWHERE\n    res = ?1 or res = \"/*\"\n        ",
+  "query": "\nSELECT\n    res_grant.res as res,\n    'user'.name as user_name,\n    res_grant.role AS role\nFROM\n    res_grant\nLEFT JOIN\n    'user' ON res_grant.user_id == 'user'.id\nWHERE\n    (res = ?1 OR res = \"/*\")\n    AND\n    res_grant.user_id is NULL\n        ",
   "describe": {
     "columns": [
       {
@@ -9,7 +9,7 @@
         "type_info": "Text"
       },
       {
-        "name": "user",
+        "name": "user_name",
         "ordinal": 1,
         "type_info": "Text"
       },
@@ -28,5 +28,5 @@
       false
     ]
   },
-  "hash": "894bceaffe6ad93539c0e6d0c81d0f3a4e892b5ea5044905caaeb66aeb9b17bc"
+  "hash": "8d98b3e280683fd662e1ed5d4e3cbbe84171296c610b9de02da086d8d2aebabd"
 }

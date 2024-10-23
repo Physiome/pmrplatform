@@ -73,13 +73,17 @@ async fn generate_policy_for_agent_res_sqlite(
     res: impl Into<String> + Send,
 ) -> Result<Policy, BackendError> {
     let resource = res.into();
+    // FIXME Eventually we may need to support all levels of wildcards,
+    // so the shortcut `OR res = "/*"` will no longer be sufficient.
+    // Well, or whatever way this will be structured.
+    let res_str = resource.as_str();
 
     // note that this explicitly _ignores_ anonymous agents that may have been
     // assigned roles via `user_role` as the schema currently allows null for
     // user_id, but whether we should keep this remains an open question
-    let user_roles = match agent {
+    let (user_roles, res_grants) = match agent {
         Agent::User(user) => {
-            sqlx::query!(
+            let user_roles = sqlx::query!(
                 "\
 SELECT
     'user'.name as user,
@@ -99,37 +103,65 @@ WHERE
                 role: Role::from_str(&row.role).unwrap_or(Role::default()),
             })
             .fetch_all(&*backend.pool)
-            .await?
-        }
-        Agent::Anonymous => vec![],
-    };
+            .await?;
 
-    // FIXME Eventually we may need to support all levels of wildcards,
-    // so the shortcut `OR res = "/*"` will no longer be sufficient.
-    // Well, or whatever way this will be structured.
-    let res_str = resource.as_str();
-    let res_grants = sqlx::query!(
-        r#"
+            let res_grants = sqlx::query!(
+                r#"
 SELECT
     res_grant.res as res,
-    'user'.name as user,
+    'user'.name as user_name,
     res_grant.role AS role
 FROM
     res_grant
 LEFT JOIN
     'user' ON res_grant.user_id == 'user'.id
 WHERE
-    res = ?1 or res = "/*"
+    (res_grant.res = ?1 OR res_grant.res = "/*")
+    AND
+    (res_grant.user_id == ?2 OR res_grant.user_id is NULL)
         "#,
-        res_str,
-    )
-    .map(|row| ResGrant {
-        res: row.res,
-        agent: row.user,
-        role: Role::from_str(&row.role).unwrap_or(Role::default()),
-    })
-    .fetch_all(&*backend.pool)
-    .await?;
+                res_str,
+                user.id,
+            )
+            .map(|row| ResGrant {
+                res: row.res,
+                agent: row.user_name,
+                role: Role::from_str(&row.role).unwrap_or_default(),
+            })
+            .fetch_all(&*backend.pool)
+            .await?;
+
+            (user_roles, res_grants)
+        }
+        Agent::Anonymous => {
+            let user_roles = vec![];
+            let res_grants = sqlx::query!(
+                r#"
+SELECT
+    res_grant.res as res,
+    'user'.name as user_name,
+    res_grant.role AS role
+FROM
+    res_grant
+LEFT JOIN
+    'user' ON res_grant.user_id == 'user'.id
+WHERE
+    (res = ?1 OR res = "/*")
+    AND
+    res_grant.user_id is NULL
+        "#,
+                res_str,
+            )
+            .map(|row| ResGrant {
+                res: row.res,
+                agent: row.user_name,
+                role: Role::from_str(&row.role).unwrap_or_default(),
+            })
+            .fetch_all(&*backend.pool)
+            .await?;
+            (user_roles, res_grants)
+        }
+    };
 
     let role_permits = sqlx::query!(
         r#"
@@ -402,8 +434,7 @@ pub(crate) mod testing {
             "user_roles": [
             ],
             "res_grants": [
-                {"res": "/*", "agent": "admin", "role": "Manager"},
-                {"res": "/item/1", "agent": "test_user", "role": "Owner"}
+                {"res": "/*", "agent": "admin", "role": "Manager"}
             ],
             "role_permits": [
                 {"role": "Owner", "action": "editor_edit"},
@@ -428,8 +459,7 @@ pub(crate) mod testing {
             "user_roles": [
             ],
             "res_grants": [
-                {"res": "/*", "agent": "admin", "role": "Manager"},
-                {"res": "/item/1", "agent": "test_user", "role": "Owner"}
+                {"res": "/*", "agent": "admin", "role": "Manager"}
             ],
             "role_permits": [
                 {"role": "Owner", "action": "editor_view"},
