@@ -328,6 +328,13 @@ async fn policy_enforcement() -> anyhow::Result<()> {
     assert!(platform.enforce(&user, "/profile/user", "").await?);
     assert!(!platform.enforce(&reviewer, "/profile/user", "").await?);
 
+    let (roles, enforcement) = platform.get_roles_and_enforce(&admin, "/profile/user", "").await?;
+    assert!(enforcement);
+    assert_eq!(
+        &roles.into_iter().collect::<Vec<_>>(),
+        &[Role::Manager],
+    );
+
     // create content owned by user
     platform.res_grant_role_to_agent("/news/post/1", &user, Role::Owner).await?;
     platform.res_grant_role_to_agent("/news/post/2", &user, Role::Owner).await?;
@@ -386,6 +393,43 @@ async fn policy_enforcement() -> anyhow::Result<()> {
             ((&restricted_reviewer).into(), vec![Role::Editor, Role::Reviewer]),
         ],
         res_grants,
+    );
+
+    Ok(())
+}
+
+#[async_std::test]
+async fn policy_enforcement_with_roles() -> anyhow::Result<()> {
+    let platform = Builder::new()
+        .ac_platform(create_sqlite_backend().await?)
+        .pmrrbac_builder(PmrRbacBuilder::new_limited())
+        .build();
+
+    let admin = platform.create_user("admin").await?;
+    platform.res_grant_role_to_agent("/*", admin, Role::Manager).await?;
+
+    let reviewer = platform.create_user("reviewer").await?;
+    platform.grant_role_to_user(&reviewer, Role::Reviewer).await?;
+    platform.grant_role_to_user(&reviewer, Role::Reader).await?;
+
+    let user = platform.create_user("user").await?;
+    platform.grant_role_to_user(&user, Role::Reader).await?;
+    platform.res_grant_role_to_agent("/profile/user", &user, Role::Owner).await?;
+
+    platform.set_wf_state_for_res("/profile/user", State::Private).await?;
+
+    let (roles, enforcement) = platform.get_roles_and_enforce(&user, "/profile/user", "").await?;
+    assert!(enforcement);
+    assert_eq!(
+        &roles.into_iter().collect::<Vec<_>>(),
+        &[Role::Owner, Role::Reader],
+    );
+
+    let (roles, enforcement) = platform.get_roles_and_enforce(&reviewer, "/profile/user", "").await?;
+    assert!(!enforcement);
+    assert_eq!(
+        &roles.into_iter().collect::<Vec<_>>(),
+        &[Role::Reviewer, Role::Reader],
     );
 
     Ok(())

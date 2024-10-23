@@ -2,7 +2,10 @@ use pmrcore::{
     ac::{
         agent::Agent,
         genpolicy::Policy,
-        role::Role,
+        role::{
+            Role,
+            Roles,
+        },
         session::{
             self,
             SessionFactory,
@@ -411,6 +414,8 @@ impl Platform {
 // Enforcement
 
 impl Platform {
+    /// Simply provide a result with whether or not the agent is
+    /// permitted to access the resource with the specified action.
     pub async fn enforce(
         &self,
         agent: impl Into<Agent>,
@@ -431,5 +436,32 @@ impl Platform {
                 res,
                 action,
             )?)
+    }
+
+    /// Same as the simpler enforce method but the result is returned
+    /// with the Roles available for the agent.
+    pub async fn get_roles_and_enforce(
+        &self,
+        agent: impl Into<Agent>,
+        res: impl AsRef<str> + ToString,
+        action: impl AsRef<str>,
+    ) -> Result<(Roles, bool), Error> {
+        let agent = agent.into();
+        let policy = self.generate_policy_for_agent_res(
+            &agent,
+            res.to_string(),
+        ).await?;
+        let roles = policy.to_roles();
+        Ok((
+            roles,
+            self.0.pmrrbac_builder
+                .build_with_resource_policy(policy)
+                .await?
+                .enforce(
+                    <Agent as Into<Option<String>>>::into(agent),
+                    res,
+                    action,
+                )?,
+        ))
     }
 }
