@@ -5,7 +5,11 @@
 //! persisted in some datastore.
 
 use serde::{Deserialize, Serialize};
-use crate::ac::role::Role;
+use std::collections::HashMap;
+use crate::ac::role::{
+    Role,
+    Roles,
+};
 
 /// Grants, roles and permissions associated with the given resource
 /// to be passed into the security enforcer as a complete policy.
@@ -44,6 +48,18 @@ pub struct RolePermit {
 pub struct UserRole {
     pub user: String,
     pub role: Role,
+}
+
+pub struct ActionRolePermitMap(HashMap<String, Roles>);
+
+/// A simplified enforcer that provides methods that will do a direct
+/// check of the included roles against the actions desired.  It assumes
+/// the policy is fully contained and constrained for the originating
+/// `Policy` for the user and resource that should have produced it.
+pub struct PolicyEnforcer {
+    policy: Policy,
+    roles: Roles,
+    permit_map: ActionRolePermitMap,
 }
 
 mod impls;
