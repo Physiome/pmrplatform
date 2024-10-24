@@ -173,7 +173,7 @@ FROM
 JOIN
     wf_policy ON res_wf_state.state == wf_policy.state
 WHERE
-    res = ?1
+    res_wf_state.res = ?1
         "#,
         res_str,
     )

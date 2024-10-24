@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\nSELECT\n    wf_policy.role AS role,\n    wf_policy.action AS action\nFROM\n    res_wf_state\nJOIN\n    wf_policy ON res_wf_state.state == wf_policy.state\nWHERE\n    res = ?1\n        ",
+  "query": "\nSELECT\n    wf_policy.role AS role,\n    wf_policy.action AS action\nFROM\n    res_wf_state\nJOIN\n    wf_policy ON res_wf_state.state == wf_policy.state\nWHERE\n    res_wf_state.res = ?1\n        ",
   "describe": {
     "columns": [
       {
@@ -22,5 +22,5 @@
       false
     ]
   },
-  "hash": "346ac873671e54677506cffb1cd0c6c1862556d51dc45421a279dcb2e72538af"
+  "hash": "32a64f6c143c142281f6acab82d6343bd16bb50a5d98c31d09386ec599ab8d08"
 }
