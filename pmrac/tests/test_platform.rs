@@ -328,10 +328,10 @@ async fn policy_enforcement() -> anyhow::Result<()> {
     assert!(platform.enforce(&user, "/profile/user", "").await?);
     assert!(!platform.enforce(&reviewer, "/profile/user", "").await?);
 
-    let (roles, enforcement) = platform.get_roles_and_enforce(&admin, "/profile/user", "").await?;
+    let (policy, enforcement) = platform.get_policy_and_enforce(&admin, "/profile/user", "").await?;
     assert!(enforcement);
     assert_eq!(
-        &roles.into_iter().collect::<Vec<_>>(),
+        &policy.to_roles().into_iter().collect::<Vec<_>>(),
         &[Role::Manager],
     );
 
@@ -418,17 +418,17 @@ async fn policy_enforcement_with_roles() -> anyhow::Result<()> {
 
     platform.set_wf_state_for_res("/profile/user", State::Private).await?;
 
-    let (roles, enforcement) = platform.get_roles_and_enforce(&user, "/profile/user", "").await?;
+    let (policy, enforcement) = platform.get_policy_and_enforce(&user, "/profile/user", "").await?;
     assert!(enforcement);
     assert_eq!(
-        &roles.into_iter().collect::<Vec<_>>(),
+        &policy.to_roles().into_iter().collect::<Vec<_>>(),
         &[Role::Owner, Role::Reader],
     );
 
-    let (roles, enforcement) = platform.get_roles_and_enforce(&reviewer, "/profile/user", "").await?;
+    let (policy, enforcement) = platform.get_policy_and_enforce(&reviewer, "/profile/user", "").await?;
     assert!(!enforcement);
     assert_eq!(
-        &roles.into_iter().collect::<Vec<_>>(),
+        &policy.to_roles().into_iter().collect::<Vec<_>>(),
         &[Role::Reviewer, Role::Reader],
     );
 

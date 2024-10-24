@@ -2,10 +2,7 @@ use pmrcore::{
     ac::{
         agent::Agent,
         genpolicy::Policy,
-        role::{
-            Role,
-            Roles,
-        },
+        role::Role,
         session::{
             self,
             SessionFactory,
@@ -439,29 +436,40 @@ impl Platform {
     }
 
     /// Same as the simpler enforce method but the result is returned
-    /// with the Roles available for the agent.
-    pub async fn get_roles_and_enforce(
+    /// with the Policy that went into the enforcer.
+    pub async fn get_policy_and_enforce(
         &self,
         agent: impl Into<Agent>,
         res: impl AsRef<str> + ToString,
         action: impl AsRef<str>,
-    ) -> Result<(Roles, bool), Error> {
+    ) -> Result<(Policy, bool), Error> {
+        use std::time::Instant;
+
+        let instant = Instant::now();
         let agent = agent.into();
         let policy = self.generate_policy_for_agent_res(
             &agent,
             res.to_string(),
         ).await?;
-        let roles = policy.to_roles();
-        Ok((
-            roles,
-            self.0.pmrrbac_builder
-                .build_with_resource_policy(policy)
-                .await?
-                .enforce(
-                    <Agent as Into<Option<String>>>::into(agent),
-                    res,
-                    action,
-                )?,
-        ))
+        let elapsed = instant.elapsed();
+        log::trace!("policy acquired from database in {elapsed:?}");
+
+        let instant = Instant::now();
+        let enforcer = self.0.pmrrbac_builder
+            .build_with_resource_policy(policy.clone())
+            .await?;
+        let elapsed = instant.elapsed();
+        log::trace!("casbin-based enforcer generated from policy in {elapsed:?}");
+
+        let instant = Instant::now();
+        let result = enforcer.enforce(
+                <Agent as Into<Option<String>>>::into(agent),
+                res,
+                action,
+            )?;
+        let elapsed = instant.elapsed();
+        log::trace!("casbin-based enforcement completed in {elapsed:?}");
+
+        Ok((policy, result))
     }
 }

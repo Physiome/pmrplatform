@@ -9,6 +9,7 @@ use pmrac::{
 };
 use pmrcore::ac::{
     agent::Agent,
+    genpolicy::PolicyEnforcer,
     role::Role,
     workflow::State,
 };
@@ -378,15 +379,41 @@ async fn parse_policy<'p>(
             let elapsed = instant.elapsed();
             println!("Acquired login_status for user in {elapsed:?}");
             let instant = Instant::now();
-            let permit = if platform.enforce(agent.clone(), &resource, &action).await? {
+            let (policy, permit) = platform.get_policy_and_enforce(
+                agent.clone(),
+                &resource,
+                &action,
+            ).await?;
+            let permit = if permit {
                 "permitted"
             } else {
                 "not permitted"
             };
             let elapsed = instant.elapsed();
+            println!("{}", serde_json::to_string_pretty(&policy)?);
             println!(
                 "{agent} {permit} access to resource {resource} with action {action:?}; \
-                enforcement took {elapsed:?}"
+                enforcement using pmrrbac took {elapsed:?}"
+            );
+
+            let pe_instant = Instant::now();
+            let policy_enforcer: PolicyEnforcer = policy.into();
+            let elapsed = pe_instant.elapsed();
+            log::trace!("policy enforcer generated from policy in {elapsed:?}");
+
+            let instant = Instant::now();
+            let permit = if policy_enforcer.enforce(&action) {
+                "permitted"
+            } else {
+                "not permitted"
+            };
+            let elapsed = instant.elapsed();
+            log::trace!("policy enforcer enforcement completed in {elapsed:?}");
+
+            let elapsed = pe_instant.elapsed();
+            println!(
+                "{agent} {permit} access to resource {resource} with action {action:?}; \
+                enforcement using pmrrbac took {elapsed:?}"
             );
         }
     }
