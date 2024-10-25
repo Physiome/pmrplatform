@@ -7,9 +7,14 @@ body {
   min-height: 100vh;
   display: grid;
   grid-template-areas:
-      'nav'
-      'main';
-  grid-template-rows: auto 1fr;
+      'header'
+      'main'
+      'footer';
+  grid-template-rows: auto 1fr 25px;
+}
+
+body > header {
+  grid-area: header;
 }
 
 body > header > nav {
@@ -37,6 +42,11 @@ body > header > nav a.active, body > header > nav a[aria-current="page"] {
   background-color: #c00;
 }
 
+body > footer {
+  grid-area: footer;
+  padding: 0 1em;
+}
+
 table.file-listing {
   width: 100%;
 }
@@ -52,25 +62,15 @@ table.file-listing td.gitobj-blob span::before {
 
 main {
   grid-area: main;
-  display: grid;
-  grid-template-areas:
-    'article'
-    'sidebar'
-    'footer';
 }
 
 main > article {
-  grid-area: article;
+  flex: 1;
   padding: 0 1em;
 }
 
 main > aside {
-  grid-area: sidebar;
-}
-
-main > footer {
-  grid-area: footer;
-  padding: 0 1em;
+  flex: 0 1;
 }
 
 main pre {
@@ -127,11 +127,16 @@ main > aside > section > nav > ul > li > a:hover {
 
 @media (min-width: 768px) {
   main {
-    grid-template-areas:
-      'article sidebar'
-      'footer footer';
-    grid-template-rows: 1fr 25px;
-    grid-template-columns: 1fr 330px;
+    display: flex;
+    flex-direction: row;
+  }
+
+  main > aside {
+    max-width: 330px;
+  }
+
+  main > aside > * {
+    width: 330px;
   }
 }
 

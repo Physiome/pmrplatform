@@ -101,10 +101,10 @@ pub fn App() -> impl IntoView {
                     <ViewsAvailable/>
                     <Navigation/>
                 </aside>
-                <footer>
-                    <small>"Copyright 2024 IUPS Physiome Project"</small>
-                </footer>
             </main>
+            <footer>
+                <small>"Copyright 2024 IUPS Physiome Project"</small>
+            </footer>
         </Router>
     }
 }
