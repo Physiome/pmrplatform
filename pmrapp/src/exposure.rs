@@ -120,6 +120,10 @@ pub struct ExposureParams {
 
 #[component]
 pub fn Exposure() -> impl IntoView {
+    on_cleanup(|| {
+        expect_context::<WriteSignal<Option<ExposureSourceCtx>>>().set(None);
+        expect_context::<WriteSignal<Option<NavigationCtx>>>().set(None);
+    });
     let params = use_params::<ExposureParams>();
     provide_context(Resource::new_blocking(
         move || params.get().map(|p| p.id),
@@ -229,6 +233,9 @@ pub struct ViewPath(pub Option<String>);
 
 #[component]
 pub fn ExposureFile() -> impl IntoView {
+    on_cleanup(|| {
+        expect_context::<WriteSignal<Option<ViewsAvailableCtx>>>().set(None);
+    });
     let params = use_params::<ExposureFileParams>();
     let exposure_info = expect_context::<Resource<Result<ExposureInfo, AppError>>>();
     let file = Resource::new_blocking(

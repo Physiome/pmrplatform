@@ -33,11 +33,6 @@ use crate::workspace::api::{
     list_workspaces,
     get_workspace_info,
 };
-use crate::app::portlet::{
-    ExposureSourceCtx,
-    NavigationCtx,
-    ViewsAvailableCtx,
-};
 
 #[component]
 pub fn WorkspaceRoutes() -> impl MatchNestedRoutes + Clone {
@@ -59,9 +54,6 @@ pub fn WorkspaceRoutes() -> impl MatchNestedRoutes + Clone {
 
 #[component]
 pub fn WorkspaceRoot() -> impl IntoView {
-    expect_context::<WriteSignal<Option<ExposureSourceCtx>>>().set(None);
-    expect_context::<WriteSignal<Option<NavigationCtx>>>().set(None);
-    expect_context::<WriteSignal<Option<ViewsAvailableCtx>>>().set(None);
     view! {
         <Title text="Workspace — Physiome Model Repository"/>
         <Outlet/>

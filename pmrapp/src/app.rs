@@ -29,11 +29,8 @@ pub mod portlet;
 use self::portlet::{
     provide_portlet_context,
     ExposureSource,
-    ExposureSourceCtx,
     Navigation,
-    NavigationCtx,
     ViewsAvailable,
-    ViewsAvailableCtx,
 };
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
@@ -111,9 +108,6 @@ pub fn App() -> impl IntoView {
 
 #[component]
 fn HomePage() -> impl IntoView {
-    expect_context::<WriteSignal<Option<ExposureSourceCtx>>>().set(None);
-    expect_context::<WriteSignal<Option<NavigationCtx>>>().set(None);
-    expect_context::<WriteSignal<Option<ViewsAvailableCtx>>>().set(None);
     view! {
         <Title text="Home — Physiome Model Repository"/>
         <div class="main">
