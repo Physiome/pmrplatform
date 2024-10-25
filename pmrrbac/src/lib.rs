@@ -339,6 +339,8 @@ impl PmrRbac {
 
 #[cfg(test)]
 mod test {
+    use anyhow::{self, anyhow as err};
+    use pmrcore::ac::genpolicy::PolicyEnforcer;
     use super::*;
 
     #[tokio::test]
@@ -448,7 +450,6 @@ mod test {
     async fn policy_usage_private() -> anyhow::Result<()> {
         let not_logged_in: Option<&str> = None;
         let mut security = Builder::new().build().await?;
-        // a rough approximation of a private resource
         security.set_resource_policy(serde_json::from_str(r#"{
             "resource": "/item/1",
             "user_roles": [],
@@ -649,4 +650,175 @@ mod test {
 
         Ok(())
     }
+
+    struct EnforcerTester {
+        casbin: PmrRbac,
+        pe: PolicyEnforcer,
+    }
+
+    impl EnforcerTester {
+        async fn new(builder: Builder, policy: Policy) -> anyhow::Result<Self> {
+            let casbin = builder.resource_policy(policy.clone())
+                .build()
+                .await?;
+            let pe = PolicyEnforcer::from(policy);
+            Ok(Self { pe, casbin })
+        }
+
+        // PolicyEnforcer at this stage will only validate a subset of the
+        // policy by design, as it requires explicit grants (in the main
+        // system they are associated directly with the workflow state of
+        // the particular resource), and so validation here may still deny
+        // access that the Casbin based enforcer will allow (simply because
+        // it process the wild cards and the graph).
+        fn check_granted_casbin(
+            &self,
+            agent: Option<impl AsRef<str> + std::fmt::Display>,
+            resource: impl AsRef<str>,
+            action: impl AsRef<str>,
+        ) -> anyhow::Result<()> {
+            self.casbin.enforce(agent, resource, &action)?
+                .then_some(())
+                .ok_or(err!("PmrRbac denied when expecting granted"))
+        }
+
+        fn check_granted_policy(
+            &self,
+            _agent: Option<impl AsRef<str> + std::fmt::Display>,
+            _resource: impl AsRef<str>,
+            action: impl AsRef<str>,
+        ) -> anyhow::Result<()> {
+            self.pe.enforce(action.as_ref())
+                .then_some(())
+                .ok_or(err!("PolicyEnforcer denied when expecting granted"))
+        }
+
+        // The version where both PolicyEnforcer and Casbin version will
+        // both grant access because the information are complete for both.
+        fn check_granted(
+            &self,
+            agent: Option<impl AsRef<str> + std::fmt::Display>,
+            resource: impl AsRef<str>,
+            action: impl AsRef<str>,
+        ) -> anyhow::Result<()> {
+            self.casbin.enforce(agent, resource, &action)?
+                .then_some(())
+                .ok_or(err!("PmrRbac denied when expecting granted"))?;
+            self.pe.enforce(action.as_ref())
+                .then_some(())
+                .ok_or(err!("PolicyEnforcer denied when expecting granted"))
+        }
+
+        // PolicyEnforcer should NOT be permitting access when the Casbin
+        // based implementation have denied it, as the basic version only
+        // should provide a subset validation (i.e without the graph).
+        fn check_denied(
+            &self,
+            agent: Option<impl AsRef<str> + std::fmt::Display>,
+            resource: impl AsRef<str>,
+            action: impl AsRef<str>,
+        ) -> anyhow::Result<()> {
+            (!self.casbin.enforce(agent, resource, &action)?)
+                .then_some(())
+                .ok_or(err!("PmrRbac granted when expecting denied"))?;
+            (!self.pe.enforce(action.as_ref()))
+                .then_some(())
+                .ok_or(err!("PolicyEnforcer granted when expecting denied"))
+        }
+    }
+
+    #[tokio::test]
+    async fn comparison_policy_usage_private() -> anyhow::Result<()> {
+        let tester = EnforcerTester::new(
+            Builder::new()
+                .anonymous_reader(true),
+            serde_json::from_str(r#"{
+                "resource": "/item/1",
+                "user_roles": [],
+                "res_grants": [
+                    {"res": "/item/1", "agent": "alice", "role": "Owner"}
+                ],
+                "role_permits": [
+                    {"role": "Owner", "action": "editor_view"},
+                    {"role": "Owner", "action": "editor_edit"}
+                ]
+            }"#)?
+        ).await?;
+
+        assert!(tester.check_granted_casbin(Some("alice"), "/item/1", "").is_ok());
+        assert!(tester.check_granted(Some("alice"), "/item/1", "").is_err());
+        assert!(tester.check_granted(Some("alice"), "/item/1", "editor_view").is_ok());
+        assert!(tester.check_granted(Some("alice"), "/item/1", "editor_edit").is_ok());
+        assert!(tester.check_denied(Some("alice"), "/item/1", "grants").is_ok());
+        assert!(tester.check_denied(Some("alice"), "/item/1", "manage").is_ok());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn comparison_policy_usage_manager() -> anyhow::Result<()> {
+        let tester = EnforcerTester::new(
+            Builder::new()
+                .anonymous_reader(true),
+            serde_json::from_str(r#"{
+                "resource": "/item/1",
+                "user_roles": [{
+                    "user": "admin",
+                    "role": "Manager"
+                }],
+                "res_grants": [
+                ],
+                "role_permits": [
+                ]
+            }"#)?
+        ).await?;
+
+        assert!(tester.check_granted_casbin(Some("admin"), "/item/1", "").is_ok());
+        assert!(tester.check_granted_casbin(Some("admin"), "/item/1", "custom1").is_ok());
+        assert!(tester.check_granted_casbin(Some("admin"), "/item/1", "custom2").is_ok());
+
+        // all the standard checks will fail as not enough data for PolicyEnforcer
+        assert!(tester.check_granted(Some("admin"), "/item/1", "").is_err());
+        assert!(tester.check_granted(Some("admin"), "/item/1", "custom1").is_err());
+        assert!(tester.check_granted(Some("admin"), "/item/1", "custom2").is_err());
+
+        // and the Casbin policy by default will permit
+        assert!(tester.check_denied(Some("admin"), "/item/1", "manage").is_err());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn comparison_policy_usage_casbin_default() -> anyhow::Result<()> {
+        let tester = EnforcerTester::new(
+            Builder::default(),
+            serde_json::from_str(r#"{
+                "resource": "/item/1",
+                "user_roles": [{
+                    "user": "admin",
+                    "role": "Manager"
+                }],
+                "res_grants": [
+                ],
+                "role_permits": [
+                    {"role": "Owner", "action": ""},
+                    {"role": "Manager", "action": "grant"}
+                ]
+            }"#)?
+        ).await?;
+
+        // default action was only granted to owner, which manager is not
+        assert!(tester.check_granted_casbin(Some("admin"), "/item/1", "").is_err());
+        // due to the way graphs work, nothing actually works without default wildcard grants
+        assert!(tester.check_granted_casbin(Some("admin"), "/item/1", "grant").is_err());
+
+        // but the PolicyEnforcer will just work as it doesn't do fancy graph traversal
+        assert!(tester.check_granted_policy(Some("admin"), "/item/1", "grant").is_ok());
+
+        // no manager permitted
+        assert!(tester.check_denied(Some("admin"), "/item/1", "manage").is_err());
+
+        Ok(())
+    }
+
 }
