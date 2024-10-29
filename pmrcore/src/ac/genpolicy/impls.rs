@@ -56,7 +56,11 @@ impl PolicyEnforcer {
         self.permit_map.0
             .get(action)
             .map(|roles| roles.0 & self.roles.0 != EnumSet::empty())
-            .unwrap_or(false)
+            .unwrap_or_else(|| self.permit_map.0
+                .get("*")
+                .map(|roles| roles.0 & self.roles.0 != EnumSet::empty())
+                .unwrap_or(false)
+            )
     }
 }
 

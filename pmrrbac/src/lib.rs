@@ -768,22 +768,18 @@ mod test {
                 }],
                 "res_grants": [
                 ],
-                "role_permits": [
-                ]
+                "role_permits": [{
+                    "role": "Manager",
+                    "action": "*"
+                }]
             }"#)?
         ).await?;
 
-        assert!(tester.check_granted_casbin(Some("admin"), "/item/1", "").is_ok());
-        assert!(tester.check_granted_casbin(Some("admin"), "/item/1", "custom1").is_ok());
-        assert!(tester.check_granted_casbin(Some("admin"), "/item/1", "custom2").is_ok());
-
-        // all the standard checks will fail as not enough data for PolicyEnforcer
-        assert!(tester.check_granted(Some("admin"), "/item/1", "").is_err());
-        assert!(tester.check_granted(Some("admin"), "/item/1", "custom1").is_err());
-        assert!(tester.check_granted(Some("admin"), "/item/1", "custom2").is_err());
-
-        // and the Casbin policy by default will permit
-        assert!(tester.check_denied(Some("admin"), "/item/1", "manage").is_err());
+        // with an additional wildcard action, both enforcers will work
+        assert!(tester.check_granted(Some("admin"), "/item/1", "").is_ok());
+        assert!(tester.check_granted(Some("admin"), "/item/1", "custom1").is_ok());
+        assert!(tester.check_granted(Some("admin"), "/item/1", "custom2").is_ok());
+        assert!(tester.check_granted(Some("admin"), "/item/1", "manage").is_ok());
 
         Ok(())
     }
