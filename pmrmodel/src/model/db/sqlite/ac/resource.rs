@@ -184,7 +184,9 @@ WHERE
     .fetch_all(&*backend.pool)
     .await?;
 
+    let agent = agent.clone();
     Ok(Policy {
+        agent,
         resource,
         user_roles,
         res_grants,
@@ -259,6 +261,7 @@ pub(crate) mod testing {
             "/".into(),
         ).await?;
         assert_eq!(policy, Policy {
+            agent: Agent::Anonymous,
             resource: "/".to_string(),
             user_roles: vec![],
             res_grants: vec![],
@@ -274,6 +277,7 @@ pub(crate) mod testing {
             "/".into(),
         ).await?;
         assert_eq!(policy, Policy {
+            agent: Agent::Anonymous,
             resource: "/".to_string(),
             user_roles: vec![],
             res_grants: vec![],
@@ -306,6 +310,13 @@ pub(crate) mod testing {
             "/".into(),
         ).await?;
         assert_eq!(policy, serde_json::from_str(r#"{
+            "agent": {
+                "User": {
+                    "id": 1,
+                    "name": "test_user",
+                    "created_ts": 1234567890
+                }
+            },
             "resource": "/",
             "user_roles": [
                 {"user": "test_user", "role": "Reader"}
@@ -327,6 +338,13 @@ pub(crate) mod testing {
             "/".into(),
         ).await?;
         assert_eq!(policy, serde_json::from_str(r#"{
+            "agent": {
+                "User": {
+                    "id": 1,
+                    "name": "test_user",
+                    "created_ts": 1234567890
+                }
+            },
             "resource": "/",
             "user_roles": [
             ],
@@ -354,6 +372,7 @@ pub(crate) mod testing {
 
         let policy = ResourceBackend::generate_policy_for_agent_res(&backend, &agent, "/".into()).await?;
         assert_eq!(policy, Policy {
+            agent: agent.clone(),
             resource: "/".to_string(),
             user_roles: vec![],
             res_grants: serde_json::from_str(r#"[{"res": "/", "user": null, "role": "Reader"}]"#)?,
@@ -430,6 +449,13 @@ pub(crate) mod testing {
         policy.res_grants.sort_unstable();
         policy.role_permits.sort_unstable();
         assert_eq!(policy, serde_json::from_str(r#"{
+            "agent": {
+                "User": {
+                    "id": 4,
+                    "name": "admin",
+                    "created_ts": 1234567890
+                }
+            },
             "resource": "/item/1",
             "user_roles": [
             ],
@@ -455,6 +481,13 @@ pub(crate) mod testing {
         policy.res_grants.sort_unstable();
         policy.role_permits.sort_unstable();
         assert_eq!(policy, serde_json::from_str(r#"{
+            "agent": {
+                "User": {
+                    "id": 4,
+                    "name": "admin",
+                    "created_ts": 1234567890
+                }
+            },
             "resource": "/item/1",
             "user_roles": [
             ],

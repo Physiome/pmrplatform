@@ -429,9 +429,9 @@ impl Platform {
             )
             .await?
             .enforce(
-                <Agent as Into<Option<String>>>::into(agent),
-                res,
-                action,
+                &agent,
+                res.as_ref(),
+                action.as_ref(),
             )?)
     }
 
@@ -459,16 +459,16 @@ impl Platform {
             .build_with_resource_policy(policy.clone())
             .await?;
         let elapsed = instant.elapsed();
-        log::trace!("casbin-based enforcer generated from policy in {elapsed:?}");
+        log::trace!("enforcer generated from policy in {elapsed:?}");
 
         let instant = Instant::now();
         let result = enforcer.enforce(
-                <Agent as Into<Option<String>>>::into(agent),
-                res,
-                action,
+                &agent,
+                res.as_ref(),
+                action.as_ref(),
             )?;
         let elapsed = instant.elapsed();
-        log::trace!("casbin-based enforcement completed in {elapsed:?}");
+        log::trace!("enforcement completed in {elapsed:?}");
 
         Ok((policy, result))
     }

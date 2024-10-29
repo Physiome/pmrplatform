@@ -1,5 +1,6 @@
 use pmrcore::ac::{
     agent::Agent,
+    genpolicy::Policy,
     role::Role,
     session::SessionFactory,
     workflow::State,
@@ -16,7 +17,6 @@ use pmrac::{
     },
     platform::Builder,
 };
-use pmrrbac::Builder as PmrRbacBuilder;
 
 use test_pmr::{
     ac::{
@@ -245,6 +245,7 @@ async fn resource_wf_state() -> anyhow::Result<()> {
     policy.res_grants.sort_unstable();
     policy.role_permits.sort_unstable();
     assert_eq!(policy, serde_json::from_str(r#"{
+        "agent": "Anonymous",
         "resource": "/item/1",
         "user_roles": [
         ],
@@ -259,10 +260,11 @@ async fn resource_wf_state() -> anyhow::Result<()> {
         "/item/1",
         State::Published,
     ).await?;
-    let mut policy = platform.generate_policy_for_agent_res(&user.into(), "/item/1".into()).await?;
+    let mut policy = platform.generate_policy_for_agent_res(&user.clone().into(), "/item/1".into()).await?;
     policy.res_grants.sort_unstable();
     policy.role_permits.sort_unstable();
-    assert_eq!(policy, serde_json::from_str(r#"{
+    let mut answer: Policy = serde_json::from_str(r#"{
+        "agent": "Anonymous",
         "resource": "/item/1",
         "user_roles": [
             {"user": "test_user", "role": "Reader"}
@@ -274,16 +276,21 @@ async fn resource_wf_state() -> anyhow::Result<()> {
             {"role": "Owner", "action": "editor_view"},
             {"role": "Reader", "action": ""}
         ]
-    }"#)?);
+    }"#)?;
+    answer.agent = user.clone().into();
+    assert_eq!(policy, answer);
 
     Ok(())
 }
 
+#[cfg(feature = "casbin")]
 #[async_std::test]
-async fn policy_enforcement() -> anyhow::Result<()> {
+async fn casbin_policy_enforcement() -> anyhow::Result<()> {
+    use pmrrbac::casbin::CasbinBuilder;
+
     let platform = Builder::new()
         .ac_platform(create_sqlite_backend().await?)
-        .pmrrbac_builder(PmrRbacBuilder::new_limited())
+        .pmrrbac_builder(CasbinBuilder::new_limited().into())
         .build();
     platform.assign_policy_to_wf_state(State::Private, Role::Owner, "editor_view").await?;
     platform.assign_policy_to_wf_state(State::Private, Role::Owner, "editor_edit").await?;
@@ -398,11 +405,14 @@ async fn policy_enforcement() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "casbin")]
 #[async_std::test]
 async fn policy_enforcement_with_roles() -> anyhow::Result<()> {
+    use pmrrbac::casbin::CasbinBuilder;
+
     let platform = Builder::new()
         .ac_platform(create_sqlite_backend().await?)
-        .pmrrbac_builder(PmrRbacBuilder::new_limited())
+        .pmrrbac_builder(CasbinBuilder::new_limited().into())
         .build();
 
     let admin = platform.create_user("admin").await?;

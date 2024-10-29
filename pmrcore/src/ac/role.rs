@@ -14,7 +14,7 @@ pub enum Role {
     Reader,
 }
 
-#[derive(Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Deserialize, Serialize)]
 pub struct Roles(pub(super) EnumSet<Role>);
 
 mod impls;

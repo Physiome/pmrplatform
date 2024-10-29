@@ -9,9 +9,9 @@ use pmrac::{
 };
 use pmrcore::ac::{
     agent::Agent,
-    genpolicy::PolicyEnforcer,
     role::Role,
     workflow::State,
+    traits::Enforcer,
 };
 use pmrmodel::backend::db::{
     MigrationProfile,
@@ -157,6 +157,7 @@ async fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
     stderrlog::new()
         .module(module_path!())
+        .module("pmrrbac")
         .verbosity((args.verbose as usize) + 1)
         .timestamp(stderrlog::Timestamp::Second)
         .init()
@@ -393,28 +394,40 @@ async fn parse_policy<'p>(
             println!("{}", serde_json::to_string_pretty(&policy)?);
             println!(
                 "{agent} {permit} access to resource {resource} with action {action:?}; \
-                enforcement using pmrrbac took {elapsed:?}"
+                enforcement using the default policy enforcer took {elapsed:?}"
             );
 
-            let pe_instant = Instant::now();
-            let policy_enforcer: PolicyEnforcer = policy.into();
-            let elapsed = pe_instant.elapsed();
-            log::trace!("policy enforcer generated from policy in {elapsed:?}");
+            #[cfg(feature = "casbin")]
+            {
+                use pmrrbac::casbin::CasbinBuilder;
+                let pe_instant = Instant::now();
+                let policy_enforcer = CasbinBuilder::new()
+                    .anonymous_reader(true)
+                    .resource_policy(policy)
+                    .build()
+                    .await?;
+                let elapsed = pe_instant.elapsed();
+                log::trace!("casbin enforcer generated from policy in {elapsed:?}");
 
-            let instant = Instant::now();
-            let permit = if policy_enforcer.enforce(&action) {
-                "permitted"
-            } else {
-                "not permitted"
-            };
-            let elapsed = instant.elapsed();
-            log::trace!("policy enforcer enforcement completed in {elapsed:?}");
+                let instant = Instant::now();
+                let permit = if policy_enforcer.enforce(
+                    &agent,
+                    &resource,
+                    &action,
+                )? {
+                    "permitted"
+                } else {
+                    "not permitted"
+                };
+                let elapsed = instant.elapsed();
+                log::trace!("casbin enforcer enforcement completed in {elapsed:?}");
 
-            let elapsed = pe_instant.elapsed();
-            println!(
-                "{agent} {permit} access to resource {resource} with action {action:?}; \
-                enforcement using pmrrbac took {elapsed:?}"
-            );
+                let elapsed = pe_instant.elapsed();
+                println!(
+                    "{agent} {permit} access to resource {resource} with action {action:?}; \
+                    enforcement using the casbin enforcer took {elapsed:?}"
+                );
+            }
         }
     }
     Ok(())

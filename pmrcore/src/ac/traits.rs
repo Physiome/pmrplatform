@@ -143,3 +143,9 @@ pub trait SessionBackend {
         keep_token: Option<SessionToken>,
     ) -> Result<(), BackendError>;
 }
+
+pub trait Enforcer {
+    type Error;
+
+    fn enforce(&self, agent: &Agent, res: &str, endpoint_group: &str) -> Result<bool, Self::Error>;
+}

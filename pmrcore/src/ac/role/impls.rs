@@ -1,5 +1,11 @@
 use std::{
     fmt,
+    ops::{
+        BitAnd,
+        BitAndAssign,
+        BitOr,
+        BitOrAssign,
+    },
     str::FromStr,
 };
 use crate::error::ValueError;
@@ -47,8 +53,60 @@ impl FromStr for Role {
 }
 
 impl Roles {
-    pub fn contains(&self, role: Role) -> bool {
-        self.0 & role == role
+    pub fn empty() -> Self {
+        Self(EnumSet::empty())
+    }
+
+    pub fn contains(self, role: Role) -> bool {
+        self & role
+    }
+}
+
+impl BitAnd<Role> for Roles {
+    type Output = bool;
+
+    fn bitand(self, rhs: Role) -> Self::Output {
+        self.0 & rhs == rhs
+    }
+}
+
+impl BitAnd for Roles {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0 & rhs.0)
+    }
+}
+
+impl BitAndAssign<Role> for Roles {
+    fn bitand_assign(&mut self, rhs: Role) {
+        *self = Self(self.0 & rhs)
+    }
+}
+
+impl BitAndAssign for Roles {
+    fn bitand_assign(&mut self, rhs: Self) {
+        *self = Self(self.0 & rhs.0)
+    }
+}
+
+impl BitOr for Roles {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl BitOrAssign<Role> for Roles {
+    fn bitor_assign(&mut self, rhs: Role) {
+        *self = Self(self.0 | rhs)
+    }
+}
+
+impl BitOrAssign for Roles {
+    fn bitor_assign(&mut self, rhs: Self) {
+        *self = Self(self.0 | rhs.0)
     }
 }
 

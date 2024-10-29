@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 log = { workspace = true }
-casbin = { workspace = true }
+casbin = { workspace = true, optional = true }
 pmrcore = { workspace = true, features = ["display"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs", "io-util", "macros", "rt"] }
@@ -17,5 +17,6 @@ anyhow = { workspace = true }
 serde_json = { workspace = true }
 
 [features]
+casbin = ["dep:casbin"]
 
 [lib]
