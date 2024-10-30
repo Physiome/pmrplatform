@@ -8,10 +8,10 @@ use pmrcore::ac::{
     agent::Agent,
     role::Role,
     genpolicy::{
+        AgentRole,
         Policy,
         ResGrant,
         RolePermit,
-        UserRole,
     },
     traits::Enforcer,
 };
@@ -173,7 +173,7 @@ impl CasbinBuilder {
         ).await
     }
 
-    pub async fn build_with_resource_policy(
+    pub async fn build_with_policy(
         &self,
         resource_policy: Policy,
     ) -> Result<CasbinEnforcer, casbin::Error> {
@@ -321,8 +321,8 @@ impl CasbinEnforcer {
         &mut self,
         policy: Policy,
     ) -> Result<(), casbin::Error> {
-        for UserRole { user, role } in policy.user_roles.into_iter() {
-            self.grant_agent_role(Some(user), role).await?;
+        for AgentRole { agent, role } in policy.agent_roles.into_iter() {
+            self.grant_agent_role(agent, role).await?;
         }
         for ResGrant { res, agent, role } in policy.res_grants.into_iter() {
             self.grant_res(agent.as_ref(), role, res).await?;
@@ -477,7 +477,7 @@ mod test {
         security.set_resource_policy(serde_json::from_str(r#"{
             "agent": "Anonymous",
             "resource": "/item/1",
-            "user_roles": [],
+            "agent_roles": [],
             "res_grants": [
                 {"res": "/*", "agent": "admin", "role": "Manager"},
                 {"res": "/item/1", "agent": "alice", "role": "Owner"}
@@ -508,9 +508,9 @@ mod test {
         let policy: Policy = serde_json::from_str(r#"{
             "agent": "Anonymous",
             "resource": "/item/1",
-            "user_roles": [
-                {"user": "reviewer", "role": "Reader"},
-                {"user": "reviewer", "role": "Reviewer"}
+            "agent_roles": [
+                {"agent": "reviewer", "role": "Reader"},
+                {"agent": "reviewer", "role": "Reviewer"}
             ],
             "res_grants": [
                 {"res": "/*", "agent": "reviewer", "role": "Reviewer"},
@@ -574,7 +574,7 @@ mod test {
         let policy: Policy = serde_json::from_str(r#"{
             "agent": "Anonymous",
             "resource": "/item/1",
-            "user_roles": [],
+            "agent_roles": [],
             "res_grants": [
                 {"res": "/*", "agent": "reviewer", "role": "Reviewer"},
                 {"res": "/item/1", "agent": "alice", "role": "Owner"}
@@ -616,7 +616,7 @@ mod test {
             .resource_policy(serde_json::from_str(r#"{
                 "agent": "Anonymous",
                 "resource": "/item/1",
-                "user_roles": [],
+                "agent_roles": [],
                 "res_grants": [
                     {"res": "/*", "agent": "admin", "role": "Manager"},
                     {"res": "/item/1", "agent": "alice", "role": "Owner"}
@@ -650,7 +650,7 @@ mod test {
             .resource_policy(serde_json::from_str(r#"{
                 "agent": "Anonymous",
                 "resource": "/item/1",
-                "user_roles": [],
+                "agent_roles": [],
                 "res_grants": [
                     {"res": "/*", "agent": "admin", "role": "Manager"},
                     {"res": "/item/1", "agent": "alice", "role": "Owner"}
@@ -686,10 +686,12 @@ mod test {
         async fn new(builder: CasbinBuilder, policy: Policy) -> anyhow::Result<Self> {
             let casbin = Builder::from(builder)
                 .resource_policy(policy.clone())
+                .anonymous_reader(true)
                 .build()
                 .await?;
             let pe = Builder::new()
                 .resource_policy(policy)
+                .anonymous_reader(true)
                 .build()
                 .await?;
             Ok(Self { pe, casbin })
@@ -771,7 +773,7 @@ mod test {
                     }
                 },
                 "resource": "/item/1",
-                "user_roles": [],
+                "agent_roles": [],
                 "res_grants": [
                     {"res": "/item/1", "agent": "alice", "role": "Owner"}
                 ],
@@ -806,8 +808,8 @@ mod test {
                     }
                 },
                 "resource": "/item/1",
-                "user_roles": [{
-                    "user": "admin",
+                "agent_roles": [{
+                    "agent": "admin",
                     "role": "Manager"
                 }],
                 "res_grants": [
@@ -841,8 +843,8 @@ mod test {
                     }
                 },
                 "resource": "/item/1",
-                "user_roles": [{
-                    "user": "admin",
+                "agent_roles": [{
+                    "agent": "admin",
                     "role": "Manager"
                 }],
                 "res_grants": [

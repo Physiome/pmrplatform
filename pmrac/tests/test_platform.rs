@@ -247,7 +247,7 @@ async fn resource_wf_state() -> anyhow::Result<()> {
     assert_eq!(policy, serde_json::from_str(r#"{
         "agent": "Anonymous",
         "resource": "/item/1",
-        "user_roles": [
+        "agent_roles": [
         ],
         "res_grants": [],
         "role_permits": [
@@ -266,8 +266,8 @@ async fn resource_wf_state() -> anyhow::Result<()> {
     let mut answer: Policy = serde_json::from_str(r#"{
         "agent": "Anonymous",
         "resource": "/item/1",
-        "user_roles": [
-            {"user": "test_user", "role": "Reader"}
+        "agent_roles": [
+            {"agent": "test_user", "role": "Reader"}
         ],
         "res_grants": [
             {"res": "/item/1", "agent": "test_user", "role": "Owner"}

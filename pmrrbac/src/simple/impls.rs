@@ -64,6 +64,7 @@ impl Enforcer for PolicyEnforcer {
 #[cfg(test)]
 mod test {
     use pmrcore::ac::user::User;
+    use crate::Builder;
     use super::*;
 
     #[test]
@@ -83,9 +84,9 @@ mod test {
                 }
             },
             "resource": "/item/1",
-            "user_roles": [
+            "agent_roles": [
                 {
-                    "user": "alice",
+                    "agent": "alice",
                     "role": "Reader"
                 }
             ],
@@ -108,6 +109,26 @@ mod test {
         assert!(!enforcer.enforce(&Agent::Anonymous, "/item/1", "")?);
         // mismatched resource
         assert!(!enforcer.enforce(&agent, "/mismatched", "")?);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn builder_anonymous_reader() -> anyhow::Result<()> {
+        let agent = Agent::Anonymous;
+        let policy: Policy = serde_json::from_str(r#"{
+            "agent": "Anonymous",
+            "resource": "/item/1",
+            "agent_roles": [],
+            "res_grants": [],
+            "role_permits": [
+                {"role": "Reader", "action": ""}
+            ]
+        }"#)?;
+        let builder = Builder::new().anonymous_reader(true);
+        let enforcer = builder.build_with_policy(policy).await?;
+        assert!(!enforcer.enforce(&agent, "/item/1", "editor_view")?);
+        assert!(!enforcer.enforce(&agent, "/item/1", "grant_edit")?);
+        assert!(enforcer.enforce(&agent, "/item/1", "")?);
         Ok(())
     }
 }

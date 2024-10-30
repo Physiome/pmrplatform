@@ -3,7 +3,7 @@ use pmrcore::{
     ac::{
         agent::Agent,
         genpolicy::{
-            UserRole,
+            AgentRole,
             ResGrant,
             RolePermit,
             Policy,
@@ -81,9 +81,9 @@ async fn generate_policy_for_agent_res_sqlite(
     // note that this explicitly _ignores_ anonymous agents that may have been
     // assigned roles via `user_role` as the schema currently allows null for
     // user_id, but whether we should keep this remains an open question
-    let (user_roles, res_grants) = match agent {
+    let (agent_roles, res_grants) = match agent {
         Agent::User(user) => {
-            let user_roles = sqlx::query!(
+            let agent_roles = sqlx::query!(
                 "\
 SELECT
     'user'.name as user,
@@ -98,8 +98,8 @@ WHERE
                 ",
                 user.id,
             )
-            .map(|row| UserRole {
-                user: row.user,
+            .map(|row| AgentRole {
+                agent: Some(row.user),
                 role: Role::from_str(&row.role).unwrap_or(Role::default()),
             })
             .fetch_all(&*backend.pool)
@@ -131,10 +131,10 @@ WHERE
             .fetch_all(&*backend.pool)
             .await?;
 
-            (user_roles, res_grants)
+            (agent_roles, res_grants)
         }
         Agent::Anonymous => {
-            let user_roles = vec![];
+            let agent_roles = vec![];
             let res_grants = sqlx::query!(
                 r#"
 SELECT
@@ -159,7 +159,7 @@ WHERE
             })
             .fetch_all(&*backend.pool)
             .await?;
-            (user_roles, res_grants)
+            (agent_roles, res_grants)
         }
     };
 
@@ -188,7 +188,7 @@ WHERE
     Ok(Policy {
         agent,
         resource,
-        user_roles,
+        agent_roles,
         res_grants,
         role_permits,
     })
@@ -263,7 +263,7 @@ pub(crate) mod testing {
         assert_eq!(policy, Policy {
             agent: Agent::Anonymous,
             resource: "/".to_string(),
-            user_roles: vec![],
+            agent_roles: vec![],
             res_grants: vec![],
             role_permits: vec![],
         });
@@ -279,7 +279,7 @@ pub(crate) mod testing {
         assert_eq!(policy, Policy {
             agent: Agent::Anonymous,
             resource: "/".to_string(),
-            user_roles: vec![],
+            agent_roles: vec![],
             res_grants: vec![],
             role_permits: vec![],
         });
@@ -318,8 +318,8 @@ pub(crate) mod testing {
                 }
             },
             "resource": "/",
-            "user_roles": [
-                {"user": "test_user", "role": "Reader"}
+            "agent_roles": [
+                {"agent": "test_user", "role": "Reader"}
             ],
             "res_grants": [
                 {"res": "/", "agent": "test_user", "role": "Reader"}
@@ -346,7 +346,7 @@ pub(crate) mod testing {
                 }
             },
             "resource": "/",
-            "user_roles": [
+            "agent_roles": [
             ],
             "res_grants": [
             ],
@@ -374,7 +374,7 @@ pub(crate) mod testing {
         assert_eq!(policy, Policy {
             agent: agent.clone(),
             resource: "/".to_string(),
-            user_roles: vec![],
+            agent_roles: vec![],
             res_grants: serde_json::from_str(r#"[{"res": "/", "user": null, "role": "Reader"}]"#)?,
             role_permits: vec![],
         });
@@ -457,7 +457,7 @@ pub(crate) mod testing {
                 }
             },
             "resource": "/item/1",
-            "user_roles": [
+            "agent_roles": [
             ],
             "res_grants": [
                 {"res": "/*", "agent": "admin", "role": "Manager"}
@@ -489,7 +489,7 @@ pub(crate) mod testing {
                 }
             },
             "resource": "/item/1",
-            "user_roles": [
+            "agent_roles": [
             ],
             "res_grants": [
                 {"res": "/*", "agent": "admin", "role": "Manager"}

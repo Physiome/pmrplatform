@@ -10,13 +10,17 @@ log = { workspace = true }
 casbin = { workspace = true, optional = true }
 pmrcore = { workspace = true, features = ["display"] }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["fs", "io-util", "macros", "rt"] }
+tokio = { workspace = true, features = ["fs", "io-util", "macros", "rt"], optional = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
 serde_json = { workspace = true }
+tokio = { workspace = true, features = ["fs", "io-util", "macros", "rt"] }
 
 [features]
-casbin = ["dep:casbin"]
+casbin = [
+    "dep:casbin",
+    "dep:tokio",
+]
 
 [lib]

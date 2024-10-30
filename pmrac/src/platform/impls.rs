@@ -421,7 +421,7 @@ impl Platform {
     ) -> Result<bool, Error> {
         let agent = agent.into();
         Ok(self.0.pmrrbac_builder
-            .build_with_resource_policy(
+            .build_with_policy(
                 self.generate_policy_for_agent_res(
                     &agent,
                     res.to_string(),
@@ -456,7 +456,7 @@ impl Platform {
 
         let instant = Instant::now();
         let enforcer = self.0.pmrrbac_builder
-            .build_with_resource_policy(policy.clone())
+            .build_with_policy(policy.clone())
             .await?;
         let elapsed = instant.elapsed();
         log::trace!("enforcer generated from policy in {elapsed:?}");

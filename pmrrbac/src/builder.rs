@@ -1,4 +1,7 @@
-use pmrcore::ac::genpolicy::Policy;
+use pmrcore::ac::{
+    genpolicy::Policy,
+    role::Role,
+};
 use crate::{
     Enforcer,
     error::Error,
@@ -51,11 +54,12 @@ impl Builder {
     pub async fn build(&self) -> Result<Box<dyn Enforcer>, Error> {
         log::trace!("building a {}Enforcer", self.kind);
         Ok(match &self.kind {
-            Kind::Policy => Box::new(PolicyEnforcer::from(
-                self.resource_policy
+            Kind::Policy => {
+                let policy = self.resource_policy
                     .clone()
-                    .ok_or(Error::PolicyRequired)?
-            )),
+                    .ok_or(Error::PolicyRequired)?;
+                self.build_with_policy(policy).await?
+            }
             #[cfg(feature = "casbin")]
             Kind::Casbin(builder) => Box::new(
                 CasbinEnforcer::new(
@@ -68,20 +72,26 @@ impl Builder {
         })
     }
 
-    pub async fn build_with_resource_policy(
+    pub async fn build_with_policy(
         &self,
-        resource_policy: Policy,
+        mut policy: Policy,
     ) -> Result<Box<dyn Enforcer>, Error> {
-        log::trace!("building a {}Enforcer with {resource_policy:?}", self.kind);
+        log::trace!("building a {}Enforcer with {policy:?}", self.kind);
         Ok(match &self.kind {
-            Kind::Policy => Box::new(PolicyEnforcer::from(resource_policy)),
+            Kind::Policy => {
+                if self.anonymous_reader {
+                    policy.agent_roles
+                        .push((None, Role::Reader).into())
+                }
+                Box::new(PolicyEnforcer::from(policy))
+            }
             #[cfg(feature = "casbin")]
             Kind::Casbin(builder) => Box::new(
                 CasbinEnforcer::new(
                     self.anonymous_reader,
                     &builder.base_policy,
                     &builder.default_model,
-                    Some(resource_policy),
+                    Some(policy),
                 ).await?,
             )
         })

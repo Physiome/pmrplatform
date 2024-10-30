@@ -14,7 +14,7 @@ use crate::ac::role::Role;
 pub struct Policy {
     pub agent: Agent,
     pub resource: String,
-    pub user_roles: Vec<UserRole>,
+    pub agent_roles: Vec<AgentRole>,
     pub res_grants: Vec<ResGrant>,
     pub role_permits: Vec<RolePermit>,
 }
@@ -37,14 +37,12 @@ pub struct RolePermit {
     pub action: String,
 }
 
-// FIXME should this be AgentRole instead?
-// or are we making the system easier to not allow management of anonymous?
-/// Represents the role granted to the user for the system.  Roles
-/// granted this way is only applicable for resources at some
+/// Represents the role granted to the agent for the system.  Roles
+/// granted this way is only applicable for resources when it is at the
 /// appropriate state.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct UserRole {
-    pub user: String,
+pub struct AgentRole {
+    pub agent: Option<String>,
     pub role: Role,
 }
 
