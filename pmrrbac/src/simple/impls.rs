@@ -12,6 +12,12 @@ use std::collections::HashMap;
 use crate::error::Error;
 use super::*;
 
+impl PolicyEnforcer {
+    pub fn policy(&self) -> &Policy {
+        &self.policy
+    }
+}
+
 impl From<Policy> for PolicyEnforcer {
     fn from(policy: Policy) -> Self {
         Self {

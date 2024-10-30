@@ -28,6 +28,7 @@ use crate::workspace::WorkspaceRoutes;
 pub mod portlet;
 use self::portlet::{
     provide_portlet_context,
+    ContentAction,
     ExposureSource,
     Navigation,
     ViewsAvailable,
@@ -79,6 +80,7 @@ pub fn App() -> impl IntoView {
             </header>
             <main>
                 <article>
+                    <ContentAction/>
                     <Routes fallback=|| {
                         let mut errors = Errors::default();
                         errors.insert_with_default_key(AppError::NotFound);

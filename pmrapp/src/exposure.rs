@@ -20,6 +20,7 @@ use std::str::FromStr;
 
 pub mod api;
 
+use crate::ac::AccountCtx;
 use crate::error::AppError;
 use crate::error_template::ErrorTemplate;
 use crate::component::{Redirect, RedirectTS};
@@ -35,6 +36,8 @@ use crate::view::{
     ExposureFileView,
 };
 use crate::app::portlet::{
+    ContentActionCtx,
+    ContentActionItem,
     ExposureSourceCtx,
     ExposureSourceItem,
     NavigationCtx,
@@ -67,11 +70,6 @@ pub fn ExposureRoot() -> impl IntoView {
 
 #[component]
 pub fn ExposureListing() -> impl IntoView {
-    // TODO figure out what kind of navigation needed here.
-    expect_context::<WriteSignal<Option<ExposureSourceCtx>>>().set(None);
-    expect_context::<WriteSignal<Option<NavigationCtx>>>().set(None);
-    expect_context::<WriteSignal<Option<ViewsAvailableCtx>>>().set(None);
-
     let exposures = Resource::new(
         move || (),
         move |_| async move {
@@ -120,9 +118,14 @@ pub struct ExposureParams {
 
 #[component]
 pub fn Exposure() -> impl IntoView {
-    on_cleanup(|| {
+    let account_ctx = expect_context::<AccountCtx>();
+    let set_resource = account_ctx.set_resource.clone();
+
+    on_cleanup(move || {
         expect_context::<WriteSignal<Option<ExposureSourceCtx>>>().set(None);
         expect_context::<WriteSignal<Option<NavigationCtx>>>().set(None);
+        expect_context::<WriteSignal<Option<ContentActionCtx>>>().set(None);
+        set_resource.set(None);
     });
     let params = use_params::<ExposureParams>();
     provide_context(Resource::new_blocking(
@@ -139,35 +142,60 @@ pub fn Exposure() -> impl IntoView {
     ));
     let exposure_info = expect_context::<Resource<Result<ExposureInfo, AppError>>>();
 
-    let portlets = move || Suspend::new(async move {
-        let exposure_info = exposure_info.await;
-        expect_context::<WriteSignal<Option<ExposureSourceCtx>>>()
-            .set(exposure_info.as_ref().map(|info| {
-                ExposureSourceItem {
-                    commit_id: info.exposure.commit_id.clone(),
-                    workspace_id: info.exposure.workspace_id.to_string(),
-                    // TODO put in the workspace title.
-                    workspace_title: info.workspace.description.clone().unwrap_or(
-                        format!("Workspace {}", info.exposure.workspace_id)),
-                }.into()
-            }).ok());
-        expect_context::<WriteSignal<Option<NavigationCtx>>>()
-            .set(exposure_info.map(|info| {
-                let exposure_id = info.exposure.id;
-                // TODO should derive from exposure.files when it contains title/description
-                NavigationCtx(Some(info.files
-                    .into_iter()
-                    .filter_map(move |(file, flag)| {
-                        flag.then(|| {
-                            let href = format!("/exposure/{exposure_id}/{file}/");
-                            let text = file.clone();
-                            let title = None;
-                            NavigationItem { href, text, title }
+    let portlets = move || {
+        let current_user = account_ctx.current_user.clone();
+        let set_resource = account_ctx.set_resource.clone();
+        let res_policy_state = account_ctx.res_policy_state.clone();
+
+        Suspend::new(async move {
+            let exposure_info = exposure_info.await;
+
+            if let Ok(Some(_)) = current_user.await {
+                set_resource.set(exposure_info.as_ref().ok().map(|info| {
+                    format!("/exposure/{}", info.exposure.id)
+                }));
+                if let Some((policy, workflow_state)) = res_policy_state.await.ok().flatten() {
+                    expect_context::<WriteSignal<Option<ContentActionCtx>>>().set(
+                        Some(ContentActionItem {
+                            policy,
+                            workflow_state,
+                        }.into())
+                    );
+                } else {
+                    expect_context::<WriteSignal<Option<ContentActionCtx>>>().set(None);
+                }
+            } else {
+                expect_context::<WriteSignal<Option<ContentActionCtx>>>().set(None);
+            };
+
+            expect_context::<WriteSignal<Option<ExposureSourceCtx>>>()
+                .set(exposure_info.as_ref().map(|info| {
+                    ExposureSourceItem {
+                        commit_id: info.exposure.commit_id.clone(),
+                        workspace_id: info.exposure.workspace_id.to_string(),
+                        // TODO put in the workspace title.
+                        workspace_title: info.workspace.description.clone().unwrap_or(
+                            format!("Workspace {}", info.exposure.workspace_id)),
+                    }.into()
+                }).ok());
+            expect_context::<WriteSignal<Option<NavigationCtx>>>()
+                .set(exposure_info.map(|info| {
+                    let exposure_id = info.exposure.id;
+                    // TODO should derive from exposure.files when it contains title/description
+                    NavigationCtx(Some(info.files
+                        .into_iter()
+                        .filter_map(move |(file, flag)| {
+                            flag.then(|| {
+                                let href = format!("/exposure/{exposure_id}/{file}/");
+                                let text = file.clone();
+                                let title = None;
+                                NavigationItem { href, text, title }
+                            })
                         })
-                    })
-                    .collect::<Vec<_>>()))
-            }).ok());
-    });
+                        .collect::<Vec<_>>()))
+                }).ok());
+        })
+    };
 
     view! {
         <Title text="Exposure — Physiome Model Repository"/>
@@ -201,8 +229,6 @@ pub fn ExposureFileListing(id: i64, files: Vec<(String, bool)>) -> impl IntoView
 
 #[component]
 pub fn ExposureMain() -> impl IntoView {
-    expect_context::<WriteSignal<Option<ViewsAvailableCtx>>>().set(None);
-
     let exposure_info = expect_context::<Resource<Result<ExposureInfo, AppError>>>();
     let file_listing = move || Suspend::new(async move {
         exposure_info.await.map(|info| view! {

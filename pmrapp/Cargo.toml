@@ -26,7 +26,7 @@ pmrac = { workspace = true, optional = true, features = ["axum-login"] }
 pmrcore = { workspace = true }
 pmrctrl = { workspace = true, optional = true }
 pmrmodel = { workspace = true, optional = true }
-pmrrbac = { workspace = true, optional = true }
+pmrrbac = { workspace = true }
 pmrrepo = { workspace = true, optional = true }
 pmrtqs = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
@@ -61,7 +61,6 @@ ssr = [
     "dep:pmrctrl",
     "dep:pmrmodel",
     "dep:pmrrepo",
-    "dep:pmrrbac",
     "dep:pmrtqs",
     "dep:sqlx",
     "dep:stderrlog",

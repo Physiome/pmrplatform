@@ -4,18 +4,25 @@ use leptos_router::{
     MatchNestedRoutes,
     StaticSegment,
 };
-use pmrcore::ac::user::User;
+use pmrcore::ac::{
+    genpolicy::Policy,
+    user::User,
+    workflow::State,
+};
 
 pub mod api;
 use api::{
     SignInWithLoginPassword,
     SignOut,
     current_user,
+    get_resource_policy_state,
 };
 
 #[derive(Clone)]
 pub struct AccountCtx {
     pub current_user: ArcResource<Result<Option<User>, ServerFnError>>,
+    pub set_resource: WriteSignal<Option<String>>,
+    pub res_policy_state: ArcResource<Result<Option<(Policy, State)>, ServerFnError>>,
 }
 
 pub fn provide_session_context() {
@@ -25,8 +32,22 @@ pub fn provide_session_context() {
             current_user().await
         },
     );
+    let (current_resource, set_resource) = signal(None::<String>);
+    let res_policy_state = ArcResource::new_blocking(
+        move || current_resource.get(),
+        move |r| async move {
+            if let Some(res) = r {
+                leptos::logging::log!("generating client-side policy for {res}");
+                get_resource_policy_state(res).await
+            } else {
+                Ok(None)
+            }
+        },
+    );
     provide_context(AccountCtx {
         current_user,
+        set_resource,
+        res_policy_state,
     });
 }
 

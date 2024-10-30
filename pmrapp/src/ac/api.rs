@@ -2,7 +2,11 @@ use leptos::{
     prelude::ServerFnError,
     server,
 };
-use pmrcore::ac::user::User;
+use pmrcore::ac::{
+    genpolicy::Policy as GenPolicy,
+    user::User,
+    workflow::State,
+};
 use std::{
     convert::Infallible,
     fmt,
@@ -24,6 +28,7 @@ mod ssr {
         Platform,
     };
     use pmrcore::ac::agent::Agent;
+    pub use crate::server::platform;
     use crate::error::AppError;
 
     pub async fn session() -> Result<AuthSession<Platform>, AppError> {
@@ -139,4 +144,24 @@ pub(crate) async fn sign_out() -> Result<(), ServerFnError> {
 pub(crate) async fn current_user() -> Result<Option<User>, ServerFnError> {
     let session = session().await?;
     Ok(session.user.map(|auth| auth.user().clone_inner()))
+}
+
+#[server]
+pub(crate) async fn get_resource_policy_state(
+    resource: String,
+) -> Result<Option<(GenPolicy, State)>, ServerFnError> {
+    Ok(if let Some(user) = current_user().await? {
+        let platform = platform().await?;
+        let state = platform
+            .ac_platform
+            .get_wf_state_for_res(&resource)
+            .await?;
+        let policy = platform
+            .ac_platform
+            .generate_policy_for_agent_res(&user.into(), resource)
+            .await?;
+        Some((policy, state))
+    } else {
+        None
+    })
 }
