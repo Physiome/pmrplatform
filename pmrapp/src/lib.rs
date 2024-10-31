@@ -11,6 +11,7 @@ pub mod exposure;
 #[cfg(feature = "ssr")]
 pub mod server;
 pub mod view;
+pub mod workflow;
 pub mod workspace;
 
 #[cfg(feature = "hydrate")]

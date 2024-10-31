@@ -116,6 +116,12 @@ impl FromIterator<Role> for Roles {
     }
 }
 
+impl<const N: usize> From<[Role; N]> for Roles {
+    fn from(role: [Role; N]) -> Self {
+        Roles::from_iter(role.into_iter())
+    }
+}
+
 impl IntoIterator for Roles {
     type Item = Role;
     type IntoIter = enumset::EnumSetIter<Role>;
