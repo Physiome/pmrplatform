@@ -40,8 +40,10 @@ pub fn WorkspaceRoutes() -> impl MatchNestedRoutes + Clone {
     view! {
         <ParentRoute path=StaticSegment("/workspace") view=WorkspaceRoot ssr>
             <Route path=StaticSegment("/") view=WorkspaceListing/>
+            <Route path=StaticSegment("") view=RedirectTS/>
             <ParentRoute path=ParamSegment("id") view=Workspace>
                 <Route path=StaticSegment("/") view=WorkspaceMain/>
+                <Route path=StaticSegment("") view=RedirectTS/>
                 <Route
                     path=(StaticSegment("file"), ParamSegment("commit"), WildcardSegment("path"),)
                     view=WorkspaceCommitPath
@@ -93,7 +95,6 @@ pub fn WorkspaceListing() -> impl IntoView {
     });
 
     view! {
-        <RedirectTS/>
         <div class="main">
             <h1>"Listing of workspaces"</h1>
             <div>

@@ -51,8 +51,10 @@ pub fn ExposureRoutes() -> impl MatchNestedRoutes + Clone {
     view! {
         <ParentRoute path=StaticSegment("/exposure") view=ExposureRoot ssr>
             <Route path=StaticSegment("/") view=ExposureListing/>
+            <Route path=StaticSegment("") view=RedirectTS/>
             <ParentRoute path=ParamSegment("id") view=Exposure>
                 <Route path=StaticSegment("/") view=ExposureMain/>
+                <Route path=StaticSegment("") view=RedirectTS/>
                 <Route path=WildcardSegment("path") view=ExposureFile/>
             </ParentRoute>
         </ParentRoute>
@@ -97,7 +99,6 @@ pub fn ExposureListing() -> impl IntoView {
     });
 
     view! {
-        <RedirectTS />
         <div class="main">
             <h1>"Listing of exposures"</h1>
             <div>
@@ -238,7 +239,6 @@ pub fn ExposureMain() -> impl IntoView {
     });
 
     view! {
-        <RedirectTS/>
         <div class="main">
             <Transition fallback=move || view! { <p>"Loading..."</p> }>
                 <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
