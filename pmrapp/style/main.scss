@@ -1,35 +1,35 @@
 @use '../node_modules/highlight.js/styles/github.min.css';
 
 body {
-  font-family: 'Arial', sans-serif;
-  margin: 0 auto;
-  max-width: 90rem;
-  min-height: 100vh;
-  display: grid;
-  grid-template-areas:
-      'header'
-      'main'
-      'footer';
-  grid-template-rows: auto 1fr 25px;
+    font-family: 'Arial', sans-serif;
+    margin: 0 auto;
+    max-width: 90rem;
+    min-height: 100vh;
+    display: grid;
+    grid-template-areas:
+        'header'
+        'main'
+        'footer';
+    grid-template-rows: auto 1fr 25px;
 }
 
 body > header {
-  grid-area: header;
+    grid-area: header;
 }
 
 body > header > nav {
-  display: flex;
-  background-color: #333;
-  color: #fff;
+    display: flex;
+    background-color: #333;
+    color: #fff;
 }
 
 body > header > nav div {
-  display: inline;
-  padding: 0.5em 0em;
+    display: inline;
+    padding: 0.5em 0em;
 }
 
 body > header > nav a {
-  padding: 0.5em 2em;
+    padding: 0.5em 2em;
 }
 
 #content-action > a {
@@ -38,193 +38,193 @@ body > header > nav a {
 
 #content-action > a,
 body > header > nav a {
-  color: #fff;
-  text-decoration: none;
-  transition: 0.15s;
+    color: #fff;
+    text-decoration: none;
+    transition: 0.15s;
 }
 
 #content-action > a:hover,
 body > header > nav a:hover {
-  background: #c00;
+    background: #c00;
 }
 
 body > header > nav a.active,
 body > header > nav a[aria-current="page"] {
-  background-color: #c00;
+    background-color: #c00;
 }
 
 body > footer {
-  grid-area: footer;
-  padding: 0 1em;
+    grid-area: footer;
+    padding: 0 1em;
 }
 
 table.file-listing {
-  width: 100%;
+    width: 100%;
 }
 
 table.file-listing td.gitobj-tree span::before {
-  content: '\1f4c1 ';
+    content: '\1f4c1 ';
 }
 
 table.file-listing td.gitobj-exe span::before,
 table.file-listing td.gitobj-blob span::before {
-  content: '\1f4c4 ';
+    content: '\1f4c4 ';
 }
 
 main {
-  grid-area: main;
+    grid-area: main;
 }
 
 main > article {
-  flex: 1;
-  padding: 0 1em;
+    flex: 1;
+    padding: 0 1em;
 }
 
 main > aside {
-  flex: 0 1;
+    flex: 0 1;
 }
 
 main pre {
-  white-space: pre-wrap;
-  max-width: calc(100vw - 350px);
-  overflow: auto;
+    white-space: pre-wrap;
+    max-width: calc(100vw - 350px);
+    overflow: auto;
 }
 
 main > aside > section {
-  margin-right: 1em;
+    margin-right: 1em;
 }
 
 main > aside > section > h4 {
-  margin-bottom: 0.33em;
+    margin-bottom: 0.33em;
 }
 
 main > aside > section > nav > ul {
-  margin: 0;
-  padding: 0;
+    margin: 0;
+    padding: 0;
 }
 
 main > aside > section > nav > ul > li {
-  display: block;
+    display: block;
 }
 
 main > aside > section > nav > ul > li > a {
-  display: block;
-  text-decoration: none;
-  line-height: 1.5em;
-  color: #000;
+    display: block;
+    text-decoration: none;
+    line-height: 1.5em;
+    color: #000;
 }
 
 main > aside > section > nav > ul > li > a[aria-current="page"] {
-  background: #e8e8e8;
+    background: #e8e8e8;
 }
 
 main > aside > section > nav > ul > li > a:hover {
-  background: #e0e0e0;
+    background: #e0e0e0;
 }
 
 #indicator, #indicator div {
-  height: 10px;
+    height: 10px;
 }
 
 #indicator div.loading {
-  background: repeating-linear-gradient(-45deg, #c00 0, #c00 33%, #333 0, #333 66%);
-  background-size: 20px;
-  animation: loading_indicator 1s infinite linear;
+    background: repeating-linear-gradient(-45deg, #c00 0, #c00 33%, #333 0, #333 66%);
+    background-size: 20px;
+    animation: loading_indicator 1s infinite linear;
 }
 
 .workspace-pathinfo img {
-  max-width: 100%;
+    max-width: 100%;
 }
 
 @media (min-width: 768px) {
-  main {
-    display: flex;
-    flex-direction: row;
-  }
+    main {
+        display: flex;
+        flex-direction: row;
+    }
 
-  main > aside {
-    max-width: 330px;
-    margin-right: 1em;
-  }
+    main > aside {
+        max-width: 330px;
+        margin-right: 1em;
+    }
 
-  main > aside > * {
-    width: 330px;
-    max-width: 330px;
-    overflow-x: hidden;
-  }
+    main > aside > * {
+        width: 330px;
+        max-width: 330px;
+        overflow-x: hidden;
+    }
 }
 
 @keyframes loading_indicator {
-  from {
-    background-position: 0px 0px;
-  }
+    from {
+        background-position: 0px 0px;
+    }
 
-  to {
-    background-position: -40px 0px;
-  }
+    to {
+        background-position: -40px 0px;
+    }
 
-  from {
-    background-position: 0px 0px;
-  }
+    from {
+        background-position: 0px 0px;
+    }
 
-  to {
-    background-position: -40px 0px;
-  }
+    to {
+        background-position: -40px 0px;
+    }
 }
 
 /* styling for session related elements */
 
 form#sign-in {
-  width: 50vw;
-  margin: auto;
+    width: 50vw;
+    margin: auto;
 }
 
 form#sign-in > div {
-  padding: 0.25em 0;
+    padding: 0.25em 0;
 }
 
 form#sign-in label {
-  display: block;
-  width: 100%;
-  padding: 0.25em 0;
+    display: block;
+    width: 100%;
+    padding: 0.25em 0;
 }
 
 form#sign-in input {
-  box-sizing: border-box;
-  width: 100%;
-  padding: 0.5em;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 0.5em;
 }
 
 #session-status {
-  position: relative;
-  display: inline-block;
+    position: relative;
+    display: inline-block;
 }
 
 #session-status > form {
-  display: none;
+    display: none;
 }
 
 #session-status:hover > form {
-  padding-top: 0.5em;
-  display: block;
-  position: absolute;
-  width: 100%;
+    padding-top: 0.5em;
+    display: block;
+    position: absolute;
+    width: 100%;
 }
 
 #session-status button {
-  font-family: 'Arial', sans-serif;
-  font-size: inherit;
-  width: 100%;
-  padding: 0.5em 0;
-  background-color: #333;
-  color: #fff;
-  border: 0;
-  cursor: pointer;
-  transition: 0.15s;
+    font-family: 'Arial', sans-serif;
+    font-size: inherit;
+    width: 100%;
+    padding: 0.5em 0;
+    background-color: #333;
+    color: #fff;
+    border: 0;
+    cursor: pointer;
+    transition: 0.15s;
 }
 
 #session-status button:hover {
-  background-color: #c00;
+    background-color: #c00;
 }
 
 #content-action {
