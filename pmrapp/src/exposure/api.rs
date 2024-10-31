@@ -54,7 +54,7 @@ pub struct ExposureInfo {
 
 #[server]
 pub async fn get_exposure_info(id: i64) -> Result<ExposureInfo, ServerFnError<AppError>> {
-    enforcer(format!("/exposure/{id}"), "").await?;
+    enforcer(format!("/exposure/{id}/"), "").await?;
     let platform = platform().await?;
     let ctrl = platform.get_exposure(id).await
         .map_err(|_| AppError::InternalServerError)?;
@@ -80,7 +80,7 @@ pub async fn resolve_exposure_path(
     id: i64,
     path: String,
 ) -> Result<ResolvedExposurePath, ServerFnError> {
-    enforcer(format!("/exposure/{id}"), "").await?;
+    enforcer(format!("/exposure/{id}/"), "").await?;
     // TODO when there is a proper error type for id not found, use that
     // TODO ExposureFileView is a placeholder - the real type that should be returned
     // is something that can readily be turned into an IntoView.
@@ -169,7 +169,7 @@ pub async fn read_blob(
     efvid: i64,
     key: String,
 ) -> Result<Box<[u8]>, ServerFnError> {
-    enforcer(format!("/exposure/{id}"), "").await?;
+    enforcer(format!("/exposure/{id}/"), "").await?;
     let platform = platform().await?;
     let ec = platform.get_exposure(id).await
         .map_err(|_| AppError::InternalServerError)?;
@@ -196,7 +196,7 @@ pub async fn read_safe_index_html(
         }
     }
 
-    enforcer(format!("/exposure/{id}"), "").await?;
+    enforcer(format!("/exposure/{id}/"), "").await?;
 
     let blob = read_blob(id, path.clone(), efvid, "index.html".to_string())
         .await

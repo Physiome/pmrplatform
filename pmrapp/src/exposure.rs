@@ -153,7 +153,7 @@ pub fn Exposure() -> impl IntoView {
 
             if let Ok(Some(_)) = current_user.await {
                 set_resource.set(exposure_info.as_ref().ok().map(|info| {
-                    format!("/exposure/{}", info.exposure.id)
+                    format!("/exposure/{}/", info.exposure.id)
                 }));
                 if let Some((policy, workflow_state)) = res_policy_state.await.ok().flatten() {
                     expect_context::<WriteSignal<Option<ContentActionCtx>>>().set(
