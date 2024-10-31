@@ -26,9 +26,11 @@ pub fn ContentAction() -> impl IntoView {
                 move || Suspend::new(async move {
                     resource.await.0.map(|ContentActionItem { policy, workflow_state }| {
                         view! {
-                            <section>
+                            <section id="content-action">
                                 <a href=policy.resource.to_owned()>"Resource Top"</a>
-                                <div>{workflow_state.to_string()}</div>
+                                <div class="flex-grow"></div>
+                                <div id="content-action-wf-state"
+                                    class=format!("state-{workflow_state}")>{workflow_state.to_string()}</div>
                             </section>
                         }
                     })

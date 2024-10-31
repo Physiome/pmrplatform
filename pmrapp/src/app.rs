@@ -74,7 +74,7 @@ pub fn App() -> impl IntoView {
                     <A href="/">"Home"</A>
                     <A href="/workspace/">"Workspace"</A>
                     <A href="/exposure/">"Exposure"</A>
-                    <div class="filler"></div>
+                    <div class="flex-grow"></div>
                     <SessionStatus/>
                 </nav>
             </header>

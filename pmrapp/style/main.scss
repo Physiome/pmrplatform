@@ -28,17 +28,28 @@ body > header > nav div {
   padding: 0.5em 0em;
 }
 
-body > header > nav div.filler {
-    flex-grow: 1;
+body > header > nav a {
+  padding: 0.5em 2em;
 }
 
+#content-action > a {
+    padding: 0.3em 1em;
+}
+
+#content-action > a,
 body > header > nav a {
   color: #fff;
-  padding: 0.5em 2em;
   text-decoration: none;
+  transition: 0.15s;
 }
 
-body > header > nav a.active, body > header > nav a[aria-current="page"] {
+#content-action > a:hover,
+body > header > nav a:hover {
+  background: #c00;
+}
+
+body > header > nav a.active,
+body > header > nav a[aria-current="page"] {
   background-color: #c00;
 }
 
@@ -208,9 +219,47 @@ form#sign-in input {
   background-color: #333;
   color: #fff;
   border: 0;
+  cursor: pointer;
+  transition: 0.15s;
 }
 
 #session-status button:hover {
   background-color: #c00;
-  cursor: pointer;
+}
+
+#content-action {
+    display: flex;
+    margin-top: 1.5em;
+    width: 100%;
+    background: #333;
+    color: #fff;
+    font-size: small;
+}
+
+#content-action > div {
+    display: inline-block;
+}
+
+#content-action-wf-state {
+    padding: 0.3em 1em;
+}
+
+#content-action-wf-state.state-private {
+    background: #f00;
+}
+
+#content-action-wf-state.state-pending {
+    background: #fa0;
+}
+
+#content-action-wf-state.state-published {
+    background: #467;
+}
+
+#content-action-wf-state.state-expired {
+    background: #746;
+}
+
+.flex-grow {
+    flex-grow: 1;
 }
