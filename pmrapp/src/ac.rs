@@ -14,6 +14,7 @@ pub mod api;
 use api::{
     SignInWithLoginPassword,
     SignOut,
+    WorkflowTransition,
     current_user,
     get_resource_policy_state,
 };

@@ -1,16 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-#[non_exhaustive]
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq, Deserialize, Serialize)]
-pub enum State {
-    // catch-all when infallable conversion is required
-    #[default]
-    Unknown,
-    Private,
-    Pending,
-    Published,
-    Expired,
-}
+pub mod state;
+pub use state::State;
 
 /// Resource workflow state
 ///
@@ -21,5 +12,3 @@ pub struct ResWorkflowState {
     pub res: String,
     pub state: State,
 }
-
-mod impls;
