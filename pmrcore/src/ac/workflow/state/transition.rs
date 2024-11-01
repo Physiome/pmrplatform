@@ -15,11 +15,11 @@ use crate::ac::{
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Transition {
     /// The target workflow state
-    target: State,
+    pub target: State,
     /// A description of the goal of this transition
-    description: String,
+    pub description: String,
     /// The roles that are permitted to use this transition
-    roles: Roles,
+    pub roles: Roles,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
