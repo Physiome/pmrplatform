@@ -229,19 +229,32 @@ form#sign-in input {
 
 #content-action {
     display: flex;
-    margin-top: 1.5em;
     width: 100%;
-    background: #333;
-    color: #fff;
     font-size: small;
 }
 
 #content-action > div {
     display: inline-block;
+    background: #333;
+    color: #fff;
+    margin-top: 1.5em;
+}
+
+#content-action > div.flex-grow > span {
+}
+
+#content-action > a {
+    background: #333;
+    color: #fff;
+}
+
+#content-action > .action {
+    margin-top: 1.5em;
 }
 
 #content-action-wf-state {
     padding: 0.3em 1em;
+    direction: rtl;
 }
 
 #content-action-wf-state.state-private {
@@ -258,6 +271,37 @@ form#sign-in input {
 
 #content-action-wf-state.state-expired {
     background: #746;
+}
+
+#content-action-wf-state > form {
+    display: none;
+    padding-top: 0.3em;
+}
+
+#content-action-wf-state:hover > form {
+    margin-right: -1em;
+    display: block;
+    position: fixed;
+    direction: initial;
+}
+
+#content-action-wf-state > form > button {
+    display: block;
+    width: 100%;
+    background: #333;
+    border-style: solid;
+    border-color: #333;;
+    border-width: 0.3em 0.8em;
+    padding: 0.2em;
+    text-align: left;
+    cursor: pointer;
+    color: #fff;
+    transition: 0.2s;
+}
+
+#content-action-wf-state > form > button:hover {
+    background: #fff;
+    color: #333;
 }
 
 .flex-grow {

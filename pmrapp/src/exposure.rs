@@ -36,8 +36,6 @@ use crate::view::{
     ExposureFileView,
 };
 use crate::app::portlet::{
-    ContentActionCtx,
-    ContentActionItem,
     ExposureSourceCtx,
     ExposureSourceItem,
     NavigationCtx,
@@ -125,7 +123,6 @@ pub fn Exposure() -> impl IntoView {
     on_cleanup(move || {
         expect_context::<WriteSignal<Option<ExposureSourceCtx>>>().set(None);
         expect_context::<WriteSignal<Option<NavigationCtx>>>().set(None);
-        expect_context::<WriteSignal<Option<ContentActionCtx>>>().set(None);
         set_resource.set(None);
     });
     let params = use_params::<ExposureParams>();
@@ -144,30 +141,25 @@ pub fn Exposure() -> impl IntoView {
     let exposure_info = expect_context::<Resource<Result<ExposureInfo, AppError>>>();
 
     let portlets = move || {
-        let current_user = account_ctx.current_user.clone();
         let set_resource = account_ctx.set_resource.clone();
-        let res_policy_state = account_ctx.res_policy_state.clone();
 
         Suspend::new(async move {
             let exposure_info = exposure_info.await;
 
-            if let Ok(Some(_)) = current_user.await {
-                set_resource.set(exposure_info.as_ref().ok().map(|info| {
-                    format!("/exposure/{}/", info.exposure.id)
-                }));
-                if let Some((policy, workflow_state)) = res_policy_state.await.ok().flatten() {
-                    expect_context::<WriteSignal<Option<ContentActionCtx>>>().set(
-                        Some(ContentActionItem {
-                            policy,
-                            workflow_state,
-                        }.into())
-                    );
-                } else {
-                    expect_context::<WriteSignal<Option<ContentActionCtx>>>().set(None);
-                }
-            } else {
-                expect_context::<WriteSignal<Option<ContentActionCtx>>>().set(None);
-            };
+            let resource = exposure_info.as_ref().ok().map(|info| {
+                format!("/exposure/{}/", info.exposure.id)
+            });
+            // set_resource.set(resource.clone());
+
+            // FIXME using effect to workaround some hydration conflict for now.  As this value
+            // is set _after_ some key moment (possibly when the node was already rendered with
+            // nothing), setting this immediately will result in the hydration value having the
+            // resource defined, resulting in the mismatch of SSR rendering of <ContentAction/>
+            // as it was already done without resource defined.
+            //
+            // This issue may also be resolved by moving the <ContentAction/> after the router,
+            // but this would also move the element which isn't ideal.  Can resolve this later.
+            Effect::new(move |_| set_resource.set(resource.clone()));
 
             expect_context::<WriteSignal<Option<ExposureSourceCtx>>>()
                 .set(exposure_info.as_ref().map(|info| {

@@ -1,16 +1,10 @@
 use leptos::prelude::*;
 use serde::{Serialize, Deserialize};
 
-pub(super) mod content_action;
 pub(super) mod exposure_source;
 pub(super) mod navigation;
 pub(super) mod views_available;
 
-pub use self::content_action::{
-    ContentAction,
-    ContentActionItem,
-    ContentActionCtx,
-};
 pub use self::exposure_source::{
     ExposureSource,
     ExposureSourceItem,
@@ -38,7 +32,6 @@ fn provide_portlet_context_for<T: Clone + Default + Send + Sync + PartialEq + Se
 }
 
 pub fn provide_portlet_context() {
-    provide_portlet_context_for::<ContentActionCtx>();
     provide_portlet_context_for::<ExposureSourceCtx>();
     provide_portlet_context_for::<NavigationCtx>();
     provide_portlet_context_for::<ViewsAvailableCtx>();

@@ -28,7 +28,10 @@ mod ssr {
         Platform,
     };
     use pmrcore::ac::agent::Agent;
-    pub use crate::server::platform;
+    pub use crate::{
+        server::platform,
+        workflow::state::TRANSITIONS,
+    };
     use crate::error::AppError;
 
     pub async fn session() -> Result<AuthSession<Platform>, AppError> {
@@ -62,6 +65,9 @@ mod ssr {
         }
     }
 }
+
+use crate::error::AppError;
+
 #[cfg(feature = "ssr")]
 pub use self::ssr::*;
 
@@ -164,4 +170,39 @@ pub(crate) async fn get_resource_policy_state(
     } else {
         None
     })
+}
+
+#[server]
+pub(crate) async fn workflow_transition(
+    resource: String,
+    target: String,
+) -> Result<(), ServerFnError<AppError>> {
+    if let Some(user) = current_user().await
+        .map_err(|_| AppError::Forbidden)?
+    {
+        let target_state = State::from_str(&target)
+            .expect("State::from_str shouldn't have failed!");
+        let platform = platform().await
+            .map_err(|_| AppError::InternalServerError)?;
+        let state = platform
+            .ac_platform
+            .get_wf_state_for_res(&resource)
+            .await
+            .map_err(|_| AppError::InternalServerError)?;
+        let roles = platform
+            .ac_platform
+            .generate_policy_for_agent_res(&user.into(), resource.clone())
+            .await
+            .map_err(|_| AppError::InternalServerError)?
+            .to_roles();
+        if TRANSITIONS.validate(roles, state, target_state) {
+            platform.ac_platform.set_wf_state_for_res(&resource, target_state).await
+                .map_err(|_| AppError::InternalServerError)?;
+            Ok(())
+        } else {
+            Err(AppError::Forbidden)?
+        }
+    } else {
+        Err(AppError::Forbidden)?
+    }
 }

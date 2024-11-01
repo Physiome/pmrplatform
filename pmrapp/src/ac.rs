@@ -7,8 +7,13 @@ use leptos_router::{
 use pmrcore::ac::{
     genpolicy::Policy,
     user::User,
-    workflow::State,
+    workflow::{
+        State,
+        state::Transition,
+    },
 };
+
+use crate::workflow::state::TRANSITIONS;
 
 pub mod api;
 use api::{
@@ -38,8 +43,9 @@ pub fn provide_session_context() {
         move || current_resource.get(),
         move |r| async move {
             if let Some(res) = r {
-                leptos::logging::log!("generating client-side policy for {res}");
-                get_resource_policy_state(res).await
+                let result = get_resource_policy_state(res.clone()).await;
+                leptos::logging::log!("got resource policy state for {res}");
+                result
             } else {
                 Ok(None)
             }
@@ -59,6 +65,73 @@ pub fn ACRoutes() -> impl MatchNestedRoutes + Clone {
         // <Route path=StaticSegment("logout") view=LogoutPage/>
     }
     .into_inner()
+}
+
+// TODO evaluate the location for this component - the inner part may be relevant here but
+// the overall is likely better fit as a portlet.
+#[component]
+pub fn ContentAction() -> impl IntoView {
+    let account_ctx = expect_context::<AccountCtx>();
+    let action = ServerAction::<WorkflowTransition>::new();
+
+    let workflow_view = move || {
+        let res_policy_state = account_ctx.res_policy_state.clone();
+        // leptos::logging::log!("{res_policy_state:?}");
+        Suspend::new(async move {
+            action.version().get();
+            res_policy_state.await
+                .map(|result| {
+                    // leptos::logging::log!("{result:?}");
+                    result.map(|(policy, workflow_state)| view! {
+                        <div class="flex-grow"></div>
+                        <div id="content-action-wf-state"
+                            class=format!("action state-{workflow_state}")
+                        >
+                            <span>{workflow_state.to_string()}</span>
+                            <ActionForm action=action>
+                                {
+                                move || {
+                                    match action.value().get() {
+                                        Some(_) => {
+                                            expect_context::<AccountCtx>()
+                                                .res_policy_state
+                                                .clone()
+                                                .refetch();
+                                            // To ensure that we don't loop, otherwise this arm will be
+                                            // triggered once more when this whole suspense is re-rendered;
+                                            // safe to do as the value has been handled.
+                                            action.value().set(None);
+                                        }
+                                        // TODO have this set an error somewhere?
+                                        // Some(Err(ServerFnError::WrappedServerError(e))) => e.to_string(),
+                                        _ => ()
+                                    }
+                                }}
+                                <input type="hidden" name="resource" value=policy.resource.clone()/>
+                                {
+                                    TRANSITIONS.transitions_for(workflow_state, policy.to_roles())
+                                        .into_iter()
+                                        .map(|Transition { target, description, .. }| view! {
+                                            <button type="submit" name="target" value=target.to_string()>
+                                                {description.to_string()}
+                                            </button>
+                                        })
+                                        .collect_view()
+                                }
+                            </ActionForm>
+                        </div>
+                    })
+                })
+                .ok()
+                .flatten()
+        })
+    };
+
+    view! {
+        <section id="content-action">
+            <Transition>{workflow_view}</Transition>
+        </section>
+    }
 }
 
 #[component]

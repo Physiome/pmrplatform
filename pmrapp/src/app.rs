@@ -16,6 +16,7 @@ use leptos_router::{
 };
 
 use crate::ac::{
+    ContentAction,
     ACRoutes,
     SessionStatus,
     provide_session_context,
@@ -28,7 +29,6 @@ use crate::workspace::WorkspaceRoutes;
 pub mod portlet;
 use self::portlet::{
     provide_portlet_context,
-    ContentAction,
     ExposureSource,
     Navigation,
     ViewsAvailable,
