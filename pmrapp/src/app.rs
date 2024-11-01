@@ -16,7 +16,6 @@ use leptos_router::{
 };
 
 use crate::ac::{
-    ContentAction,
     ACRoutes,
     SessionStatus,
     provide_session_context,
@@ -80,7 +79,6 @@ pub fn App() -> impl IntoView {
             </header>
             <main>
                 <article>
-                    <ContentAction/>
                     <Routes fallback=|| {
                         let mut errors = Errors::default();
                         errors.insert_with_default_key(AppError::NotFound);

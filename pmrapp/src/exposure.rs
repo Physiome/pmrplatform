@@ -20,7 +20,10 @@ use std::str::FromStr;
 
 pub mod api;
 
-use crate::ac::AccountCtx;
+use crate::ac::{
+    AccountCtx,
+    ContentAction,
+};
 use crate::error::AppError;
 use crate::error_template::ErrorTemplate;
 use crate::component::{Redirect, RedirectTS};
@@ -149,17 +152,7 @@ pub fn Exposure() -> impl IntoView {
             let resource = exposure_info.as_ref().ok().map(|info| {
                 format!("/exposure/{}/", info.exposure.id)
             });
-            // set_resource.set(resource.clone());
-
-            // FIXME using effect to workaround some hydration conflict for now.  As this value
-            // is set _after_ some key moment (possibly when the node was already rendered with
-            // nothing), setting this immediately will result in the hydration value having the
-            // resource defined, resulting in the mismatch of SSR rendering of <ContentAction/>
-            // as it was already done without resource defined.
-            //
-            // This issue may also be resolved by moving the <ContentAction/> after the router,
-            // but this would also move the element which isn't ideal.  Can resolve this later.
-            Effect::new(move |_| set_resource.set(resource.clone()));
+            set_resource.set(resource.clone());
 
             expect_context::<WriteSignal<Option<ExposureSourceCtx>>>()
                 .set(exposure_info.as_ref().map(|info| {
@@ -187,6 +180,10 @@ pub fn Exposure() -> impl IntoView {
                         })
                         .collect::<Vec<_>>()))
                 }).ok());
+            view! {
+                <ContentAction/>
+                <Outlet/>
+            }
         })
     };
 
@@ -195,7 +192,6 @@ pub fn Exposure() -> impl IntoView {
         <Suspense>
             {portlets}
         </Suspense>
-        <Outlet/>
     }
 }
 
