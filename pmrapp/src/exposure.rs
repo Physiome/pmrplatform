@@ -20,10 +20,7 @@ use std::str::FromStr;
 
 pub mod api;
 
-use crate::ac::{
-    AccountCtx,
-    ContentAction,
-};
+use crate::ac::AccountCtx;
 use crate::error::AppError;
 use crate::error_template::ErrorTemplate;
 use crate::component::{Redirect, RedirectTS};
@@ -180,10 +177,6 @@ pub fn Exposure() -> impl IntoView {
                         })
                         .collect::<Vec<_>>()))
                 }).ok());
-            view! {
-                <ContentAction/>
-                <Outlet/>
-            }
         })
     };
 
@@ -192,6 +185,7 @@ pub fn Exposure() -> impl IntoView {
         <Suspense>
             {portlets}
         </Suspense>
+        <Outlet/>
     }
 }
 

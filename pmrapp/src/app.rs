@@ -17,6 +17,7 @@ use leptos_router::{
 
 use crate::ac::{
     ACRoutes,
+    ContentAction,
     SessionStatus,
     provide_session_context,
 };
@@ -78,21 +79,26 @@ pub fn App() -> impl IntoView {
                 </nav>
             </header>
             <main>
-                <article>
-                    <Routes fallback=|| {
-                        let mut errors = Errors::default();
-                        errors.insert_with_default_key(AppError::NotFound);
-                        view! {
-                            <ErrorTemplate errors/>
-                        }
-                        .into_view()
-                    }>
-                        <Route path=StaticSegment("") view=HomePage/>
-                        <WorkspaceRoutes/>
-                        <ExposureRoutes/>
-                        <ACRoutes/>
-                    </Routes>
-                </article>
+                <section>
+                    <article>
+                        <Routes fallback=|| {
+                            let mut errors = Errors::default();
+                            errors.insert_with_default_key(AppError::NotFound);
+                            view! {
+                                <ErrorTemplate errors/>
+                            }
+                            .into_view()
+                        }>
+                            <Route path=StaticSegment("") view=HomePage/>
+                            <WorkspaceRoutes/>
+                            <ExposureRoutes/>
+                            <ACRoutes/>
+                        </Routes>
+                    </article>
+                    <aside>
+                        <ContentAction/>
+                    </aside>
+                </section>
                 <aside>
                     <ExposureSource/>
                     <ViewsAvailable/>

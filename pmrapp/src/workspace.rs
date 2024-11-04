@@ -26,6 +26,7 @@ use pmrcore::repo::{
 
 mod api;
 
+use crate::ac::AccountCtx;
 use crate::error::AppError;
 use crate::error_template::ErrorTemplate;
 use crate::component::RedirectTS;
@@ -115,7 +116,13 @@ pub struct WorkspaceParams {
 
 #[component]
 pub fn Workspace() -> impl IntoView {
-    logging::log!("in <Workspace>");
+    let account_ctx = expect_context::<AccountCtx>();
+    let set_resource = account_ctx.set_resource.clone();
+
+    on_cleanup(move || {
+        set_resource.set(None);
+    });
+
     let params = use_params::<WorkspaceParams>();
     let resource: Resource<Result<RepoResult, AppError>> = Resource::new_blocking(
         move || params.get().map(|p| p.id),
@@ -126,15 +133,30 @@ pub fn Workspace() -> impl IntoView {
                 Ok(None) => Err(AppError::NotFound),
                 Ok(Some(id)) => get_workspace_info(id, None, None)
                     .await
-                    .map_err(|_| AppError::NotFound),
+                    .map_err(AppError::from),
             }
         }
     );
+    let portlets = move || {
+        let set_resource = account_ctx.set_resource.clone();
+
+        Suspend::new(async move {
+            let repo_result = resource.await;
+            let resource = repo_result.as_ref().ok().map(|info| {
+                format!("/workspace/{}/", info.workspace.id)
+            });
+            set_resource.set(resource.clone());
+        })
+    };
+
     provide_context(resource);
     provide_context(params);
 
     view! {
         <Title text="Workspace — Physiome Model Repository"/>
+        <Suspense>
+            {portlets}
+        </Suspense>
         <Outlet/>
     }
 }
@@ -145,14 +167,8 @@ pub fn WorkspaceMain() -> impl IntoView {
 
     let resource = expect_context::<Resource<Result<RepoResult, AppError>>>();
 
-    let info = move || match resource.get() {
-        Some(Ok(v)) => Ok(v),
-        Some(Err(AppError::NotFound)) => Err(AppError::NotFound),
-        _ => Err(AppError::InternalServerError),
-    };
-
-    let workspace_view = move || {
-        info().map(|info| {
+    let workspace_view = move || Suspend::new(async move {
+        resource.await.map(|info| {
             view! {
                 // render content
                 <h1>{info.workspace.description.clone().unwrap_or(
@@ -166,7 +182,7 @@ pub fn WorkspaceMain() -> impl IntoView {
                 </dl>
             }
         })
-    };
+    });
 
     view! {
         <Transition fallback=move || view! { <p>"Loading workspace..."</p> }>
@@ -351,22 +367,15 @@ pub fn WorkspaceCommitPath() -> impl IntoView {
         ),
         |p| async move {
             match p {
-                (Err(_), Err(_)) => Err(AppError::InternalServerError),
-                (Ok(Some(id)), Ok((commit, path))) => get_workspace_info(id, commit, path)
-                    .await
-                    .map_err(|_| AppError::NotFound),
-                _ => Err(AppError::NotFound),
+                (Ok(Some(id)), Ok((commit, path))) => get_workspace_info(id, commit, path).await
+                    .map_err(AppError::from),
+                _ => Err(AppError::InternalServerError),
             }
         }
     );
-    let info = move || match resource.get() {
-        Some(Ok(v)) => Ok(v),
-        Some(Err(AppError::NotFound)) => Err(AppError::NotFound),
-        _ => Err(AppError::InternalServerError),
-    };
 
-    let view = move || {
-        info().map(|info| {
+    let view = move || Suspend::new(async move {
+        resource.await.map(|info| {
             let href = format!("/workspace/{}/", &info.workspace.id);
             let desc = info.workspace.description
                 .clone()
@@ -380,7 +389,7 @@ pub fn WorkspaceCommitPath() -> impl IntoView {
                 </div>
             }
         })
-    };
+    });
 
     view! {
         <Transition fallback=move || view! { <p>"Loading info..."</p> }>

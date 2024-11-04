@@ -75,9 +75,15 @@ main {
     grid-area: main;
 }
 
-main > article {
+main > section {
     flex: 1;
     padding: 0 1em;
+    display: flex;
+    flex-direction: column-reverse;
+}
+
+main > section > article {
+    flex: 1;
 }
 
 main > aside {

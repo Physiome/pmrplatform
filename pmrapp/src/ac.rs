@@ -27,7 +27,7 @@ use api::{
 #[derive(Clone)]
 pub struct AccountCtx {
     pub current_user: ArcResource<Result<Option<User>, ServerFnError>>,
-    pub set_resource: WriteSignal<Option<String>>,
+    pub set_resource: ArcWriteSignal<Option<String>>,
     pub res_policy_state: ArcResource<Result<Option<(Policy, State)>, ServerFnError>>,
 }
 
@@ -38,7 +38,7 @@ pub fn provide_session_context() {
             current_user().await
         },
     );
-    let (current_resource, set_resource) = signal(None::<String>);
+    let (current_resource, set_resource) = arc_signal(None::<String>);
     let res_policy_state = ArcResource::new_blocking(
         move || current_resource.get(),
         move |r| async move {
