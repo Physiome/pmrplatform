@@ -55,15 +55,15 @@ async fn main() -> anyhow::Result<()> {
     dbg!(&routes);
 
     if !Sqlite::database_exists(&args.pmrac_db_url).await.unwrap_or(false) {
-        warn!("pmrac database {} does not exist; creating...", &args.pmrac_db_url);
+        log::warn!("pmrac database {} does not exist; creating...", &args.pmrac_db_url);
         Sqlite::create_database(&args.pmrac_db_url).await?;
     }
     if !Sqlite::database_exists(&args.pmrapp_db_url).await.unwrap_or(false) {
-        warn!("pmrapp database {} does not exist; creating...", &args.pmrapp_db_url);
+        log::warn!("pmrapp database {} does not exist; creating...", &args.pmrapp_db_url);
         Sqlite::create_database(&args.pmrapp_db_url).await?;
     }
     if !Sqlite::database_exists(&args.pmrtqs_db_url).await.unwrap_or(false) {
-        warn!("pmrtqs database {} does not exist; creating...", &args.pmrtqs_db_url);
+        log::warn!("pmrtqs database {} does not exist; creating...", &args.pmrtqs_db_url);
         Sqlite::create_database(&args.pmrtqs_db_url).await?;
     }
     let ac = SqliteBackend::from_url(&args.pmrac_db_url)
@@ -126,7 +126,7 @@ async fn main() -> anyhow::Result<()> {
         .with_state(leptos_options);
 
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-    log!("listening on http://{}", &addr);
+    log::info!("listening on http://{}", &addr);
     axum::serve(listener, app.into_make_service())
         .await
         .unwrap();
