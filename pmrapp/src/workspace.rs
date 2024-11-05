@@ -34,6 +34,10 @@ use crate::workspace::api::{
     list_workspaces,
     get_workspace_info,
 };
+use crate::app::portlet::{
+    ContentActionCtx,
+    ContentActionItem,
+};
 
 #[component]
 pub fn WorkspaceRoutes() -> impl MatchNestedRoutes + Clone {
@@ -120,6 +124,7 @@ pub fn Workspace() -> impl IntoView {
     let set_resource = account_ctx.set_resource.clone();
 
     on_cleanup(move || {
+        expect_context::<WriteSignal<Option<ContentActionCtx>>>().set(None);
         set_resource.set(None);
     });
 
@@ -146,6 +151,19 @@ pub fn Workspace() -> impl IntoView {
                 format!("/workspace/{}/", info.workspace.id)
             });
             set_resource.set(resource.clone());
+
+            expect_context::<WriteSignal<Option<ContentActionCtx>>>()
+                .set({
+                    let mut actions = vec![];
+                    if let Some(resource) = resource {
+                        actions.push(ContentActionItem {
+                            href: resource,
+                            text: "Main View".to_string(),
+                            title: Some("Return to the top level workspace view".to_string()),
+                        });
+                    }
+                    Some(ContentActionCtx(Some(actions)))
+                })
         })
     };
 

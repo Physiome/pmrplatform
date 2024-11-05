@@ -36,14 +36,14 @@ body > header > nav a {
     padding: 0.3em 1em;
 }
 
-#content-action > a,
+#content-action a,
 body > header > nav a {
     color: #fff;
     text-decoration: none;
     transition: 0.15s;
 }
 
-#content-action > a:hover,
+#content-action a:hover,
 body > header > nav a:hover {
     background: #c00;
 }
@@ -239,6 +239,7 @@ form#sign-in input {
     font-size: small;
 }
 
+#content-action > nav,
 #content-action > div {
     display: inline-block;
     background: #333;
@@ -246,12 +247,23 @@ form#sign-in input {
     margin-top: 1.5em;
 }
 
+#content-action > nav {
+    padding: 0.3em 0;
+}
+
+#content-action ul,
+#content-action li {
+    display: inline-block;
+    margin: 0;
+    padding: 0;
+}
+
 #content-action > div.flex-grow > span {
 }
 
-#content-action > a {
+#content-action a {
     background: #333;
-    color: #fff;
+    padding: 0.3em 1em;
 }
 
 #content-action > .action {

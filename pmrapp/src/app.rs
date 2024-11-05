@@ -17,7 +17,6 @@ use leptos_router::{
 
 use crate::ac::{
     ACRoutes,
-    ContentAction,
     SessionStatus,
     provide_session_context,
 };
@@ -28,10 +27,11 @@ use crate::workspace::WorkspaceRoutes;
 
 pub mod portlet;
 use self::portlet::{
-    provide_portlet_context,
+    ContentAction,
     ExposureSource,
     Navigation,
     ViewsAvailable,
+    provide_portlet_context,
 };
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {

@@ -67,10 +67,8 @@ pub fn ACRoutes() -> impl MatchNestedRoutes + Clone {
     .into_inner()
 }
 
-// TODO evaluate the location for this component - the inner part may be relevant here but
-// the overall is likely better fit as a portlet.
 #[component]
-pub fn ContentAction() -> impl IntoView {
+pub fn WorkflowState() -> impl IntoView {
     let account_ctx = expect_context::<AccountCtx>();
     let action = ServerAction::<WorkflowTransition>::new();
 
@@ -128,9 +126,7 @@ pub fn ContentAction() -> impl IntoView {
     };
 
     view! {
-        <section id="content-action">
-            <Transition>{workflow_view}</Transition>
-        </section>
+        <Transition>{workflow_view}</Transition>
     }
 }
 
