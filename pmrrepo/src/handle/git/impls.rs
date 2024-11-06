@@ -115,9 +115,8 @@ impl<'repo> GitHandle<'repo> {
         self.repo.to_thread_local()
     }
 
-    pub async fn index_tags(&self) -> Result<(), GixError> {
-        let workspace = &self.workspace;
-        self.repo()
+    fn repo_tags(&self) -> Result<Vec<(String, String)>, GixError> {
+        Ok(self.repo()
             .references()?
             .tags()?
             .filter_map(|reference| {
@@ -144,6 +143,13 @@ impl<'repo> GitHandle<'repo> {
                     }
                 }
             })
+            .collect::<Vec<_>>())
+    }
+
+    pub async fn index_tags(&self) -> Result<(), GixError> {
+        let workspace = &self.workspace;
+        self.repo_tags()?
+            .into_iter()
             .map(|(name, oid)| async move {
                 match WorkspaceTagBackend::index_workspace_tag(
                     self.backend.db_platform.as_ref(),

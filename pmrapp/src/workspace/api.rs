@@ -42,3 +42,15 @@ pub async fn get_workspace_info(
         .into()
     )
 }
+
+#[server]
+pub async fn synchronize(
+    id: i64,
+) -> Result<(), ServerFnError<AppError>> {
+    enforcer(format!("/workspace/{id}/"), "protocol").await?;
+    let platform = platform().await?;
+    platform.repo_backend()
+        .sync_workspace(id).await
+        .map_err(|_| AppError::InternalServerError)?;
+    Ok(())
+}

@@ -33,6 +33,7 @@ use crate::component::RedirectTS;
 use crate::workspace::api::{
     list_workspaces,
     get_workspace_info,
+    Synchronize,
 };
 use crate::app::portlet::{
     ContentActionCtx,
@@ -49,6 +50,7 @@ pub fn WorkspaceRoutes() -> impl MatchNestedRoutes + Clone {
             <ParentRoute path=ParamSegment("id") view=Workspace>
                 <Route path=StaticSegment("/") view=WorkspaceMain/>
                 <Route path=StaticSegment("") view=RedirectTS/>
+                <Route path=StaticSegment("synchronize") view=WorkspaceSynchronize/>
                 <Route
                     path=(StaticSegment("file"), ParamSegment("commit"), WildcardSegment("path"),)
                     view=WorkspaceCommitPath
@@ -157,9 +159,15 @@ pub fn Workspace() -> impl IntoView {
                     let mut actions = vec![];
                     if let Some(resource) = resource {
                         actions.push(ContentActionItem {
-                            href: resource,
+                            href: resource.clone(),
                             text: "Main View".to_string(),
                             title: Some("Return to the top level workspace view".to_string()),
+                        });
+                        // TODO use the policy to hide this for users without this right
+                        actions.push(ContentActionItem {
+                            href: format!("{resource}synchronize"),
+                            text: "Synchronize".to_string(),
+                            title: Some("Synchronize with the stored Git Repository URI".to_string()),
                         });
                     }
                     Some(ContentActionCtx(Some(actions)))
@@ -181,8 +189,6 @@ pub fn Workspace() -> impl IntoView {
 
 #[component]
 pub fn WorkspaceMain() -> impl IntoView {
-    logging::log!("in <WorkspaceMain>");
-
     let resource = expect_context::<Resource<Result<RepoResult, AppError>>>();
 
     let workspace_view = move || Suspend::new(async move {
@@ -198,6 +204,34 @@ pub fn WorkspaceMain() -> impl IntoView {
                         <WorkspaceListingView repo_result=info/>
                     </div>
                 </dl>
+            }
+        })
+    });
+
+    view! {
+        <Transition fallback=move || view! { <p>"Loading workspace..."</p> }>
+            <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
+                {workspace_view}
+            </ErrorBoundary>
+        </Transition>
+    }
+}
+
+#[component]
+pub fn WorkspaceSynchronize() -> impl IntoView {
+    let resource = expect_context::<Resource<Result<RepoResult, AppError>>>();
+    let action = ServerAction::<Synchronize>::new();
+
+    let workspace_view = move || Suspend::new(async move {
+        resource.await.map(|info| {
+            view! {
+                // render content
+                <h1>"Synchronize Workspace: "{info.workspace.description.clone().unwrap_or(
+                    format!("Workspace {}", info.workspace.id))}</h1>
+                <ActionForm action=action>
+                    <input type="hidden" name="id" value=info.workspace.id/>
+                    <button type="submit">"Synchronize"</button>
+                </ActionForm>
             }
         })
     });
