@@ -42,7 +42,7 @@ impl<'handle> Handle<'handle> {
         match super::git::util::fetch_or_clone(repo_dir, &url) {
             Ok(_) => {
                 ticket.complete_sync().await?;
-                let handle: GitHandle<'handle> = self.try_into()?;
+                let handle: GitHandle<'handle> = self.into();
                 handle.index_tags().await?;
                 Ok(handle)
             }
@@ -310,7 +310,7 @@ mod tests {
         let backend = Backend::new(Arc::new(platform), repo_root.path().to_path_buf());
         let handle = backend.git_handle(10).await?;
         let result = handle.pathinfo::<String>(None, None).unwrap();
-        assert_eq!(result.path(), "");
+        assert_eq!(result.path(), Some(""));
         assert_eq!(result.workspace().description(), Some("Workspace 10"));
         Ok(())
     }
@@ -349,8 +349,8 @@ mod tests {
 
         assert_eq!(
             pathinfo.path(),
-            "ext/import1/README");
-        let GitResultTarget::RemoteInfo(target) = pathinfo.target else {
+            Some("ext/import1/README"));
+        let Some(GitResultTarget::RemoteInfo(target)) = pathinfo.target else {
             unreachable!()
         };
         assert_eq!(
@@ -371,8 +371,9 @@ mod tests {
         ).unwrap();
         assert_eq!(
             pathinfo.path(),
-            "ext/import2/import1/if1");
-        let GitResultTarget::RemoteInfo(target) = pathinfo.target else{
+            Some("ext/import2/import1/if1"),
+        );
+        let Some(GitResultTarget::RemoteInfo(target)) = pathinfo.target else {
             unreachable!()
         };
         assert_eq!(
@@ -633,7 +634,7 @@ mod tests {
         );
 
         let pathinfo = handle.pathinfo(None, Some("dir1/nested/file_a"))?;
-        assert_eq!(pathinfo.path(), "dir1/nested/file_a");
+        assert_eq!(pathinfo.path(), Some("dir1/nested/file_a"));
 
         Ok(())
     }
@@ -656,8 +657,8 @@ mod tests {
         // this is no longer "reachable" through the pmrrepo API as most
         // are converted to the detached version for Send + Sync.
         let pathinfo = handle.pathinfo(Some("8ae6e9af37c8bd78614545d0ab807348fc46dcab"), None)?;
-        match PathObjectInfo::from(&pathinfo) {
-            PathObjectInfo::TreeInfo(tree_info) => {
+        match <Option<PathObjectInfo>>::from(&pathinfo) {
+            Some(PathObjectInfo::TreeInfo(tree_info)) => {
                 assert_eq!(tree_info.filecount, 6);
                 assert_eq!(tree_info.entries[0], serde_json::from_str(r#"{
                     "filemode": "100644",

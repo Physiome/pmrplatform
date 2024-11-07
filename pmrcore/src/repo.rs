@@ -79,11 +79,11 @@ pub struct RepoResult {
     /// The workspace that this result was derived from.
     pub workspace: Workspace,
     /// The commit id that this result was derived from.
-    pub commit: CommitInfo,
+    pub commit: Option<CommitInfo>,
     /// The path to the target.
-    pub path: String,
+    pub path: Option<String>,
     /// The target is the resource identified at the path.
-    pub target: PathObjectInfo,
+    pub target: Option<PathObjectInfo>,
 }
 
 /*

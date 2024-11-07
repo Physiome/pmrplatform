@@ -47,7 +47,7 @@ pub async fn raw_workspace_download(
             // Ok(blob)
 
             match &result.target() {
-                GitResultTarget::Object(object) => {
+                Some(GitResultTarget::Object(object)) => {
                     let info: PathObjectInfo = object.into();
                     match info {
                         PathObjectInfo::FileInfo(info) => {
@@ -69,12 +69,12 @@ pub async fn raw_workspace_download(
                         }
                     }
                 }
-                GitResultTarget::RemoteInfo(RemoteInfo { location, commit, subpath, .. }) => {
-                    // XXX this should be a redirect
+                Some(GitResultTarget::RemoteInfo(RemoteInfo { location, commit, subpath, .. })) => {
                     Ok(Redirect::temporary(
                         &format!("{}/raw/{}/{}", location, commit, subpath)
                     ).into_response())
                 },
+                None => Err(AppError::NotFound),
             }
         },
         Err(_) => {

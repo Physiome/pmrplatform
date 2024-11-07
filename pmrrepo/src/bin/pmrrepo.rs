@@ -113,11 +113,11 @@ fn stream_git_result_default<'a>(
         have path_object_info {:?}
         \n",
         item.repo().path(),
-        item.commit(&repo).id(),
+        item.commit(&repo).map(|c| c.id()),
         item.commit(&repo),
         item.path(),
         &item.target(),
-        <PathObjectInfo>::from(item),
+        <Option<PathObjectInfo>>::from(item),
     ).as_bytes())
 }
 
@@ -125,7 +125,7 @@ fn stream_git_result_as_json(
     writer: impl Write,
     item: &GitHandleResult,
 ) -> Result<(), serde_json::Error> {
-    serde_json::to_writer(writer, &<PathObjectInfo>::from(item))
+    serde_json::to_writer(writer, &<Option<PathObjectInfo>>::from(item))
 }
 
 fn fetch_envvar(key: &str) -> anyhow::Result<String> {
@@ -220,7 +220,7 @@ async fn main(args: Args) -> anyhow::Result<()> {
         }
         Some(Command::Blob { workspace_id, obj_id }) => {
             let handle = backend.git_handle(workspace_id).await?;
-            let repo = handle.repo();
+            let repo = handle.repo()?;
             let obj = repo.rev_parse_single(obj_id.deref())?.object()?;
             log::info!("Found object {} {}", obj.kind, obj.id);
             // info!("{:?}", object_to_info(&obj));

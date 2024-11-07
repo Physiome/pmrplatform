@@ -109,4 +109,8 @@ pub enum PathError {
         oid: String,
         path: String,
     },
+    #[error("couldn't open repository for workspace `{workspace_id}`")]
+    Repository {
+        workspace_id: i64,
+    },
 }

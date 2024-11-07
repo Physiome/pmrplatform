@@ -178,11 +178,11 @@ async fn test_platform_exposure_ctrl_attach_file() -> anyhow::Result<()> {
 
     let efctrl = exposure.ctrl_file(ef_ref)?;
     let pathinfo = efctrl.pathinfo();
-    assert_eq!(pathinfo.path(), "if1");
+    assert_eq!(pathinfo.path(), Some("if1"));
 
     let efctrl = exposure.ctrl_path("if1").await?;
     let pathinfo = efctrl.pathinfo();
-    assert_eq!(pathinfo.path(), "if1");
+    assert_eq!(pathinfo.path(), Some("if1"));
 
     Ok(())
 }
@@ -223,28 +223,28 @@ async fn test_platform_exposure_ctrl_resolve_file() -> anyhow::Result<()> {
         .resolve_file_viewstr("dir1/nested/file_c")
         .await
         .expect("expected valid path not found");
-    assert_eq!(efctrl.pathinfo().path(), "dir1/nested/file_c");
+    assert_eq!(efctrl.pathinfo().path(), Some("dir1/nested/file_c"));
     assert_eq!(viewstr, None);
 
     let (efctrl, viewstr) = exposure
         .resolve_file_viewstr("dir1/nested/file_c/")
         .await
         .expect("expected valid path not found");
-    assert_eq!(efctrl.pathinfo().path(), "dir1/nested/file_c");
+    assert_eq!(efctrl.pathinfo().path(), Some("dir1/nested/file_c"));
     assert_eq!(viewstr, Some(""));
 
     let (efctrl, viewstr) = exposure
         .resolve_file_viewstr("dir1/nested/file_c/view")
         .await
         .expect("expected valid path not found");
-    assert_eq!(efctrl.pathinfo().path(), "dir1/nested/file_c");
+    assert_eq!(efctrl.pathinfo().path(), Some("dir1/nested/file_c"));
     assert_eq!(viewstr, Some("view"));
 
     let (efctrl, viewstr) = exposure
         .resolve_file_viewstr("dir1/nested/file_c/view/subpath/target")
         .await
         .expect("expected valid path not found");
-    assert_eq!(efctrl.pathinfo().path(), "dir1/nested/file_c");
+    assert_eq!(efctrl.pathinfo().path(), Some("dir1/nested/file_c"));
     assert_eq!(viewstr, Some("view/subpath/target"));
 
     Ok(())

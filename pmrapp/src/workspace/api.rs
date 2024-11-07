@@ -34,13 +34,23 @@ pub async fn get_workspace_info(
 ) -> Result<RepoResult, ServerFnError<AppError>> {
     enforcer(format!("/workspace/{id}/"), "").await?;
     let platform = platform().await?;
-    Ok(platform.repo_backend()
+    let handle = platform.repo_backend()
         .git_handle(id).await
-        .map_err(|_| AppError::InternalServerError)?
-        .pathinfo(commit, path)
-        .map_err(|_| AppError::InternalServerError)?
-        .into()
-    )
+        .map_err(|_| AppError::InternalServerError)?;
+    match (commit.as_ref(), path.as_ref(), handle.repo()) {
+        (None, None, Err(_)) => Ok(RepoResult {
+            workspace: handle.workspace().clone_inner(),
+            commit: None,
+            path: None,
+            target: None,
+        }),
+        (_, _, Err(_)) => Err(AppError::InternalServerError)?,
+        (_, _, Ok(_)) => Ok(handle
+            .pathinfo(commit, path)
+            .map_err(|_| AppError::InternalServerError)?
+            .into()
+        ),
+    }
 }
 
 #[server]

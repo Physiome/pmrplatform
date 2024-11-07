@@ -80,24 +80,31 @@ pub(crate) fn get_commit<'a>(
     repo: &'a Repository,
     workspace_id: i64,
     commit_id: Option<&'a str>,
-) -> Result<Commit<'a>, PmrRepoError> {
-    let obj = rev_parse_single(repo, &commit_id.unwrap_or("HEAD"))?;
-    match obj.kind {
+) -> Result<Option<Commit<'a>>, PmrRepoError> {
+    let obj = match commit_id {
+        Some(commit_id) => Some(rev_parse_single(repo, commit_id)?),
+        None => rev_parse_single(repo, "HEAD").ok(),
+    };
+    obj.map(|obj| match obj.kind {
         kind if kind == Kind::Commit => {
             info!("Found {} {}", kind, obj.id);
+            match obj.try_into_commit() {
+                Ok(commit) => Ok(commit),
+                Err(obj) => Err(PmrRepoError::from(ExecutionError::Unexpected {
+                    workspace_id: workspace_id,
+                    msg: format!("gix said oid {:?} was a commit?", obj.id),
+                })),
+            }
         }
-        _ => return Err(PathError::NoSuchCommit {
-            workspace_id: workspace_id,
-            oid: commit_id.unwrap_or("HEAD?").into(),
-        }.into())
-    }
-    match obj.try_into_commit() {
-        Ok(commit) => Ok(commit),
-        Err(obj) => Err(ExecutionError::Unexpected {
-            workspace_id: workspace_id,
-            msg: format!("gix said oid {:?} was a commit?", obj.id),
-        }.into()),
-    }
+        _ => {
+            Err(PmrRepoError::from(PathError::NoSuchCommit {
+                workspace_id: workspace_id,
+                // FIXME if it's HEAD it should be a variant along the lines of
+                // HEAD not leading to a valid commit
+                oid: commit_id.unwrap_or("HEAD").into(),
+            }))
+        }
+    }).transpose()
 }
 
 pub(crate) fn get_submodule_target(

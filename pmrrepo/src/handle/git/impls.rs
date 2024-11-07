@@ -38,6 +38,7 @@ use std::{
         Path,
         PathBuf,
     },
+    sync::OnceLock,
 };
 
 use crate::{
@@ -58,12 +59,14 @@ use super::{
     util::*,
 };
 
-impl From<&GitHandleResult<'_>> for PathObjectInfo {
+impl From<&GitHandleResult<'_>> for Option<PathObjectInfo> {
     fn from(item: &GitHandleResult) -> Self {
-        match &item.target {
-            GitResultTarget::Object(object) => object.into(),
-            GitResultTarget::RemoteInfo(remote_info) => PathObjectInfo::RemoteInfo(remote_info.clone()),
-        }
+        item.target
+            .as_ref()
+            .map(|target| match target {
+                GitResultTarget::Object(object) => object.into(),
+                GitResultTarget::RemoteInfo(remote_info) => PathObjectInfo::RemoteInfo(remote_info.clone()),
+            })
     }
 }
 
@@ -72,25 +75,23 @@ impl From<GitHandleResult<'_>> for RepoResult {
         RepoResult {
             target: (&item).into(),
             workspace: item.workspace.clone_inner(),
-            path: item.path().to_string(),
-            commit: item.commit.try_into()
-                .expect("commit should have been parsed during processing"),
+            path: item.path().map(str::to_string),
+            commit: item.commit
+                .map(|commit| commit.try_into()
+                    .expect("commit should have been parsed during processing")),
         }
     }
 }
 
-impl<'handle> TryFrom<Handle<'handle>> for GitHandle<'handle> {
-    type Error = GixError;
-
-    fn try_from(item: Handle<'handle>) -> Result<Self, GixError> {
-        let repo = gix::open::Options::isolated()
-            .open_path_as_is(true)
-            .open(&item.repo_dir)?;
-        Ok(Self {
+impl<'handle> From<Handle<'handle>> for GitHandle<'handle> {
+    fn from(item: Handle<'handle>) -> Self {
+        let repo = OnceLock::new();
+        Self {
             backend: item.backend,
             workspace: item.workspace,
-            repo
-        })
+            repo_dir: item.repo_dir,
+            repo,
+        }
     }
 }
 
@@ -99,26 +100,35 @@ impl<'repo> GitHandle<'repo> {
         backend: &'repo Backend,
         repo_root: PathBuf,
         workspace: WorkspaceRef<'repo>,
-    ) -> Result<Self, GixError> {
+    ) -> Self {
         let repo_dir = repo_root.join(workspace.id().to_string());
-        let repo = gix::open::Options::isolated()
-            .open_path_as_is(true)
-            .open(&repo_dir)?;
-        Ok(Self { backend, workspace, repo })
+        let repo = OnceLock::new();
+        Self { backend, workspace, repo_dir, repo }
     }
 
     pub fn workspace(&self) -> &WorkspaceRef<'repo> {
         &self.workspace
     }
 
-    pub fn repo(&self) -> Repository {
-        self.repo.to_thread_local()
+    pub fn repo(&self) -> Result<Repository, PathError> {
+        self.repo.get_or_init(|| Ok(
+            gix::open::Options::isolated()
+                .open_path_as_is(true)
+                .open(&self.repo_dir)?)
+        )
+            .as_ref()
+            .map(|repo| repo.to_thread_local())
+            .map_err(|_| PathError::Repository {
+                workspace_id: self.workspace.id(),
+            })
     }
 
-    fn repo_tags(&self) -> Result<Vec<(String, String)>, GixError> {
-        Ok(self.repo()
-            .references()?
-            .tags()?
+    fn repo_tags(&self) -> Result<Vec<(String, String)>, PmrRepoError> {
+        Ok(self.repo()?
+            .references()
+            .map_err(GixError::from)?
+            .tags()
+            .map_err(GixError::from)?
             .filter_map(|reference| {
                 match reference {
                     Ok(tag) => {
@@ -146,7 +156,7 @@ impl<'repo> GitHandle<'repo> {
             .collect::<Vec<_>>())
     }
 
-    pub async fn index_tags(&self) -> Result<(), GixError> {
+    pub async fn index_tags(&self) -> Result<(), PmrRepoError> {
         let workspace = &self.workspace;
         self.repo_tags()?
             .into_iter()
@@ -171,7 +181,7 @@ impl<'repo> GitHandle<'repo> {
         commit_id: S,
     ) -> Result<(), PmrRepoError> {
         let workspace_id = self.workspace.id();
-        let repo = self.repo();
+        let repo = self.repo()?;
         get_commit(&repo, workspace_id, Some(commit_id.as_ref()))?;
         Ok(())
     }
@@ -187,84 +197,100 @@ impl<'repo> GitHandle<'repo> {
         let path = path.map(|s| s.into());
 
         let workspace_id = self.workspace.id();
-        let repo = self.repo();
+        let repo = self.repo()?;
         let commit = get_commit(&repo, workspace_id, commit_id.as_deref())?;
-        let tree = commit
-            .tree_id().map_err(GixError::from)?
-            .object().map_err(GixError::from)?;
+        match commit {
+            None => Ok(GitHandleResult {
+                backend: &self.backend,
+                repo: self.repo.get()
+                    .expect("OnceLock should have been set with the self.repo()")
+                    .as_ref()
+                    .expect("Valid repo was resolved by here"),
+                commit: None,
+                target: None,
+                workspace: &self.workspace,
+            }),
+            Some(commit) => {
+                let tree = commit
+                    .tree_id().map_err(GixError::from)?
+                    .object().map_err(GixError::from)?;
 
-        let target = match path.as_ref().map(|s| s.as_ref()) {
-            Some("") | Some("/") | None => {
-                info!("No path provided; using root tree entry");
-                GitResultTarget::Object(
-                    PathObjectDetached::new("".to_string(), tree.into()),
-                )
-            },
-            Some(s) => {
-                let path = s.strip_prefix('/').unwrap_or(&s);
-                let mut comps = Path::new(path).components();
-                let mut curr_path = PathBuf::new();
-                let mut object = Some(tree);
-                let mut target: Option<GitResultTarget> = None;
-
-                while let Some(component) = comps.next() {
-                    let entry = object
-                        .expect("iteration has this set or look breaked")
-                        .try_into_tree().map_err(GixError::from)?
-                        .peel_to_entry_by_path(
-                            Path::new(&component)
-                        ).map_err(GixError::from)?
-                        .ok_or_else(
-                            || PmrRepoError::from(PathError::NoSuchPath {
-                                workspace_id: workspace_id,
-                                oid: commit.id.to_string(),
-                                path: path.to_string(),
-                            })
-                        )?;
-                    curr_path.push(component);
-                    match entry.mode() {
-                        k if (k == EntryKind::Commit.into()) => {
-                            info!("entry {:?} is a commit", entry.id());
-                            let location = get_submodule_target(
-                                &commit,
-                                workspace_id,
-                                curr_path.to_str().unwrap(),
-                            )?;
-                            target = Some(GitResultTarget::RemoteInfo(RemoteInfo {
-                                location: location,
-                                commit: entry.id().to_string(),
-                                subpath: comps.as_path().to_str().unwrap().to_string(),
-                                path: path.to_string(),
-                            }));
-                            object = None;
-                            break;
-                        }
-                        _ => ()
-                    }
-                    let next_object = entry
-                        .object().map_err(GixError::from)?;
-                    info!("got {} {:?}", next_object.kind, &next_object);
-                    object = Some(next_object);
-                };
-                match object {
-                    Some(object) =>
+                let target = match path.as_ref().map(|s| s.as_ref()) {
+                    Some("") | Some("/") | None => {
+                        info!("No path provided; using root tree entry");
                         GitResultTarget::Object(
-                            PathObjectDetached::new(path.to_string(), object.into())
-                        ),
-                    None =>
-                        // Only way object is None is have target set.
-                        target.expect("to be a RemoteInfo"),
-                }
-            },
-        };
-        let item = GitHandleResult {
-            backend: &self.backend,
-            repo: &self.repo,
-            commit: commit.into(),
-            target: target,
-            workspace: &self.workspace,
-        };
-        Ok(item)
+                            PathObjectDetached::new("".to_string(), tree.into()),
+                        )
+                    },
+                    Some(s) => {
+                        let path = s.strip_prefix('/').unwrap_or(&s);
+                        let mut comps = Path::new(path).components();
+                        let mut curr_path = PathBuf::new();
+                        let mut object = Some(tree);
+                        let mut target: Option<GitResultTarget> = None;
+
+                        while let Some(component) = comps.next() {
+                            let entry = object
+                                .expect("iteration has this set or look breaked")
+                                .try_into_tree().map_err(GixError::from)?
+                                .peel_to_entry_by_path(
+                                    Path::new(&component)
+                                ).map_err(GixError::from)?
+                                .ok_or_else(
+                                    || PmrRepoError::from(PathError::NoSuchPath {
+                                        workspace_id: workspace_id,
+                                        oid: commit.id.to_string(),
+                                        path: path.to_string(),
+                                    })
+                                )?;
+                            curr_path.push(component);
+                            match entry.mode() {
+                                k if (k == EntryKind::Commit.into()) => {
+                                    info!("entry {:?} is a commit", entry.id());
+                                    let location = get_submodule_target(
+                                        &commit,
+                                        workspace_id,
+                                        curr_path.to_str().unwrap(),
+                                    )?;
+                                    target = Some(GitResultTarget::RemoteInfo(RemoteInfo {
+                                        location: location,
+                                        commit: entry.id().to_string(),
+                                        subpath: comps.as_path().to_str().unwrap().to_string(),
+                                        path: path.to_string(),
+                                    }));
+                                    object = None;
+                                    break;
+                                }
+                                _ => ()
+                            }
+                            let next_object = entry
+                                .object().map_err(GixError::from)?;
+                            info!("got {} {:?}", next_object.kind, &next_object);
+                            object = Some(next_object);
+                        };
+                        match object {
+                            Some(object) =>
+                                GitResultTarget::Object(
+                                    PathObjectDetached::new(path.to_string(), object.into())
+                                ),
+                            None =>
+                                // Only way object is None is have target set.
+                                target.expect("to be a RemoteInfo"),
+                        }
+                    },
+                };
+                Ok(GitHandleResult {
+                    backend: &self.backend,
+                    repo: &self.repo.get()
+                        .expect("OnceLock should have been set with the self.repo()")
+                        .as_ref()
+                        .expect("Valid repo was resolved by here"),
+                    commit: Some(commit.into()),
+                    target: Some(target),
+                    workspace: &self.workspace,
+                })
+            }
+        }
     }
 
     pub fn loginfo(
@@ -274,8 +300,12 @@ impl<'repo> GitHandle<'repo> {
         count: Option<usize>,
     ) -> Result<LogInfo, PmrRepoError> {
         let workspace_id = self.workspace.id();
-        let repo = self.repo();
+        let repo = self.repo()?;
         let commit = get_commit(&repo, workspace_id, commit_id)?;
+        if commit.is_none() {
+            return Ok(LogInfo { entries: Vec::new() });
+        }
+        let commit = commit.expect("None case should have been handled");
         let mut filter = PathFilter::new(&repo, path);
         let log_entry_iter = repo.rev_walk([commit.id])
             .sorting(Sorting::ByCommitTimeNewestFirst)
@@ -313,9 +343,11 @@ impl<'repo> GitHandle<'repo> {
         commit_id: Option<&str>,
     ) -> Result<Vec<String>, PmrRepoError> {
         let workspace_id = self.workspace.id();
-        let repo = self.repo();
-        let commit = get_commit(&repo, workspace_id, commit_id)?;
-        files(&commit)
+        let repo = self.repo()?;
+        let result = get_commit(&repo, workspace_id, commit_id)?
+            .map(|commit| files(&commit))
+            .unwrap_or_else(|| Ok(Vec::new()));
+        result
     }
 
     pub fn checkout(
@@ -324,8 +356,13 @@ impl<'repo> GitHandle<'repo> {
         dest_dir: &Path,
     ) -> Result<(), PmrRepoError> {
         let workspace_id = self.workspace.id();
-        let repo = self.repo();
-        let commit = get_commit(&repo, workspace_id, commit_id)?;
+        let repo = self.repo()?;
+        let commit = get_commit(
+            &repo,
+            workspace_id,
+            // force a HEAD commit at the minimum to trigger error handling
+            Some(commit_id.unwrap_or("HEAD")),
+        )?.expect("a commit was expected with Some(commit_id) provided");
         checkout(&repo, &commit, dest_dir)
     }
 
@@ -336,21 +373,27 @@ impl<'repo> GitHandleResult<'repo> {
         self.repo.to_thread_local()
     }
 
-    pub fn commit(&self, repo: &'repo Repository) -> Commit<'repo> {
-        self.commit.clone().attach(repo).into_commit()
+    pub fn commit(&self, repo: &'repo Repository) -> Option<Commit<'repo>> {
+        self.commit
+            .as_ref()
+            .map(|commit| commit.clone()
+                .attach(repo)
+                .into_commit())
     }
 
-    pub fn path(&self) -> &str {
-        match &self.target {
-            GitResultTarget::Object(object) => &object.path,
-            GitResultTarget::RemoteInfo(remote_info) => &remote_info.path,
-        }
+    pub fn path(&self) -> Option<&str> {
+        self.target
+            .as_ref()
+            .map(|target| match target {
+                GitResultTarget::Object(object) => object.path.as_str(),
+                GitResultTarget::RemoteInfo(remote_info) => remote_info.path.as_str(),
+            })
     }
 
     // TODO could use an TryInto<PathObject<'repo>> or something along that line
     // for getting the final result.
-    pub fn target(&self) -> &GitResultTarget {
-        &self.target
+    pub fn target(&self) -> Option<&GitResultTarget> {
+        self.target.as_ref()
     }
 
     pub fn workspace(&'repo self) -> &WorkspaceRef<'repo> {
@@ -363,16 +406,22 @@ impl<'repo> GitHandleResult<'repo> {
         mut writer: impl Write + Send + 'async_recursion,
     ) -> Result<usize, PmrRepoError> {
         match &self.target {
-            GitResultTarget::Object(object) => match object.object.kind {
+            None => Err(ContentError::Invalid {
+                workspace_id: self.workspace.id(),
+                oid: self.commit.as_ref().map(|c| c.id.to_string()).unwrap_or("<None>".to_string()),
+                path: self.path().map(str::to_string).unwrap_or("<None>".to_string()),
+                msg: format!("expected to be a blob"),
+            }.into()),
+            Some(GitResultTarget::Object(object)) => match object.object.kind {
                 Kind::Blob => Ok(writer.write(&object.object.data)?),
                 _ => Err(ContentError::Invalid {
                     workspace_id: self.workspace.id(),
-                    oid: self.commit.id.to_string(),
-                    path: self.path().to_string(),
+                    oid: self.commit.as_ref().map(|c| c.id.to_string()).unwrap_or("<None>".to_string()),
+                    path: self.path().map(str::to_string).unwrap_or("<None>".to_string()),
                     msg: format!("expected to be a blob"),
-                }.into())
+                }.into()),
             },
-            GitResultTarget::RemoteInfo(RemoteInfo { location, commit, subpath, .. }) => {
+            Some(GitResultTarget::RemoteInfo(RemoteInfo { location, commit, subpath, .. })) => {
                 let workspaces = WorkspaceBackend::list_workspace_by_url(
                     self.backend.db_platform.as_ref(), &location,
                 ).await?;
@@ -399,7 +448,11 @@ impl<'repo> GitHandleResult<'repo> {
         &self,
         repo: &'repo Repository,
     ) -> Result<Vec<String>, PmrRepoError> {
-        files(&self.commit(repo))
+        Ok(self.commit(repo)
+            .as_ref()
+            .map(files)
+            .transpose()?
+            .unwrap_or_else(|| Vec::new()))
     }
 }
 

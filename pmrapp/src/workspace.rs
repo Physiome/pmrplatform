@@ -248,9 +248,12 @@ pub fn WorkspaceSynchronize() -> impl IntoView {
 #[component]
 fn WorkspaceListingView(repo_result: RepoResult) -> impl IntoView {
     let workspace_id = repo_result.workspace.id;
-    let commit_id = repo_result.commit.commit_id.clone();
-    let path = repo_result.path.clone();
-    let pardir = repo_result.path != "";
+    let commit_id = repo_result.commit
+        .clone()
+        .map(|commit| commit.commit_id)
+        .unwrap_or_else(|| "<none>".to_string());
+    let path = repo_result.path.clone().unwrap_or_else(|| String::new());
+    let pardir = path != "";
     let pardir = move || { pardir.then(|| view! {
         <WorkspaceTreeInfoRow
             workspace_id=workspace_id
@@ -260,8 +263,11 @@ fn WorkspaceListingView(repo_result: RepoResult) -> impl IntoView {
             name=".."/>
     })};
 
-    let commit_id = repo_result.commit.commit_id.clone();
-    let path = repo_result.path.clone();
+    let path = repo_result.path.clone().unwrap_or_else(|| String::new());
+    let commit_id = repo_result.commit
+        .clone()
+        .map(|commit| commit.commit_id)
+        .unwrap_or_else(|| "<none>".to_string());
     view! {
         <table class="file-listing">
             <thead>
@@ -275,7 +281,7 @@ fn WorkspaceListingView(repo_result: RepoResult) -> impl IntoView {
             {pardir}
             {
                 match repo_result.target {
-                    PathObjectInfo::TreeInfo(tree_info) =>
+                    Some(PathObjectInfo::TreeInfo(tree_info)) =>
                         Some(view! {
                             <WorkspaceTreeInfoRows
                                 workspace_id=workspace_id
@@ -294,13 +300,18 @@ fn WorkspaceListingView(repo_result: RepoResult) -> impl IntoView {
 
 #[component]
 fn WorkspaceFileInfoView(repo_result: RepoResult) -> impl IntoView {
+    let path = repo_result.path.clone().unwrap_or_else(|| String::new());
+    let commit_id = repo_result.commit
+        .map(|commit| commit.commit_id)
+        .unwrap_or_else(|| "<none>".to_string())
+        .clone();
     match repo_result.target {
-        PathObjectInfo::FileInfo(ref file_info) => {
+        Some(PathObjectInfo::FileInfo(ref file_info)) => {
             let href = format!(
                 "/workspace/{}/rawfile/{}/{}",
                 &repo_result.workspace.id,
-                &repo_result.commit.commit_id,
-                &repo_result.path,
+                &commit_id,
+                &path,
             );
             let info = format!("{:?}", file_info);
             Some(view! {
@@ -329,9 +340,9 @@ fn WorkspaceFileInfoView(repo_result: RepoResult) -> impl IntoView {
 #[component]
 fn WorkspaceRepoResultView(repo_result: RepoResult) -> impl IntoView {
     match repo_result.target {
-        PathObjectInfo::TreeInfo(_) =>
+        Some(PathObjectInfo::TreeInfo(_)) =>
             Some(view! { <div><WorkspaceListingView repo_result/></div> }.into_any()),
-        PathObjectInfo::FileInfo(_) =>
+        Some(PathObjectInfo::FileInfo(_)) =>
             Some(view! { <div><WorkspaceFileInfoView repo_result/></div> }.into_any()),
         _ => None,
     }
