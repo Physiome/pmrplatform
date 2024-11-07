@@ -76,12 +76,12 @@ ssr = [
 ]
 
 # Defines a size-optimized profile for the WASM bundle in release mode
-# [profile.wasm-release]
-# inherits = "release"
-# opt-level = 'z'
-# lto = true
-# codegen-units = 1
-# panic = "abort"
+[profile.wasm-release]
+inherits = "release"
+opt-level = 'z'
+lto = true
+codegen-units = 1
+panic = "abort"
 
 [package.metadata.leptos]
 # The name used by wasm-bindgen/cargo-leptos for the JS/WASM bundle. Defaults to the crate name
@@ -103,16 +103,16 @@ style-file = "style/main.scss"
 assets-dir = "public"
 
 # The IP and port (ex: 127.0.0.1:3000) where the server serves the content. Use it in your server setup.
-site-addr = "127.0.0.1:3000"
+site-addr = "127.0.0.1:9380"
 
 # The port to use for automatic reload monitoring
-reload-port = 3001
+reload-port = 9381
 
 # [Optional] Command to use when running end2end tests. It will run in the end2end dir.
 #   [Windows] for non-WSL use "npx.cmd playwright test"
 #   This binary name can be checked in Powershell with Get-Command npx
-end2end-cmd = "npx playwright test"
-end2end-dir = "end2end"
+end2end-cmd = "cargo test --test app_suite"
+end2end-dir = "pmrapp/e2e"
 
 #  The browserlist query used for optimizing the CSS.
 browserquery = "defaults"

@@ -2,6 +2,7 @@
 members = [
     "pmrac",
     "pmrapp",
+    "pmrapp/e2e",
     "pmrctrl",
     "pmrcore",
     "pmrmodel",
