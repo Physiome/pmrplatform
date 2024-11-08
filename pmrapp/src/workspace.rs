@@ -18,11 +18,18 @@ use leptos_router::{
     StaticSegment,
     WildcardSegment,
 };
-use pmrcore::repo::{
-    PathObjectInfo,
-    RepoResult,
-    TreeInfo,
+use pmrcore::{
+    ac::{
+        agent::Agent,
+        traits::Enforcer as _,
+    },
+    repo::{
+        PathObjectInfo,
+        RepoResult,
+        TreeInfo,
+    },
 };
+use pmrrbac::PolicyEnforcer;
 
 mod api;
 
@@ -146,13 +153,28 @@ pub fn Workspace() -> impl IntoView {
     );
     let portlets = move || {
         let set_resource = account_ctx.set_resource.clone();
+        let current_user = account_ctx.current_user.clone();
+        let res_policy_state = account_ctx.res_policy_state.clone();
 
         Suspend::new(async move {
             let repo_result = resource.await;
+            // TODO see if a check on existing value may avoid setting thus avoid a refetch upon hydration?
             let resource = repo_result.as_ref().ok().map(|info| {
                 format!("/workspace/{}/", info.workspace.id)
             });
             set_resource.set(resource.clone());
+            let enforcer = PolicyEnforcer::from(
+                res_policy_state.await
+                    .ok()
+                    .flatten()
+                    .map(|(policy, _)| policy)
+                    .unwrap_or_default()
+            );
+            let agent = current_user.await
+                .ok()
+                .flatten()
+                .map(Agent::from)
+                .unwrap_or_default();
 
             expect_context::<WriteSignal<Option<ContentActionCtx>>>()
                 .set({
@@ -164,11 +186,13 @@ pub fn Workspace() -> impl IntoView {
                             title: Some("Return to the top level workspace view".to_string()),
                         });
                         // TODO use the policy to hide this for users without this right
-                        actions.push(ContentActionItem {
-                            href: format!("{resource}synchronize"),
-                            text: "Synchronize".to_string(),
-                            title: Some("Synchronize with the stored Git Repository URI".to_string()),
-                        });
+                        if enforcer.enforce(&agent, &resource, "protocol_write").unwrap_or(false) {
+                            actions.push(ContentActionItem {
+                                href: format!("{resource}synchronize"),
+                                text: "Synchronize".to_string(),
+                                title: Some("Synchronize with the stored Git Repository URI".to_string()),
+                            });
+                        }
                     }
                     Some(ContentActionCtx(Some(actions)))
                 })

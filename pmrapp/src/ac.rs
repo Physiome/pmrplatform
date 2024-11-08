@@ -43,9 +43,7 @@ pub fn provide_session_context() {
         move || current_resource.get(),
         move |r| async move {
             if let Some(res) = r {
-                let result = get_resource_policy_state(res.clone()).await;
-                leptos::logging::log!("got resource policy state for {res}");
-                result
+                get_resource_policy_state(res.clone()).await
             } else {
                 Ok(None)
             }
