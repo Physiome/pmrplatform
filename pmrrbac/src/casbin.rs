@@ -831,6 +831,41 @@ mod test {
     }
 
     #[tokio::test]
+    async fn comparison_policy_usage_manager_wildcard_conflict() -> anyhow::Result<()> {
+        let tester = EnforcerTester::new(
+            CasbinBuilder::new()
+                .anonymous_reader(true),
+            serde_json::from_str(r#"{
+                "agent": {
+                    "User": {
+                        "id": 0,
+                        "name": "admin",
+                        "created_ts": 1
+                    }
+                },
+                "resource": "/item/1",
+                "agent_roles": [{
+                    "agent": "admin",
+                    "role": "Manager"
+                }],
+                "res_grants": [],
+                "role_permits": [
+                    {"role": "Owner", "action": ""},
+                    {"role": "Manager", "action": "*"}
+                ]
+            }"#)?
+        ).await?;
+
+        // validate that provided role will not conflict wildcard
+        assert!(tester.check_granted(&mk_agent("admin"), "/item/1", "").is_ok());
+        assert!(tester.check_granted(&mk_agent("admin"), "/item/1", "custom1").is_ok());
+        assert!(tester.check_granted(&mk_agent("admin"), "/item/1", "custom2").is_ok());
+        assert!(tester.check_granted(&mk_agent("admin"), "/item/1", "manage").is_ok());
+
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn comparison_policy_usage_casbin_default() -> anyhow::Result<()> {
         let tester = EnforcerTester::new(
             CasbinBuilder::default(),
@@ -869,5 +904,4 @@ mod test {
 
         Ok(())
     }
-
 }

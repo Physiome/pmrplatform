@@ -55,14 +55,16 @@ impl Enforcer for PolicyEnforcer {
         Ok(
             &self.policy.agent == agent &&
             self.policy.resource == res &&
-            self.permit_map.0
-                .get(action)
-                .map(|roles| *roles & self.roles != Roles::empty())
-                .unwrap_or_else(|| self.permit_map.0
+            (
+                self.permit_map.0
+                    .get(action)
+                    .map(|roles| *roles & self.roles != Roles::empty())
+                    .unwrap_or(false) ||
+                self.permit_map.0
                     .get("*")
                     .map(|roles| *roles & self.roles != Roles::empty())
                     .unwrap_or(false)
-                )
+            )
         )
     }
 }
