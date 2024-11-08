@@ -139,4 +139,14 @@ mod test {
         assert!(enforcer.enforce(&agent, "/item/1", "")?);
         Ok(())
     }
+
+    #[tokio::test]
+    async fn default_policy_enforcer() -> anyhow::Result<()> {
+        let agent = Agent::default();
+        let policy = Policy::default();
+        let enforcer = PolicyEnforcer::from(policy);
+        // enforcement using all default values should still fail.
+        assert!(!enforcer.enforce(&agent, "", "")?);
+        Ok(())
+    }
 }

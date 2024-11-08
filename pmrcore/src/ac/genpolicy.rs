@@ -10,7 +10,7 @@ use crate::ac::role::Role;
 
 /// Grants, roles and permissions associated with the given resource
 /// to be passed into the security enforcer as a complete policy.
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
 pub struct Policy {
     pub agent: Agent,
     pub resource: String,
