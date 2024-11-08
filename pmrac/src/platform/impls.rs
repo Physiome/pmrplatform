@@ -428,11 +428,7 @@ impl Platform {
                 ).await?,
             )
             .await?
-            .enforce(
-                &agent,
-                res.as_ref(),
-                action.as_ref(),
-            )?)
+            .enforce(action.as_ref())?)
     }
 
     /// Same as the simpler enforce method but the result is returned
@@ -462,11 +458,7 @@ impl Platform {
         log::trace!("enforcer generated from policy in {elapsed:?}");
 
         let instant = Instant::now();
-        let result = enforcer.enforce(
-                &agent,
-                res.as_ref(),
-                action.as_ref(),
-            )?;
+        let result = enforcer.enforce(action.as_ref())?;
         let elapsed = instant.elapsed();
         log::trace!("enforcement completed in {elapsed:?}");
 

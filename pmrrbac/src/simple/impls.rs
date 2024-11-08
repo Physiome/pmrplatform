@@ -5,7 +5,10 @@ use pmrcore::ac::{
         RolePermit,
     },
     role::Roles,
-    traits::Enforcer,
+    traits::{
+        Enforcer,
+        GenpolEnforcer,
+    },
 };
 use std::collections::HashMap;
 
@@ -69,11 +72,33 @@ impl Enforcer for PolicyEnforcer {
     }
 }
 
+impl GenpolEnforcer for PolicyEnforcer {
+    type Error = Error;
+
+    fn enforce(&self, action: &str) -> Result<bool, Self::Error> {
+        Ok(
+            self.permit_map.0
+                .get(action)
+                .map(|roles| *roles & self.roles != Roles::empty())
+                .unwrap_or(false) ||
+            self.permit_map.0
+                .get("*")
+                .map(|roles| *roles & self.roles != Roles::empty())
+                .unwrap_or(false)
+        )
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use pmrcore::ac::user::User;
+    use pmrcore::ac::{
+        agent::Agent,
+        genpolicy::Policy,
+        user::User,
+    };
+
     use crate::Builder;
-    use super::*;
+    use super::PolicyEnforcer;
 
     #[test]
     fn policy_enforcer() -> anyhow::Result<()> {
@@ -109,20 +134,29 @@ mod test {
             ]
         }"#)?;
         let enforcer: PolicyEnforcer = policy.into();
-        assert!(enforcer.enforce(&agent, "/item/1", "editor_view")?);
-        assert!(enforcer.enforce(&agent, "/item/1", "editor_edit")?);
-        assert!(!enforcer.enforce(&agent, "/item/1", "grant_edit")?);
-        assert!(enforcer.enforce(&agent, "/item/1", "")?);
-        // mismatched agent
-        assert!(!enforcer.enforce(&Agent::Anonymous, "/item/1", "")?);
-        // mismatched resource
-        assert!(!enforcer.enforce(&agent, "/mismatched", "")?);
+        {
+            use pmrcore::ac::traits::Enforcer;
+            assert!(enforcer.enforce(&agent, "/item/1", "editor_view")?);
+            assert!(enforcer.enforce(&agent, "/item/1", "editor_edit")?);
+            assert!(!enforcer.enforce(&agent, "/item/1", "grant_edit")?);
+            assert!(enforcer.enforce(&agent, "/item/1", "")?);
+            // mismatched agent
+            assert!(!enforcer.enforce(&Agent::Anonymous, "/item/1", "")?);
+            // mismatched resource
+            assert!(!enforcer.enforce(&agent, "/mismatched", "")?);
+        }
+        {
+            use pmrcore::ac::traits::GenpolEnforcer;
+            assert!(enforcer.enforce("editor_view")?);
+            assert!(enforcer.enforce("editor_edit")?);
+            assert!(!enforcer.enforce("grant_edit")?);
+            assert!(enforcer.enforce("")?);
+        }
         Ok(())
     }
 
     #[tokio::test]
     async fn builder_anonymous_reader() -> anyhow::Result<()> {
-        let agent = Agent::Anonymous;
         let policy: Policy = serde_json::from_str(r#"{
             "agent": "Anonymous",
             "resource": "/item/1",
@@ -134,9 +168,9 @@ mod test {
         }"#)?;
         let builder = Builder::new().anonymous_reader(true);
         let enforcer = builder.build_with_policy(policy).await?;
-        assert!(!enforcer.enforce(&agent, "/item/1", "editor_view")?);
-        assert!(!enforcer.enforce(&agent, "/item/1", "grant_edit")?);
-        assert!(enforcer.enforce(&agent, "/item/1", "")?);
+        assert!(!enforcer.enforce("editor_view")?);
+        assert!(!enforcer.enforce("grant_edit")?);
+        assert!(enforcer.enforce("")?);
         Ok(())
     }
 
@@ -146,7 +180,14 @@ mod test {
         let policy = Policy::default();
         let enforcer = PolicyEnforcer::from(policy);
         // enforcement using all default values should still fail.
-        assert!(!enforcer.enforce(&agent, "", "")?);
+        {
+            use pmrcore::ac::traits::Enforcer;
+            assert!(!enforcer.enforce(&agent, "", "")?);
+        }
+        {
+            use pmrcore::ac::traits::GenpolEnforcer;
+            assert!(!enforcer.enforce("")?);
+        }
         Ok(())
     }
 }

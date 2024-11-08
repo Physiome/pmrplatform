@@ -144,8 +144,38 @@ pub trait SessionBackend {
     ) -> Result<(), BackendError>;
 }
 
+/// A trait for typical enforcers
+///
+/// This is the generic enforcer trait, where the enforcement is done on
+/// the provided agent, resource and endpoint_group, and the underlying
+/// type is assumed to be able to fully provide a pass or fail result.
 pub trait Enforcer {
     type Error;
 
+    /// Enforce the policy with the provided arguments
+    ///
+    /// If the enforcement is successful, it should return Ok(true), and
+    /// if access is rejected an Ok(false) should be returned.
+    ///
+    /// On error conditions an error should be returned which is specific
+    /// to the implementation.
     fn enforce(&self, agent: &Agent, res: &str, endpoint_group: &str) -> Result<bool, Self::Error>;
+}
+
+/// A trait for enforcers derived from [`genpolicy::Policy`]
+///
+/// This enforcer trait requires the implementation be using the agent
+/// and resource provided from the profile to do the enforcement against
+/// just the endpoint_group that will be provided for validation.
+pub trait GenpolEnforcer {
+    type Error;
+
+    /// Enforce the policy with the provided arguments
+    ///
+    /// If the enforcement is successful, it should return Ok(true), and
+    /// if access is rejected an Ok(false) should be returned.
+    ///
+    /// On error conditions an error should be returned which is specific
+    /// to the implementation.
+    fn enforce(&self, endpoint_group: &str) -> Result<bool, Self::Error>;
 }

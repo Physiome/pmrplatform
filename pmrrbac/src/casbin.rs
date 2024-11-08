@@ -13,7 +13,10 @@ use pmrcore::ac::{
         ResGrant,
         RolePermit,
     },
-    traits::Enforcer,
+    traits::{
+        Enforcer,
+        GenpolEnforcer,
+    },
 };
 
 use crate::{
@@ -114,14 +117,14 @@ pub struct CasbinBuilder {
     pub(crate) anonymous_reader: bool,
     pub(crate) base_policy: Box<str>,
     pub(crate) default_model: Box<str>,
-    pub(crate) resource_policy: Option<Policy>,
+    pub(crate) policy: Option<Policy>,
 }
 
 impl From<CasbinBuilder> for Builder {
     fn from(mut builder: CasbinBuilder) -> Self {
         Self {
             anonymous_reader: builder.anonymous_reader,
-            resource_policy: builder.resource_policy.take(),
+            policy: builder.policy.take(),
             kind: Kind::Casbin(builder),
         }
     }
@@ -159,8 +162,8 @@ impl CasbinBuilder {
         self
     }
 
-    pub fn resource_policy(mut self, val: Policy) -> Self {
-        self.resource_policy = Some(val);
+    pub fn policy(mut self, val: Policy) -> Self {
+        self.policy = Some(val);
         self
     }
 
@@ -169,26 +172,27 @@ impl CasbinBuilder {
             self.anonymous_reader,
             &self.base_policy,
             &self.default_model,
-            self.resource_policy.clone(),
+            self.policy.clone(),
         ).await
     }
 
     pub async fn build_with_policy(
         &self,
-        resource_policy: Policy,
+        policy: Policy,
     ) -> Result<CasbinEnforcer, casbin::Error> {
-        log::trace!("{resource_policy:?}");
+        log::trace!("{policy:?}");
         CasbinEnforcer::new(
             self.anonymous_reader,
             &self.base_policy,
             &self.default_model,
-            Some(resource_policy),
+            Some(policy),
         ).await
     }
 }
 
 pub struct CasbinEnforcer {
     enforcer: casbin::Enforcer,
+    policy: Option<Policy>,
 }
 
 impl CasbinEnforcer {
@@ -196,7 +200,7 @@ impl CasbinEnforcer {
         anonymous_reader: bool,
         policies: &str,
         model: &str,
-        resource_policy: Option<Policy>,
+        policy: Option<Policy>,
     ) -> Result<Self, casbin::Error> {
         let m = DefaultModel::from_str(model).await?;
         let a = MemoryAdapter::default();
@@ -217,15 +221,16 @@ impl CasbinEnforcer {
         let n = policies.len();
         enforcer.add_named_policies("p", policies).await?;
         log::debug!("new CasbinEnforcer set up with {n} policies");
-        let mut result = Self { enforcer };
+        let mut result = Self { enforcer, policy: None };
         if anonymous_reader {
             log::debug!("new CasbinEnforcer granting anonymous agent role reader");
             result.grant_agent_role(None::<&str>, Role::Reader).await?;
         }
-        if let Some(resource_policy) = resource_policy {
+        if let Some(policy) = policy.clone() {
             log::debug!("new CasbinEnforcer has additional resource policies");
-            result.set_resource_policy(resource_policy).await?;
+            result.set_bulk_policy(policy).await?;
         }
+        result.policy = policy;
         Ok(result)
     }
 
@@ -317,7 +322,7 @@ impl CasbinEnforcer {
         ]).await
     }
 
-    pub async fn set_resource_policy(
+    pub async fn set_bulk_policy(
         &mut self,
         policy: Policy,
     ) -> Result<(), casbin::Error> {
@@ -356,12 +361,38 @@ impl Enforcer for CasbinEnforcer {
     }
 }
 
+impl GenpolEnforcer for CasbinEnforcer {
+    type Error = Error;
+
+    fn enforce(&self, action: &str) -> Result<bool, Self::Error> {
+        if let Some(ref policy) = self.policy {
+            Ok(self.casbin_enforce(
+                <Agent as Into<Option<String>>>::into(policy.agent.clone()),
+                policy.resource.clone(),
+                action,
+            )?)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use anyhow::{self, anyhow as err};
-    use pmrcore::ac::user::User;
+    use pmrcore::ac::{
+        agent::Agent,
+        genpolicy::Policy,
+        role::Role,
+        user::User,
+    };
+
     use crate::builder::Builder;
-    use super::*;
+
+    use super::{
+        CasbinBuilder,
+        DEFAULT_MODEL,
+    };
 
     fn mk_agent(name: &str) -> Agent {
         User { id: 0, name: name.to_string(), created_ts: 1 }.into()
@@ -369,6 +400,7 @@ mod test {
 
     #[tokio::test]
     async fn empty() -> anyhow::Result<()> {
+        use pmrcore::ac::traits::Enforcer;
         let mut security = CasbinBuilder::default()
             .default_model(DEFAULT_MODEL.into())
             .build()
@@ -381,6 +413,7 @@ mod test {
 
     #[tokio::test]
     async fn demo() -> anyhow::Result<()> {
+        use pmrcore::ac::traits::Enforcer;
         let mut security = CasbinBuilder::new().build().await?;
         let not_logged_in: Option<&str> = None;
 
@@ -472,9 +505,10 @@ mod test {
 
     #[tokio::test]
     async fn policy_usage_private() -> anyhow::Result<()> {
+        use pmrcore::ac::traits::Enforcer;
         let mut security = CasbinBuilder::new().build().await?;
         // Casbin's policy doesn't verify the agent field of Policy.
-        security.set_resource_policy(serde_json::from_str(r#"{
+        security.set_bulk_policy(serde_json::from_str(r#"{
             "agent": "Anonymous",
             "resource": "/item/1",
             "agent_roles": [],
@@ -503,6 +537,7 @@ mod test {
 
     #[tokio::test]
     async fn policy_usage_reviewer() -> anyhow::Result<()> {
+        use pmrcore::ac::traits::Enforcer;
         // a rough approximation of a resource under review, with reviewer
         // having **global** access to everything
         let policy: Policy = serde_json::from_str(r#"{
@@ -525,7 +560,7 @@ mod test {
 
         let security = CasbinBuilder::new()
             .anonymous_reader(true)
-            .resource_policy(policy.clone())
+            .policy(policy.clone())
             .build()
             .await?;
         assert!(!security.enforce(&Agent::Anonymous, "/item/1", "")?);
@@ -545,7 +580,7 @@ mod test {
 
         let security = CasbinBuilder::new_limited()
             .anonymous_reader(true)
-            .resource_policy(policy.clone())
+            .policy(policy.clone())
             .build()
             .await?;
         assert!(!security.enforce(&Agent::Anonymous, "/item/1", "")?);
@@ -570,6 +605,7 @@ mod test {
 
     #[tokio::test]
     async fn policy_usage_reviewer_unconstrained() -> anyhow::Result<()> {
+        use pmrcore::ac::traits::Enforcer;
         // a rough approximation of a resource under review
         let policy: Policy = serde_json::from_str(r#"{
             "agent": "Anonymous",
@@ -589,7 +625,7 @@ mod test {
 
         let mut security = CasbinBuilder::new()
             .anonymous_reader(true)
-            .resource_policy(policy.clone())
+            .policy(policy.clone())
             .build()
             .await?;
         // the resource policy doesn't provide additional underlying policies, so this is
@@ -611,9 +647,10 @@ mod test {
 
     #[tokio::test]
     async fn policy_usage_published() -> anyhow::Result<()> {
+        use pmrcore::ac::traits::Enforcer;
         let security = CasbinBuilder::new()
             .anonymous_reader(true)
-            .resource_policy(serde_json::from_str(r#"{
+            .policy(serde_json::from_str(r#"{
                 "agent": "Anonymous",
                 "resource": "/item/1",
                 "agent_roles": [],
@@ -645,9 +682,10 @@ mod test {
 
     #[tokio::test]
     async fn policy_usage_published_alt() -> anyhow::Result<()> {
+        use pmrcore::ac::traits::Enforcer;
         let security = CasbinBuilder::new_limited()
             .anonymous_reader(true)
-            .resource_policy(serde_json::from_str(r#"{
+            .policy(serde_json::from_str(r#"{
                 "agent": "Anonymous",
                 "resource": "/item/1",
                 "agent_roles": [],
@@ -678,21 +716,19 @@ mod test {
     }
 
     struct EnforcerTester {
-        casbin: Box<dyn crate::Enforcer>,  // CasbinEnforcer,
-        pe: Box<dyn crate::Enforcer>,  // PolicyEnforcer,
+        casbin: Box<dyn crate::GenpolEnforcer>,  // CasbinEnforcer,
+        pe: Box<dyn crate::GenpolEnforcer>,  // PolicyEnforcer,
     }
 
     impl EnforcerTester {
         async fn new(builder: CasbinBuilder, policy: Policy) -> anyhow::Result<Self> {
             let casbin = Builder::from(builder)
-                .resource_policy(policy.clone())
                 .anonymous_reader(true)
-                .build()
+                .build_with_policy(policy.clone())
                 .await?;
             let pe = Builder::new()
-                .resource_policy(policy)
                 .anonymous_reader(true)
-                .build()
+                .build_with_policy(policy)
                 .await?;
             Ok(Self { pe, casbin })
         }
@@ -705,22 +741,18 @@ mod test {
         // it process the wild cards and the graph).
         fn check_granted_casbin(
             &self,
-            agent: &Agent,
-            resource: &str,
             action: &str,
         ) -> anyhow::Result<()> {
-            self.casbin.enforce(agent, resource, action)?
+            self.casbin.enforce(action)?
                 .then_some(())
                 .ok_or(err!("CasbinEnforcer denied when expecting granted"))
         }
 
         fn check_granted_policy(
             &self,
-            agent: &Agent,
-            resource: &str,
             action: &str,
         ) -> anyhow::Result<()> {
-            self.pe.enforce(agent, resource, action)?
+            self.pe.enforce(action)?
                 .then_some(())
                 .ok_or(err!("PolicyEnforcer denied when expecting granted"))
         }
@@ -729,14 +761,12 @@ mod test {
         // both grant access because the information are complete for both.
         fn check_granted(
             &self,
-            agent: &Agent,
-            resource: &str,
             action: &str,
         ) -> anyhow::Result<()> {
-            self.casbin.enforce(agent, resource, action)?
+            self.casbin.enforce(action)?
                 .then_some(())
                 .ok_or(err!("CasbinEnforcer denied when expecting granted"))?;
-            self.pe.enforce(agent, resource, action)?
+            self.pe.enforce(action)?
                 .then_some(())
                 .ok_or(err!("PolicyEnforcer denied when expecting granted"))
         }
@@ -746,14 +776,12 @@ mod test {
         // should provide a subset validation (i.e without the graph).
         fn check_denied(
             &self,
-            agent: &Agent,
-            resource: &str,
             action: &str,
         ) -> anyhow::Result<()> {
-            (!self.casbin.enforce(agent, resource, action)?)
+            (!self.casbin.enforce(action)?)
                 .then_some(())
                 .ok_or(err!("CasbinEnforcer granted when expecting denied"))?;
-            (!self.pe.enforce(agent, resource, action)?)
+            (!self.pe.enforce(action)?)
                 .then_some(())
                 .ok_or(err!("PolicyEnforcer granted when expecting denied"))
         }
@@ -784,12 +812,12 @@ mod test {
             }"#)?
         ).await?;
 
-        assert!(tester.check_granted_casbin(&mk_agent("alice"), "/item/1", "").is_ok());
-        assert!(tester.check_granted(&mk_agent("alice"), "/item/1", "").is_err());
-        assert!(tester.check_granted(&mk_agent("alice"), "/item/1", "editor_view").is_ok());
-        assert!(tester.check_granted(&mk_agent("alice"), "/item/1", "editor_edit").is_ok());
-        assert!(tester.check_denied(&mk_agent("alice"), "/item/1", "grants").is_ok());
-        assert!(tester.check_denied(&mk_agent("alice"), "/item/1", "manage").is_ok());
+        assert!(tester.check_granted_casbin("").is_ok());
+        assert!(tester.check_granted("").is_err());
+        assert!(tester.check_granted("editor_view").is_ok());
+        assert!(tester.check_granted("editor_edit").is_ok());
+        assert!(tester.check_denied("grants").is_ok());
+        assert!(tester.check_denied("manage").is_ok());
 
         Ok(())
     }
@@ -822,10 +850,10 @@ mod test {
         ).await?;
 
         // with an additional wildcard action, both enforcers will work
-        assert!(tester.check_granted(&mk_agent("admin"), "/item/1", "").is_ok());
-        assert!(tester.check_granted(&mk_agent("admin"), "/item/1", "custom1").is_ok());
-        assert!(tester.check_granted(&mk_agent("admin"), "/item/1", "custom2").is_ok());
-        assert!(tester.check_granted(&mk_agent("admin"), "/item/1", "manage").is_ok());
+        assert!(tester.check_granted("").is_ok());
+        assert!(tester.check_granted("custom1").is_ok());
+        assert!(tester.check_granted("custom2").is_ok());
+        assert!(tester.check_granted("manage").is_ok());
 
         Ok(())
     }
@@ -857,10 +885,10 @@ mod test {
         ).await?;
 
         // validate that provided role will not conflict wildcard
-        assert!(tester.check_granted(&mk_agent("admin"), "/item/1", "").is_ok());
-        assert!(tester.check_granted(&mk_agent("admin"), "/item/1", "custom1").is_ok());
-        assert!(tester.check_granted(&mk_agent("admin"), "/item/1", "custom2").is_ok());
-        assert!(tester.check_granted(&mk_agent("admin"), "/item/1", "manage").is_ok());
+        assert!(tester.check_granted("").is_ok());
+        assert!(tester.check_granted("custom1").is_ok());
+        assert!(tester.check_granted("custom2").is_ok());
+        assert!(tester.check_granted("manage").is_ok());
 
         Ok(())
     }
@@ -892,15 +920,15 @@ mod test {
         ).await?;
 
         // default action was only granted to owner, which manager is not
-        assert!(tester.check_granted_casbin(&mk_agent("admin"), "/item/1", "").is_err());
+        assert!(tester.check_granted_casbin("").is_err());
         // due to the way graphs work, nothing actually works without default wildcard grants
-        assert!(tester.check_granted_casbin(&mk_agent("admin"), "/item/1", "grant").is_err());
+        assert!(tester.check_granted_casbin("grant").is_err());
 
         // but the PolicyEnforcer will just work as it doesn't do fancy graph traversal
-        assert!(tester.check_granted_policy(&mk_agent("admin"), "/item/1", "grant").is_ok());
+        assert!(tester.check_granted_policy("grant").is_ok());
 
         // no manager permitted
-        assert!(tester.check_denied(&mk_agent("admin"), "/item/1", "manage").is_err());
+        assert!(tester.check_denied("manage").is_err());
 
         Ok(())
     }

@@ -12,3 +12,9 @@ impl<T: pmrcore::ac::traits::Enforcer<Error=error::Error>
     + Send
     + Sync
 > Enforcer for T {}
+
+pub trait GenpolEnforcer: pmrcore::ac::traits::GenpolEnforcer<Error=error::Error> {}
+impl<T: pmrcore::ac::traits::GenpolEnforcer<Error=error::Error>
+    + Send
+    + Sync
+> GenpolEnforcer for T {}

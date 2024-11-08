@@ -4,6 +4,7 @@ use pmrcore::ac::{
 };
 use crate::{
     Enforcer,
+    GenpolEnforcer,
     error::Error,
     simple::PolicyEnforcer,
 };
@@ -32,7 +33,7 @@ pub(crate) enum Kind {
 #[derive(Clone, Debug, Default)]
 pub struct Builder {
     pub(crate) anonymous_reader: bool,
-    pub(crate) resource_policy: Option<Policy>,
+    pub(crate) policy: Option<Policy>,
     pub(crate) kind: Kind,
 }
 
@@ -46,8 +47,8 @@ impl Builder {
         self
     }
 
-    pub fn resource_policy(mut self, val: Policy) -> Self {
-        self.resource_policy = Some(val);
+    pub fn policy(mut self, val: Policy) -> Self {
+        self.policy = Some(val);
         self
     }
 
@@ -55,10 +56,14 @@ impl Builder {
         log::trace!("building a {}Enforcer", self.kind);
         Ok(match &self.kind {
             Kind::Policy => {
-                let policy = self.resource_policy
+                let mut policy = self.policy
                     .clone()
                     .ok_or(Error::PolicyRequired)?;
-                self.build_with_policy(policy).await?
+                if self.anonymous_reader {
+                    policy.agent_roles
+                        .push((None, Role::Reader).into())
+                }
+                Box::new(PolicyEnforcer::from(policy))
             }
             #[cfg(feature = "casbin")]
             Kind::Casbin(builder) => Box::new(
@@ -66,7 +71,7 @@ impl Builder {
                     self.anonymous_reader,
                     &builder.base_policy,
                     &builder.default_model,
-                    self.resource_policy.clone(),
+                    self.policy.clone(),
                 ).await?
             ),
         })
@@ -75,7 +80,7 @@ impl Builder {
     pub async fn build_with_policy(
         &self,
         mut policy: Policy,
-    ) -> Result<Box<dyn Enforcer>, Error> {
+    ) -> Result<Box<dyn GenpolEnforcer>, Error> {
         log::trace!("building a {}Enforcer with {policy:?}", self.kind);
         Ok(match &self.kind {
             Kind::Policy => {

@@ -403,7 +403,7 @@ async fn parse_policy<'p>(
                 let pe_instant = Instant::now();
                 let policy_enforcer = CasbinBuilder::new()
                     .anonymous_reader(true)
-                    .resource_policy(policy)
+                    .policy(policy)
                     .build()
                     .await?;
                 let elapsed = pe_instant.elapsed();
