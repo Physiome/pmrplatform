@@ -155,6 +155,10 @@ pub fn Workspace() -> impl IntoView {
             });
             set_resource.set(resource.clone());
 
+            // This supposedly normally may be written outside of a suspense, but this does
+            // depend on the above resource (repo_result), as the future work may have this
+            // be loaded as an alias and the resource need to be the canonical URI.  Leaving
+            // this for now in here.
             expect_context::<WriteSignal<Option<ContentActionCtx>>>()
                 .set({
                     let mut actions = vec![];

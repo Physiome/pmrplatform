@@ -38,6 +38,12 @@ pub fn provide_session_context() {
             current_user().await
         },
     );
+    // TODO this likely needs to be hierarchial per the parent route.
+    // Need to figure out how to wholesale set the thing and then on cleanup
+    // pop one out at a time.
+    // So rather than current_resource being the thing, it would lead into a
+    // signal that sets multiple?
+    // Also a cleanup that will pop just one out.
     let (current_resource, set_resource) = arc_signal(None::<String>);
     let res_policy_state = ArcResource::new_blocking(
         move || current_resource.get(),

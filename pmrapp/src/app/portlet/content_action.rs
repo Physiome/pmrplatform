@@ -1,9 +1,6 @@
 use leptos::prelude::*;
 use leptos_router::components::A;
-use pmrcore::ac::{
-    agent::Agent,
-    traits::GenpolEnforcer as _,
-};
+use pmrcore::ac::traits::GenpolEnforcer as _;
 use pmrrbac::PolicyEnforcer;
 use serde::{Serialize, Deserialize};
 
@@ -33,23 +30,15 @@ pub fn ContentAction() -> impl IntoView {
     use_context::<ReadSignal<Resource<ContentActionCtx>>>().map(|ctx| {
         let res_ctx = ctx.get();
         let action_view = move || {
-            let current_user = account_ctx.current_user.clone();
             let res_policy_state = account_ctx.res_policy_state.clone();
             Suspend::new(async move {
-                let agent = current_user.await
-                    .ok()
-                    .flatten()
-                    .map(Agent::from)
-                    .unwrap_or_default();
-                let enforcer = PolicyEnforcer::from({
-                    let policy = res_policy_state.await
+                let enforcer = PolicyEnforcer::from(
+                    res_policy_state.await
                         .ok()
                         .flatten()
                         .map(|(policy, _)| policy)
-                        .unwrap_or_default();
-                    leptos::logging::log!("{:?}", &policy);
-                    policy
-                });
+                        .unwrap_or_default()
+                );
                 res_ctx.await.0.map(|action| {
                     let view = action.into_iter()
                         .filter_map(|ContentActionItem { href, text, title, req_action }| {
