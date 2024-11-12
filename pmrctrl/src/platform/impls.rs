@@ -53,3 +53,4 @@ impl fmt::Debug for Platform {
 mod exposure;
 mod profile;
 mod task;
+mod workspace;

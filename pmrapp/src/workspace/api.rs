@@ -10,7 +10,13 @@ use crate::error::AppError;
 
 #[cfg(feature = "ssr")]
 mod ssr {
-    pub use pmrcore::workspace::traits::WorkspaceBackend;
+    pub use pmrcore::{
+        ac::workflow::State,
+        workspace::traits::{
+            Workspace,
+            WorkspaceBackend,
+        },
+    };
     pub use crate::{
         ac::api::enforcer,
         server::platform,
@@ -51,6 +57,33 @@ pub async fn get_workspace_info(
             .into()
         ),
     }
+}
+
+#[server]
+pub async fn create_workspace(
+    uri: String,
+    description: String,
+    long_description: String,
+) -> Result<(), ServerFnError<AppError>> {
+    enforcer(format!("/workspace/"), "create").await?;
+    let platform = platform().await?;
+    let ctrl = platform.create_workspace(
+        &uri,
+        &description,
+        &long_description,
+    )
+        .await
+        .map_err(|_| AppError::InternalServerError)?;
+
+    let id = ctrl.workspace().id();
+    platform
+        .ac_platform
+        .set_wf_state_for_res(&format!("/workspace/{id}"), State::Private)
+        .await
+        .map_err(|_| AppError::InternalServerError)?;
+
+    leptos_axum::redirect(format!("/workspace/{id}").as_ref());
+    Ok(())
 }
 
 #[server]

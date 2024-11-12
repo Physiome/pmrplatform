@@ -7,15 +7,29 @@ use crate::{
 };
 
 impl<'p> Platform {
+    pub async fn create_workspace(
+        &'p self,
+        url: &str,
+        description: &str,
+        long_description: &str,
+    ) -> Result<WorkspaceCtrl<'p>, PlatformError> {
+        self.get_workspace(
+            self.mc_platform.add_workspace(
+                url,
+                description,
+                long_description,
+            ).await?
+        ).await
+    }
+
     pub async fn get_workspace(
         &'p self,
         id: i64,
     ) -> Result<WorkspaceCtrl<'p>, PlatformError> {
-        let git_handle = self.repo_backend.git_handle(id).await?;
-        let platform = self;
-        Ok(ExposureCtrl::new(
-            platform,
-            git_handle,
+        let workspace = self.mc_platform.get_workspace(id).await?;
+        Ok(WorkspaceCtrl::new(
+            self,
+            workspace
         ))
     }
 }

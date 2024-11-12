@@ -33,6 +33,7 @@ use crate::component::RedirectTS;
 use crate::workspace::api::{
     list_workspaces,
     get_workspace_info,
+    CreateWorkspace,
     Synchronize,
 };
 use crate::app::portlet::{
@@ -47,6 +48,7 @@ pub fn WorkspaceRoutes() -> impl MatchNestedRoutes + Clone {
         <ParentRoute path=StaticSegment("/workspace") view=WorkspaceRoot ssr>
             <Route path=StaticSegment("/") view=WorkspaceListing/>
             <Route path=StaticSegment("") view=RedirectTS/>
+            <Route path=(StaticSegment("+"), StaticSegment("add")) view=WorkspaceAdd/>
             <ParentRoute path=ParamSegment("id") view=Workspace>
                 <Route path=StaticSegment("/") view=WorkspaceMain/>
                 <Route path=StaticSegment("") view=RedirectTS/>
@@ -83,23 +85,49 @@ pub fn WorkspaceListing() -> impl IntoView {
         },
     );
 
-    let workspace_listing = move || Suspend::new(async move {
-        workspaces.await.map(|workspaces| workspaces
-            .into_iter()
-            .map(move |workspace| {
-                view! {
-                    <div>
-                        <div><a href=format!("/workspace/{}/", workspace.id)>
-                            {workspace.description.unwrap_or_else(|| format!("Workspace {}", workspace.id))}
-                        </a></div>
-                        <div>{workspace.url}</div>
-                        <div>{workspace.long_description.unwrap_or("".to_string())}</div>
-                    </div>
-                }
-            })
-            .collect_view()
-        )
+    let account_ctx = expect_context::<AccountCtx>();
+    let set_resource = account_ctx.set_resource.clone();
+    on_cleanup(move || {
+        set_resource.set(None);
+        expect_context::<WriteSignal<Option<ContentActionCtx>>>().set(None);
     });
+    let workspace_listing = move || {
+        let set_resource = account_ctx.set_resource.clone();
+        Suspend::new(async move {
+            // doing it here is a way to ensure this is set reactively, however this isn't reacting
+            // to the account changes, and it leaves a compulsory empty bar when this action isn't
+            // available.
+            // this should be a push? children elements will need to also use this and that's a
+            // conflict.
+            set_resource.set(Some("/workspace/".to_string()));
+            expect_context::<WriteSignal<Option<ContentActionCtx>>>()
+                .set(Some(ContentActionCtx(Some(vec![
+                    ContentActionItem {
+                        href: format!("/workspace/+/add"),
+                        text: "Add Workspace".to_string(),
+                        title: Some("Add a new workspace".to_string()),
+                        req_action: Some("create".to_string()),
+                    },
+                ]))));
+
+            workspaces.await.map(|workspaces| workspaces
+                .into_iter()
+                .map(move |workspace| {
+                    view! {
+                        <div>
+                            <div><a href=format!("/workspace/{}/", workspace.id)>
+                                {workspace.description.unwrap_or_else(
+                                    || format!("Workspace {}", workspace.id))}
+                            </a></div>
+                            <div>{workspace.url}</div>
+                            <div>{workspace.long_description.unwrap_or("".to_string())}</div>
+                        </div>
+                    }
+                })
+                .collect_view()
+            )
+        })
+    };
 
     view! {
         <div class="main">
@@ -112,6 +140,32 @@ pub fn WorkspaceListing() -> impl IntoView {
             </Transition>
             </div>
         </div>
+    }
+}
+
+#[component]
+pub fn WorkspaceAdd() -> impl IntoView {
+    let action = ServerAction::<CreateWorkspace>::new();
+
+    view! {
+        <h1>"Add a workspace"</h1>
+        <ActionForm action=action>
+            <div>
+                <label for="uri">"Remote Git URI"</label>
+                <input type="text" name="uri" required/>
+            </div>
+            <div>
+                <label for="description">"Description"</label>
+                <input type="text" name="description" required/>
+            </div>
+            <div>
+                <label for="long_description">"Long Description"</label>
+                <input type="text" name="long_description"/>
+            </div>
+            <div>
+                <input type="submit" value="Add Workspace"/>
+            </div>
+        </ActionForm>
     }
 }
 

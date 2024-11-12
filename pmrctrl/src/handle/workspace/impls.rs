@@ -29,4 +29,8 @@ impl<'p> WorkspaceCtrl<'p> {
             handle: Default::default(),
         }
     }
+
+    pub fn workspace(&self) -> &WorkspaceRef<'p> {
+        &self.workspace
+    }
 }
