@@ -45,7 +45,7 @@ mod ssr {
     pub async fn enforcer(
         resource: impl Into<String>,
         action: impl Into<String>,
-    ) -> Result<(), AppError> {
+    ) -> Result<Agent, AppError> {
         let session = session().await?;
         let backend = session.backend;
         let agent: Agent = session.user
@@ -55,11 +55,11 @@ mod ssr {
         let action = action.into();
         log::trace!("enforce on: agent={agent} resource={resource:?} action={action:?}");
         if backend
-            .enforce(agent, resource, action)
+            .enforce(agent.clone(), resource, action)
             .await
             .map_err(|_| AppError::InternalServerError)?
         {
-            Ok(())
+            Ok(agent)
         } else {
             Err(AppError::Forbidden)
         }

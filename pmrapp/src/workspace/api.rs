@@ -11,7 +11,11 @@ use crate::error::AppError;
 #[cfg(feature = "ssr")]
 mod ssr {
     pub use pmrcore::{
-        ac::workflow::State,
+        ac::{
+            agent::Agent,
+            role::Role,
+            workflow::State,
+        },
         workspace::traits::{
             Workspace,
             WorkspaceBackend,
@@ -65,8 +69,9 @@ pub async fn create_workspace(
     description: String,
     long_description: String,
 ) -> Result<(), ServerFnError<AppError>> {
-    enforcer(format!("/workspace/"), "create").await?;
+    let agent = enforcer(format!("/workspace/"), "create").await?;
     let platform = platform().await?;
+    // First create the workspace
     let ctrl = platform.create_workspace(
         &uri,
         &description,
@@ -75,12 +80,23 @@ pub async fn create_workspace(
         .await
         .map_err(|_| AppError::InternalServerError)?;
 
+    // then set the default workflow state to private
     let id = ctrl.workspace().id();
+    let resource = format!("/workspace/{id}/");
     platform
         .ac_platform
-        .set_wf_state_for_res(&format!("/workspace/{id}"), State::Private)
+        .set_wf_state_for_res(&resource, State::Private)
         .await
         .map_err(|_| AppError::InternalServerError)?;
+    // and grant the current user the owner permission
+
+    if let Agent::User(user) = agent {
+        platform
+            .ac_platform
+            .res_grant_role_to_agent(&resource, user, Role::Owner)
+            .await
+            .map_err(|_| AppError::InternalServerError)?;
+    }
 
     leptos_axum::redirect(format!("/workspace/{id}").as_ref());
     Ok(())
