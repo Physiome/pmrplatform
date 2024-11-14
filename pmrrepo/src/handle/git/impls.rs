@@ -297,6 +297,7 @@ impl<'repo> GitHandle<'repo> {
         &self,
         commit_id: Option<&str>,
         path: Option<&'repo str>,
+        // TODO need to provide a way to skip
         count: Option<usize>,
     ) -> Result<LogInfo, PmrRepoError> {
         let workspace_id = self.workspace.id();

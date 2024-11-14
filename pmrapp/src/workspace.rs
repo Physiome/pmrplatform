@@ -19,6 +19,7 @@ use leptos_router::{
     WildcardSegment,
 };
 use pmrcore::repo::{
+    LogEntryInfo,
     PathObjectInfo,
     RepoResult,
     TreeInfo,
@@ -32,6 +33,7 @@ use crate::error_template::ErrorTemplate;
 use crate::component::RedirectTS;
 use crate::workspace::api::{
     list_workspaces,
+    get_log_info,
     get_workspace_info,
     CreateWorkspace,
     Synchronize,
@@ -57,6 +59,7 @@ pub fn WorkspaceRoutes() -> impl MatchNestedRoutes + Clone {
                     path=(StaticSegment("file"), ParamSegment("commit"), WildcardSegment("path"),)
                     view=WorkspaceCommitPath
                     />
+                <Route path=StaticSegment("log") view=WorkspaceLog/>
             </ParentRoute>
         </ParentRoute>
     }
@@ -221,6 +224,12 @@ pub fn Workspace() -> impl IntoView {
                             href: resource.clone(),
                             text: "Main View".to_string(),
                             title: Some("Return to the top level workspace view".to_string()),
+                            req_action: None,
+                        });
+                        actions.push(ContentActionItem {
+                            href: format!("{resource}log"),
+                            text: "History".to_string(),
+                            title: None,
                             req_action: None,
                         });
                         actions.push(ContentActionItem {
@@ -417,19 +426,17 @@ fn WorkspaceTreeInfoRows(
     path: String,
     tree_info: TreeInfo,
 ) -> impl IntoView {
-    view! {{
-        tree_info.entries
-            .iter()
-            .map(|info| view! {
-                <WorkspaceTreeInfoRow
-                    workspace_id=workspace_id
-                    commit_id=commit_id.as_str()
-                    path=path.as_str()
-                    kind=info.kind.as_str()
-                    name=info.name.as_str()/>
-            })
-            .collect_view()
-    }}
+    tree_info.entries
+        .iter()
+        .map(|info| view! {
+            <WorkspaceTreeInfoRow
+                workspace_id=workspace_id
+                commit_id=commit_id.as_str()
+                path=path.as_str()
+                kind=info.kind.as_str()
+                name=info.name.as_str()/>
+        })
+        .collect_view()
 }
 
 #[component]
@@ -511,6 +518,76 @@ pub fn WorkspaceCommitPath() -> impl IntoView {
                     <WorkspaceRepoResultView repo_result=info/>
                 </div>
             }
+        })
+    });
+
+    view! {
+        <Transition fallback=move || view! { <p>"Loading info..."</p> }>
+            <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
+                {view}
+            </ErrorBoundary>
+        </Transition>
+    }
+}
+
+#[component]
+pub fn WorkspaceLog() -> impl IntoView {
+    let workspace_params = expect_context::<Memo<Result<WorkspaceParams, ParamsError>>>();
+
+    let repo_result = expect_context::<Resource<Result<RepoResult, AppError>>>();
+    let log_info = Resource::new_blocking(
+        move || workspace_params.get().map(|p| p.id),
+        |id| async move {
+            match id {
+                Err(_) => Err(AppError::InternalServerError),
+                Ok(None) => Err(AppError::NotFound),
+                Ok(Some(id)) => get_log_info(id)
+                    .await
+                    .map_err(AppError::from),
+            }
+        }
+    );
+
+    let view = move || Suspend::new(async move {
+        let log_info = log_info.await?;
+        repo_result.await.map(|info| {
+            let href = format!("/workspace/{}/", &info.workspace.id);
+            view! {
+                <table class="log-listing">
+                    <thead>
+                        <tr>
+                            <th>"Date"</th>
+                            <th>"Author"</th>
+                            <th>"Log"</th>
+                            <th>"Options"</th>
+                            <th>"Exposure"</th>
+                        </tr>
+                    </thead>
+                    <tbody>{
+                        log_info.entries
+                            .into_iter()
+                            .map(|LogEntryInfo {
+                                commit_timestamp,
+                                author,
+                                message,
+                                commit_id,
+                                ..
+                            }| view! {
+                                <tr>
+                                    <td>{commit_timestamp}</td>
+                                    <td>{author.clone()}</td>
+                                    <td>{message.clone()}</td>
+                                    <td>
+                                        <a href=format!("{href}file/{commit_id}/")>"[files]"</a>
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            })
+                            .collect_view()
+                    }</tbody>
+                </table>
+            }
+
         })
     });
 

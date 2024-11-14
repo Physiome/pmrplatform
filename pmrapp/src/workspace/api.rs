@@ -3,7 +3,10 @@ use leptos::{
     server,
 };
 use pmrcore::{
-    repo::RepoResult,
+    repo::{
+        LogInfo,
+        RepoResult,
+    },
     workspace::Workspaces,
 };
 use crate::error::AppError;
@@ -61,6 +64,20 @@ pub async fn get_workspace_info(
             .into()
         ),
     }
+}
+
+#[server]
+pub async fn get_log_info(
+    id: i64,
+) -> Result<LogInfo, ServerFnError<AppError>> {
+    enforcer(format!("/workspace/{id}/"), "").await?;
+    let platform = platform().await?;
+    let handle = platform.repo_backend()
+        .git_handle(id).await
+        .map_err(|_| AppError::InternalServerError)?;
+    // FIXME only returning up to the first 30 log entries.
+    Ok(handle.loginfo(None, None, Some(30))
+        .map_err(|_| AppError::InternalServerError)?)
 }
 
 #[server]
