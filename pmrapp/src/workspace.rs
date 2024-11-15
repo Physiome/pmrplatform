@@ -38,6 +38,7 @@ use crate::workspace::api::{
     CreateWorkspace,
     Synchronize,
 };
+use crate::exposure::api::CreateExposure;
 use crate::app::portlet::{
     ContentActionCtx,
     ContentActionItem,
@@ -58,6 +59,10 @@ pub fn WorkspaceRoutes() -> impl MatchNestedRoutes + Clone {
                 <Route
                     path=(StaticSegment("file"), ParamSegment("commit"), WildcardSegment("path"),)
                     view=WorkspaceCommitPath
+                    />
+                <Route
+                    path=(StaticSegment("create_exposure"), ParamSegment("commit"),)
+                    view=WorkspaceCreateExposure
                     />
                 <Route path=StaticSegment("log") view=WorkspaceLog/>
             </ParentRoute>
@@ -483,6 +488,11 @@ fn WorkspaceTreeInfoRow(
 }
 
 #[derive(Params, PartialEq, Clone, Debug)]
+pub struct WorkspaceCommitParams {
+    commit: Option<String>,
+}
+
+#[derive(Params, PartialEq, Clone, Debug)]
 pub struct WorkspaceCommitPathParams {
     commit: Option<String>,
     path: Option<String>,
@@ -583,6 +593,7 @@ pub fn WorkspaceLog() -> impl IntoView {
                                     <td>{message.clone()}</td>
                                     <td>
                                         <a href=format!("{href}file/{commit_id}/")>"[files]"</a>
+                                        <a href=format!("{href}create_exposure/{commit_id}/")>"[create_exposure]"</a>
                                     </td>
                                     <td></td>
                                 </tr>
@@ -592,6 +603,57 @@ pub fn WorkspaceLog() -> impl IntoView {
                 </table>
             }
 
+        })
+    });
+
+    view! {
+        <Transition fallback=move || view! { <p>"Loading info..."</p> }>
+            <ErrorBoundary fallback=|errors| view!{ <ErrorTemplate errors/>}>
+                {view}
+            </ErrorBoundary>
+        </Transition>
+    }
+}
+
+#[component]
+fn WorkspaceCreateExposure() -> impl IntoView {
+    let workspace_params = expect_context::<Memo<Result<WorkspaceParams, ParamsError>>>();
+    let params = use_params::<WorkspaceCommitParams>();
+    let action = ServerAction::<CreateExposure>::new();
+
+    let resource = Resource::new_blocking(
+        move || (
+            workspace_params.get().map(|p| p.id),
+            params.get().map(|p| p.commit),
+        ),
+        |p| async move {
+            match p {
+                (Ok(Some(id)), Ok(commit)) => get_workspace_info(id, commit, None).await
+                    .map_err(AppError::from),
+                _ => Err(AppError::InternalServerError),
+            }
+        }
+    );
+
+    let view = move || Suspend::new(async move {
+        resource.await.map(|info| {
+            let desc = info.workspace.description
+                .clone()
+                .unwrap_or_else(
+                    || format!("Workspace {}", &info.workspace.id)
+                );
+            let commit_id = info
+                .commit
+                .expect("commit shouldn't be missing here!")
+                .commit_id;
+            view! {
+                <h1>"Creating Exposure for "{desc}" at commit "{commit_id.clone()}</h1>
+                <ActionForm action=action>
+                    <input type="hidden" name="id" value=info.workspace.id/>
+                    <input type="hidden" name="commit_id" value=commit_id/>
+                    <button type="submit">"Create Exposure"</button>
+                </ActionForm>
+            }
         })
     });
 

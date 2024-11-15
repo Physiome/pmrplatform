@@ -9,6 +9,7 @@ use pmrcore::{
         Exposures,
         ExposureFile,
         ExposureFileView,
+        traits::Exposure as _,
     },
     workspace::Workspace,
 };
@@ -21,12 +22,20 @@ mod ssr {
         Builder,
         UrlRelative,
     };
-    pub use pmrcore::exposure::traits::{
-        Exposure as _,
-        ExposureBackend,
-        ExposureFile as _,
-        ExposureFileView as _,
+    pub use pmrcore::{
+        ac::{
+            agent::Agent,
+            role::Role,
+            workflow::State,
+        },
+        exposure::traits::{
+            Exposure as _,
+            ExposureBackend,
+            ExposureFile as _,
+            ExposureFileView as _,
+        },
     };
+
     pub use pmrctrl::error::CtrlError;
     pub use std::borrow::Cow;
     pub use crate::{
@@ -207,4 +216,41 @@ pub async fn read_safe_index_html(
         .clean(&String::from_utf8_lossy(&blob))
         .to_string()
     )
+}
+
+#[server]
+pub async fn create_exposure(
+    id: i64,
+    commit_id: String,
+) -> Result<(), ServerFnError<AppError>> {
+    let agent = enforcer(format!("/exposure/"), "create").await?;
+    let platform = platform().await?;
+    // First create the workspace
+    let ctrl = platform.create_exposure(
+        id,
+        &commit_id,
+    )
+        .await
+        .map_err(|_| AppError::InternalServerError)?;
+
+    // then set the default workflow state to private
+    let id = ctrl.exposure().id();
+    let resource = format!("/exposure/{id}/");
+    platform
+        .ac_platform
+        .set_wf_state_for_res(&resource, State::Private)
+        .await
+        .map_err(|_| AppError::InternalServerError)?;
+    // and grant the current user the owner permission
+
+    if let Agent::User(user) = agent {
+        platform
+            .ac_platform
+            .res_grant_role_to_agent(&resource, user, Role::Owner)
+            .await
+            .map_err(|_| AppError::InternalServerError)?;
+    }
+
+    leptos_axum::redirect(format!("/exposure/{id}").as_ref());
+    Ok(())
 }
