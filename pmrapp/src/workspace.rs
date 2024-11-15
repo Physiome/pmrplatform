@@ -74,6 +74,31 @@ pub fn WorkspaceRoot() -> impl IntoView {
     }
 }
 
+fn workspace_root_page_ctx() {
+    on_cleanup(move || {
+        let account_ctx = expect_context::<AccountCtx>();
+        account_ctx.set_resource.set(None);
+        expect_context::<WriteSignal<Option<ContentActionCtx>>>().set(None);
+    });
+    // doing it here is a way to ensure this is set reactively, however this isn't reacting
+    // to the account changes, and it leaves a compulsory empty bar when this action isn't
+    // available.
+    // this should be a push? children elements will need to also use this and that's a
+    // conflict.
+    let account_ctx = expect_context::<AccountCtx>();
+    let set_resource = account_ctx.set_resource.clone();
+    set_resource.set(Some("/workspace/".to_string()));
+    expect_context::<WriteSignal<Option<ContentActionCtx>>>()
+        .set(Some(ContentActionCtx(Some(vec![
+            ContentActionItem {
+                href: format!("/workspace/+/add"),
+                text: "Add Workspace".to_string(),
+                title: Some("Add a new workspace".to_string()),
+                req_action: Some("create".to_string()),
+            },
+        ]))));
+}
+
 #[component]
 pub fn WorkspaceListing() -> impl IntoView {
     let workspaces = Resource::new(
@@ -88,31 +113,8 @@ pub fn WorkspaceListing() -> impl IntoView {
         },
     );
 
-    let account_ctx = expect_context::<AccountCtx>();
-    let set_resource = account_ctx.set_resource.clone();
-    on_cleanup(move || {
-        set_resource.set(None);
-        expect_context::<WriteSignal<Option<ContentActionCtx>>>().set(None);
-    });
     let workspace_listing = move || {
-        let set_resource = account_ctx.set_resource.clone();
         Suspend::new(async move {
-            // doing it here is a way to ensure this is set reactively, however this isn't reacting
-            // to the account changes, and it leaves a compulsory empty bar when this action isn't
-            // available.
-            // this should be a push? children elements will need to also use this and that's a
-            // conflict.
-            set_resource.set(Some("/workspace/".to_string()));
-            expect_context::<WriteSignal<Option<ContentActionCtx>>>()
-                .set(Some(ContentActionCtx(Some(vec![
-                    ContentActionItem {
-                        href: format!("/workspace/+/add"),
-                        text: "Add Workspace".to_string(),
-                        title: Some("Add a new workspace".to_string()),
-                        req_action: Some("create".to_string()),
-                    },
-                ]))));
-
             workspaces.await.map(|workspaces| workspaces
                 .into_iter()
                 .map(move |workspace| {
@@ -134,6 +136,7 @@ pub fn WorkspaceListing() -> impl IntoView {
 
     view! {
         <div class="main">
+            {workspace_root_page_ctx}
             <h1>"Listing of workspaces"</h1>
             <div>
             <Transition fallback=move || view! { <p>"Loading..."</p> }>
@@ -151,6 +154,7 @@ pub fn WorkspaceAdd() -> impl IntoView {
     let action = ServerAction::<CreateWorkspace>::new();
 
     view! {
+        {workspace_root_page_ctx}
         <h1>"Add a workspace"</h1>
         <ActionForm action=action>
             <div>
