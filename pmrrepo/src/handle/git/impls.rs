@@ -300,6 +300,27 @@ impl<'repo> GitHandle<'repo> {
         // TODO need to provide a way to skip
         count: Option<usize>,
     ) -> Result<LogInfo, PmrRepoError> {
+        self.loginfo_detailed(
+            commit_id,
+            path,
+            count,
+            false
+        )
+    }
+
+    pub fn loginfo_detailed(
+        &self,
+        commit_id: Option<&str>,
+        path: Option<&'repo str>,
+        // TODO need to provide a way to skip
+        count: Option<usize>,
+        full_details: bool,
+    ) -> Result<LogInfo, PmrRepoError> {
+        let signature_ref = if full_details {
+            format_signature_ref
+        } else {
+            name_from_signature_ref
+        };
         let workspace_id = self.workspace.id();
         let repo = self.repo()?;
         let commit = get_commit(&repo, workspace_id, commit_id)?;
@@ -321,8 +342,8 @@ impl<'repo> GitHandle<'repo> {
                 let committer = commit_ref.committer;
                 Ok(LogEntryInfo {
                     commit_id: format!("{}", commit.id()),
-                    author: format_signature_ref(&commit_ref.author),
-                    committer: format_signature_ref(&committer),
+                    author: signature_ref(&commit_ref.author),
+                    committer: signature_ref(&committer),
                     commit_timestamp: committer.time.seconds,
                     message: commit_ref.message.to_string(),
                 })

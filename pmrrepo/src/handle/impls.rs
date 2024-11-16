@@ -433,7 +433,7 @@ mod tests {
 
         let backend = Backend::new(Arc::new(platform), repo_root.path().to_path_buf());
         let handle = backend.git_handle(3).await?;
-        let logs = handle.loginfo(None, None, None).unwrap();
+        let logs = handle.loginfo_detailed(None, None, None, true).unwrap();
         assert_eq!(
             repodata_oids.iter()
                 .map(|x| x.to_string())

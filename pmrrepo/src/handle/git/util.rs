@@ -32,6 +32,12 @@ pub(super) fn format_signature_ref(
     format!("{} <{}>", value.name, value.email)
 }
 
+pub(super) fn name_from_signature_ref(
+    value: &SignatureRef,
+) -> String {
+    value.name.to_string()
+}
+
 pub(super) struct PathFilter<'a> {
     repo: &'a Repository,
     path: Option<&'a str>,
