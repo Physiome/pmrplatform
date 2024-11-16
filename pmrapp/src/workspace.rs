@@ -300,6 +300,12 @@ pub fn WorkspaceSynchronize() -> impl IntoView {
     let resource = expect_context::<Resource<Result<RepoResult, AppError>>>();
     let action = ServerAction::<Synchronize>::new();
 
+    Effect::new(move |_| {
+        if action.version().get() > 0 {
+            resource.refetch();
+        }
+    });
+
     let workspace_view = move || Suspend::new(async move {
         resource.await.map(|info| {
             view! {
