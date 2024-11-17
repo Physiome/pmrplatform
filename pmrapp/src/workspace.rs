@@ -1,3 +1,7 @@
+use chrono::{
+    TimeZone,
+    Utc,
+};
 use leptos::logging;
 use leptos::prelude::*;
 use leptos_meta::*;
@@ -594,7 +598,12 @@ pub fn WorkspaceLog() -> impl IntoView {
                                 ..
                             }| view! {
                                 <tr>
-                                    <td>{commit_timestamp}</td>
+                                    <td>{
+                                        Utc.timestamp_opt(commit_timestamp, 0)
+                                            .map(|dt| dt.format("%Y-%m-%d").to_string())
+                                            .single()
+                                            .unwrap_or_else(|| "????-??-??".to_string())
+                                    }</td>
                                     <td>{author.clone()}</td>
                                     <td>{message.clone()}</td>
                                     <td>
