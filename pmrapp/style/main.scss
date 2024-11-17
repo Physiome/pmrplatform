@@ -326,3 +326,32 @@ form#sign-in input {
 .flex-grow {
     flex-grow: 1;
 }
+
+/* styling for standard form and related elements */
+
+form.standard {
+    width: 100%;
+    margin: auto;
+}
+
+form.standard > div {
+    padding: 0.25em 0;
+}
+
+form.standard label {
+    display: block;
+    width: 100%;
+    padding: 0.25em 0;
+}
+
+form.standard input[type="text"] {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 0.5em;
+}
+
+form.standard input[type="submit"] {
+    box-sizing: border-box;
+    width: auto;
+    padding: 0.5em 3.5em;
+}

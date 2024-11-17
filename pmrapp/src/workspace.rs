@@ -161,7 +161,7 @@ pub fn WorkspaceAdd() -> impl IntoView {
     view! {
         {workspace_root_page_ctx}
         <h1>"Add a workspace"</h1>
-        <ActionForm action=action>
+        <ActionForm attr:class="standard" action=action>
             <div>
                 <label for="uri">"Remote Git URI"</label>
                 <input type="text" name="uri" required/>
