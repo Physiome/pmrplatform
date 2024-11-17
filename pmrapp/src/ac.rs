@@ -66,7 +66,7 @@ pub fn provide_session_context() {
 pub fn ACRoutes() -> impl MatchNestedRoutes + Clone {
     view! {
         <Route path=StaticSegment("login") view=LoginPage/>
-        // <Route path=StaticSegment("logout") view=LogoutPage/>
+        <Route path=StaticSegment("logged_out") view=LogoutPage/>
     }
     .into_inner()
 }
@@ -184,10 +184,17 @@ fn LoginPage() -> impl IntoView {
                     match action.value().get() {
                         Some(Ok(s)) => {
                             account_ctx.current_user.refetch();
-                            s
+                            Some(view! {
+                                <p class="standard ok">{s}</p>
+                            })
                         }
-                        Some(Err(ServerFnError::WrappedServerError(e))) => e.to_string(),
-                        _ => String::new(),
+                        Some(Err(ServerFnError::WrappedServerError(e))) => Some(view! {
+                            <p class="standard error">{format!("{e}")}</p>
+                        }),
+                        Some(Err(e)) => Some(view! {
+                            <p class="standard error">{format!("System Error: {e:?}")}</p>
+                        }),
+                        _ => None,
                     }
                 }}
             </div>
@@ -209,6 +216,6 @@ fn LoginPage() -> impl IntoView {
 #[component]
 fn LogoutPage() -> impl IntoView {
     view! {
-        <h1>"You are logged out"</h1>
+        <h1>"You are now logged out."</h1>
     }
 }

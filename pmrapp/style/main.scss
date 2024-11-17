@@ -350,8 +350,23 @@ form.standard input[type="text"] {
     padding: 0.5em;
 }
 
+form.standard button,
 form.standard input[type="submit"] {
     box-sizing: border-box;
     width: auto;
     padding: 0.5em 3.5em;
+}
+
+.standard.error {
+    color: #600;
+    padding: 0.5em;
+    background: #fff8f8;
+    border: solid 1px #fdd;
+}
+
+.standard.ok {
+    color: #060;
+    padding: 0.5em;
+    background: #f8fff8;
+    border: solid 1px #dfd;
 }

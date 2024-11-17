@@ -663,11 +663,24 @@ fn WorkspaceCreateExposure() -> impl IntoView {
                 .commit_id;
             view! {
                 <h1>"Creating Exposure for "{desc}" at commit "{commit_id.clone()}</h1>
-                <ActionForm action=action>
+                <ActionForm attr:class="standard" action=action>
                     <input type="hidden" name="id" value=info.workspace.id/>
                     <input type="hidden" name="commit_id" value=commit_id/>
                     <button type="submit">"Create Exposure"</button>
                 </ActionForm>
+                <div>
+                    {move || {
+                        match action.value().get() {
+                            Some(Err(ServerFnError::WrappedServerError(e))) => Some(view! {
+                                <p class="standard error">{format!("{e}")}</p>
+                            }),
+                            Some(Err(e)) => Some(view! {
+                                <p class="standard error">{format!("System Error: {e:?}")}</p>
+                            }),
+                            _ => None,
+                        }
+                    }}
+                </div>
             }
         })
     });

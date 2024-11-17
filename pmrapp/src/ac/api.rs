@@ -143,6 +143,7 @@ pub(crate) async fn sign_in_with_login_password(
 pub(crate) async fn sign_out() -> Result<(), ServerFnError> {
     let mut session = session().await?;
     session.logout().await?;
+    leptos_axum::redirect("/logged_out");
     Ok(())
 }
 
