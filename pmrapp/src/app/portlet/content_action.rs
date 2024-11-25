@@ -22,7 +22,38 @@ pub struct ContentActionItem {
 // distinct from a thing that offers no additional pages if the goal is to
 // also keep the portlet visible.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-pub struct ContentActionCtx(pub Option<Vec<ContentActionItem>>);
+pub struct ContentActionCtx {
+    // This must reference
+    for_resource: Option<String>,
+    value: Option<Vec<ContentActionItem>>,
+}
+
+impl ContentActionCtx {
+    pub fn new(
+        for_resource: String,
+        value: Vec<ContentActionItem>,
+    ) -> Self {
+        Self {
+            for_resource: Some(for_resource),
+            value: Some(value),
+        }
+    }
+
+    pub fn clear() -> Self {
+        Self {
+            for_resource: None,
+            value: None,
+        }
+    }
+
+    pub fn reset_for(&mut self, for_resource: &str) {
+        if self.for_resource.as_deref() == Some(for_resource) {
+            leptos::logging::log!("reset for {for_resource}");
+            self.value = None;
+            self.for_resource = None;
+        }
+    }
+}
 
 #[component]
 pub fn ContentAction() -> impl IntoView {
@@ -39,7 +70,7 @@ pub fn ContentAction() -> impl IntoView {
                         .map(|(policy, _)| policy)
                         .unwrap_or_default()
                 );
-                res_ctx.await.0.map(|action| {
+                res_ctx.await.value.map(|action| {
                     let view = action.into_iter()
                         .filter_map(|ContentActionItem { href, text, title, req_action }| {
                             req_action.as_ref()

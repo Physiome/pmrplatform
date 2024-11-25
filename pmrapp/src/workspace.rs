@@ -84,28 +84,43 @@ pub fn WorkspaceRoot() -> impl IntoView {
 }
 
 fn workspace_root_page_ctx() {
-    on_cleanup(move || {
-        let account_ctx = expect_context::<AccountCtx>();
-        account_ctx.set_resource.set(None);
-        expect_context::<WriteSignal<Option<ContentActionCtx>>>().set(None);
-    });
     // doing it here is a way to ensure this is set reactively, however this isn't reacting
     // to the account changes, and it leaves a compulsory empty bar when this action isn't
     // available.
     // this should be a push? children elements will need to also use this and that's a
     // conflict.
+    logging::log!("setup workspace_root_page_ctx");
+    let resource = "/workspace/".to_string();
+
+    on_cleanup(move || {
+        let account_ctx = expect_context::<AccountCtx>();
+        logging::log!("on_cleanup workspace_root_page_ctx");
+        account_ctx.set_resource.set(None);
+        expect_context::<WriteSignal<Option<ContentActionCtx>>>().update(|ctx| {
+            if let Some(ctx) = ctx {
+                ctx.reset_for("/workspace/");
+            }
+        });
+    });
+
     let account_ctx = expect_context::<AccountCtx>();
     let set_resource = account_ctx.set_resource.clone();
-    set_resource.set(Some("/workspace/".to_string()));
+    set_resource.set(Some(resource.clone()));
     expect_context::<WriteSignal<Option<ContentActionCtx>>>()
-        .set(Some(ContentActionCtx(Some(vec![
-            ContentActionItem {
-                href: format!("/workspace/+/add"),
-                text: "Add Workspace".to_string(),
-                title: Some("Add a new workspace".to_string()),
-                req_action: Some("create".to_string()),
-            },
-        ]))));
+        .set(Some(ContentActionCtx::new(
+            resource,
+            vec![
+                ContentActionItem {
+                    href: format!("/workspace/+/add"),
+                    text: "Add Workspace".to_string(),
+                    title: Some("Add a new workspace".to_string()),
+                    // XXX FIXME this is commented out to demonstrate how the check is descyned
+                    // from the actual AccountCtx somehow still.
+                    // req_action: Some("create".to_string()),
+                    req_action: None,
+                },
+            ],
+        )));
 }
 
 #[component]
@@ -193,12 +208,6 @@ pub struct WorkspaceParams {
 #[component]
 pub fn Workspace() -> impl IntoView {
     let account_ctx = expect_context::<AccountCtx>();
-    let set_resource = account_ctx.set_resource.clone();
-
-    on_cleanup(move || {
-        expect_context::<WriteSignal<Option<ContentActionCtx>>>().set(None);
-        set_resource.set(None);
-    });
 
     let params = use_params::<WorkspaceParams>();
     let resource: Resource<Result<RepoResult, AppError>> = Resource::new_blocking(
@@ -231,8 +240,19 @@ pub fn Workspace() -> impl IntoView {
             // this for now in here.
             expect_context::<WriteSignal<Option<ContentActionCtx>>>()
                 .set({
-                    let mut actions = vec![];
-                    if let Some(resource) = resource {
+                    resource.map(|resource| {
+                        let cleanup_resource = resource.clone();
+                        on_cleanup(move || {
+                            let account_ctx = expect_context::<AccountCtx>();
+                            expect_context::<WriteSignal<Option<ContentActionCtx>>>().update(|ctx| {
+                                if let Some(ctx) = ctx {
+                                    ctx.reset_for(&cleanup_resource);
+                                    // account_ctx.set_resource.set(None);
+                                }
+                            });
+                        });
+
+                        let mut actions = vec![];
                         actions.push(ContentActionItem {
                             href: resource.clone(),
                             text: "Main View".to_string(),
@@ -251,8 +271,8 @@ pub fn Workspace() -> impl IntoView {
                             title: Some("Synchronize with the stored Git Repository URI".to_string()),
                             req_action: Some("protocol_write".to_string()),
                         });
-                    }
-                    Some(ContentActionCtx(Some(actions)))
+                        ContentActionCtx::new(resource, actions)
+                    })
                 })
         })
     };
@@ -672,7 +692,7 @@ fn WorkspaceCreateExposure() -> impl IntoView {
                     {move || {
                         match action.value().get() {
                             Some(Err(ServerFnError::WrappedServerError(e))) => Some(view! {
-                                <p class="standard error">{format!("{e}")}</p>
+                                <p class="standard error">{format!("Error: {e}")}</p>
                             }),
                             Some(Err(e)) => Some(view! {
                                 <p class="standard error">{format!("System Error: {e:?}")}</p>
