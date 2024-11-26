@@ -121,8 +121,11 @@ pub fn Exposure() -> impl IntoView {
     let set_resource = account_ctx.set_resource.clone();
 
     on_cleanup(move || {
-        expect_context::<WriteSignal<Option<ExposureSourceCtx>>>().set(None);
-        expect_context::<WriteSignal<Option<NavigationCtx>>>().set(None);
+        leptos::logging::log!("on_cleanup <Exposure>");
+        use_context::<WriteSignal<ExposureSourceCtx>>()
+            .map(|ctx| ctx.update(ExposureSourceCtx::clear));
+        use_context::<WriteSignal<NavigationCtx>>()
+            .map(|ctx| ctx.update(NavigationCtx::clear));
         set_resource.set(None);
     });
     let params = use_params::<ExposureParams>();
@@ -151,32 +154,42 @@ pub fn Exposure() -> impl IntoView {
             });
             set_resource.set(resource.clone());
 
-            expect_context::<WriteSignal<Option<ExposureSourceCtx>>>()
-                .set(exposure_info.as_ref().map(|info| {
-                    ExposureSourceItem {
-                        commit_id: info.exposure.commit_id.clone(),
-                        workspace_id: info.exposure.workspace_id.to_string(),
-                        // TODO put in the workspace title.
-                        workspace_title: info.workspace.description.clone().unwrap_or(
-                            format!("Workspace {}", info.exposure.workspace_id)),
-                    }.into()
-                }).ok());
-            expect_context::<WriteSignal<Option<NavigationCtx>>>()
-                .set(exposure_info.map(|info| {
-                    let exposure_id = info.exposure.id;
-                    // TODO should derive from exposure.files when it contains title/description
-                    NavigationCtx(Some(info.files
-                        .into_iter()
-                        .filter_map(move |(file, flag)| {
-                            flag.then(|| {
-                                let href = format!("/exposure/{exposure_id}/{file}/");
-                                let text = file.clone();
-                                let title = None;
-                                NavigationItem { href, text, title }
+            expect_context::<WriteSignal<ExposureSourceCtx>>()
+                .update(|ctx| ctx.replace(exposure_info.as_ref()
+                    .map(|info| {
+                        logging::log!("building ExposureSourceItem");
+                        ExposureSourceItem {
+                            commit_id: info.exposure.commit_id.clone(),
+                            workspace_id: info.exposure.workspace_id.to_string(),
+                            // TODO put in the workspace title.
+                            workspace_title: info.workspace.description.clone().unwrap_or(
+                                format!("Workspace {}", info.exposure.workspace_id)),
+                        }.into()
+                    })
+                    .ok()
+                    .into()
+                ));
+            expect_context::<WriteSignal<NavigationCtx>>()
+                .update(|ctx| ctx.replace(exposure_info
+                    .map(|info| {
+                        let exposure_id = info.exposure.id;
+                        logging::log!("building NavigationCtx");
+                        // TODO should derive from exposure.files when it contains title/description
+                        info.files
+                            .into_iter()
+                            .filter_map(move |(file, flag)| {
+                                flag.then(|| {
+                                    let href = format!("/exposure/{exposure_id}/{file}/");
+                                    let text = file.clone();
+                                    let title = None;
+                                    NavigationItem { href, text, title }
+                                })
                             })
-                        })
-                        .collect::<Vec<_>>()))
-                }).ok());
+                            .collect::<Vec<_>>()
+                    })
+                    .ok()
+                    .into()
+                ));
         })
     };
 
@@ -242,7 +255,8 @@ pub struct ViewPath(pub Option<String>);
 #[component]
 pub fn ExposureFile() -> impl IntoView {
     on_cleanup(|| {
-        expect_context::<WriteSignal<Option<ViewsAvailableCtx>>>().set(None);
+        use_context::<WriteSignal<ViewsAvailableCtx>>()
+            .map(|ctx| ctx.update(ViewsAvailableCtx::clear));
     });
     let params = use_params::<ExposureFileParams>();
     let exposure_info = expect_context::<Resource<Result<ExposureInfo, AppError>>>();
@@ -270,8 +284,8 @@ pub fn ExposureFile() -> impl IntoView {
         match file.await {
             // TODO figure out how to redirect to the workspace.
             Ok(ResolvedExposurePath::Target(ef, Ok((efv, view_path)))) => {
-                expect_context::<WriteSignal<Option<ViewsAvailableCtx>>>()
-                    .set(Some((&ef).into()));
+                expect_context::<WriteSignal<ViewsAvailableCtx>>()
+                    .update(|ctx| ctx.replace((&ef).into()));
                 let view_key = efv.view_key.clone();
                 let view_key = EFView::from_str(&view_key
                     .expect("API failed to produce a fully formed ExposureFileView")
@@ -284,8 +298,8 @@ pub fn ExposureFile() -> impl IntoView {
                 }.into_any())
             }
             Ok(ResolvedExposurePath::Target(ef, Err(view_keys))) => {
-                expect_context::<WriteSignal<Option<ViewsAvailableCtx>>>()
-                    .set(Some((&ef).into()));
+                expect_context::<WriteSignal<ViewsAvailableCtx>>()
+                    .update(|ctx| ctx.replace((&ef).into()));
                 Ok(view! {
                     <h1>
                         "Exposure "{ef.exposure_id}

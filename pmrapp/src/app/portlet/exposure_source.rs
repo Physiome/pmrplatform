@@ -13,7 +13,21 @@ pub struct ExposureSourceItem {
 // distinct from a thing that offers no additional pages if the goal is to
 // also keep the portlet visible.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-pub struct ExposureSourceCtx(pub Option<ExposureSourceItem>);
+pub struct ExposureSourceCtx(Option<ExposureSourceItem>);
+
+impl ExposureSourceCtx {
+    pub fn clear(&mut self) {
+        self.0 = None;
+    }
+
+    pub fn set(&mut self, value: ExposureSourceItem) {
+        self.0 = Some(value);
+    }
+
+    pub fn replace(&mut self, value: Self) {
+        self.0 = value.0;
+    }
+}
 
 #[component]
 pub fn ExposureSource() -> impl IntoView {
@@ -50,5 +64,11 @@ pub fn ExposureSource() -> impl IntoView {
 impl From<ExposureSourceItem> for ExposureSourceCtx {
     fn from(item: ExposureSourceItem) -> Self {
         Self(Some(item))
+    }
+}
+
+impl From<Option<ExposureSourceItem>> for ExposureSourceCtx {
+    fn from(item: Option<ExposureSourceItem>) -> Self {
+        Self(item)
     }
 }

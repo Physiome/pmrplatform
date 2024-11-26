@@ -39,18 +39,25 @@ impl ContentActionCtx {
         }
     }
 
-    pub fn clear() -> Self {
-        Self {
-            for_resource: None,
-            value: None,
-        }
+    pub fn clear(&mut self) {
+        self.for_resource = None;
+        self.value = None;
+    }
+
+    pub fn set(&mut self, for_resource: String, value: Vec<ContentActionItem>) {
+        self.for_resource = Some(for_resource);
+        self.value = Some(value);
+    }
+
+    pub fn replace(&mut self, Self { for_resource, value }: Self) {
+        self.for_resource = for_resource;
+        self.value = value;
     }
 
     pub fn reset_for(&mut self, for_resource: &str) {
         if self.for_resource.as_deref() == Some(for_resource) {
             leptos::logging::log!("reset for {for_resource}");
-            self.value = None;
-            self.for_resource = None;
+            self.clear();
         }
     }
 }

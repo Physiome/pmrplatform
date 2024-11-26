@@ -28,10 +28,10 @@ pub use self::views_available::{
 };
 
 fn provide_portlet_context_for<T: Clone + Default + Send + Sync + PartialEq + Serialize + for<'de> Deserialize<'de> + 'static>() {
-    let (rs, ws) = signal(None::<T>);
+    let (rs, ws) = signal(T::default());
     let (ctx, _) = signal(Resource::new(
         move || rs.get(),
-        |rs| async move { rs.unwrap_or(T::default()) },
+        |rs| async move { rs },
     ));
     provide_context(ctx);
     provide_context(ws);

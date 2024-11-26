@@ -16,6 +16,20 @@ pub struct NavigationItem {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct NavigationCtx(pub Option<Vec<NavigationItem>>);
 
+impl NavigationCtx {
+    pub fn clear(&mut self) {
+        self.0 = None;
+    }
+
+    pub fn set(&mut self, value: Vec<NavigationItem>) {
+        self.0 = Some(value);
+    }
+
+    pub fn replace(&mut self, value: Self) {
+        self.0 = value.0;
+    }
+}
+
 #[component]
 pub fn Navigation() -> impl IntoView {
     use_context::<ReadSignal<Resource<NavigationCtx>>>().map(|ctx| {
@@ -44,4 +58,16 @@ pub fn Navigation() -> impl IntoView {
             }</Transition>
         }
     })
+}
+
+impl From<Vec<NavigationItem>> for NavigationCtx {
+    fn from(item: Vec<NavigationItem>) -> Self {
+        Self(Some(item))
+    }
+}
+
+impl From<Option<Vec<NavigationItem>>> for NavigationCtx {
+    fn from(item: Option<Vec<NavigationItem>>) -> Self {
+        Self(item)
+    }
 }

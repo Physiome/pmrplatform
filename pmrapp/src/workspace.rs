@@ -96,18 +96,16 @@ fn workspace_root_page_ctx() {
         let account_ctx = expect_context::<AccountCtx>();
         logging::log!("on_cleanup workspace_root_page_ctx");
         account_ctx.set_resource.set(None);
-        expect_context::<WriteSignal<Option<ContentActionCtx>>>().update(|ctx| {
-            if let Some(ctx) = ctx {
-                ctx.reset_for("/workspace/");
-            }
+        expect_context::<WriteSignal<ContentActionCtx>>().update(|ctx| {
+            ctx.reset_for("/workspace/");
         });
     });
 
     let account_ctx = expect_context::<AccountCtx>();
     let set_resource = account_ctx.set_resource.clone();
     set_resource.set(Some(resource.clone()));
-    expect_context::<WriteSignal<Option<ContentActionCtx>>>()
-        .set(Some(ContentActionCtx::new(
+    expect_context::<WriteSignal<ContentActionCtx>>()
+        .update(|ctx| ctx.set(
             resource,
             vec![
                 ContentActionItem {
@@ -120,7 +118,7 @@ fn workspace_root_page_ctx() {
                     req_action: None,
                 },
             ],
-        )));
+        ));
 }
 
 #[component]
@@ -238,17 +236,14 @@ pub fn Workspace() -> impl IntoView {
             // depend on the above resource (repo_result), as the future work may have this
             // be loaded as an alias and the resource need to be the canonical URI.  Leaving
             // this for now in here.
-            expect_context::<WriteSignal<Option<ContentActionCtx>>>()
-                .set({
-                    resource.map(|resource| {
+            expect_context::<WriteSignal<ContentActionCtx>>()
+                .update(|ctx| ctx.replace(resource
+                    .map(|resource| {
                         let cleanup_resource = resource.clone();
                         on_cleanup(move || {
                             let account_ctx = expect_context::<AccountCtx>();
-                            expect_context::<WriteSignal<Option<ContentActionCtx>>>().update(|ctx| {
-                                if let Some(ctx) = ctx {
-                                    ctx.reset_for(&cleanup_resource);
-                                    // account_ctx.set_resource.set(None);
-                                }
+                            expect_context::<WriteSignal<ContentActionCtx>>().update(|ctx| {
+                                ctx.reset_for(&cleanup_resource);
                             });
                         });
 
@@ -273,7 +268,8 @@ pub fn Workspace() -> impl IntoView {
                         });
                         ContentActionCtx::new(resource, actions)
                     })
-                })
+                    .unwrap_or_default()
+                ))
         })
     };
 

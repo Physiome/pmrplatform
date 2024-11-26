@@ -13,6 +13,20 @@ pub struct ViewsAvailableItem {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct ViewsAvailableCtx(pub Option<Vec<ViewsAvailableItem>>);
 
+impl ViewsAvailableCtx {
+    pub fn clear(&mut self) {
+        self.0 = None;
+    }
+
+    pub fn set(&mut self, value: Vec<ViewsAvailableItem>) {
+        self.0 = Some(value);
+    }
+
+    pub fn replace(&mut self, value: Self) {
+        self.0 = value.0;
+    }
+}
+
 #[component]
 pub fn ViewsAvailable() -> impl IntoView {
     use_context::<ReadSignal<Resource<ViewsAvailableCtx>>>().map(|ctx| {
