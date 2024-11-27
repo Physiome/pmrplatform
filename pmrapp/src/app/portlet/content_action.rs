@@ -23,40 +23,40 @@ pub struct ContentActionItem {
 // also keep the portlet visible.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct ContentActionCtx {
-    // This must reference
-    for_resource: Option<String>,
+    // This is the current owner of the action context menu
+    current_owner: Option<String>,
     value: Option<Vec<ContentActionItem>>,
 }
 
 impl ContentActionCtx {
     pub fn new(
-        for_resource: String,
+        current_owner: String,
         value: Vec<ContentActionItem>,
     ) -> Self {
         Self {
-            for_resource: Some(for_resource),
+            current_owner: Some(current_owner),
             value: Some(value),
         }
     }
 
     pub fn clear(&mut self) {
-        self.for_resource = None;
+        self.current_owner = None;
         self.value = None;
     }
 
-    pub fn set(&mut self, for_resource: String, value: Vec<ContentActionItem>) {
-        self.for_resource = Some(for_resource);
+    pub fn set(&mut self, current_owner: String, value: Vec<ContentActionItem>) {
+        self.current_owner = Some(current_owner);
         self.value = Some(value);
     }
 
-    pub fn replace(&mut self, Self { for_resource, value }: Self) {
-        self.for_resource = for_resource;
+    pub fn replace(&mut self, Self { current_owner, value }: Self) {
+        self.current_owner = current_owner;
         self.value = value;
     }
 
-    pub fn reset_for(&mut self, for_resource: &str) {
-        if self.for_resource.as_deref() == Some(for_resource) {
-            leptos::logging::log!("reset for {for_resource}");
+    pub fn reset_for(&mut self, current_owner: &str) {
+        if self.current_owner.as_deref() == Some(current_owner) {
+            leptos::logging::log!("reset for {current_owner}");
             self.clear();
         }
     }

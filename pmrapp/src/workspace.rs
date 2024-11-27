@@ -83,7 +83,7 @@ pub fn WorkspaceRoot() -> impl IntoView {
     }
 }
 
-fn workspace_root_page_ctx() {
+fn workspace_root_page_ctx(current_owner: String) {
     // doing it here is a way to ensure this is set reactively, however this isn't reacting
     // to the account changes, and it leaves a compulsory empty bar when this action isn't
     // available.
@@ -91,13 +91,14 @@ fn workspace_root_page_ctx() {
     // conflict.
     logging::log!("setup workspace_root_page_ctx");
     let resource = "/workspace/".to_string();
+    let cleanup_owner = current_owner.clone();
 
     on_cleanup(move || {
         let account_ctx = expect_context::<AccountCtx>();
         logging::log!("on_cleanup workspace_root_page_ctx");
         account_ctx.set_resource.set(None);
         expect_context::<WriteSignal<ContentActionCtx>>().update(|ctx| {
-            ctx.reset_for("/workspace/");
+            ctx.reset_for(&cleanup_owner);
         });
     });
 
@@ -106,7 +107,7 @@ fn workspace_root_page_ctx() {
     set_resource.set(Some(resource.clone()));
     expect_context::<WriteSignal<ContentActionCtx>>()
         .update(|ctx| ctx.set(
-            resource,
+            current_owner.clone(),
             vec![
                 ContentActionItem {
                     href: format!("/workspace/+/add"),
@@ -155,10 +156,10 @@ pub fn WorkspaceListing() -> impl IntoView {
             )
         })
     };
+    workspace_root_page_ctx("/workspace/".into());
 
     view! {
         <div class="main">
-            {workspace_root_page_ctx}
             <h1>"Listing of workspaces"</h1>
             <div>
             <Transition fallback=move || view! { <p>"Loading..."</p> }>
@@ -174,9 +175,9 @@ pub fn WorkspaceListing() -> impl IntoView {
 #[component]
 pub fn WorkspaceAdd() -> impl IntoView {
     let action = ServerAction::<CreateWorkspace>::new();
+    workspace_root_page_ctx("/workspace/+/add".into());
 
     view! {
-        {workspace_root_page_ctx}
         <h1>"Add a workspace"</h1>
         <ActionForm attr:class="standard" action=action>
             <div>
@@ -239,11 +240,10 @@ pub fn Workspace() -> impl IntoView {
             expect_context::<WriteSignal<ContentActionCtx>>()
                 .update(|ctx| ctx.replace(resource
                     .map(|resource| {
-                        let cleanup_resource = resource.clone();
                         on_cleanup(move || {
                             let account_ctx = expect_context::<AccountCtx>();
                             expect_context::<WriteSignal<ContentActionCtx>>().update(|ctx| {
-                                ctx.reset_for(&cleanup_resource);
+                                ctx.reset_for("/workspace/{id}/");
                             });
                         });
 
@@ -266,7 +266,7 @@ pub fn Workspace() -> impl IntoView {
                             title: Some("Synchronize with the stored Git Repository URI".to_string()),
                             req_action: Some("protocol_write".to_string()),
                         });
-                        ContentActionCtx::new(resource, actions)
+                        ContentActionCtx::new("/workspace/{id}/".into(), actions)
                     })
                     .unwrap_or_default()
                 ))

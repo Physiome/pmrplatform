@@ -27,7 +27,24 @@ pub use self::views_available::{
     ViewsAvailableCtx,
 };
 
-fn provide_portlet_context_for<T: Clone + Default + Send + Sync + PartialEq + Serialize + for<'de> Deserialize<'de> + 'static>() {
+fn provide_portlet_context_for<
+    T: Clone
+    + Default
+    + Send
+    + Sync
+    + PartialEq
+    + Serialize
+    // ideally this bound shouldn't be here, but this makes it work for now...
+    + for<'de> Deserialize<'de>
+    + 'static
+>() {
+    // While providing the context behind a resource feels very much
+    // superfluous, it does help avoid hydration issues as it functions
+    // as a way to somehow inform the reactive system that this needs
+    // some awaiting to do, as the underlying data may be provided via
+    // a server function.  While just using the read signal does work
+    // for CSR, but that results in hydration issue from mismatch with
+    // SSR render, thus making the simpler approach unsuitable for use.
     let (rs, ws) = signal(T::default());
     let (ctx, _) = signal(Resource::new(
         move || rs.get(),
