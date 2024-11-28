@@ -4,9 +4,12 @@ use pmrcore::ac::traits::GenpolEnforcer as _;
 use pmrrbac::PolicyEnforcer;
 use serde::{Serialize, Deserialize};
 
-use crate::ac::{
-    AccountCtx,
-    WorkflowState,
+use crate::{
+    ac::{
+        AccountCtx,
+        WorkflowState,
+    },
+    enforcement::PolicyState,
 };
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -58,6 +61,10 @@ impl ContentActionCtx {
         if self.current_owner.as_deref() == Some(current_owner) {
             leptos::logging::log!("reset for {current_owner}");
             self.clear();
+            if let Some(account_ctx) = use_context::<AccountCtx>() {
+                leptos::logging::log!("also reset AccountCtx res_policy_state");
+                account_ctx.set_ps.set(PolicyState::default());
+            }
         }
     }
 }
@@ -65,16 +72,15 @@ impl ContentActionCtx {
 #[component]
 pub fn ContentAction() -> impl IntoView {
     let account_ctx = expect_context::<AccountCtx>();
+    // TODO the res_policy_state must be integrated with the result from the data that
+    // is returned for populating contentaction
     use_context::<ReadSignal<Resource<ContentActionCtx>>>().map(|ctx| {
         let res_ctx = ctx.get();
         let action_view = move || {
-            let res_policy_state = account_ctx.res_policy_state.clone();
+            let res_ps = account_ctx.res_ps.clone();
             Suspend::new(async move {
                 let enforcer = PolicyEnforcer::from(
-                    res_policy_state.await
-                        .ok()
-                        .flatten()
-                        .map(|(policy, _)| policy)
+                    res_ps.await.policy
                         .unwrap_or_default()
                 );
                 res_ctx.await.value.map(|action| {

@@ -7,14 +7,15 @@ use pmrcore::{
     exposure::{
         Exposure,
         Exposures,
-        ExposureFile,
-        ExposureFileView,
-        traits::Exposure as _,
     },
     workspace::Workspace,
 };
 use serde::{Serialize, Deserialize};
-use crate::error::AppError;
+use crate::{
+    enforcement::EnforcedOk,
+    error::AppError,
+};
+use super::ResolvedExposurePath;
 
 #[cfg(feature = "ssr")]
 mod ssr {
@@ -47,11 +48,11 @@ mod ssr {
 use self::ssr::*;
 
 #[server]
-pub async fn list() -> Result<Exposures, ServerFnError> {
+pub async fn list() -> Result<EnforcedOk<Exposures>, ServerFnError<AppError>> {
     let platform = platform().await?;
-    Ok(ExposureBackend::list(platform.mc_platform.as_ref())
+    Ok(EnforcedOk::from(ExposureBackend::list(platform.mc_platform.as_ref())
         .await
-        .map_err(|_| AppError::InternalServerError)?)
+        .map_err(|_| AppError::InternalServerError)?))
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -62,8 +63,8 @@ pub struct ExposureInfo {
 }
 
 #[server]
-pub async fn get_exposure_info(id: i64) -> Result<ExposureInfo, ServerFnError<AppError>> {
-    enforcer(format!("/exposure/{id}/"), "").await?;
+pub async fn get_exposure_info(id: i64) -> Result<EnforcedOk<ExposureInfo>, ServerFnError<AppError>> {
+    let policy_state = enforcer(format!("/exposure/{id}/"), "").await?;
     let platform = platform().await?;
     let ctrl = platform.get_exposure(id).await
         .map_err(|_| AppError::InternalServerError)?;
@@ -75,33 +76,18 @@ pub async fn get_exposure_info(id: i64) -> Result<ExposureInfo, ServerFnError<Ap
         .await
         .map_err(|_| AppError::InternalServerError)?
         .into_inner();
-    Ok(ExposureInfo { exposure, files, workspace })
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub enum ResolvedExposurePath {
-    Target(ExposureFile, Result<(ExposureFileView, Option<String>), Vec<String>>),
-    Redirect(String),
+    Ok(policy_state.to_enforced_ok(ExposureInfo { exposure, files, workspace }))
 }
 
 #[server]
 pub async fn resolve_exposure_path(
     id: i64,
     path: String,
-) -> Result<ResolvedExposurePath, ServerFnError> {
-    enforcer(format!("/exposure/{id}/"), "").await?;
+) -> Result<EnforcedOk<ResolvedExposurePath>, ServerFnError<AppError>> {
+    let policy_state = enforcer(format!("/exposure/{id}/"), "").await?;
     // TODO when there is a proper error type for id not found, use that
     // TODO ExposureFileView is a placeholder - the real type that should be returned
     // is something that can readily be turned into an IntoView.
-
-    // Currently, if no underlying errors that may result in a
-    // ServerFnError is returned, a Result::Ok that contains an
-    // additional Result which either is a redirect to some target
-    // resource (be it the underlying path to some workspace, or some
-    // specific default view), or that inner Ok will containing a
-    // 2-tuple with the first element being the ExposureFile and the
-    // second being a result that would be the ExposureFileView or a
-    // vec of strings of valid view_keys that could be navigated to.
 
     let platform = platform().await?;
     let ec = platform.get_exposure(id).await
@@ -114,13 +100,13 @@ pub async fn resolve_exposure_path(
                 .views()
                 .await
                 .map_err(|_| AppError::InternalServerError)?;
-            Ok(ResolvedExposurePath::Target(
+            Ok(policy_state.to_enforced_ok(ResolvedExposurePath::Target(
                 efc.exposure_file().clone_inner(),
                 Ok((
                     efvc.exposure_file_view().clone_inner(),
                     efvc.view_path().map(str::to_string),
                 )),
-            ))
+            )))
         },
         (_, Err(CtrlError::None)) => {
             // since the request path has a direct hit on file, doesn't
@@ -142,7 +128,7 @@ pub async fn resolve_exposure_path(
             // Returning the path as an Ok(Err(..)) to indicate a proper
             // result that isn't a ServerFnError, but still an inner Err
             // to facilitate this custom redirect handling.
-            Ok(ResolvedExposurePath::Redirect(path))
+            Ok(policy_state.to_enforced_ok(ResolvedExposurePath::Redirect(path)))
         },
         (Ok(efc), Err(CtrlError::EFVCNotFound(viewstr))) if viewstr == "" => {
             // to ensure the views is populated
@@ -150,7 +136,7 @@ pub async fn resolve_exposure_path(
                 .views()
                 .await
                 .map_err(|_| AppError::InternalServerError)?;
-            Ok(ResolvedExposurePath::Target(
+            Ok(policy_state.to_enforced_ok(ResolvedExposurePath::Target(
                 efc.exposure_file().clone_inner(),
                 Err(efc.exposure_file()
                     .views()
@@ -160,7 +146,7 @@ pub async fn resolve_exposure_path(
                     .filter_map(|v| v.view_key().map(str::to_string))
                     .collect::<Vec<_>>()
                 ),
-            ))
+            )))
         },
         // CtrlError::UnknownPath(_) | CtrlError::EFVCNotFound(_)
         _ => Err(AppError::NotFound.into()),
@@ -177,7 +163,7 @@ pub async fn read_blob(
     path: String,
     efvid: i64,
     key: String,
-) -> Result<Box<[u8]>, ServerFnError> {
+) -> Result<Box<[u8]>, ServerFnError<AppError>> {
     enforcer(format!("/exposure/{id}/"), "").await?;
     let platform = platform().await?;
     let ec = platform.get_exposure(id).await
@@ -197,7 +183,7 @@ pub async fn read_safe_index_html(
     id: i64,
     path: String,
     efvid: i64,
-) -> Result<String, ServerFnError> {
+) -> Result<String, ServerFnError<AppError>> {
     fn evaluate(url: &str) -> Option<Cow<str>> {
         match url.as_bytes() {
             [b'/', ..] => Some(url.into()),
@@ -223,7 +209,7 @@ pub async fn create_exposure(
     id: i64,
     commit_id: String,
 ) -> Result<(), ServerFnError<AppError>> {
-    let agent = enforcer(format!("/exposure/"), "create").await?;
+    let policy_state = enforcer(format!("/exposure/"), "create").await?;
     let platform = platform().await?;
     // First create the workspace
     let ctrl = platform.create_exposure(
@@ -243,12 +229,14 @@ pub async fn create_exposure(
         .map_err(|_| AppError::InternalServerError)?;
     // and grant the current user the owner permission
 
-    if let Agent::User(user) = agent {
-        platform
-            .ac_platform
-            .res_grant_role_to_agent(&resource, user, Role::Owner)
-            .await
-            .map_err(|_| AppError::InternalServerError)?;
+    if let Some(policy) = policy_state.policy {
+        if let Agent::User(user) = policy.agent {
+            platform
+                .ac_platform
+                .res_grant_role_to_agent(&resource, user, Role::Owner)
+                .await
+                .map_err(|_| AppError::InternalServerError)?;
+        }
     }
 
     leptos_axum::redirect(format!("/exposure/{id}").as_ref());

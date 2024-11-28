@@ -32,7 +32,10 @@ mod ssr {
         server::platform,
         workflow::state::TRANSITIONS,
     };
-    use crate::error::AppError;
+    use crate::{
+        enforcement::PolicyState,
+        error::AppError,
+    };
 
     pub async fn session() -> Result<AuthSession<Platform>, AppError> {
         Ok(leptos_axum::extract::<axum::Extension<AuthSession<Platform>>>()
@@ -42,10 +45,12 @@ mod ssr {
         )
     }
 
+    // TODO provide a basic enforcer here instead, and use the get_poilcy_and_enforce
+    // on the other to allow users to call either where necessary.
     pub async fn enforcer(
         resource: impl Into<String>,
         action: impl Into<String>,
-    ) -> Result<Agent, AppError> {
+    ) -> Result<PolicyState, AppError> {
         let session = session().await?;
         let backend = session.backend;
         let agent: Agent = session.user
@@ -54,19 +59,26 @@ mod ssr {
         let resource = resource.into();
         let action = action.into();
         log::trace!("enforce on: agent={agent} resource={resource:?} action={action:?}");
-        if backend
-            .enforce(agent.clone(), resource, action)
+        let (policy, result) = backend
+            .get_policy_and_enforce(agent.clone(), &resource, action)
             .await
-            .map_err(|_| AppError::InternalServerError)?
-        {
-            Ok(agent)
+            .map_err(|_| AppError::InternalServerError)?;
+        if result {
+            let state = backend
+                .get_wf_state_for_res(&resource)
+                .await
+                .map_err(|_| AppError::InternalServerError)?;
+            Ok(PolicyState::new(Some(policy), state))
         } else {
             Err(AppError::Forbidden)
         }
     }
 }
 
-use crate::error::AppError;
+use crate::{
+    enforcement::PolicyState,
+    error::AppError,
+};
 
 #[cfg(feature = "ssr")]
 pub use self::ssr::*;
@@ -156,21 +168,21 @@ pub(crate) async fn current_user() -> Result<Option<User>, ServerFnError> {
 #[server]
 pub(crate) async fn get_resource_policy_state(
     resource: String,
-) -> Result<Option<(GenPolicy, State)>, ServerFnError> {
-    Ok(if let Some(user) = current_user().await? {
-        let platform = platform().await?;
-        let state = platform
-            .ac_platform
-            .get_wf_state_for_res(&resource)
-            .await?;
-        let policy = platform
+) -> Result<PolicyState, ServerFnError> {
+    let platform = platform().await?;
+    let state = platform
+        .ac_platform
+        .get_wf_state_for_res(&resource)
+        .await?;
+    let policy = if let Some(user) = current_user().await? {
+        Some(platform
             .ac_platform
             .generate_policy_for_agent_res(&user.into(), resource)
-            .await?;
-        Some((policy, state))
+            .await?)
     } else {
         None
-    })
+    };
+    Ok(PolicyState::new(policy, state))
 }
 
 #[server]

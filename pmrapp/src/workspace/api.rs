@@ -9,7 +9,10 @@ use pmrcore::{
     },
     workspace::Workspaces,
 };
-use crate::error::AppError;
+use crate::{
+    enforcement::EnforcedOk,
+    error::AppError,
+};
 
 #[cfg(feature = "ssr")]
 mod ssr {
@@ -33,10 +36,14 @@ mod ssr {
 use self::ssr::*;
 
 #[server]
-pub async fn list_workspaces() -> Result<Workspaces, ServerFnError> {
+pub async fn list_workspaces() -> Result<EnforcedOk<Workspaces>, ServerFnError<AppError>> {
+    let policy_state = enforcer("/workspace/", "").await?;
     let platform = platform().await?;
-    Ok(WorkspaceBackend::list_workspaces(platform.mc_platform.as_ref())
-        .await?)
+    Ok(policy_state.to_enforced_ok(
+        WorkspaceBackend::list_workspaces(
+            platform.mc_platform.as_ref()).await
+            .map_err(|_| AppError::InternalServerError)?
+    ))
 }
 
 #[server]
@@ -44,40 +51,40 @@ pub async fn get_workspace_info(
     id: i64,
     commit: Option<String>,
     path: Option<String>,
-) -> Result<RepoResult, ServerFnError<AppError>> {
-    enforcer(format!("/workspace/{id}/"), "").await?;
+) -> Result<EnforcedOk<RepoResult>, ServerFnError<AppError>> {
+    let policy_state = enforcer(format!("/workspace/{id}/"), "").await?;
     let platform = platform().await?;
     let handle = platform.repo_backend()
         .git_handle(id).await
         .map_err(|_| AppError::InternalServerError)?;
     match (commit.as_ref(), path.as_ref(), handle.repo()) {
-        (None, None, Err(_)) => Ok(RepoResult {
+        (None, None, Err(_)) => Ok(policy_state.to_enforced_ok(RepoResult {
             workspace: handle.workspace().clone_inner(),
             commit: None,
             path: None,
             target: None,
-        }),
+        })),
         (_, _, Err(_)) => Err(AppError::InternalServerError)?,
-        (_, _, Ok(_)) => Ok(handle
+        (_, _, Ok(_)) => Ok(policy_state.to_enforced_ok(handle
             .pathinfo(commit, path)
             .map_err(|_| AppError::InternalServerError)?
             .into()
-        ),
+        )),
     }
 }
 
 #[server]
 pub async fn get_log_info(
     id: i64,
-) -> Result<LogInfo, ServerFnError<AppError>> {
-    enforcer(format!("/workspace/{id}/"), "").await?;
+) -> Result<EnforcedOk<LogInfo>, ServerFnError<AppError>> {
+    let policy_state = enforcer(format!("/workspace/{id}/"), "").await?;
     let platform = platform().await?;
     let handle = platform.repo_backend()
         .git_handle(id).await
         .map_err(|_| AppError::InternalServerError)?;
     // FIXME only returning up to the first 30 log entries.
-    Ok(handle.loginfo(None, None, Some(30))
-        .map_err(|_| AppError::InternalServerError)?)
+    Ok(policy_state.to_enforced_ok(handle.loginfo(None, None, Some(30))
+        .map_err(|_| AppError::InternalServerError)?))
 }
 
 #[server]
@@ -86,7 +93,7 @@ pub async fn create_workspace(
     description: String,
     long_description: String,
 ) -> Result<(), ServerFnError<AppError>> {
-    let agent = enforcer(format!("/workspace/"), "create").await?;
+    let policy_state = enforcer(format!("/workspace/"), "create").await?;
     let platform = platform().await?;
     // First create the workspace
     let ctrl = platform.create_workspace(
@@ -107,12 +114,14 @@ pub async fn create_workspace(
         .map_err(|_| AppError::InternalServerError)?;
     // and grant the current user the owner permission
 
-    if let Agent::User(user) = agent {
-        platform
-            .ac_platform
-            .res_grant_role_to_agent(&resource, user, Role::Owner)
-            .await
-            .map_err(|_| AppError::InternalServerError)?;
+    if let Some(policy) = policy_state.policy {
+        if let Agent::User(user) = policy.agent {
+            platform
+                .ac_platform
+                .res_grant_role_to_agent(&resource, user, Role::Owner)
+                .await
+                .map_err(|_| AppError::InternalServerError)?;
+        }
     }
 
     leptos_axum::redirect(format!("/workspace/{id}").as_ref());

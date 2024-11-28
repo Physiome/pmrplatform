@@ -5,6 +5,7 @@ pub mod client;
 pub mod component;
 #[cfg(feature = "ssr")]
 pub mod conf;
+pub mod enforcement;
 pub mod error;
 pub mod error_template;
 pub mod exposure;

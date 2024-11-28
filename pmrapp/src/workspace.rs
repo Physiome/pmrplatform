@@ -31,21 +31,23 @@ use pmrcore::repo::{
 
 mod api;
 
-use crate::ac::AccountCtx;
-use crate::error::AppError;
-use crate::error_template::ErrorTemplate;
-use crate::component::RedirectTS;
-use crate::workspace::api::{
-    list_workspaces,
-    get_log_info,
-    get_workspace_info,
-    CreateWorkspace,
-    Synchronize,
-};
-use crate::exposure::api::CreateExposure;
-use crate::app::portlet::{
-    ContentActionCtx,
-    ContentActionItem,
+use crate::{
+    component::RedirectTS,
+    enforcement::EnforcedOk,
+    error::AppError,
+    error_template::ErrorTemplate,
+    exposure::api::CreateExposure,
+    workspace::api::{
+        list_workspaces,
+        get_log_info,
+        get_workspace_info,
+        CreateWorkspace,
+        Synchronize,
+    },
+    app::portlet::{
+        ContentActionCtx,
+        ContentActionItem,
+    },
 };
 
 #[component]
@@ -94,17 +96,12 @@ fn workspace_root_page_ctx(current_owner: String) {
     let cleanup_owner = current_owner.clone();
 
     on_cleanup(move || {
-        let account_ctx = expect_context::<AccountCtx>();
         logging::log!("on_cleanup workspace_root_page_ctx");
-        account_ctx.set_resource.set(None);
         expect_context::<WriteSignal<ContentActionCtx>>().update(|ctx| {
             ctx.reset_for(&cleanup_owner);
         });
     });
 
-    let account_ctx = expect_context::<AccountCtx>();
-    let set_resource = account_ctx.set_resource.clone();
-    set_resource.set(Some(resource.clone()));
     expect_context::<WriteSignal<ContentActionCtx>>()
         .update(|ctx| ctx.set(
             current_owner.clone(),
@@ -113,10 +110,7 @@ fn workspace_root_page_ctx(current_owner: String) {
                     href: format!("/workspace/+/add"),
                     text: "Add Workspace".to_string(),
                     title: Some("Add a new workspace".to_string()),
-                    // XXX FIXME this is commented out to demonstrate how the check is descyned
-                    // from the actual AccountCtx somehow still.
-                    // req_action: Some("create".to_string()),
-                    req_action: None,
+                    req_action: Some("create".to_string()),
                 },
             ],
         ));
@@ -129,10 +123,10 @@ pub fn WorkspaceListing() -> impl IntoView {
         move |_| async move {
             let result = list_workspaces().await;
             match result {
-                Ok(ref result) => logging::log!("loaded {} workspace entries", result.len()),
+                Ok(ref result) => logging::log!("loaded {} workspace entries", result.inner.len()),
                 Err(_) => logging::log!("error loading workspaces"),
             };
-            result
+            result.map(EnforcedOk::notify_into)
         },
     );
 
@@ -206,10 +200,8 @@ pub struct WorkspaceParams {
 
 #[component]
 pub fn Workspace() -> impl IntoView {
-    let account_ctx = expect_context::<AccountCtx>();
-
     let params = use_params::<WorkspaceParams>();
-    let resource: Resource<Result<RepoResult, AppError>> = Resource::new_blocking(
+    let resource = Resource::new_blocking(
         move || params.get().map(|p| p.id),
         |id| async move {
             logging::log!("processing requested workspace {:?}", &id);
@@ -218,21 +210,18 @@ pub fn Workspace() -> impl IntoView {
                 Ok(None) => Err(AppError::NotFound),
                 Ok(Some(id)) => get_workspace_info(id, None, None)
                     .await
+                    .map(EnforcedOk::notify_into)
                     .map_err(AppError::from),
             }
         }
     );
     let portlets = move || {
-        let set_resource = account_ctx.set_resource.clone();
-
         Suspend::new(async move {
             let repo_result = resource.await;
             // TODO see if a check on existing value may avoid setting thus avoid a refetch upon hydration?
             let resource = repo_result.as_ref().ok().map(|info| {
                 format!("/workspace/{}/", info.workspace.id)
             });
-            set_resource.set(resource.clone());
-
             // This supposedly normally may be written outside of a suspense, but this does
             // depend on the above resource (repo_result), as the future work may have this
             // be loaded as an alias and the resource need to be the canonical URI.  Leaving
@@ -241,7 +230,6 @@ pub fn Workspace() -> impl IntoView {
                 .update(|ctx| ctx.replace(resource
                     .map(|resource| {
                         on_cleanup(move || {
-                            let account_ctx = expect_context::<AccountCtx>();
                             expect_context::<WriteSignal<ContentActionCtx>>().update(|ctx| {
                                 ctx.reset_for("/workspace/{id}/");
                             });
@@ -538,6 +526,7 @@ pub fn WorkspaceCommitPath() -> impl IntoView {
         |p| async move {
             match p {
                 (Ok(Some(id)), Ok((commit, path))) => get_workspace_info(id, commit, path).await
+                    .map(EnforcedOk::notify_into)
                     .map_err(AppError::from),
                 _ => Err(AppError::InternalServerError),
             }
@@ -583,6 +572,7 @@ pub fn WorkspaceLog() -> impl IntoView {
                 Ok(None) => Err(AppError::NotFound),
                 Ok(Some(id)) => get_log_info(id)
                     .await
+                    .map(EnforcedOk::notify_into)
                     .map_err(AppError::from),
             }
         }
@@ -660,6 +650,7 @@ fn WorkspaceCreateExposure() -> impl IntoView {
         |p| async move {
             match p {
                 (Ok(Some(id)), Ok(commit)) => get_workspace_info(id, commit, None).await
+                    .map(EnforcedOk::notify_into)
                     .map_err(AppError::from),
                 _ => Err(AppError::InternalServerError),
             }

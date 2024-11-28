@@ -20,28 +20,48 @@ use std::str::FromStr;
 
 pub mod api;
 
-use crate::ac::AccountCtx;
-use crate::error::AppError;
-use crate::error_template::ErrorTemplate;
-use crate::component::{Redirect, RedirectTS};
-use crate::exposure::api::{
-    list,
-    get_exposure_info,
-    resolve_exposure_path,
-    ExposureInfo,
-    ResolvedExposurePath,
+use crate::{
+    ac::AccountCtx,
+    component::{Redirect, RedirectTS},
+    error::AppError,
+    error_template::ErrorTemplate,
+    enforcement::{
+        EnforcedOk,
+        PolicyState,
+    },
+    exposure::api::{
+        list,
+        get_exposure_info,
+        resolve_exposure_path,
+        ExposureInfo,
+    },
+    view::{
+        EFView,
+        ExposureFileView,
+    },
+    app::portlet::{
+        ExposureSourceCtx,
+        ExposureSourceItem,
+        NavigationCtx,
+        NavigationItem,
+        ViewsAvailableCtx,
+    },
 };
-use crate::view::{
-    EFView,
-    ExposureFileView,
-};
-use crate::app::portlet::{
-    ExposureSourceCtx,
-    ExposureSourceItem,
-    NavigationCtx,
-    NavigationItem,
-    ViewsAvailableCtx,
-};
+
+mod types {
+    use pmrcore::exposure::{
+        ExposureFile,
+        ExposureFileView,
+    };
+
+    #[derive(Clone, serde::Serialize, serde::Deserialize)]
+    pub enum ResolvedExposurePath {
+        Target(ExposureFile, Result<(ExposureFileView, Option<String>), Vec<String>>),
+        Redirect(String),
+    }
+}
+
+pub use types::ResolvedExposurePath;
 
 #[component]
 pub fn ExposureRoutes() -> impl MatchNestedRoutes + Clone {
@@ -70,15 +90,15 @@ pub fn ExposureRoot() -> impl IntoView {
 
 #[component]
 pub fn ExposureListing() -> impl IntoView {
-    let exposures = Resource::new(
+    let exposures = Resource::new_blocking(
         move || (),
         move |_| async move {
             let result = list().await;
             match result {
-                Ok(ref result) => logging::log!("{}", result.len()),
+                Ok(ref result) => logging::log!("{}", result.inner.len()),
                 Err(_) => logging::log!("error loading exposures"),
             };
-            result
+            result.map(EnforcedOk::notify_into)
         },
     );
     let exposure_listing = move || Suspend::new(async move {
@@ -117,16 +137,16 @@ pub struct ExposureParams {
 
 #[component]
 pub fn Exposure() -> impl IntoView {
-    let account_ctx = expect_context::<AccountCtx>();
-    let set_resource = account_ctx.set_resource.clone();
-
     on_cleanup(move || {
         leptos::logging::log!("on_cleanup <Exposure>");
         use_context::<WriteSignal<ExposureSourceCtx>>()
             .map(|ctx| ctx.update(ExposureSourceCtx::clear));
         use_context::<WriteSignal<NavigationCtx>>()
             .map(|ctx| ctx.update(NavigationCtx::clear));
-        set_resource.set(None);
+        // FIXME when ContentAction is introduced here, use that for implicit cleanup.
+        if let Some(account_ctx) = use_context::<AccountCtx>() {
+            account_ctx.set_ps.set(PolicyState::default());
+        }
     });
     let params = use_params::<ExposureParams>();
     provide_context(Resource::new_blocking(
@@ -136,6 +156,7 @@ pub fn Exposure() -> impl IntoView {
                 Err(_) => Err(AppError::InternalServerError),
                 Ok(Some(id)) => get_exposure_info(id)
                     .await
+                    .map(EnforcedOk::notify_into)
                     .map_err(AppError::from),
                 _ => Err(AppError::NotFound),
             }
@@ -144,16 +165,8 @@ pub fn Exposure() -> impl IntoView {
     let exposure_info = expect_context::<Resource<Result<ExposureInfo, AppError>>>();
 
     let portlets = move || {
-        let set_resource = account_ctx.set_resource.clone();
-
         Suspend::new(async move {
             let exposure_info = exposure_info.await;
-
-            let resource = exposure_info.as_ref().ok().map(|info| {
-                format!("/exposure/{}/", info.exposure.id)
-            });
-            set_resource.set(resource.clone());
-
             expect_context::<WriteSignal<ExposureSourceCtx>>()
                 .update(|ctx| ctx.replace(exposure_info.as_ref()
                     .map(|info| {
@@ -266,6 +279,7 @@ pub fn ExposureFile() -> impl IntoView {
             match (exposure_info.await, p) {
                 (Ok(info), Ok(Some(path))) => resolve_exposure_path(info.exposure.id, path.clone())
                     .await
+                    .map(EnforcedOk::notify_into)
                     .map_err(|_| AppError::NotFound),
                 _ => Err(AppError::InternalServerError),
             }
@@ -281,7 +295,9 @@ pub fn ExposureFile() -> impl IntoView {
     };
 
     let ep_view = move || Suspend::new(async move {
-        match file.await {
+        match file.await
+            .map_err(|_| AppError::NotFound)
+        {
             // TODO figure out how to redirect to the workspace.
             Ok(ResolvedExposurePath::Target(ef, Ok((efv, view_path)))) => {
                 expect_context::<WriteSignal<ViewsAvailableCtx>>()
@@ -312,7 +328,7 @@ pub fn ExposureFile() -> impl IntoView {
                             .collect_view()
                     }</ul>
                 }.into_any())
-            },
+            }
             Ok(ResolvedExposurePath::Redirect(path)) => {
                 Ok(view! { <Redirect path show_link=true/> }.into_any())
             }

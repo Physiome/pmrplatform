@@ -5,6 +5,7 @@ use leptos_router::{
     StaticSegment,
 };
 use pmrcore::ac::{
+    agent::Agent,
     genpolicy::Policy,
     user::User,
     workflow::{
@@ -13,7 +14,10 @@ use pmrcore::ac::{
     },
 };
 
-use crate::workflow::state::TRANSITIONS;
+use crate::{
+    enforcement::PolicyState,
+    workflow::state::TRANSITIONS,
+};
 
 pub mod api;
 use api::{
@@ -27,8 +31,13 @@ use api::{
 #[derive(Clone)]
 pub struct AccountCtx {
     pub current_user: ArcResource<Result<Option<User>, ServerFnError>>,
-    pub set_resource: ArcWriteSignal<Option<String>>,
-    pub res_policy_state: ArcResource<Result<Option<(Policy, State)>, ServerFnError>>,
+    pub set_ps: ArcWriteSignal<PolicyState>,
+    pub res_ps: ArcResource<PolicyState>,
+    // While the set_ps/res_ps does provide the PolicyState data, there
+    // needs to be a way to refresh this as the state may change due to
+    // user action (i.e. workflow state transitions); this provides the
+    // means to refresh that.
+    res_policy_state: ArcResource<Result<PolicyState, ServerFnError>>,
 }
 
 pub fn provide_session_context() {
@@ -38,27 +47,40 @@ pub fn provide_session_context() {
             current_user().await
         },
     );
-    // TODO this likely needs to be hierarchial per the parent route.
-    // Need to figure out how to wholesale set the thing and then on cleanup
-    // pop one out at a time.
-    // So rather than current_resource being the thing, it would lead into a
-    // signal that sets multiple?
-    // Also a cleanup that will pop just one out.
-    let (current_resource, set_resource) = arc_signal(None::<String>);
+    let (ps, set_ps) = arc_signal(PolicyState::default());
+    let ps2 = ps.clone();
+    let res_ps = ArcResource::new_blocking(
+        move || ps.get(),
+        |ps| async move { ps },
+    );
+
+    let res_policy_state_update = set_ps.clone();
+
     let res_policy_state = ArcResource::new_blocking(
-        move || current_resource.get(),
-        move |r| async move {
-            if let Some(res) = r {
-                get_resource_policy_state(res.clone()).await
-            } else {
-                Ok(None)
+        move || ps2.get().policy.map(|policy| policy.resource),
+        move |r| {
+            let res_policy_state_update = res_policy_state_update.clone();
+            async move {
+                if let Some(res) = r {
+                    leptos::logging::log!("res_policy_state has res={res:?}");
+                    let result = get_resource_policy_state(res.clone()).await;
+                    if let Ok(policy_state) = result.as_ref() {
+                        res_policy_state_update.set(policy_state.clone());
+                    }
+                    result
+                } else {
+                    leptos::logging::log!("res_policy_state is None");
+                    Ok(PolicyState::default())
+                }
             }
         },
     );
+
     provide_context(AccountCtx {
         current_user,
-        set_resource,
         res_policy_state,
+        set_ps,
+        res_ps,
     });
 }
 
@@ -77,55 +99,55 @@ pub fn WorkflowState() -> impl IntoView {
     let action = ServerAction::<WorkflowTransition>::new();
 
     let workflow_view = move || {
-        let res_policy_state = account_ctx.res_policy_state.clone();
-        // leptos::logging::log!("{res_policy_state:?}");
+        let res_ps = account_ctx.res_ps.clone();
+        // leptos::logging::log!("{res_ps:?}");
         Suspend::new(async move {
             action.version().get();
-            res_policy_state.await
-                .map(|result| {
-                    // leptos::logging::log!("{result:?}");
-                    result.map(|(policy, workflow_state)| view! {
-                        <div class="flex-grow"></div>
-                        <div id="content-action-wf-state"
-                            class=format!("action state-{workflow_state}")
-                        >
-                            <span>{workflow_state.to_string()}</span>
-                            <ActionForm action=action>
-                                {
-                                move || {
-                                    match action.value().get() {
-                                        Some(_) => {
-                                            expect_context::<AccountCtx>()
-                                                .res_policy_state
-                                                .clone()
-                                                .refetch();
-                                            // To ensure that we don't loop, otherwise this arm will be
-                                            // triggered once more when this whole suspense is re-rendered;
-                                            // safe to do as the value has been handled.
-                                            action.value().set(None);
-                                        }
-                                        // TODO have this set an error somewhere?
-                                        // Some(Err(ServerFnError::WrappedServerError(e))) => e.to_string(),
-                                        _ => ()
+            let res_ps = res_ps.await;
+            let workflow_state = res_ps.state;
+            if let Some(policy) = res_ps.policy {
+                (policy.agent != Agent::Anonymous).then(|| Some(view! {
+                    <div class="flex-grow"></div>
+                    <div id="content-action-wf-state"
+                        class=format!("action state-{workflow_state}")
+                    >
+                        <span>{workflow_state.to_string()}</span>
+                        <ActionForm action=action>
+                            {
+                            move || {
+                                match action.value().get() {
+                                    Some(_) => {
+                                        expect_context::<AccountCtx>()
+                                            .res_policy_state
+                                            .clone()
+                                            .refetch();
+                                        // To ensure that we don't loop, otherwise this arm will be
+                                        // triggered once more when this whole suspense is re-rendered;
+                                        // safe to do as the value has been handled.
+                                        action.value().set(None);
                                     }
-                                }}
-                                <input type="hidden" name="resource" value=policy.resource.clone()/>
-                                {
-                                    TRANSITIONS.transitions_for(workflow_state, policy.to_roles())
-                                        .into_iter()
-                                        .map(|Transition { target, description, .. }| view! {
-                                            <button type="submit" name="target" value=target.to_string()>
-                                                {description.to_string()}
-                                            </button>
-                                        })
-                                        .collect_view()
+                                    // TODO have this set an error somewhere?
+                                    // Some(Err(ServerFnError::WrappedServerError(e))) => e.to_string(),
+                                    _ => ()
                                 }
-                            </ActionForm>
-                        </div>
-                    })
-                })
-                .ok()
-                .flatten()
+                            }}
+                            <input type="hidden" name="resource" value=policy.resource.clone()/>
+                            {
+                                TRANSITIONS.transitions_for(workflow_state, policy.to_roles())
+                                    .into_iter()
+                                    .map(|Transition { target, description, .. }| view! {
+                                        <button type="submit" name="target" value=target.to_string()>
+                                            {description.to_string()}
+                                        </button>
+                                    })
+                                    .collect_view()
+                            }
+                        </ActionForm>
+                    </div>
+                }))
+            } else {
+                None
+            }
         })
     };
 
