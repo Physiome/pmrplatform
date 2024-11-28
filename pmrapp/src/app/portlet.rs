@@ -46,7 +46,7 @@ fn provide_portlet_context_for<
     // for CSR, but that results in hydration issue from mismatch with
     // SSR render, thus making the simpler approach unsuitable for use.
     let (rs, ws) = signal(T::default());
-    let (ctx, _) = signal(Resource::new(
+    let (ctx, _) = signal(Resource::new_blocking(
         move || rs.get(),
         |rs| async move { rs },
     ));
