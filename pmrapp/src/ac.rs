@@ -38,6 +38,8 @@ pub struct AccountCtx {
     // user action (i.e. workflow state transitions); this provides the
     // means to refresh that.
     res_policy_state: ArcResource<Result<PolicyState, ServerFnError>>,
+    // this is used to signal an update for the above.
+    state: ArcRwSignal<State>,
 }
 
 pub fn provide_session_context() {
@@ -47,30 +49,51 @@ pub fn provide_session_context() {
             current_user().await
         },
     );
+    let state = ArcRwSignal::new(State::default());
     let (ps, set_ps) = arc_signal(PolicyState::default());
-    let ps2 = ps.clone();
+
+    let state_update = state.clone();
+    let ps_read = ps.clone();
     let res_ps = ArcResource::new_blocking(
-        move || ps.get(),
-        |ps| async move { ps },
+        move || ps_read.get(),
+        move |ps| {
+            let state_update = state_update.clone();
+            async move {
+                state_update.set(ps.state);
+                ps
+            }
+        },
     );
 
+    let state_read = state.clone();
     let res_policy_state_update = set_ps.clone();
-
     let res_policy_state = ArcResource::new_blocking(
-        move || ps2.get().policy.map(|policy| policy.resource),
-        move |r| {
+        move || (ps.get(), state_read.get()),
+        move |(policy_state, state)| {
             let res_policy_state_update = res_policy_state_update.clone();
             async move {
-                if let Some(res) = r {
-                    leptos::logging::log!("res_policy_state has res={res:?}");
-                    let result = get_resource_policy_state(res.clone()).await;
-                    if let Ok(policy_state) = result.as_ref() {
-                        res_policy_state_update.set(policy_state.clone());
+                leptos::logging::log!("policy_state.state = {}, state = {}", policy_state.state, state);
+                leptos::logging::log!("policy_state = {:?}", policy_state);
+                // only issue an API call if the state differs in some way to the stored
+                // policy_state.state and if it's not currently at a default state.
+                // TODO investigate how to better resolve the hydration issue where the signal
+                // has default for policy_state, perhaps have the state signal contain the
+                // resource so that it gets set properly.
+                if state != policy_state.state && state != State::default() || policy_state.state == State::default() {
+                    if let Some(res) = policy_state.policy.map(|policy| policy.resource) {
+                        leptos::logging::log!("fetching new res_policy_state with res={res:?}");
+                        let result = get_resource_policy_state(res.clone()).await;
+                        if let Ok(policy_state) = result.as_ref() {
+                            res_policy_state_update.set(policy_state.clone());
+                        }
+                        result
+                    } else {
+                        leptos::logging::log!("res is None");
+                        Ok(PolicyState::default())
                     }
-                    result
                 } else {
-                    leptos::logging::log!("res_policy_state is None");
-                    Ok(PolicyState::default())
+                    leptos::logging::log!("returning policy_state unchanged");
+                    Ok(policy_state)
                 }
             }
         },
@@ -78,9 +101,10 @@ pub fn provide_session_context() {
 
     provide_context(AccountCtx {
         current_user,
-        res_policy_state,
         set_ps,
         res_ps,
+        res_policy_state,
+        state,
     });
 }
 
@@ -104,6 +128,7 @@ pub fn WorkflowState() -> impl IntoView {
         Suspend::new(async move {
             action.version().get();
             let res_ps = res_ps.await;
+            let res_ps_check = res_ps.clone();
             let workflow_state = res_ps.state;
             if let Some(policy) = res_ps.policy {
                 (policy.agent != Agent::Anonymous).then(|| Some(view! {
@@ -113,14 +138,17 @@ pub fn WorkflowState() -> impl IntoView {
                     >
                         <span>{workflow_state.to_string()}</span>
                         <ActionForm action=action>
-                            {
-                            move || {
+                            {move || {
                                 match action.value().get() {
-                                    Some(_) => {
-                                        expect_context::<AccountCtx>()
-                                            .res_policy_state
-                                            .clone()
-                                            .refetch();
+                                    Some(Ok(state)) => {
+                                        let ctx = expect_context::<AccountCtx>();
+                                        ctx.state.set(state);
+                                        // upon hydration the signal is empty? Also this must be
+                                        // set _after_ the previous one, but this does cause a weird
+                                        // double fetch issue when that applies.
+                                        ctx.set_ps.set(res_ps_check.clone());
+
+                                        leptos::logging::log!("got state={}", state);
                                         // To ensure that we don't loop, otherwise this arm will be
                                         // triggered once more when this whole suspense is re-rendered;
                                         // safe to do as the value has been handled.
