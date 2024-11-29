@@ -52,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
     let leptos_options = conf.leptos_options;
     let addr = leptos_options.site_addr;
     let routes = generate_route_list(App);
-    dbg!(&routes);
+    log::trace!("{routes:?}");
 
     if !Sqlite::database_exists(&args.pmrac_db_url).await.unwrap_or(false) {
         log::warn!("pmrac database {} does not exist; creating...", &args.pmrac_db_url);
