@@ -6,12 +6,8 @@ use leptos_router::{
 };
 use pmrcore::ac::{
     agent::Agent,
-    genpolicy::Policy,
     user::User,
-    workflow::{
-        State,
-        state::Transition,
-    },
+    workflow::state::Transition,
 };
 
 use crate::{
@@ -25,7 +21,6 @@ use api::{
     SignOut,
     WorkflowTransition,
     current_user,
-    get_resource_policy_state,
 };
 
 #[derive(Clone)]
@@ -33,13 +28,6 @@ pub struct AccountCtx {
     pub current_user: ArcResource<Result<Option<User>, ServerFnError>>,
     pub set_ps: ArcWriteSignal<PolicyState>,
     pub res_ps: ArcResource<PolicyState>,
-    // While the set_ps/res_ps does provide the PolicyState data, there
-    // needs to be a way to refresh this as the state may change due to
-    // user action (i.e. workflow state transitions); this provides the
-    // means to refresh that.
-    res_policy_state: ArcResource<()>,
-    // This is used to signal an update to the above from the action.
-    sig_policy_state: ArcRwSignal<PolicyState>,
 }
 
 pub fn provide_session_context() {
@@ -49,44 +37,18 @@ pub fn provide_session_context() {
             current_user().await
         },
     );
-    let sig_policy_state = ArcRwSignal::new(PolicyState::default());
     let (ps, set_ps) = arc_signal(PolicyState::default());
 
-    let policy_state_update = sig_policy_state.clone();
     let ps_read = ps.clone();
     let res_ps = ArcResource::new_blocking(
         move || ps_read.get(),
-        move |ps| {
-            let policy_state_update = policy_state_update.clone();
-            async move {
-                policy_state_update.set(ps.clone());
-                ps
-            }
-        },
-    );
-
-    let state_read = sig_policy_state.clone();
-    let res_policy_state_update = set_ps.clone();
-    let res_policy_state = ArcResource::new_blocking(
-        move || (ps.get(), state_read.get()),
-        move |(policy_state, sig_policy_state)| {
-            let res_policy_state_update = res_policy_state_update.clone();
-            async move {
-                if sig_policy_state.policy.is_some() {
-                    Effect::new(move |_| {
-                        res_policy_state_update.set(sig_policy_state.clone());
-                    });
-                }
-            }
-        },
+        move |ps| async move { ps },
     );
 
     provide_context(AccountCtx {
         current_user,
         set_ps,
         res_ps,
-        res_policy_state,
-        sig_policy_state,
     });
 }
 
@@ -108,9 +70,16 @@ pub fn WorkflowState() -> impl IntoView {
         let res_ps = account_ctx.res_ps.clone();
         // leptos::logging::log!("{res_ps:?}");
         Suspend::new(async move {
-            action.version().get();
-            let res_ps = res_ps.await;
-            let res_ps_check = res_ps.clone();
+            // TODO figure out where/how to deal with error here
+            let res_ps = action.value()
+                .get()
+                // we are just dropping error here, ideally we should check and
+                // render a error tooltip under the workflow state if there was
+                // a problem
+                .transpose()
+                .ok()
+                .flatten()
+                .unwrap_or(res_ps.await);
             let workflow_state = res_ps.state;
             if let Some(policy) = res_ps.policy {
                 (policy.agent != Agent::Anonymous).then(|| Some(view! {
@@ -120,29 +89,6 @@ pub fn WorkflowState() -> impl IntoView {
                     >
                         <span>{workflow_state.to_string()}</span>
                         <ActionForm action=action>
-                            {move || {
-                                match action.value().get() {
-                                    Some(Ok(policy_state)) => {
-                                        leptos::logging::log!("policy_state.state = {:?}", policy_state);
-                                        leptos::logging::log!("got state={}", policy_state.state);
-
-                                        let ctx = expect_context::<AccountCtx>();
-                                        ctx.sig_policy_state.set(policy_state);
-                                        // upon hydration the signal is empty? Also this must be
-                                        // set _after_ the previous one, but this does cause a weird
-                                        // double fetch issue when that applies.
-                                        ctx.set_ps.set(res_ps_check.clone());
-
-                                        // To ensure that we don't loop, otherwise this arm will be
-                                        // triggered once more when this whole suspense is re-rendered;
-                                        // safe to do as the value has been handled.
-                                        action.value().set(None);
-                                    }
-                                    // TODO have this set an error somewhere?
-                                    // Some(Err(ServerFnError::WrappedServerError(e))) => e.to_string(),
-                                    _ => ()
-                                }
-                            }}
                             <input type="hidden" name="resource" value=policy.resource.clone()/>
                             {
                                 TRANSITIONS.transitions_for(workflow_state, policy.to_roles())
