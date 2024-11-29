@@ -189,7 +189,7 @@ pub(crate) async fn get_resource_policy_state(
 pub(crate) async fn workflow_transition(
     resource: String,
     target: String,
-) -> Result<State, ServerFnError<AppError>> {
+) -> Result<PolicyState, ServerFnError<AppError>> {
     if let Some(user) = current_user().await
         .map_err(|_| AppError::Forbidden)?
     {
@@ -204,14 +204,19 @@ pub(crate) async fn workflow_transition(
             .map_err(|_| AppError::InternalServerError)?;
         let roles = platform
             .ac_platform
-            .generate_policy_for_agent_res(&user.into(), resource.clone())
+            .generate_policy_for_agent_res(&user.clone().into(), resource.clone())
             .await
             .map_err(|_| AppError::InternalServerError)?
             .to_roles();
         if TRANSITIONS.validate(roles, state, target_state) {
             platform.ac_platform.set_wf_state_for_res(&resource, target_state).await
                 .map_err(|_| AppError::InternalServerError)?;
-            Ok(target_state)
+            let policy = platform
+                .ac_platform
+                .generate_policy_for_agent_res(&user.into(), resource)
+                .await
+                .map_err(|_| AppError::InternalServerError)?;
+            Ok(PolicyState::new(Some(policy), target_state))
         } else {
             Err(AppError::Forbidden)?
         }

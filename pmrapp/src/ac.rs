@@ -37,9 +37,9 @@ pub struct AccountCtx {
     // needs to be a way to refresh this as the state may change due to
     // user action (i.e. workflow state transitions); this provides the
     // means to refresh that.
-    res_policy_state: ArcResource<Result<PolicyState, ServerFnError>>,
-    // this is used to signal an update for the above.
-    state: ArcRwSignal<State>,
+    res_policy_state: ArcResource<()>,
+    // This is used to signal an update to the above from the action.
+    sig_policy_state: ArcRwSignal<PolicyState>,
 }
 
 pub fn provide_session_context() {
@@ -49,51 +49,33 @@ pub fn provide_session_context() {
             current_user().await
         },
     );
-    let state = ArcRwSignal::new(State::default());
+    let sig_policy_state = ArcRwSignal::new(PolicyState::default());
     let (ps, set_ps) = arc_signal(PolicyState::default());
 
-    let state_update = state.clone();
+    let policy_state_update = sig_policy_state.clone();
     let ps_read = ps.clone();
     let res_ps = ArcResource::new_blocking(
         move || ps_read.get(),
         move |ps| {
-            let state_update = state_update.clone();
+            let policy_state_update = policy_state_update.clone();
             async move {
-                state_update.set(ps.state);
+                policy_state_update.set(ps.clone());
                 ps
             }
         },
     );
 
-    let state_read = state.clone();
+    let state_read = sig_policy_state.clone();
     let res_policy_state_update = set_ps.clone();
     let res_policy_state = ArcResource::new_blocking(
         move || (ps.get(), state_read.get()),
-        move |(policy_state, state)| {
+        move |(policy_state, sig_policy_state)| {
             let res_policy_state_update = res_policy_state_update.clone();
             async move {
-                leptos::logging::log!("policy_state.state = {}, state = {}", policy_state.state, state);
-                leptos::logging::log!("policy_state = {:?}", policy_state);
-                // only issue an API call if the state differs in some way to the stored
-                // policy_state.state and if it's not currently at a default state.
-                // TODO investigate how to better resolve the hydration issue where the signal
-                // has default for policy_state, perhaps have the state signal contain the
-                // resource so that it gets set properly.
-                if state != policy_state.state && state != State::default() || policy_state.state == State::default() {
-                    if let Some(res) = policy_state.policy.map(|policy| policy.resource) {
-                        leptos::logging::log!("fetching new res_policy_state with res={res:?}");
-                        let result = get_resource_policy_state(res.clone()).await;
-                        if let Ok(policy_state) = result.as_ref() {
-                            res_policy_state_update.set(policy_state.clone());
-                        }
-                        result
-                    } else {
-                        leptos::logging::log!("res is None");
-                        Ok(PolicyState::default())
-                    }
-                } else {
-                    leptos::logging::log!("returning policy_state unchanged");
-                    Ok(policy_state)
+                if sig_policy_state.policy.is_some() {
+                    Effect::new(move |_| {
+                        res_policy_state_update.set(sig_policy_state.clone());
+                    });
                 }
             }
         },
@@ -104,7 +86,7 @@ pub fn provide_session_context() {
         set_ps,
         res_ps,
         res_policy_state,
-        state,
+        sig_policy_state,
     });
 }
 
@@ -140,15 +122,17 @@ pub fn WorkflowState() -> impl IntoView {
                         <ActionForm action=action>
                             {move || {
                                 match action.value().get() {
-                                    Some(Ok(state)) => {
+                                    Some(Ok(policy_state)) => {
+                                        leptos::logging::log!("policy_state.state = {:?}", policy_state);
+                                        leptos::logging::log!("got state={}", policy_state.state);
+
                                         let ctx = expect_context::<AccountCtx>();
-                                        ctx.state.set(state);
+                                        ctx.sig_policy_state.set(policy_state);
                                         // upon hydration the signal is empty? Also this must be
                                         // set _after_ the previous one, but this does cause a weird
                                         // double fetch issue when that applies.
                                         ctx.set_ps.set(res_ps_check.clone());
 
-                                        leptos::logging::log!("got state={}", state);
                                         // To ensure that we don't loop, otherwise this arm will be
                                         // triggered once more when this whole suspense is re-rendered;
                                         // safe to do as the value has been handled.
