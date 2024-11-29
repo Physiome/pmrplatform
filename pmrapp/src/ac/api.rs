@@ -42,9 +42,30 @@ mod ssr {
         )
     }
 
-    // TODO provide a basic enforcer here instead, and use the get_poilcy_and_enforce
-    // on the other to allow users to call either where necessary.
     pub async fn enforcer(
+        resource: impl Into<String>,
+        action: impl Into<String>,
+    ) -> Result<(), AppError> {
+        let session = session().await?;
+        let backend = session.backend;
+        let agent: Agent = session.user
+            .map(|auth| auth.user().into())
+            .unwrap_or(Agent::Anonymous);
+        let resource = resource.into();
+        let action = action.into();
+        log::trace!("enforce on: agent={agent} resource={resource:?} action={action:?}");
+        if backend
+            .enforce(agent.clone(), &resource, action)
+            .await
+            .map_err(|_| AppError::InternalServerError)?
+        {
+            Ok(())
+        } else {
+            Err(AppError::Forbidden)
+        }
+    }
+
+    pub async fn enforcer_and_policy_state(
         resource: impl Into<String>,
         action: impl Into<String>,
     ) -> Result<PolicyState, AppError> {

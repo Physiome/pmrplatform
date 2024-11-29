@@ -41,7 +41,10 @@ mod ssr {
     pub use std::borrow::Cow;
     pub use crate::{
         server::platform,
-        ac::api::enforcer,
+        ac::api::{
+            enforcer,
+            enforcer_and_policy_state,
+        },
     };
 }
 #[cfg(feature = "ssr")]
@@ -49,8 +52,9 @@ use self::ssr::*;
 
 #[server]
 pub async fn list() -> Result<EnforcedOk<Exposures>, ServerFnError<AppError>> {
+    let policy_state = enforcer_and_policy_state("/exposure/", "").await?;
     let platform = platform().await?;
-    Ok(EnforcedOk::from(ExposureBackend::list(platform.mc_platform.as_ref())
+    Ok(policy_state.to_enforced_ok(ExposureBackend::list(platform.mc_platform.as_ref())
         .await
         .map_err(|_| AppError::InternalServerError)?))
 }
@@ -64,7 +68,7 @@ pub struct ExposureInfo {
 
 #[server]
 pub async fn get_exposure_info(id: i64) -> Result<EnforcedOk<ExposureInfo>, ServerFnError<AppError>> {
-    let policy_state = enforcer(format!("/exposure/{id}/"), "").await?;
+    let policy_state = enforcer_and_policy_state(format!("/exposure/{id}/"), "").await?;
     let platform = platform().await?;
     let ctrl = platform.get_exposure(id).await
         .map_err(|_| AppError::InternalServerError)?;
@@ -84,7 +88,7 @@ pub async fn resolve_exposure_path(
     id: i64,
     path: String,
 ) -> Result<EnforcedOk<ResolvedExposurePath>, ServerFnError<AppError>> {
-    let policy_state = enforcer(format!("/exposure/{id}/"), "").await?;
+    let policy_state = enforcer_and_policy_state(format!("/exposure/{id}/"), "").await?;
     // TODO when there is a proper error type for id not found, use that
     // TODO ExposureFileView is a placeholder - the real type that should be returned
     // is something that can readily be turned into an IntoView.
@@ -209,7 +213,7 @@ pub async fn create_exposure(
     id: i64,
     commit_id: String,
 ) -> Result<(), ServerFnError<AppError>> {
-    let policy_state = enforcer(format!("/exposure/"), "create").await?;
+    let policy_state = enforcer_and_policy_state("/exposure/", "create").await?;
     let platform = platform().await?;
     // First create the workspace
     let ctrl = platform.create_exposure(
