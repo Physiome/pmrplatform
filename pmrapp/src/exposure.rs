@@ -40,6 +40,8 @@ use crate::{
         ExposureFileView,
     },
     app::portlet::{
+        ContentActionCtx,
+        ContentActionItem,
         ExposureSourceCtx,
         ExposureSourceItem,
         NavigationCtx,
@@ -73,6 +75,7 @@ pub fn ExposureRoutes() -> impl MatchNestedRoutes + Clone {
             <ParentRoute path=ParamSegment("id") view=Exposure>
                 <Route path=StaticSegment("/") view=ExposureMain/>
                 <Route path=StaticSegment("") view=RedirectTS/>
+                <Route path=(StaticSegment("+"), StaticSegment("wizard")) view=Wizard/>
                 <Route path=WildcardSegment("path") view=ExposureFile/>
             </ParentRoute>
         </ParentRoute>
@@ -144,9 +147,10 @@ pub fn Exposure() -> impl IntoView {
         use_context::<WriteSignal<NavigationCtx>>()
             .map(|ctx| ctx.update(NavigationCtx::clear));
         // FIXME when ContentAction is introduced here, use that for implicit cleanup.
-        if let Some(account_ctx) = use_context::<AccountCtx>() {
-            account_ctx.set_ps.set(PolicyState::default());
-        }
+        // if let Some(account_ctx) = use_context::<AccountCtx>() {
+        //     leptos::logging::log!("used context AccountCtx to set_ps");
+        //     account_ctx.set_ps.update(|ctx| *ctx = PolicyState::default());
+        // }
     });
     let params = use_params::<ExposureParams>();
     provide_context(Resource::new_blocking(
@@ -167,6 +171,35 @@ pub fn Exposure() -> impl IntoView {
     let portlets = move || {
         Suspend::new(async move {
             let exposure_info = exposure_info.await;
+            let resource = exposure_info.as_ref().ok().map(|info| {
+                format!("/exposure/{}/", info.exposure.id)
+            });
+            expect_context::<WriteSignal<ContentActionCtx>>()
+                .update(|ctx| ctx.replace(resource
+                    .map(|resource| {
+                        on_cleanup(move || {
+                            expect_context::<WriteSignal<ContentActionCtx>>().update(|ctx| {
+                                ctx.reset_for("/exposure/{id}/");
+                            });
+                        });
+
+                        let mut actions = vec![];
+                        actions.push(ContentActionItem {
+                            href: resource.clone(),
+                            text: "Exposure Top".to_string(),
+                            title: None,
+                            req_action: None,
+                        });
+                        actions.push(ContentActionItem {
+                            href: format!("{resource}+/wizard"),
+                            text: "Wizard".to_string(),
+                            title: Some("Build this exposure".to_string()),
+                            req_action: Some("edit".to_string()),
+                        });
+                        ContentActionCtx::new("/exposure/{id}/".into(), actions)
+                    })
+                    .unwrap_or_default()
+                ));
             expect_context::<WriteSignal<ExposureSourceCtx>>()
                 .update(|ctx| ctx.replace(exposure_info.as_ref()
                     .map(|info| {
@@ -344,5 +377,24 @@ pub fn ExposureFile() -> impl IntoView {
                 </ErrorBoundary>
             </Transition>
         </div>
+    }
+}
+
+#[component]
+pub fn Wizard() -> impl IntoView {
+    let wizard_view = move || Suspend::new(async move {
+        view! {
+            // render content
+            <h1>"Wizard"</h1>
+            // <ActionForm action=action>
+            //     <button type="submit">"Build"</button>
+            // </ActionForm>
+        }
+    });
+
+    view! {
+        <Transition>
+            {wizard_view}
+        </Transition>
     }
 }
