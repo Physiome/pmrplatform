@@ -3,12 +3,18 @@ use pmrcore::exposure::ExposureRef;
 use pmrrepo::handle::GitHandle;
 use std::{
     collections::HashMap,
-    sync::Arc,
+    sync::{
+        Arc,
+        OnceLock,
+    },
 };
 
 use crate::{
     platform::Platform,
-    handle::ExposureFileCtrl,
+    handle::{
+        EFViewTaskTemplatesCtrl,
+        ExposureFileCtrl,
+    },
 };
 
 pub(crate) struct RawExposureCtrl<'p> {
@@ -16,6 +22,7 @@ pub(crate) struct RawExposureCtrl<'p> {
     pub(crate) git_handle: GitHandle<'p>,
     pub(crate) exposure: ExposureRef<'p>,
     pub(crate) exposure_file_ctrls: Arc<Mutex<HashMap<String, ExposureFileCtrl<'p>>>>,
+    pub(crate) efvttcs: OnceLock<Vec<(String, Option<EFViewTaskTemplatesCtrl<'p>>)>>,
 }
 
 pub struct ExposureCtrl<'p>(pub(crate) Arc<RawExposureCtrl<'p>>);

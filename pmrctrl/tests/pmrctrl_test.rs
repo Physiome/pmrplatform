@@ -1749,5 +1749,5 @@ fn test_send_sync_ctrl() {
     is_send_sync::<pmrctrl::handle::ExposureCtrl>();
     is_send_sync::<pmrctrl::handle::ExposureFileCtrl>();
     is_send_sync::<pmrctrl::handle::ExposureFileViewCtrl>();
-    // is_send_sync::<pmrctrl::handle::EFViewTaskTemplatesCtrl>();
+    is_send_sync::<pmrctrl::handle::EFViewTaskTemplatesCtrl>();
 }

@@ -175,6 +175,18 @@ impl<'p> ExposureFileCtrl<'p> {
     pub async fn build_vttc(
         &'p self,
     ) -> Result<EFViewTaskTemplatesCtrl<'p>, PlatformError> {
+        self.clone().try_into_vttc().await
+    }
+
+    /// Try into a EFViewTaskTemplatesCtrl.
+    ///
+    /// This could be an impl on async TryFrom.
+    ///
+    /// Note that this would freeze the view templates associated with
+    /// this particular instance of ExposureFileCtrl.
+    pub async fn try_into_vttc(
+        self,
+    ) -> Result<EFViewTaskTemplatesCtrl<'p>, PlatformError> {
         let mut vtts = ExposureTaskTemplateBackend::get_file_templates(
             self.0.platform.mc_platform.as_ref(),
             self.exposure_file().id(),
@@ -188,7 +200,7 @@ impl<'p> ExposureFileCtrl<'p> {
             ))
         })).await?;
         Ok(EFViewTaskTemplatesCtrl::new(
-            self.clone(),
+            self,
             vtts.into(),
         ))
     }

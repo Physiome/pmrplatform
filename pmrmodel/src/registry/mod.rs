@@ -6,7 +6,7 @@ mod cache;
 pub use crate::registry::prepared::PreparedChoiceRegistry;
 pub use crate::registry::cache::ChoiceRegistryCache;
 
-pub trait ChoiceRegistry<T> {
+pub trait ChoiceRegistry<T>: Send + Sync {
     fn register(&mut self, name: &str, registry: T);
     fn select_keys(&mut self, name: &str, keys: Vec<String>);
     fn lookup<'a>(&'a self, name: &str) -> Option<MapToArgRef<'a>>;

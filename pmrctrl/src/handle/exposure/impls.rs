@@ -13,16 +13,24 @@ use pmrcore::{
         ExposureFileRef,
     },
 };
+use pmrmodel::model::{
+    profile::UserPromptGroupRefs,
+    task_template::UserArgRefs,
+};
 use pmrrepo::handle::GitHandle;
 use std::{
     collections::HashMap,
     ops::Deref,
     path::PathBuf,
-    sync::Arc,
+    sync::{
+        Arc,
+        OnceLock,
+    },
 };
 
 use crate::{
     handle::{
+        EFViewTaskTemplatesCtrl,
         ExposureCtrl,
         ExposureFileCtrl,
         ExposureFileViewCtrl,
@@ -52,6 +60,7 @@ impl<'p> ExposureCtrl<'p> {
             git_handle,
             exposure,
             exposure_file_ctrls: Arc::new(Mutex::new(HashMap::new())),
+            efvttcs: OnceLock::new(),
         }))
     }
 
@@ -135,7 +144,7 @@ impl<'p> ExposureCtrl<'p> {
     /// being provided.
     pub async fn ctrl_path(
         &'p self,
-        workspace_file_path: &'p str,
+        workspace_file_path: impl AsRef<str> + ToString,
     ) -> Result<
         ExposureFileCtrl<'p>,
         PlatformError
@@ -143,7 +152,7 @@ impl<'p> ExposureCtrl<'p> {
         // quick failing here.
         let pathinfo = self.0.git_handle.pathinfo(
             Some(self.0.exposure.commit_id()),
-            Some(workspace_file_path),
+            Some(workspace_file_path.as_ref()),
         )?;
         // FIXME What if pathinfo is a tree?  There is currently no way
         // to provide a ctrl for that.
@@ -152,7 +161,7 @@ impl<'p> ExposureCtrl<'p> {
         // TODO need to check if already present in exposure_file_ctrls
         let exposure_file = self.0.platform.mc_platform.get_exposure_file_by_id_path(
             self.0.exposure.id(),
-            workspace_file_path,
+            workspace_file_path.as_ref(),
         ).await?;
         let exposure_file = ExposureFileCtrl::new(
             self.0.platform,
@@ -319,6 +328,67 @@ impl<'p> ExposureCtrl<'p> {
             })
             .collect::<Vec<_>>()
         )
+    }
+
+    pub async fn list_files_efcs(
+        &'p self,
+    ) -> Result<Vec<(String, Option<ExposureFileCtrl<'p>>)>, PlatformError> {
+        let mut result = Vec::new();
+        for (path, cond) in self.list_files_info().await?.into_iter() {
+            let item = if cond {
+                Some(self.ctrl_path(&path).await?)
+            } else {
+                None
+            };
+            result.push((path, item));
+        }
+        Ok(result)
+    }
+
+    pub async fn list_files_efvttcs(
+        &'p self,
+    ) -> Result<&'p [(String, Option<EFViewTaskTemplatesCtrl<'p>>)], PlatformError> {
+        Ok(match self.0.efvttcs.get() {
+            Some(efvttcs) => efvttcs,
+            None => {
+                let efcs = self.list_files_efcs().await?;
+                let mut efvttcs = Vec::new();
+                for (path, value) in efcs.into_iter() {
+                    let item = if let Some(efc) = value {
+                        Some(efc.try_into_vttc().await?)
+                    } else {
+                        None
+                    };
+                    efvttcs.push((path, item))
+                }
+                self.0.efvttcs.set(efvttcs)
+                    .unwrap_or_else(|_| log::warn!(
+                        "concurrent call to the same \
+                        ExposureCtrl.list_files_efvttcs()"
+                    ));
+                self.0.efvttcs.get()
+                    .expect("efvttsc has just been set!")
+            }
+        })
+    }
+
+    pub async fn list_files_prompts(
+        &'p self,
+    ) -> Result<Vec<(&'p str, Option<(UserPromptGroupRefs<'p>, UserArgRefs<'p>)>)>, PlatformError> {
+        let efvttsc = self.list_files_efvttcs().await?;
+        let mut result = Vec::new();
+        for (path, value) in efvttsc.iter() {
+            let item = if let Some(efvttsc) = value {
+                Some((
+                    efvttsc.create_user_prompt_groups()?,
+                    efvttsc.create_user_arg_refs()?,
+                ))
+            } else {
+                None
+            };
+            result.push((path.as_str(), item))
+        }
+        Ok(result)
     }
 
     pub fn exposure(&self) -> &ExposureRef<'p> {
