@@ -1,4 +1,6 @@
 use pmrcore::profile::{
+    UserPromptGroup,
+    UserPromptGroups,
     ViewTaskTemplate,
     ViewTaskTemplates,
     ViewTaskTemplateProfile,
@@ -51,6 +53,21 @@ impl<'a> Deref for UserPromptGroupRefs<'a> {
     }
 }
 
+impl From<&UserPromptGroupRefs<'_>> for UserPromptGroups {
+    fn from(item: &UserPromptGroupRefs<'_>) -> Self {
+        item.iter()
+            .map(UserPromptGroup::from)
+            .collect::<Vec<_>>()
+            .into()
+    }
+}
+
+impl UserPromptGroupRefs<'_> {
+    pub fn to_owned(&self) -> UserPromptGroups {
+        self.into()
+    }
+}
+
 impl<'a, T> From<(
     &'a ViewTaskTemplate,
     &'a ChoiceRegistryCache<'a, T>,
@@ -96,5 +113,30 @@ impl<'a, T> From<(
                 .collect::<Vec<_>>()
                 .into(),
         }
+    }
+}
+
+impl From<&UserPromptGroupRef<'_>> for UserPromptGroup {
+    fn from(item: &UserPromptGroupRef<'_>) -> Self {
+        Self {
+            id: item.id,
+            description: item.description.to_string(),
+            user_args: item.user_args.to_owned(),
+        }
+    }
+}
+
+impl UserPromptGroupRef<'_> {
+    pub fn to_owned(&self) -> UserPromptGroup {
+        self.into()
+    }
+}
+
+impl From<UserPromptGroupRefs<'_>> for UserPromptGroups {
+    fn from(item: UserPromptGroupRefs<'_>) -> Self {
+        item.iter()
+            .map(UserPromptGroup::from)
+            .collect::<Vec<_>>()
+            .into()
     }
 }

@@ -503,7 +503,7 @@ async fn parse_exposure_path<'p>(
         },
         ExposurePathCmd::Prompts => {
             let efvttsc = efc.build_vttc().await?;
-            let upgr = efvttsc.create_user_prompt_groups().await?;
+            let upgr = efvttsc.create_user_prompt_groups()?;
             let output = serde_json::to_string_pretty(&upgr)?;
             println!("{output}");
         },
@@ -537,7 +537,7 @@ async fn parse_exposure_path<'p>(
             let id = efc.exposure_file().id();
 
             let efvttsc = efc.build_vttc().await?;
-            let uargs: UserArgs = (&efvttsc.create_user_arg_refs().await?).into();
+            let uargs = UserArgs::from(&efvttsc.create_user_arg_refs()?);
 
             let profile = ExposureFileProfileBackend::get_ef_profile(
                 platform.mc_platform.as_ref(),

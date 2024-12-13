@@ -74,12 +74,14 @@ pub struct UserPromptGroup {
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct UserPromptGroups(Vec<UserPromptGroup>);
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct UserViewProfile {
     pub id: i64,
     pub title: String,
     pub description: String,
-    // TODO convert to plural newtype when available.
-    pub user_prompt_groups: Vec<UserPromptGroup>,
+    pub user_prompt_groups: UserPromptGroups,
 }
 
 mod impls;

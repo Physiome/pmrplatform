@@ -323,6 +323,21 @@ impl From<&UserArgRefs<'_>> for UserArgs {
     }
 }
 
+// can't quite do this yet because we didn't fully define how borrowing works, but for now
+// the following will do
+// impl ToOwned for UserArgRefs<'_> {
+impl UserArgRefs<'_> {
+    pub fn to_owned(&self) -> UserArgs {
+        self.into()
+    }
+}
+
+impl UserArgRef<'_> {
+    pub fn to_owned(&self) -> UserArg {
+        self.into()
+    }
+}
+
 fn task_build_arg_chunk<'a, T>(
     user_input: &'a UserInputMap,
     task_template: &'a TaskTemplate,
@@ -2173,6 +2188,5 @@ mod test {
 
         Ok(())
     }
-
 
 }

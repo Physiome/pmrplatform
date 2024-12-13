@@ -766,7 +766,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     assert_eq!(vtts[3], 4);
 
     let efvttsc = efc.build_vttc().await?;
-    let user_arg_refs = efvttsc.create_user_arg_refs().await?;
+    let user_arg_refs = efvttsc.create_user_arg_refs()?;
     let user_args: Vec<UserArg> = user_arg_refs.iter()
         .map(|a| a.into())
         .collect();
@@ -776,7 +776,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     assert_eq!(user_args[1].id, 3);
     assert_eq!(user_args[1].prompt, "Prompt for alternative file");
 
-    let user_prompt_groups = efvttsc.create_user_prompt_groups().await?;
+    let user_prompt_groups = efvttsc.create_user_prompt_groups()?;
     let upg_str = serde_json::to_string(&user_prompt_groups)?;
 
     let upg: Vec<UserPromptGroup> = serde_json::from_str(&upg_str)?;
@@ -1097,7 +1097,7 @@ async fn test_platform_vtt_profile() -> anyhow::Result<()> {
     ).await?;
 
     let efvttsc = efc.build_vttc().await?;
-    let upgr = efvttsc.create_user_prompt_groups().await?;
+    let upgr = efvttsc.create_user_prompt_groups()?;
 
     let uvg: Vec<UserPromptGroup> = serde_json::from_str(&serde_json::to_string(&upgr)?)?;
     let uvg_result: Vec<UserPromptGroup> = serde_json::from_str(r#"
@@ -1432,7 +1432,7 @@ async fn test_hidden_registries() -> anyhow::Result<()> {
     ).await?;
 
     let efvttsc = efc.build_vttc().await?;
-    let user_arg_refs = efvttsc.create_user_arg_refs().await?;
+    let user_arg_refs = efvttsc.create_user_arg_refs()?;
     assert_eq!(user_arg_refs.len(), 0);
 
     let user_input = UserInputMap::from([]);
@@ -1748,4 +1748,6 @@ async fn test_exposure_file_registry() -> anyhow::Result<()> {
 fn test_send_sync_ctrl() {
     is_send_sync::<pmrctrl::handle::ExposureCtrl>();
     is_send_sync::<pmrctrl::handle::ExposureFileCtrl>();
+    is_send_sync::<pmrctrl::handle::ExposureFileViewCtrl>();
+    // is_send_sync::<pmrctrl::handle::EFViewTaskTemplatesCtrl>();
 }

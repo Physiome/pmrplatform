@@ -166,7 +166,7 @@ impl<'p> EFViewTaskTemplatesCtrl<'p> {
     }
 
     /// This provides a flat list of user args.
-    pub async fn create_user_arg_refs(
+    pub fn create_user_arg_refs(
         &'p self,
     ) -> Result<UserArgRefs, PlatformError> {
         let cache = self.get_registry_cache()?;
@@ -184,7 +184,7 @@ impl<'p> EFViewTaskTemplatesCtrl<'p> {
 
     /// This provides user args grouped by the prompt sets, which may be
     /// better for end user consumption.
-    pub async fn create_user_prompt_groups(
+    pub fn create_user_prompt_groups(
         &'p self,
     ) -> Result<UserPromptGroupRefs, PlatformError> {
         let cache = self.get_registry_cache()?;
