@@ -8,6 +8,8 @@ use pmrcore::{
         Exposure,
         Exposures,
     },
+    profile::UserPromptGroups,
+    task_template::UserArgs,
     workspace::Workspace,
 };
 use serde::{Serialize, Deserialize};
@@ -245,4 +247,32 @@ pub async fn create_exposure(
 
     leptos_axum::redirect(format!("/exposure/{id}").as_ref());
     Ok(())
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct WizardInfo {
+    pub exposure: Exposure,
+    pub files: Vec<(String, Option<(UserPromptGroups, UserArgs)>)>,
+}
+
+#[server]
+pub async fn wizard(
+    id: i64,
+) -> Result<EnforcedOk<WizardInfo>, ServerFnError<AppError>> {
+    let policy_state = enforcer_and_policy_state(format!("/exposure/{id}/"), "edit").await?;
+    let platform = platform().await?;
+    let ctrl = platform.get_exposure(id).await
+        .map_err(|_| AppError::InternalServerError)?;
+    let prompts = ctrl.list_files_prompts().await
+        .map_err(|_| AppError::InternalServerError)?;
+
+    let exposure = ctrl.exposure().clone_inner();
+    let files = prompts.into_iter()
+        .map(|(path, value)| (path.to_owned(), value.map(|(upg, ua)| (upg.to_owned(), ua.to_owned()))))
+        .collect::<Vec<_>>();
+
+    Ok(policy_state.to_enforced_ok(WizardInfo {
+        exposure,
+        files,
+    }))
 }
