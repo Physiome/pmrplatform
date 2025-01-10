@@ -33,6 +33,7 @@ use crate::{
         list,
         get_exposure_info,
         resolve_exposure_path,
+        wizard,
         ExposureInfo,
     },
     view::{
@@ -382,17 +383,37 @@ pub fn ExposureFile() -> impl IntoView {
 
 #[component]
 pub fn Wizard() -> impl IntoView {
-    let wizard_view = move || Suspend::new(async move {
-        view! {
-            // render content
-            <h1>"Wizard"</h1>
-            // <ActionForm action=action>
-            //     <button type="submit">"Build"</button>
-            // </ActionForm>
+    let params = use_params::<ExposureParams>();
+    let wizard_res = Resource::new_blocking(
+        move || params.get().map(|p| p.id),
+        |p| async move {
+            match p {
+                Err(_) => Err(AppError::InternalServerError),
+                Ok(Some(id)) => wizard(id)
+                    .await
+                    .map(EnforcedOk::notify_into)
+                    .map_err(AppError::from),
+                _ => Err(AppError::NotFound),
+            }
         }
+    );
+
+    let wizard_view = move || Suspend::new(async move {
+        wizard_res.await.map(|info| {
+            let unassigned_files = info.files.iter()
+                .filter_map(|(name, status)| status.is_none().then_some(name.as_str()))
+                .collect::<Vec<_>>();
+            let files = unassigned_files.iter()
+                .map(|name| view! { <li>{name.to_string()}</li>} )
+                .collect_view();
+            view! {
+                <ul>{files}</ul>
+            }
+        })
     });
 
     view! {
+        <h1>"Exposure Wizard"</h1>
         <Transition>
             {wizard_view}
         </Transition>

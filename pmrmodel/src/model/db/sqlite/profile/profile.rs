@@ -82,6 +82,28 @@ WHERE id = ?1
     Ok(result)
 }
 
+async fn list_profiles_sqlite(
+    sqlite: &SqliteBackend,
+) -> Result<Vec<Profile>, BackendError> {
+    let result = sqlx::query!(
+        r#"
+SELECT
+    id,
+    title,
+    description
+FROM profile
+        "#,
+    )
+    .map(|row| Profile {
+        id: row.id,
+        title: row.title,
+        description: row.description,
+    })
+    .fetch_all(&*sqlite.pool)
+    .await?;
+    Ok(result)
+}
+
 #[async_trait]
 impl ProfileBackend for SqliteBackend {
     async fn insert_profile(
@@ -104,6 +126,11 @@ impl ProfileBackend for SqliteBackend {
         id: i64,
     ) -> Result<Profile, BackendError> {
         select_profile_by_id_sqlite(&self, id).await
+    }
+    async fn list_profiles(
+        &self,
+    ) -> Result<Vec<Profile>, BackendError> {
+        list_profiles_sqlite(&self).await
     }
 }
 

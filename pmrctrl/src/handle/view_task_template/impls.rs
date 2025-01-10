@@ -204,6 +204,10 @@ impl<'p> EFViewTaskTemplatesCtrl<'p> {
             .collect::<Result<Vec<_>, BuildArgErrors>>()?;
         Ok(tasks)
     }
+
+    pub fn exposure_file_ctrl(&'p self) -> ExposureFileCtrl<'p> {
+        self.exposure_file_ctrl.clone()
+    }
 }
 
 impl<'p> EFViewTaskTemplateCtrl<'p> {

@@ -1,6 +1,10 @@
 use futures::future;
 use pmrcore::{
     exposure::{
+        profile::{
+            traits::ExposureFileProfileBackend,
+            ExposureFileProfile,
+        },
         task::traits::ExposureTaskTemplateBackend,
         traits::{
             Exposure as _,
@@ -222,6 +226,13 @@ impl<'p> ExposureFileCtrl<'p> {
             results.push(efv_ctrl.queue_task(vttc_task).await?);
         }
         Ok(results)
+    }
+
+    pub async fn profile(&self) -> Result<ExposureFileProfile, PlatformError> {
+        Ok(ExposureFileProfileBackend::get_ef_profile(
+            self.0.platform.mc_platform.as_ref(),
+            self.0.exposure_file.id(),
+        ).await?)
     }
 
     pub fn pathinfo(&self) -> &GitHandleResult<'p> {

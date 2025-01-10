@@ -1,8 +1,12 @@
 use futures::future;
 use pmrcore::{
     profile::{
+        Profile,
         ViewTaskTemplateProfile,
-        traits::ViewTaskTemplateProfileBackend,
+        traits::{
+            ProfileBackend,
+            ViewTaskTemplateProfileBackend,
+        },
     },
     task_template::traits::TaskTemplateBackend,
 };
@@ -12,6 +16,14 @@ use crate::{
 };
 
 impl Platform {
+    pub async fn list_profiles(
+        &self,
+    ) -> Result<Vec<Profile>, PlatformError> {
+        Ok(ProfileBackend::list_profiles(
+            self.mc_platform.as_ref(),
+        ).await?)
+    }
+
     pub async fn create_view_profile(
         &self,
     ) -> Result<(), PlatformError> {

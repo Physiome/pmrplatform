@@ -4,6 +4,7 @@ use parking_lot::{
 };
 use pmrcore::{
     exposure::{
+        profile::ExposureFileProfile,
         traits::{
             Exposure,
             ExposureFile,
@@ -372,16 +373,19 @@ impl<'p> ExposureCtrl<'p> {
         })
     }
 
-    pub async fn list_files_prompts(
+    pub async fn list_files_profile_prompt_groups(
         &'p self,
-    ) -> Result<Vec<(&'p str, Option<(UserPromptGroupRefs<'p>, UserArgRefs<'p>)>)>, PlatformError> {
+    ) -> Result<
+        Vec<(&'p str, Option<(ExposureFileProfile, UserPromptGroupRefs<'p>)>)>,
+        PlatformError
+    > {
         let efvttsc = self.list_files_efvttcs().await?;
         let mut result = Vec::new();
         for (path, value) in efvttsc.iter() {
             let item = if let Some(efvttsc) = value {
                 Some((
+                    efvttsc.exposure_file_ctrl().profile().await?,
                     efvttsc.create_user_prompt_groups()?,
-                    efvttsc.create_user_arg_refs()?,
                 ))
             } else {
                 None

@@ -1,5 +1,7 @@
+use serde::{Serialize, Deserialize};
 use crate::task_template::UserInputMap;
 
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ExposureFileProfile {
     pub id: i64,
     pub exposure_file_id: i64,

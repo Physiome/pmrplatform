@@ -26,7 +26,9 @@ pub trait ProfileBackend {
         &self,
         id: i64,
     ) -> Result<Profile, BackendError>;
-    // TODO listing/query for set of profiles.
+    async fn list_profiles(
+        &self,
+    ) -> Result<Vec<Profile>, BackendError>;
     // This may be implemented at the backends for the linked types.
 }
 

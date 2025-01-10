@@ -245,6 +245,9 @@ mock! {
             &self,
             id: i64,
         ) -> Result<Profile, BackendError>;
+        async fn list_profiles(
+            &self,
+        ) -> Result<Vec<Profile>, BackendError>;
         // TODO listing/query for set of profiles.
         // This may be implemented at the backends for the linked types.
     }

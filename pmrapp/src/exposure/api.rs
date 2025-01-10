@@ -7,8 +7,12 @@ use pmrcore::{
     exposure::{
         Exposure,
         Exposures,
+        profile::ExposureFileProfile,
     },
-    profile::UserPromptGroups,
+    profile::{
+        Profile,
+        UserPromptGroups,
+    },
     task_template::UserArgs,
     workspace::Workspace,
 };
@@ -252,7 +256,8 @@ pub async fn create_exposure(
 #[derive(Clone, Serialize, Deserialize)]
 pub struct WizardInfo {
     pub exposure: Exposure,
-    pub files: Vec<(String, Option<(UserPromptGroups, UserArgs)>)>,
+    pub files: Vec<(String, Option<(ExposureFileProfile, UserPromptGroups)>)>,
+    pub profiles: Vec<Profile>,
 }
 
 #[server]
@@ -263,16 +268,25 @@ pub async fn wizard(
     let platform = platform().await?;
     let ctrl = platform.get_exposure(id).await
         .map_err(|_| AppError::InternalServerError)?;
-    let prompts = ctrl.list_files_prompts().await
+    let prompts = ctrl.list_files_profile_prompt_groups().await
+        .map_err(|_| AppError::InternalServerError)?;
+    let profiles = platform.list_profiles().await
         .map_err(|_| AppError::InternalServerError)?;
 
     let exposure = ctrl.exposure().clone_inner();
     let files = prompts.into_iter()
-        .map(|(path, value)| (path.to_owned(), value.map(|(upg, ua)| (upg.to_owned(), ua.to_owned()))))
+        .map(|(path, value)| (
+            path.to_owned(),
+            value.map(|(profile, upg)| (
+                profile,
+                upg.to_owned(),
+            ))
+        ))
         .collect::<Vec<_>>();
 
     Ok(policy_state.to_enforced_ok(WizardInfo {
         exposure,
         files,
+        profiles,
     }))
 }
