@@ -290,3 +290,28 @@ pub async fn wizard(
         profiles,
     }))
 }
+
+#[server]
+pub async fn wizard_add_file(
+    exposure_id: i64,
+    path: String,
+    profile_id: i64,
+) -> Result<(), ServerFnError<AppError>> {
+    enforcer(format!("/exposure/{exposure_id}/"), "edit").await?;
+    let platform = platform().await?;
+    let ec = platform.get_exposure(exposure_id).await
+        .map_err(|_| AppError::InternalServerError)?;
+    let efc = ec.create_file(&path).await
+        .map_err(|_| AppError::InternalServerError)?;
+    let vtt_profile = platform.get_view_task_template_profile(profile_id).await
+        .map_err(|_| AppError::InternalServerError)?;
+    // TODO figure out if the ctrl platform should have a helper
+    // that will initialize the profile_id for exposure_file_id
+    // via the ExposureFileProfileBackend.
+    platform.mc_platform.set_ef_vttprofile(
+        efc.exposure_file().id(),
+        vtt_profile,
+    ).await
+        .map_err(|_| AppError::InternalServerError)?;
+    Ok(())
+}

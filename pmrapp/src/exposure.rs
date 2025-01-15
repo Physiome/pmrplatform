@@ -22,7 +22,12 @@ pub mod api;
 
 use crate::{
     ac::AccountCtx,
-    component::{Redirect, RedirectTS},
+    component::{
+        Redirect,
+        RedirectTS,
+        SelectList,
+        SelectMap,
+    },
     error::AppError,
     error_template::ErrorTemplate,
     enforcement::{
@@ -35,6 +40,7 @@ use crate::{
         resolve_exposure_path,
         wizard,
         ExposureInfo,
+        WizardAddFile,
     },
     view::{
         EFView,
@@ -383,6 +389,8 @@ pub fn ExposureFile() -> impl IntoView {
 
 #[component]
 pub fn Wizard() -> impl IntoView {
+    let wizard_add_file = ServerAction::<WizardAddFile>::new();
+
     let params = use_params::<ExposureParams>();
     let wizard_res = Resource::new_blocking(
         move || params.get().map(|p| p.id),
@@ -401,13 +409,33 @@ pub fn Wizard() -> impl IntoView {
     let wizard_view = move || Suspend::new(async move {
         wizard_res.await.map(|info| {
             let unassigned_files = info.files.iter()
-                .filter_map(|(name, status)| status.is_none().then_some(name.as_str()))
+                .filter_map(|(name, status)| status.is_none().then_some(name.clone()))
                 .collect::<Vec<_>>();
-            let files = unassigned_files.iter()
-                .map(|name| view! { <li>{name.to_string()}</li>} )
-                .collect_view();
+            let profile_map = info.profiles.iter()
+                .map(|v| (v.id.to_string(), v.title.clone()))
+                .collect::<Vec<_>>();
             view! {
-                <ul>{files}</ul>
+                <ActionForm attr:class="standard" action=wizard_add_file>
+                    <fieldset>
+                        <legend>"New Exposure File"</legend>
+                        <input type="hidden" name="exposure_id" value=info.exposure.id/>
+                        <div>
+                            <label for="path">"File"</label>
+                            <SelectList
+                                name="path".to_string()
+                                options=unassigned_files />
+                        </div>
+                        <div>
+                            <label for="profile_id">"File Type"</label>
+                            <SelectMap
+                                name="profile_id".to_string()
+                                options=profile_map />
+                        </div>
+                        <div>
+                            <button type="submit">"Create Exposure File"</button>
+                        </div>
+                    </fieldset>
+                </ActionForm>
             }
         })
     });

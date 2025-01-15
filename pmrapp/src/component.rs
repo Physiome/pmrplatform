@@ -72,3 +72,41 @@ pub fn CodeBlock(code: String, lang: String) -> impl IntoView {
         <pre><code inner_html=inner></code></pre>
     }
 }
+
+#[component]
+pub fn SelectList(
+    name: String,
+    options: Vec<String>,
+    #[prop(optional)] value: Option<String>,
+    // TODO implement default value
+    // default_value
+) -> impl IntoView {
+    let options_view = options.into_iter()
+        .map(|option| {
+            let selected = (Some(&option) == value.as_ref()).then_some("selected");
+            view! { <option value=option selected=selected>{option.clone()}</option> }
+        })
+        .collect_view();
+    view! {
+        <select name=name>{options_view}</select>
+    }
+}
+
+#[component]
+pub fn SelectMap(
+    name: String,
+    options: Vec<(String, String)>,
+    #[prop(optional)] value: Option<String>,
+    // TODO implement default value
+    // default_value
+) -> impl IntoView {
+    let options_view = options.into_iter()
+        .map(|(option, label)| {
+            let selected = (Some(&option) == value.as_ref()).then_some("selected");
+            view! { <option value=option selected=selected>{label}</option> }
+        })
+        .collect_view();
+    view! {
+        <select name=name>{options_view}</select>
+    }
+}
