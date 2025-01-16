@@ -9,4 +9,9 @@ pub async fn platform() -> Result<Platform, AppError> {
     )
 }
 
+pub fn log_error(error: impl std::fmt::Display) -> AppError {
+    log::error!("{error}");
+    AppError::InternalServerError
+}
+
 pub mod workspace;
