@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\nSELECT\n    id,\n    exposure_file_id,\n    profile_id\nFROM exposure_file_profile\nWHERE id = ?1\n",
+  "query": "\nSELECT\n    id,\n    exposure_file_id,\n    profile_id\nFROM exposure_file_profile\nWHERE exposure_file_id = ?1\n",
   "describe": {
     "columns": [
       {
@@ -28,5 +28,5 @@
       false
     ]
   },
-  "hash": "2d0f227b95cbd711168afd3fe7355681c97636c251a08d6ca415af6358ee34b6"
+  "hash": "0eb01a9df9026601866a23f4f0b4f5e2fcf7378fc73066cea752ba029d640214"
 }

@@ -45,7 +45,7 @@ SELECT
     exposure_file_id,
     profile_id
 FROM exposure_file_profile
-WHERE id = ?1
+WHERE exposure_file_id = ?1
 "#,
         exposure_file_id,
     )
