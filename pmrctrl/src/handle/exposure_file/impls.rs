@@ -13,6 +13,7 @@ use pmrcore::{
         },
         ExposureFileRef,
     },
+    profile::ViewTaskTemplateProfile,
     task_template::traits::TaskTemplateBackend
 };
 use pmrrepo::handle::GitHandleResult;
@@ -168,6 +169,19 @@ impl<'p> ExposureFileCtrl<'p> {
             self.clone(),
             None::<String>,
         ))
+    }
+
+    pub async fn set_vttprofile(
+        &self,
+        vtt_profile: ViewTaskTemplateProfile,
+    ) -> Result<(), PlatformError> {
+        Ok(self.0.platform.mc_platform
+            .set_ef_vttprofile(
+                self.exposure_file().id(),
+                vtt_profile,
+            )
+            .await?
+        )
     }
 
     /// Build a EFViewTaskTemplatesCtrl.

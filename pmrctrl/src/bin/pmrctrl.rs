@@ -328,13 +328,7 @@ async fn parse_file<'p>(
                 platform.mc_platform.as_ref(),
                 profile_id,
             ).await?;
-            // TODO figure out if the ctrl platform should have a helper
-            // that will initialize the profile_id for exposure_file_id
-            // via the ExposureFileProfileBackend.
-            platform.mc_platform.set_ef_vttprofile(
-                id,
-                vtt_profile,
-            ).await?;
+            efc.set_vttprofile(vtt_profile).await?;
             println!("set exposure file id {id} with profile id {profile_id}");
         },
         FileCmd::Profile { exposure_file_id, cmd } => {
@@ -495,10 +489,7 @@ async fn parse_exposure_path<'p>(
         ExposurePathCmd::Assign { profile_id } => {
             let exposure_file_id = efc.exposure_file().id();
             let vttp = platform.get_view_task_template_profile(profile_id).await?;
-            platform.mc_platform.set_ef_vttprofile(
-                exposure_file_id,
-                vttp,
-            ).await?;
+            efc.set_vttprofile(vttp).await?;
             println!("profile set: exposure_file_id {exposure_file_id} => profile_id {profile_id}");
         },
         ExposurePathCmd::Prompts => {

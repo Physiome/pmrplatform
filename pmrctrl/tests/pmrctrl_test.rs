@@ -1091,10 +1091,7 @@ async fn test_platform_vtt_profile() -> anyhow::Result<()> {
         .exposure_file()
         .id();
 
-    platform.mc_platform.set_ef_vttprofile(
-        exposure_file_id,
-        vttp,
-    ).await?;
+    efc.set_vttprofile(vttp).await?;
 
     let efvttsc = efc.build_vttc().await?;
     let upgr = efvttsc.create_user_prompt_groups()?;

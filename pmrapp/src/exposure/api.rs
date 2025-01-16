@@ -305,13 +305,7 @@ pub async fn wizard_add_file(
         .map_err(|_| AppError::InternalServerError)?;
     let vtt_profile = platform.get_view_task_template_profile(profile_id).await
         .map_err(|_| AppError::InternalServerError)?;
-    // TODO figure out if the ctrl platform should have a helper
-    // that will initialize the profile_id for exposure_file_id
-    // via the ExposureFileProfileBackend.
-    platform.mc_platform.set_ef_vttprofile(
-        efc.exposure_file().id(),
-        vtt_profile,
-    ).await
+    efc.set_vttprofile(vtt_profile).await
         .map_err(|_| AppError::InternalServerError)?;
     Ok(())
 }
