@@ -53,6 +53,12 @@ impl DerefMut for TaskTemplateArgChoices {
     }
 }
 
+impl From<UserArgs> for Vec<UserArg> {
+    fn from(value: UserArgs) -> Self {
+        value.0
+    }
+}
+
 impl From<Vec<UserArg>> for UserArgs {
     fn from(args: Vec<UserArg>) -> Self {
         Self(args)

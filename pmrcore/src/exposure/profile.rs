@@ -15,5 +15,11 @@ pub struct ExposureFileProfile {
     // the ones currently assigned to a given ExposureFile.
 }
 
+impl AsRef<ExposureFileProfile> for ExposureFileProfile {
+    fn as_ref(&self) -> &ExposureFileProfile {
+        self
+    }
+}
+
 mod impls;
 pub mod traits;

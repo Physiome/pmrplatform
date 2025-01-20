@@ -38,6 +38,12 @@ impl From<Vec<UserPromptGroup>> for UserPromptGroups {
     }
 }
 
+impl From<UserPromptGroups> for Vec<UserPromptGroup> {
+    fn from(value: UserPromptGroups) -> Self {
+        value.0
+    }
+}
+
 impl<const N: usize> From<[UserPromptGroup; N]> for UserPromptGroups {
     fn from(args: [UserPromptGroup; N]) -> Self {
         Self(args.into())

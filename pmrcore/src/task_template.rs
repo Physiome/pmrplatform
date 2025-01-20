@@ -119,6 +119,12 @@ pub struct UserArgRef<'a> {
 }
 */
 
+impl AsRef<UserArg> for UserArg {
+    fn as_ref(&self) -> &UserArg {
+        self
+    }
+}
+
 // The user input map for task template; key is TaskTemplateArg.id
 pub type UserInputMap = HashMap<i64, String>;
 

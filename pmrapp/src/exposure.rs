@@ -15,8 +15,18 @@ use leptos_router::{
     StaticSegment,
     WildcardSegment,
 };
-use pmrcore::exposure;
-use std::str::FromStr;
+use pmrcore::{
+    exposure::{
+        self,
+        profile::ExposureFileProfile,
+    },
+    profile::UserPromptGroup,
+    task_template::UserArg,
+};
+use std::{
+    str::FromStr,
+    sync::Arc,
+};
 
 pub mod api;
 
@@ -388,6 +398,16 @@ pub fn ExposureFile() -> impl IntoView {
 }
 
 #[component]
+pub fn WizardField(
+    ef_profile: impl AsRef<ExposureFileProfile> + Send + Sync,
+    user_arg: impl AsRef<UserArg> + Send + Sync,
+)-> impl IntoView {
+    view! {
+        <label>{user_arg.as_ref().prompt.clone()}</label>
+    }
+}
+
+#[component]
 pub fn Wizard() -> impl IntoView {
     let wizard_add_file = ServerAction::<WizardAddFile>::new();
 
@@ -414,7 +434,8 @@ pub fn Wizard() -> impl IntoView {
             let profile_map = info.profiles.iter()
                 .map(|v| (v.id.to_string(), v.title.clone()))
                 .collect::<Vec<_>>();
-            view! {
+
+            let add_file_form = view! {
                 <ActionForm attr:class="standard" action=wizard_add_file>
                     <fieldset>
                         <legend>"New Exposure File"</legend>
@@ -436,6 +457,51 @@ pub fn Wizard() -> impl IntoView {
                         </div>
                     </fieldset>
                 </ActionForm>
+            };
+
+            let files_view = info.files.into_iter()
+                .filter_map(|(name, value)| {
+                    value.map(|(ef_profile, user_prompt_groups)| {
+                        let ef_profile = Arc::new(ef_profile);
+                        let user_prompt_groups: Vec<UserPromptGroup> = user_prompt_groups.into();
+                        let group_views = user_prompt_groups.into_iter()
+                            .map(|group| {
+                                let user_args: Vec<UserArg> = group.user_args.into();
+                                let fields = user_args.into_iter()
+                                    .map(|user_arg| {
+                                        view! {
+                                            <WizardField
+                                                user_arg=user_arg
+                                                ef_profile=ef_profile.clone()
+                                                />
+                                        }
+                                    })
+                                    .collect_view();
+                                view! {
+                                    <fieldset>
+                                        <legend>{group.description}</legend>
+                                        {fields}
+                                    </fieldset>
+                                }
+                            })
+                            .collect_view();
+
+                        view! {
+                            <fieldset>
+                                <legend>"Configuration for: "{name}</legend>
+                                {group_views}
+                            </fieldset>
+                        }
+                    })
+                })
+                .collect_view();
+
+            view! {
+                {add_file_form}
+                <fieldset>
+                    <legend>"Exposure Files"</legend>
+                    {files_view}
+                </fieldset>
             }
         })
     });
