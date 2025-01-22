@@ -78,8 +78,7 @@ pub fn SelectList(
     name: String,
     options: Vec<String>,
     #[prop(optional)] value: Option<String>,
-    // TODO implement default value
-    // default_value
+    // #[prop(optional)] default_value: Option<String>,
 ) -> impl IntoView {
     let options_view = options.into_iter()
         .map(|option| {
@@ -97,8 +96,7 @@ pub fn SelectMap(
     name: String,
     options: Vec<(String, String)>,
     #[prop(optional)] value: Option<String>,
-    // TODO implement default value
-    // default_value
+    // #[prop(optional)] default_value: Option<String>,
 ) -> impl IntoView {
     let options_view = options.into_iter()
         .map(|(option, label)| {

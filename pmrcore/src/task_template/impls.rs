@@ -91,6 +91,12 @@ impl From<&str> for UserChoice {
     }
 }
 
+impl From<UserChoices> for Vec<UserChoice> {
+    fn from(value: UserChoices) -> Self {
+        value.0
+    }
+}
+
 impl From<Vec<UserChoice>> for UserChoices {
     fn from(args: Vec<UserChoice>) -> Self {
         Self(args)

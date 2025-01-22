@@ -21,7 +21,10 @@ use pmrcore::{
         profile::ExposureFileProfile,
     },
     profile::UserPromptGroup,
-    task_template::UserArg,
+    task_template::{
+        UserArg,
+        UserChoice,
+    },
 };
 use std::{
     str::FromStr,
@@ -51,6 +54,7 @@ use crate::{
         wizard,
         ExposureInfo,
         WizardAddFile,
+        WizardUpdateField,
     },
     view::{
         EFView,
@@ -399,17 +403,47 @@ pub fn ExposureFile() -> impl IntoView {
 
 #[component]
 pub fn WizardField(
-    ef_profile: impl AsRef<ExposureFileProfile> + Send + Sync,
-    user_arg: impl AsRef<UserArg> + Send + Sync,
+    ef_profile: impl AsRef<ExposureFileProfile> + Send + Sync + 'static,
+    // Should this really be an AsRef? Typically this actually typically
+    // is unique thus safe to be moved here.
+    // user_arg: impl AsRef<UserArg> + Send + Sync,
+    user_arg: UserArg,
 )-> impl IntoView {
+    let ef_profile_ref = ef_profile.as_ref();
+    let field_input = ef_profile_ref.user_input.get(&user_arg.id).map(|s| s.to_string());
+    let name = format!("field-{}", user_arg.id);
+    let field_element = if let Some(choices) = user_arg.choices {
+        let options = <Vec<UserChoice>>::from(choices)
+            .into_iter()
+            .map(|UserChoice(choice, _)| choice)
+            .collect::<Vec<_>>();
+        match field_input {
+            Some(value) => {
+                view! {
+                    <SelectList name options value />
+                }.into_any()
+            }
+            None => {
+                view! {
+                    <SelectList name options />
+                }.into_any()
+            }
+        }
+    } else {
+        view! {
+            <input type="text" name value=field_input />
+        }.into_any()
+    };
     view! {
-        <label>{user_arg.as_ref().prompt.clone()}</label>
+        <label>{user_arg.prompt}</label>
+        {field_element}
     }
 }
 
 #[component]
 pub fn Wizard() -> impl IntoView {
     let wizard_add_file = ServerAction::<WizardAddFile>::new();
+    let wizard_update_field = ServerAction::<WizardUpdateField>::new();
 
     let params = use_params::<ExposureParams>();
     let wizard_res = Resource::new_blocking(
@@ -498,10 +532,12 @@ pub fn Wizard() -> impl IntoView {
 
             view! {
                 {add_file_form}
-                <fieldset>
-                    <legend>"Exposure Files"</legend>
-                    {files_view}
-                </fieldset>
+                <ActionForm attr:class="standard" action=wizard_update_field>
+                    <fieldset>
+                        <legend>"Exposure Files"</legend>
+                        {files_view}
+                    </fieldset>
+                </ActionForm>
             }
         })
     });

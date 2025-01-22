@@ -309,3 +309,12 @@ pub async fn wizard_add_file(
         .map_err(|_| AppError::InternalServerError)?;
     Ok(())
 }
+
+#[server]
+pub async fn wizard_update_field() -> Result<(), ServerFnError<AppError>> {
+    // need to provide/extract this somehow.
+    let exposure_id = todo!();
+    // enforcer(format!("/exposure/{exposure_id}/"), "edit").await?;
+    let platform = platform().await?;
+    Ok(())
+}

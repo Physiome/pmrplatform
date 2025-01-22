@@ -97,6 +97,10 @@ pub struct UserArg {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct UserArgs(Vec<UserArg>);
 
+// value: String,
+// selected: bool,
+// The selected value is derived from the underlying registry, typically
+// denotes a value selected by default.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize, Serialize)]
 pub struct UserChoice(pub String, pub bool);
 
