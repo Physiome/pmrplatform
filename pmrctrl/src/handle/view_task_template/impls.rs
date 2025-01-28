@@ -78,7 +78,7 @@ impl<'p> EFViewTaskTemplatesCtrl<'p> {
 
     pub fn get_registry_cache(
         &'p self
-    ) -> Result<&PreparedChoiceRegistryCache, PlatformError> {
+    ) -> Result<&'p PreparedChoiceRegistryCache<'p>, PlatformError> {
         Ok(match self.choice_registry_cache.get() {
             Some(registry_cache) => Ok::<_, PlatformError>(registry_cache),
             None => {
@@ -97,7 +97,7 @@ impl<'p> EFViewTaskTemplatesCtrl<'p> {
 
     fn get_efvttcs(
         &'p self
-    ) -> &'p [EFViewTaskTemplateCtrl] {
+    ) -> &'p [EFViewTaskTemplateCtrl<'p>] {
         self.efvttcs.get_or_init(|| self.view_task_templates
             .iter()
             .map(|efvtt| {
@@ -168,7 +168,7 @@ impl<'p> EFViewTaskTemplatesCtrl<'p> {
     /// This provides a flat list of user args.
     pub fn create_user_arg_refs(
         &'p self,
-    ) -> Result<UserArgRefs, PlatformError> {
+    ) -> Result<UserArgRefs<'p>, PlatformError> {
         let cache = self.get_registry_cache()?;
         // shouldn't this be made to work?
         // Ok((&self.view_task_templates, cache).into())
@@ -186,7 +186,7 @@ impl<'p> EFViewTaskTemplatesCtrl<'p> {
     /// better for end user consumption.
     pub fn create_user_prompt_groups(
         &'p self,
-    ) -> Result<UserPromptGroupRefs, PlatformError> {
+    ) -> Result<UserPromptGroupRefs<'p>, PlatformError> {
         let cache = self.get_registry_cache()?;
         Ok((&self.view_task_templates, cache).into())
     }
@@ -226,7 +226,7 @@ impl<'p> EFViewTaskTemplateCtrl<'p> {
 
     fn get_registry_cache(
         &'p self
-    ) -> &PreparedChoiceRegistryCache {
+    ) -> &'p PreparedChoiceRegistryCache<'p> {
         match self.choice_registry_cache.get() {
             Some(registry_cache) => registry_cache,
             None => {

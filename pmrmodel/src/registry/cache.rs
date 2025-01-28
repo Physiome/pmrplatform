@@ -131,7 +131,7 @@ impl<'a, T> ChoiceRegistryCache<'a, T> {
         &'a self,
         tta: &'a TaskTemplateArg,
     ) -> Result<
-        impl Deref<Target = Option<MapToArgRef<'a>>> + '_,
+        impl Deref<Target = Option<MapToArgRef<'a>>> + 'a,
         LookupError,
     > {
         match &tta.choice_source.as_deref() {

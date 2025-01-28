@@ -26,7 +26,7 @@ impl<'a> TMPlatformExecutorInstance<'a> {
         }
     }
 
-    pub fn task(&'a self) -> &TaskRef<'a> {
+    pub fn task(&'a self) -> &'a TaskRef<'a> {
         &self.task
     }
 

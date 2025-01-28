@@ -418,7 +418,7 @@ impl<'repo> GitHandleResult<'repo> {
         self.target.as_ref()
     }
 
-    pub fn workspace(&'repo self) -> &WorkspaceRef<'repo> {
+    pub fn workspace(&'repo self) -> &'repo WorkspaceRef<'repo> {
         &self.workspace
     }
 
