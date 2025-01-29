@@ -32,6 +32,7 @@ mod ssr {
     use crate::{
         enforcement::PolicyState,
         error::AppError,
+        server::ac::Session,
     };
 
     pub async fn session() -> Result<AuthSession<Platform>, AppError> {
@@ -46,50 +47,16 @@ mod ssr {
         resource: impl Into<String>,
         action: impl Into<String>,
     ) -> Result<(), AppError> {
-        let session = session().await?;
-        let backend = session.backend;
-        let agent: Agent = session.user
-            .map(|auth| auth.user().into())
-            .unwrap_or(Agent::Anonymous);
-        let resource = resource.into();
-        let action = action.into();
-        log::trace!("enforce on: agent={agent} resource={resource:?} action={action:?}");
-        if backend
-            .enforce(agent.clone(), &resource, action)
-            .await
-            .map_err(|_| AppError::InternalServerError)?
-        {
-            Ok(())
-        } else {
-            Err(AppError::Forbidden)
-        }
+        let session = Session::from(session().await?);
+        session.enforcer(resource, action).await
     }
 
     pub async fn enforcer_and_policy_state(
         resource: impl Into<String>,
         action: impl Into<String>,
     ) -> Result<PolicyState, AppError> {
-        let session = session().await?;
-        let backend = session.backend;
-        let agent: Agent = session.user
-            .map(|auth| auth.user().into())
-            .unwrap_or(Agent::Anonymous);
-        let resource = resource.into();
-        let action = action.into();
-        log::trace!("enforce on: agent={agent} resource={resource:?} action={action:?}");
-        let (policy, result) = backend
-            .get_policy_and_enforce(agent.clone(), &resource, action)
-            .await
-            .map_err(|_| AppError::InternalServerError)?;
-        if result {
-            let state = backend
-                .get_wf_state_for_res(&resource)
-                .await
-                .map_err(|_| AppError::InternalServerError)?;
-            Ok(PolicyState::new(Some(policy), state))
-        } else {
-            Err(AppError::Forbidden)
-        }
+        let session = Session::from(session().await?);
+        session.enforcer_and_policy_state(resource, action).await
     }
 }
 

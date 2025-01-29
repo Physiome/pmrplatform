@@ -14,4 +14,5 @@ pub fn log_error(error: impl std::fmt::Display) -> AppError {
     AppError::InternalServerError
 }
 
+pub mod ac;
 pub mod workspace;

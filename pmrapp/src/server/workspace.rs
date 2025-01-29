@@ -7,7 +7,9 @@ use axum::{
         Response,
     },
 };
+use axum_login::AuthSession;
 use http::header;
+use pmrac::Platform as ACPlatform;
 use pmrcore::{
     repo::{
         PathObjectInfo,
@@ -18,23 +20,26 @@ use pmrctrl::platform::Platform;
 use pmrrepo::handle::GitResultTarget;
 use std::io::Write;
 
-use crate::error::AppError;
+use crate::{
+    ac::api::{
+        current_user,
+        enforcer,
+    },
+    error::AppError,
+    server::ac::Session,
+};
 
 
 pub async fn raw_workspace_download(
     platform: Extension<Platform>,
-    path: Path<(i64, String, String)>,
-) -> Response {
-
-    let workspace_id = path.0.0;
-    let commit_id = path.1.clone();
-    let filepath = path.2.clone();
-
+    session: Extension<AuthSession<ACPlatform>>,
+    Path((workspace_id, commit_id, filepath)): Path<(i64, String, String)>,
+) -> Result<Response, AppError> {
+    Session::from(session.0)
+        .enforcer(format!("/workspace/{workspace_id}/"), "").await?;
     let backend = platform.repo_backend();
-    let handle = match backend.git_handle(workspace_id).await {
-        Ok(handle) => handle,
-        Err(_) => return AppError::InternalServerError.into_response()
-    };
+    let handle = backend.git_handle(workspace_id).await
+        .map_err(|_| AppError::InternalServerError)?;
 
     let result = match handle.pathinfo(
         Some(&commit_id),
@@ -83,6 +88,6 @@ pub async fn raw_workspace_download(
             Err(AppError::NotFound)
         }
     };
-    result.unwrap_or_else(|e| AppError::from(e).into_response())
+    Ok(result.unwrap_or_else(|e| AppError::from(e).into_response()))
 }
 
