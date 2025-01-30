@@ -28,10 +28,7 @@ mod ssr {
         },
     };
     pub use crate::{
-        ac::api::{
-            enforcer,
-            enforcer_and_policy_state,
-        },
+        ac::api::session,
         server::platform,
     };
 }
@@ -40,7 +37,8 @@ use self::ssr::*;
 
 #[server]
 pub async fn list_workspaces() -> Result<EnforcedOk<Workspaces>, ServerFnError<AppError>> {
-    let policy_state = enforcer_and_policy_state("/workspace/", "").await?;
+    let policy_state = session().await?
+        .enforcer_and_policy_state("/workspace/", "").await?;
     let platform = platform().await?;
     Ok(policy_state.to_enforced_ok(
         WorkspaceBackend::list_workspaces(
@@ -55,7 +53,8 @@ pub async fn get_workspace_info(
     commit: Option<String>,
     path: Option<String>,
 ) -> Result<EnforcedOk<RepoResult>, ServerFnError<AppError>> {
-    let policy_state = enforcer_and_policy_state(format!("/workspace/{id}/"), "").await?;
+    let policy_state = session().await?
+        .enforcer_and_policy_state(format!("/workspace/{id}/"), "").await?;
     let platform = platform().await?;
     let handle = platform.repo_backend()
         .git_handle(id).await
@@ -80,7 +79,8 @@ pub async fn get_workspace_info(
 pub async fn get_log_info(
     id: i64,
 ) -> Result<EnforcedOk<LogInfo>, ServerFnError<AppError>> {
-    let policy_state = enforcer_and_policy_state(format!("/workspace/{id}/"), "").await?;
+    let policy_state = session().await?
+        .enforcer_and_policy_state(format!("/workspace/{id}/"), "").await?;
     let platform = platform().await?;
     let handle = platform.repo_backend()
         .git_handle(id).await
@@ -96,7 +96,8 @@ pub async fn create_workspace(
     description: String,
     long_description: String,
 ) -> Result<(), ServerFnError<AppError>> {
-    let policy_state = enforcer_and_policy_state("/workspace/", "create").await?;
+    let policy_state = session().await?
+        .enforcer_and_policy_state("/workspace/", "create").await?;
     let platform = platform().await?;
     // First create the workspace
     let ctrl = platform.create_workspace(
@@ -135,7 +136,8 @@ pub async fn create_workspace(
 pub async fn synchronize(
     id: i64,
 ) -> Result<(), ServerFnError<AppError>> {
-    enforcer(format!("/workspace/{id}/"), "protocol_write").await?;
+    session().await?
+        .enforcer(format!("/workspace/{id}/"), "protocol_write").await?;
     let platform = platform().await?;
     platform.repo_backend()
         .sync_workspace(id).await

@@ -1,4 +1,7 @@
-use axum_login::AuthSession;
+use axum_login::{
+    AuthSession,
+    Error as AxumLoginError,
+};
 use pmrac::{
     error::Error as ACError,
     axum_login::{
@@ -7,10 +10,16 @@ use pmrac::{
     },
     Platform,
 };
-use pmrcore::ac::agent::Agent;
+use pmrcore::ac::{
+    agent::Agent,
+    user::User,
+};
 use crate::{
     enforcement::PolicyState,
-    error::AppError,
+    error::{
+        AppError,
+        AuthError,
+    },
 };
 
 pub struct Session(AuthSession<Platform>);
@@ -18,6 +27,12 @@ pub struct Session(AuthSession<Platform>);
 impl From<AuthSession<Platform>> for Session {
     fn from(value: AuthSession<Platform>) -> Self {
         Self(value)
+    }
+}
+
+impl From<Session> for AuthSession<Platform> {
+    fn from(value: Session) -> Self {
+        value.0
     }
 }
 
@@ -73,4 +88,58 @@ impl Session {
             Err(AppError::Forbidden)
         }
     }
+
+    pub async fn sign_in_with_login_password(
+        &mut self,
+        login: String,
+        password: String,
+    ) -> Result<String, AuthError> {
+        let creds = Credentials {
+            authorization: Authorization::LoginPassword(login, password),
+            origin: "localhost".to_string(),  // TODO plug in remote host
+        };
+        match self.0.authenticate(creds).await {
+            Ok(Some(auth)) => {
+                self.0.login(&auth).await
+                    .map_err(|_| AuthError::InternalServerError)?;
+                Ok("You are logged in.".to_string())
+            },
+            Ok(None) | Err(AxumLoginError::Backend(ACError::Authentication(_))) => {
+                // TODO handle restricted account error differently?
+                Err(AuthError::InvalidCredentials)
+            },
+            Err(_) => Err(AuthError::InternalServerError),
+        }
+    }
+
+    pub async fn sign_out(&mut self) -> Result<(), AuthError> {
+        // TODO figure out if we want to automatically purge historical records
+        // upon logout
+        /*
+        match self.0.logout().await {
+            Ok(Some(s)) => s.logout().await
+                .map_err(|_| AuthError::InternalServerError),
+            _ => Err(AuthError::InternalServerError),
+        }
+        */
+
+        self.0.logout().await
+            .map(|_| ())
+            .map_err(|_| AuthError::InternalServerError)
+    }
+
+    pub fn current_user(&self) -> Option<User> {
+        self.0.user
+            .as_ref()
+            .map(|auth| auth.user().clone_inner())
+    }
+}
+
+pub async fn session() -> Result<Session, AppError> {
+    Ok(leptos_axum::extract::<axum::Extension<AuthSession<Platform>>>()
+        .await
+        .map_err(|_| AppError::InternalServerError)?
+        .0
+        .into()
+    )
 }

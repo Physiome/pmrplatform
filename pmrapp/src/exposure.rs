@@ -54,7 +54,6 @@ use crate::{
         wizard,
         ExposureInfo,
         WizardAddFile,
-        WizardUpdateField,
     },
     view::{
         EFView,
@@ -443,7 +442,6 @@ pub fn WizardField(
 #[component]
 pub fn Wizard() -> impl IntoView {
     let wizard_add_file = ServerAction::<WizardAddFile>::new();
-    let wizard_update_field = ServerAction::<WizardUpdateField>::new();
 
     let params = use_params::<ExposureParams>();
     let wizard_res = Resource::new_blocking(
@@ -532,12 +530,15 @@ pub fn Wizard() -> impl IntoView {
 
             view! {
                 {add_file_form}
-                <ActionForm attr:class="standard" action=wizard_update_field>
+                <form class="standard" action="/api/exposure_wizard_field" method="post">
                     <fieldset>
                         <legend>"Exposure Files"</legend>
                         {files_view}
+                        <div>
+                            <button type="submit">"Update"</button>
+                        </div>
                     </fieldset>
-                </ActionForm>
+                </form>
             }
         })
     });

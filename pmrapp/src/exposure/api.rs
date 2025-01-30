@@ -29,6 +29,8 @@ mod ssr {
         Builder,
         UrlRelative,
     };
+    pub use axum::http::request::Parts;
+    pub use leptos::prelude::expect_context;
     pub use pmrcore::{
         ac::{
             agent::Agent,
@@ -42,14 +44,13 @@ mod ssr {
             ExposureFileView as _,
         },
     };
-
     pub use pmrctrl::error::CtrlError;
     pub use std::borrow::Cow;
     pub use crate::{
-        server::platform,
-        ac::api::{
-            enforcer,
-            enforcer_and_policy_state,
+        server::{
+            log_error,
+            platform,
+            ac::session,
         },
     };
 }
@@ -58,7 +59,8 @@ use self::ssr::*;
 
 #[server]
 pub async fn list() -> Result<EnforcedOk<Exposures>, ServerFnError<AppError>> {
-    let policy_state = enforcer_and_policy_state("/exposure/", "").await?;
+    let policy_state = session().await?
+        .enforcer_and_policy_state("/exposure/", "").await?;
     let platform = platform().await?;
     Ok(policy_state.to_enforced_ok(ExposureBackend::list(platform.mc_platform.as_ref())
         .await
@@ -74,7 +76,8 @@ pub struct ExposureInfo {
 
 #[server]
 pub async fn get_exposure_info(id: i64) -> Result<EnforcedOk<ExposureInfo>, ServerFnError<AppError>> {
-    let policy_state = enforcer_and_policy_state(format!("/exposure/{id}/"), "").await?;
+    let policy_state = session().await?
+        .enforcer_and_policy_state(format!("/exposure/{id}/"), "").await?;
     let platform = platform().await?;
     let ctrl = platform.get_exposure(id).await
         .map_err(|_| AppError::InternalServerError)?;
@@ -94,7 +97,8 @@ pub async fn resolve_exposure_path(
     id: i64,
     path: String,
 ) -> Result<EnforcedOk<ResolvedExposurePath>, ServerFnError<AppError>> {
-    let policy_state = enforcer_and_policy_state(format!("/exposure/{id}/"), "").await?;
+    let policy_state = session().await?
+        .enforcer_and_policy_state(format!("/exposure/{id}/"), "").await?;
     // TODO when there is a proper error type for id not found, use that
     // TODO ExposureFileView is a placeholder - the real type that should be returned
     // is something that can readily be turned into an IntoView.
@@ -174,7 +178,8 @@ pub async fn read_blob(
     efvid: i64,
     key: String,
 ) -> Result<Box<[u8]>, ServerFnError<AppError>> {
-    enforcer(format!("/exposure/{id}/"), "").await?;
+    session().await?
+        .enforcer(format!("/exposure/{id}/"), "").await?;
     let platform = platform().await?;
     let ec = platform.get_exposure(id).await
         .map_err(|_| AppError::InternalServerError)?;
@@ -201,7 +206,8 @@ pub async fn read_safe_index_html(
         }
     }
 
-    enforcer(format!("/exposure/{id}/"), "").await?;
+    session().await?
+        .enforcer(format!("/exposure/{id}/"), "").await?;
 
     let blob = read_blob(id, path.clone(), efvid, "index.html".to_string())
         .await
@@ -219,7 +225,8 @@ pub async fn create_exposure(
     id: i64,
     commit_id: String,
 ) -> Result<(), ServerFnError<AppError>> {
-    let policy_state = enforcer_and_policy_state("/exposure/", "create").await?;
+    let policy_state = session().await?
+        .enforcer_and_policy_state("/exposure/", "create").await?;
     let platform = platform().await?;
     // First create the workspace
     let ctrl = platform.create_exposure(
@@ -264,12 +271,13 @@ pub struct WizardInfo {
 pub async fn wizard(
     id: i64,
 ) -> Result<EnforcedOk<WizardInfo>, ServerFnError<AppError>> {
-    let policy_state = enforcer_and_policy_state(format!("/exposure/{id}/"), "edit").await?;
+    let policy_state = session().await?
+        .enforcer_and_policy_state(format!("/exposure/{id}/"), "edit").await?;
     let platform = platform().await?;
     let ctrl = platform.get_exposure(id).await
         .map_err(|_| AppError::InternalServerError)?;
     let prompts = ctrl.list_files_profile_prompt_groups().await
-        .map_err(|_| AppError::InternalServerError)?;
+        .map_err(log_error)?;
     let profiles = platform.list_profiles().await
         .map_err(|_| AppError::InternalServerError)?;
 
@@ -297,7 +305,8 @@ pub async fn wizard_add_file(
     path: String,
     profile_id: i64,
 ) -> Result<(), ServerFnError<AppError>> {
-    enforcer(format!("/exposure/{exposure_id}/"), "edit").await?;
+    session().await?
+        .enforcer(format!("/exposure/{exposure_id}/"), "edit").await?;
     let platform = platform().await?;
     let ec = platform.get_exposure(exposure_id).await
         .map_err(|_| AppError::InternalServerError)?;
@@ -307,14 +316,5 @@ pub async fn wizard_add_file(
         .map_err(|_| AppError::InternalServerError)?;
     efc.set_vttprofile(vtt_profile).await
         .map_err(|_| AppError::InternalServerError)?;
-    Ok(())
-}
-
-#[server]
-pub async fn wizard_update_field() -> Result<(), ServerFnError<AppError>> {
-    // need to provide/extract this somehow.
-    let exposure_id = todo!();
-    // enforcer(format!("/exposure/{exposure_id}/"), "edit").await?;
-    let platform = platform().await?;
     Ok(())
 }

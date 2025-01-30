@@ -3,6 +3,7 @@ use http::status::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::{
     convert::Infallible,
+    fmt,
     str::FromStr,
 };
 use thiserror::Error;
@@ -63,6 +64,47 @@ mod ssr {
             // TODO bring in the standard template to wrap around this.
             let body = ();
             (self.status_code(), body).into_response()
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum AuthError {
+    InternalServerError,
+    InvalidCredentials,
+}
+
+impl From<AuthError> for &'static str {
+    fn from(v: AuthError) -> &'static str {
+        match v {
+            AuthError::InternalServerError => "Internal server error",
+            AuthError::InvalidCredentials => "Invalid credentials provided",
+        }
+    }
+}
+
+impl fmt::Display for AuthError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", <&'static str>::from(*self))
+    }
+}
+
+impl FromStr for AuthError {
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "Invalid credentials provided" => AuthError::InvalidCredentials,
+            _ => AuthError::InternalServerError,
+        })
+    }
+}
+
+impl From<ServerFnError<AuthError>> for AuthError {
+    fn from(e: ServerFnError<AuthError>) -> Self {
+        match e {
+            ServerFnError::WrappedServerError(e) => e,
+            _ => Self::InternalServerError,
         }
     }
 }

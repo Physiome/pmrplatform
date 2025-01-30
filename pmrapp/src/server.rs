@@ -15,4 +15,5 @@ pub fn log_error(error: impl std::fmt::Display) -> AppError {
 }
 
 pub mod ac;
+pub mod exposure;
 pub mod workspace;

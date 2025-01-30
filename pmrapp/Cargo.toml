@@ -31,6 +31,7 @@ pmrrbac = { workspace = true }
 pmrrepo = { workspace = true, optional = true }
 pmrtqs = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
+serde_urlencoded = { workspace = true }
 sqlx = { workspace = true, features = ["sqlite"], optional = true }
 stderrlog = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["rt-multi-thread"], optional = true }
