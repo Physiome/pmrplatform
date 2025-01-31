@@ -252,9 +252,8 @@ impl<'a, I: Iterator<Item=&'a TaskTemplateArg>, T> Iterator for UserArgBuilder<'
                             .map(|r| r
                                 .as_ref()
                                 .map(|v| v.into())
-                                // known empty remains empty
-                                .unwrap_or(vec![].into())
                             )
+                            .flatten()
                     })
                 }
             }
@@ -1670,14 +1669,14 @@ mod test {
                 "prompt": "Heading for this publication",
                 "default": null,
                 "choice_fixed": false,
-                "choices": []
+                "choices": null
             },
             {
                 "id": 516,
                 "prompt": "Documentation file",
                 "default": null,
                 "choice_fixed": false,
-                "choices": []
+                "choices": null
             },
             {
                 "id": 894,

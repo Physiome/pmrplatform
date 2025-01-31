@@ -414,7 +414,7 @@ async fn test_platform_create_exposure_file_view_task() -> anyhow::Result<()> {
             prompt: "Example prompt".into(),
             default: None,
             choice_fixed: false,
-            choices: Some([].into()),
+            choices: None,
         },
         UserArg {
             id: 2,
@@ -790,7 +790,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
                     prompt: "Example prompt".into(),
                     default: None,
                     choice_fixed: false,
-                    choices: Some([].into()),
+                    choices: None,
                 }
             ].into(),
         },
@@ -945,7 +945,7 @@ async fn test_platform_vtt_profile() -> anyhow::Result<()> {
                         "default": null,
                         "choice_fixed": false,
                         "choice_source": null,
-                        "choices": []
+                        "choices": null
                     },
                     {
                         "flag": "-B",
@@ -954,7 +954,7 @@ async fn test_platform_vtt_profile() -> anyhow::Result<()> {
                         "default": null,
                         "choice_fixed": false,
                         "choice_source": null,
-                        "choices": []
+                        "choices": null
                     },
                     {
                         "flag": "-C",
@@ -1053,14 +1053,14 @@ async fn test_platform_vtt_profile() -> anyhow::Result<()> {
                         "prompt": "First question in this group",
                         "default": null,
                         "choice_fixed": false,
-                        "choices": []
+                        "choices": null
                     },
                     {
                         "id": 7,
                         "prompt": "Second question in this group",
                         "default": null,
                         "choice_fixed": false,
-                        "choices": []
+                        "choices": null
                     },
                     {
                         "id": 8,
@@ -1150,14 +1150,14 @@ async fn test_platform_vtt_profile() -> anyhow::Result<()> {
                     "prompt": "First question in this group",
                     "default": null,
                     "choice_fixed": false,
-                    "choices": []
+                    "choices": null
                 },
                 {
                     "id": 7,
                     "prompt": "Second question in this group",
                     "default": null,
                     "choice_fixed": false,
-                    "choices": []
+                    "choices": null
                 },
                 {
                     "id": 8,
