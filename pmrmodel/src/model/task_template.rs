@@ -1716,6 +1716,150 @@ mod test {
     }
 
     #[test]
+    fn test_prompt_user_inputs_choices_valid_none() -> anyhow::Result<()> {
+        let task_template = TaskTemplate {
+            id: 1,
+            bin_path: "/usr/local/bin/choice-tester".into(),
+            version_id: "4.3.2".into(),
+            created_ts: 1234567890,
+            final_task_template_arg_id: Some(2),
+            superceded_by_id: None,
+            args: Some([
+                TaskTemplateArg {
+                    id: 1,
+                    task_template_id: 1,
+                    prompt: Some("Raw text input from null choices".into()),
+                    default: None,
+                    choice_fixed: false,
+                    choice_source: None,
+                    choices: None,
+                    .. Default::default()
+                },
+                TaskTemplateArg {
+                    id: 2,
+                    task_template_id: 1,
+                    prompt: Some("Raw text input from empty choices".into()),
+                    default: None,
+                    choice_fixed: false,
+                    choice_source: Some("".into()),
+                    choices: Some(vec![].into()),
+                    .. Default::default()
+                },
+            ].into()),
+        };
+
+        let registry = PreparedChoiceRegistry::new();
+        let cache = ChoiceRegistryCache::from(
+            &registry as &dyn ChoiceRegistry<_>);
+
+        let user_prompts = UserArgBuilder::from((
+            &task_template,
+            &cache,
+        )).collect::<Vec<_>>();
+        assert_eq!(user_prompts.len(), 2);
+
+        let user_arg_refs: UserArgRefs = (&task_template, &cache).into();
+        assert_eq!(user_arg_refs.len(), 2);
+
+        let json_str = serde_json::to_string(&user_prompts)?;
+
+        let value: serde_json::Value = serde_json::from_str(&json_str)?;
+        let result: serde_json::Value = serde_json::from_str(r#"[
+            {
+                "id": 1,
+                "prompt": "Raw text input from null choices",
+                "default": null,
+                "choice_fixed": false,
+                "choices": null
+            },
+            {
+                "id": 2,
+                "prompt": "Raw text input from empty choices",
+                "default": null,
+                "choice_fixed": false,
+                "choices": []
+            }
+        ]"#)?;
+
+        assert_eq!(value, result);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_prompt_user_inputs_choices_invalid_none() -> anyhow::Result<()> {
+        // XXX for now, user args can still be created from nonsensical
+        // combination of choice_sources and choices.
+        let task_template = TaskTemplate {
+            id: 1,
+            bin_path: "/usr/local/bin/choice-tester".into(),
+            version_id: "4.3.2".into(),
+            created_ts: 1234567890,
+            final_task_template_arg_id: Some(2),
+            superceded_by_id: None,
+            args: Some([
+                TaskTemplateArg {
+                    id: 1,
+                    task_template_id: 1,
+                    prompt: Some("Expect choices but none".into()),
+                    default: None,
+                    choice_fixed: false,
+                    choice_source: Some("".into()),
+                    choices: None,
+                    .. Default::default()
+                },
+                TaskTemplateArg {
+                    id: 2,
+                    task_template_id: 1,
+                    prompt: Some("Unexpected choices from none source".into()),
+                    default: None,
+                    choice_fixed: false,
+                    choice_source: None,
+                    choices: Some(vec![].into()),
+                    .. Default::default()
+                },
+            ].into()),
+        };
+
+        let registry = PreparedChoiceRegistry::new();
+        let cache = ChoiceRegistryCache::from(
+            &registry as &dyn ChoiceRegistry<_>);
+
+        let user_prompts = UserArgBuilder::from((
+            &task_template,
+            &cache,
+        )).collect::<Vec<_>>();
+        assert_eq!(user_prompts.len(), 2);
+
+        let user_arg_refs: UserArgRefs = (&task_template, &cache).into();
+        assert_eq!(user_arg_refs.len(), 2);
+
+        let json_str = serde_json::to_string(&user_prompts)?;
+
+        let value: serde_json::Value = serde_json::from_str(&json_str)?;
+        let result: serde_json::Value = serde_json::from_str(r#"[
+            {
+                "id": 1,
+                "prompt": "Expect choices but none",
+                "default": null,
+                "choice_fixed": false,
+                "choices": null
+            },
+            {
+                "id": 2,
+                "prompt": "Unexpected choices from none source",
+                "default": null,
+                "choice_fixed": false,
+                "choices": null
+            }
+        ]"#)?;
+
+        assert_eq!(value, result);
+
+        Ok(())
+    }
+
+    #[test]
     fn test_process_user_inputs() {
         let user_input = UserInputMap::from([
             (123, "The First Example Model".to_string()),

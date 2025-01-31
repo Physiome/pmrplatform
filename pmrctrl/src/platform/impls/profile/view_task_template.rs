@@ -82,7 +82,7 @@ mod testing {
                         "prompt": "Another example prompt",
                         "default": null,
                         "choice_fixed": false,
-                        "choice_source": null,
+                        "choice_source": "",
                         "choices": [
                             {
                                 "to_arg": null,
@@ -125,7 +125,7 @@ mod testing {
                         "choice_fixed": false,
                         "choice_source": null,
                         "task_template_id": 1,
-                        "choices": []
+                        "choices": null
                     }},
                     {{
                         "id": 2,
@@ -134,7 +134,7 @@ mod testing {
                         "prompt": "Another example prompt",
                         "default": null,
                         "choice_fixed": false,
-                        "choice_source": null,
+                        "choice_source": "",
                         "task_template_id": 1,
                         "choices": [
                             {{

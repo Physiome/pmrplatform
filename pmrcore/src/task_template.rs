@@ -129,7 +129,8 @@ impl AsRef<UserArg> for UserArg {
     }
 }
 
-// The user input map for task template; key is TaskTemplateArg.id
+/// `UserInputMap` maps from TaskTemplateArg.id to the user specified
+/// input value.  Typically this is specific to some exposure file.
 pub type UserInputMap = HashMap<i64, String>;
 
 mod map_to_arg;

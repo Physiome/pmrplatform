@@ -311,7 +311,7 @@ WHERE
 
     match &mut rec {
         Some(ref mut rec) =>
-            rec.choices = if complete {
+            rec.choices = if complete && rec.choice_source.is_some() {
                 Some(
                     get_task_template_arg_choices_by_task_template_arg_id_sqlite(
                         sqlite,
@@ -482,12 +482,17 @@ impl TaskTemplateBackend for SqliteBackend {
         ).await?;
 
         future::try_join_all(args.iter_mut().map(|arg| async {
-            Ok::<(), BackendError>(arg.choices = Some(
-                get_task_template_arg_choices_by_task_template_arg_id_sqlite(
-                    &self,
-                    arg.id,
-                ).await?
-            ))
+            arg.choices = if arg.choice_source.is_some() {
+                Some(
+                    get_task_template_arg_choices_by_task_template_arg_id_sqlite(
+                        &self,
+                        arg.id,
+                    ).await?
+                )
+            } else {
+                None
+            };
+            Ok::<(), BackendError>(())
         })).await?;
 
         result.args = Some(args);
@@ -507,12 +512,17 @@ impl TaskTemplateBackend for SqliteBackend {
         ).await?;
 
         future::try_join_all(args.iter_mut().map(|arg| async {
-            Ok::<(), BackendError>(arg.choices = Some(
-                get_task_template_arg_choices_by_task_template_arg_id_sqlite(
-                    &self,
-                    arg.id,
-                ).await?
-            ))
+            arg.choices = if arg.choice_source.is_some() {
+                Some(
+                    get_task_template_arg_choices_by_task_template_arg_id_sqlite(
+                        &self,
+                        arg.id,
+                    ).await?
+                )
+            } else {
+                None
+            };
+            Ok::<(), BackendError>(())
         })).await?;
 
         result.args = Some(args);
@@ -559,6 +569,105 @@ mod tests {
         Ok(())
     }
 
+    // this tests for the situation where choices were added to argument
+    // where the choice source was None
+    #[async_std::test]
+    async fn test_smoketest_with_choice_source_none() -> anyhow::Result<()> {
+        let backend = SqliteBackend::from_url("sqlite::memory:").await?
+            .run_migration_profile(MigrationProfile::Pmrtqs).await?;
+
+        let ttb: &dyn TaskTemplateBackend = &backend;
+
+        let (id, _) = ttb.add_task_template("/bin/echo", "1.0.0").await?;
+        ttb.add_task_template_arg(
+            id,
+            None,
+            false,
+            Some("Faulty Choice"),
+            None,
+            false,
+            None,
+        ).await?;
+        ttb.finalize_new_task_template(id).await?;
+
+        let template = ttb.get_task_template_by_id(id).await?;
+        let answer = TaskTemplate {
+            id: 1,
+            bin_path: "/bin/echo".into(),
+            version_id: "1.0.0".into(),
+            created_ts: template.created_ts,  // matching itself
+            final_task_template_arg_id: Some(1),
+            superceded_by_id: None,
+            args: Some([TaskTemplateArg {
+                id: 1,
+                task_template_id: 1,
+                flag: None,
+                flag_joined: false,
+                prompt: Some("Faulty Choice".into()),
+                default: None,
+                choice_fixed: false,
+                choice_source: None,
+                choices: None,
+            }].to_vec().into()),
+        };
+        assert_eq!(template, answer);
+        assert_eq!(template, serde_json::from_str(r#"
+        {
+            "id": 1,
+            "bin_path": "/bin/echo",
+            "version_id": "1.0.0",
+            "created_ts": 1234567890,
+            "final_task_template_arg_id": 1,
+            "superceded_by_id": null,
+            "args": [
+                {
+                    "id": 1,
+                    "task_template_id": 1,
+                    "flag": null,
+                    "flag_joined": false,
+                    "prompt": "Faulty Choice",
+                    "default": null,
+                    "choice_fixed": false,
+                    "choice_source": null,
+                    "choices": null
+                }
+            ]
+        }
+        "#)?);
+
+        // add a couple choices
+        ttb.add_task_template_arg_choice(1, None, "omit").await?;
+        ttb.add_task_template_arg_choice(1, Some(""), "empty string").await?;
+        let template = ttb.get_task_template_by_id(id).await?;
+
+        assert_eq!(template, serde_json::from_str(r#"
+        {
+            "id": 1,
+            "bin_path": "/bin/echo",
+            "version_id": "1.0.0",
+            "created_ts": 1234567890,
+            "final_task_template_arg_id": 1,
+            "superceded_by_id": null,
+            "args": [
+                {
+                    "id": 1,
+                    "task_template_id": 1,
+                    "flag": null,
+                    "flag_joined": false,
+                    "prompt": "Faulty Choice",
+                    "default": null,
+                    "choice_fixed": false,
+                    "choice_source": null,
+                    "choices": null
+                }
+            ]
+        }
+        "#)?);
+        assert!(template.args.unwrap()[0].choices.is_none());
+
+        Ok(())
+    }
+
     #[async_std::test]
     async fn test_smoketest_with_args() -> anyhow::Result<()> {
         let backend = SqliteBackend::from_url("sqlite::memory:").await?
@@ -583,7 +692,7 @@ mod tests {
             Some("Second statement"),
             None,
             false,
-            None,
+            Some(""),
         ).await?;
         ttb.finalize_new_task_template(id).await?;
 
@@ -604,7 +713,7 @@ mod tests {
                 default: None,
                 choice_fixed: false,
                 choice_source: None,
-                choices: Some([].to_vec().into()),
+                choices: None,
             }, TaskTemplateArg {
                 id: 2,
                 task_template_id: 1,
@@ -613,8 +722,8 @@ mod tests {
                 prompt: Some("Second statement".into()),
                 default: None,
                 choice_fixed: false,
-                choice_source: None,
-                choices: Some([].to_vec().into()),
+                choice_source: Some("".into()),
+                choices: Some(vec![].into()),
             }].to_vec().into()),
         };
         assert_eq!(template, answer);
@@ -636,7 +745,7 @@ mod tests {
                     "default": null,
                     "choice_fixed": false,
                     "choice_source": null,
-                    "choices": []
+                    "choices": null
                 },
                 {
                     "id": 2,
@@ -646,7 +755,7 @@ mod tests {
                     "prompt": "Second statement",
                     "default": null,
                     "choice_fixed": false,
-                    "choice_source": null,
+                    "choice_source": "",
                     "choices": []
                 }
             ]
@@ -676,7 +785,7 @@ mod tests {
                     "default": null,
                     "choice_fixed": false,
                     "choice_source": null,
-                    "choices": []
+                    "choices": null
                 },
                 {
                     "id": 2,
@@ -686,7 +795,7 @@ mod tests {
                     "prompt": "Second statement",
                     "default": null,
                     "choice_fixed": false,
-                    "choice_source": null,
+                    "choice_source": "",
                     "choices": [
                         {
                             "id": 1,
@@ -785,7 +894,7 @@ mod tests {
                 default: None,
                 choice_fixed: false,
                 choice_source: None,
-                choices: Some([].to_vec().into()),
+                choices: None,
             }].to_vec().into()),
         });
 
@@ -816,7 +925,7 @@ mod tests {
                 default: None,
                 choice_fixed: false,
                 choice_source: None,
-                choices: Some([].to_vec().into()),
+                choices: None,
             }].to_vec().into()),
         });
     }
