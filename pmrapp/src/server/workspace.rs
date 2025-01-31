@@ -30,7 +30,7 @@ pub async fn raw_workspace_download(
     session: Extension<AuthSession<ACPlatform>>,
     Path((workspace_id, commit_id, filepath)): Path<(i64, String, String)>,
 ) -> Result<Response, AppError> {
-    Session::from(session.0)
+    Session::from(session)
         .enforcer(format!("/workspace/{workspace_id}/"), "").await?;
     let backend = platform.repo_backend();
     let handle = backend.git_handle(workspace_id).await

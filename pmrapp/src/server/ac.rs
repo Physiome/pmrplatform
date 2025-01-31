@@ -1,3 +1,4 @@
+use axum::Extension;
 use axum_login::{
     AuthSession,
     Error as AxumLoginError,
@@ -27,6 +28,12 @@ pub struct Session(AuthSession<Platform>);
 impl From<AuthSession<Platform>> for Session {
     fn from(value: AuthSession<Platform>) -> Self {
         Self(value)
+    }
+}
+
+impl From<Extension<AuthSession<Platform>>> for Session {
+    fn from(value: Extension<AuthSession<Platform>>) -> Self {
+        Self(value.0)
     }
 }
 
