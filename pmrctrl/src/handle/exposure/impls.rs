@@ -14,10 +14,7 @@ use pmrcore::{
         ExposureFileRef,
     },
 };
-use pmrmodel::model::{
-    profile::UserPromptGroupRefs,
-    task_template::UserArgRefs,
-};
+use pmrmodel::model::profile::UserPromptGroupRefs;
 use pmrrepo::handle::GitHandle;
 use std::{
     collections::HashMap,
@@ -180,6 +177,17 @@ impl<'p> ExposureCtrl<'p> {
                 .deref()
                 .clone()
         )
+    }
+
+    /// Acquire a ExposureFileCtrl using the provided id
+    pub async fn ctrl_id(
+        &'p self,
+        id: i64,
+    ) -> Result<ExposureFileCtrl<'p>, PlatformError> {
+        self.ctrl_file(self.0.platform
+            .mc_platform
+            .get_exposure_file(id)
+            .await?)
     }
 
     /// Resolve a ExposureFileCtrl using the workspace_file_path being

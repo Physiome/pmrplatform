@@ -1,4 +1,5 @@
 use pmrcore::{
+    exposure::traits::ExposureFile as _,
     profile::{
         ViewTaskTemplate,
         ViewTaskTemplates,
@@ -14,6 +15,7 @@ use pmrmodel::{
     model::{
         profile::UserPromptGroupRefs,
         task_template::{
+            TaskArgBuilder,
             TaskBuilder,
             UserArgBuilder,
             UserArgRefs,
@@ -34,7 +36,10 @@ use std::{
 };
 
 use crate::{
-    error::PlatformError,
+    error::{
+        CtrlError,
+        PlatformError,
+    },
     handle::{
         ExposureFileCtrl,
         EFViewTaskTemplatesCtrl,
@@ -203,6 +208,40 @@ impl<'p> EFViewTaskTemplatesCtrl<'p> {
             .map(|ctrl| ctrl.create_task_from_input(&user_input))
             .collect::<Result<Vec<_>, BuildArgErrors>>()?;
         Ok(tasks)
+    }
+
+    pub async fn update_user_input(
+        &'p self,
+        user_input: &'p UserInputMap,
+    ) -> Result<(), PlatformError> {
+        let mut checked_user_input = UserInputMap::new();
+
+        for (arg_id, answer) in user_input.iter() {
+            let arg = self.get_arg(&arg_id)
+                .ok_or(CtrlError::ArgIdNotInProfile(*arg_id))?;
+
+            match TaskArgBuilder::try_from((
+                Some(answer.as_ref()),
+                arg,
+                self.get_registry_cache()?,
+            )) {
+                Ok(_) => checked_user_input.insert(*arg_id, answer.to_string()),
+                Err(_) => None,
+            };
+        }
+
+        let id = self.exposure_file_ctrl
+            .exposure_file()
+            .id();
+        self.exposure_file_ctrl.0
+            .platform
+            .mc_platform
+            .update_ef_user_input(
+                id,
+                &checked_user_input,
+            ).await?;
+
+        Ok(())
     }
 
     pub fn exposure_file_ctrl(&'p self) -> ExposureFileCtrl<'p> {

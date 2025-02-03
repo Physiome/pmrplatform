@@ -59,4 +59,8 @@ pub enum CtrlError {
     /// No such blob
     #[error("blob not found: {0}")]
     EFVCBlobNotFound(String),
+
+    // FIXME need to figure out the appropriate level of detail to capture
+    #[error("arg_id {0} not in profile")]
+    ArgIdNotInProfile(i64),
 }

@@ -34,7 +34,7 @@ use std::{
 pub mod api;
 
 use crate::{
-    ac::AccountCtx,
+    // ac::AccountCtx,
     component::{
         Redirect,
         RedirectTS,
@@ -45,7 +45,7 @@ use crate::{
     error_template::ErrorTemplate,
     enforcement::{
         EnforcedOk,
-        PolicyState,
+        // PolicyState,
     },
     exposure::api::{
         list,
@@ -410,7 +410,7 @@ pub fn WizardField(
 )-> impl IntoView {
     let ef_profile_ref = ef_profile.as_ref();
     let field_input = ef_profile_ref.user_input.get(&user_arg.id).map(|s| s.to_string());
-    let name = format!("field-{}", user_arg.id);
+    let name = format!("{}-{}", ef_profile_ref.exposure_file_id, user_arg.id);
     let field_element = if let Some(choices) = user_arg.choices {
         let options = <Vec<UserChoice>>::from(choices)
             .into_iter()
@@ -430,7 +430,7 @@ pub fn WizardField(
         }
     } else {
         view! {
-            <input type="text" name value=field_input />
+            <input type="text" name=name value=field_input />
         }.into_any()
     };
     view! {
@@ -531,6 +531,7 @@ pub fn Wizard() -> impl IntoView {
             view! {
                 {add_file_form}
                 <form class="standard" action="/api/exposure_wizard_field" method="post">
+                    <input type="hidden" name="exposure_id" value=info.exposure.id/>
                     <fieldset>
                         <legend>"Exposure Files"</legend>
                         {files_view}

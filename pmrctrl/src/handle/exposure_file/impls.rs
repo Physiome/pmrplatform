@@ -14,7 +14,7 @@ use pmrcore::{
         ExposureFileRef,
     },
     profile::ViewTaskTemplateProfile,
-    task_template::traits::TaskTemplateBackend
+    task_template::traits::TaskTemplateBackend,
 };
 use pmrrepo::handle::GitHandleResult;
 use std::{

@@ -17,6 +17,7 @@ console_error_panic_hook = { workspace = true }
 dotenvy = { workspace = true, optional = true }
 gloo-utils = { workspace = true }
 html-escape = { workspace = true }
+itertools = { workspace = true, optional = true }
 js-sys = { workspace = true, optional = true }
 leptos = { workspace = true, features = ["rkyv"] }
 leptos_axum = { workspace = true, optional = true }
@@ -30,6 +31,7 @@ pmrmodel = { workspace = true, optional = true }
 pmrrbac = { workspace = true }
 pmrrepo = { workspace = true, optional = true }
 pmrtqs = { workspace = true, optional = true }
+regex = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_urlencoded = { workspace = true }
 sqlx = { workspace = true, features = ["sqlite"], optional = true }
@@ -58,6 +60,7 @@ ssr = [
     "dep:axum-login",
     "dep:clap",
     "dep:dotenvy",
+    "dep:itertools",
     "dep:log",
     "dep:pmrac",
     "dep:pmrctrl",

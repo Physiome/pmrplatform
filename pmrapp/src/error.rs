@@ -10,6 +10,8 @@ use thiserror::Error;
 
 #[derive(Clone, Debug, Error, PartialEq, Serialize, Deserialize)]
 pub enum AppError {
+    #[error("400 Bad Request")]
+    BadRequest,
     #[error("403 Forbidden")]
     Forbidden,
     #[error("404 Not Found")]
@@ -24,6 +26,7 @@ pub enum AppError {
 impl AppError {
     pub fn status_code(&self) -> StatusCode {
         match self {
+            AppError::BadRequest => StatusCode::BAD_REQUEST,
             AppError::NotFound => StatusCode::NOT_FOUND,
             AppError::Forbidden => StatusCode::FORBIDDEN,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
@@ -37,6 +40,7 @@ impl FromStr for AppError {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // This is converting the output of the Display impl by thiserror
         Ok(match s {
+            "400 Bad Request" => AppError::BadRequest,
             "403 Forbidden" => AppError::Forbidden,
             "404 Not Found" => AppError::NotFound,
             // anything else is considered an InternalServerError
