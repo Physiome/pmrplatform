@@ -22,6 +22,8 @@ use crate::{
 };
 use super::ResolvedExposurePath;
 
+pub const WIZARD_FIELD_ROUTE: &'static str = "/api/exposure_wizard_field";
+
 #[cfg(feature = "ssr")]
 mod ssr {
     pub use ammonia::{
@@ -314,4 +316,59 @@ pub async fn wizard_add_file(
     efc.set_vttprofile(vtt_profile).await
         .map_err(|_| AppError::InternalServerError)?;
     Ok(())
+}
+
+#[cfg(feature = "ssr")]
+pub async fn update_wizard_field(
+    _fields: Vec<(String, String)>,
+) -> Result<(), AppError> {
+    Ok(())
+}
+
+#[cfg(not(feature = "ssr"))]
+pub fn update_wizard_field(
+    fields: Vec<(String, String)>,
+) -> impl std::future::Future<Output = Result<(), AppError>> + Send + 'static {
+    use leptos::prelude::on_cleanup;
+    use send_wrapper::SendWrapper;
+    use wasm_bindgen::UnwrapThrowExt;
+    use web_sys::FormData;
+
+    SendWrapper::new(async move {
+        let abort_controller =
+            SendWrapper::new(web_sys::AbortController::new().ok());
+        let abort_signal = abort_controller.as_ref().map(|a| a.signal());
+
+        // abort in-flight requests if, e.g., we've navigated away from this page
+        on_cleanup(move || {
+            if let Some(abort_controller) = abort_controller.take() {
+                abort_controller.abort()
+            }
+        });
+
+        let form_data = FormData::new()
+            .expect("web_sys::FormData must be available for use");
+        for (name, value) in fields.iter() {
+            let _ = form_data.append_with_str(name, value)
+                .map_err(|e| leptos::logging::error!("{e:?}"));
+        }
+	let params =
+	    web_sys::UrlSearchParams::new_with_str_sequence_sequence(
+		&form_data,
+	    )
+	    .unwrap_throw();
+
+        leptos::server_fn::request::browser::Request::post(WIZARD_FIELD_ROUTE)
+            .abort_signal(abort_signal.as_ref())
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(params)
+            .map_err(|_| AppError::InternalServerError)?
+            .send()
+            .await
+            .map(|_| ())
+            .map_err(|e| {
+                leptos::logging::error!("{e}");
+                AppError::InternalServerError
+            })
+    })
 }

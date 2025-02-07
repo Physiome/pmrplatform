@@ -3,6 +3,7 @@ use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::{
     components::{
+        Form,
         ParentRoute,
         Route,
     },
@@ -30,6 +31,10 @@ use std::{
     str::FromStr,
     sync::Arc,
 };
+use wasm_bindgen::{
+    JsCast,
+    UnwrapThrowExt,
+};
 
 pub mod api;
 
@@ -51,9 +56,11 @@ use crate::{
         list,
         get_exposure_info,
         resolve_exposure_path,
+        update_wizard_field,
         wizard,
         ExposureInfo,
         WizardAddFile,
+        WIZARD_FIELD_ROUTE,
     },
     view::{
         EFView,
@@ -402,6 +409,7 @@ pub fn ExposureFile() -> impl IntoView {
 
 #[component]
 pub fn WizardField(
+    exposure_id: i64,
     ef_profile: impl AsRef<ExposureFileProfile> + Send + Sync + 'static,
     // Should this really be an AsRef? Typically this actually typically
     // is unique thus safe to be moved here.
@@ -411,26 +419,77 @@ pub fn WizardField(
     let ef_profile_ref = ef_profile.as_ref();
     let field_input = ef_profile_ref.user_input.get(&user_arg.id).map(|s| s.to_string());
     let name = format!("{}-{}", ef_profile_ref.exposure_file_id, user_arg.id);
+    let (v, _) = arc_signal(field_input.clone());
+    let action = Action::new(move |(name, value, delay): &(String, String, u32)| {
+        let name = name.to_owned();
+        let value = value.to_owned();
+        let _delay = *delay;
+        async move {
+            #[cfg(not(feature = "ssr"))]
+            send_wrapper::SendWrapper::new(async move {
+                gloo_timers::future::TimeoutFuture::new(_delay).await
+            }).await;
+            logging::log!("updating field with {value:?}");
+            update_wizard_field(vec![
+                ("exposure_id".to_string(), exposure_id.to_string()),
+                (name, value),
+            ]).await
+        }
+    });
+    let mut abort_handle = None::<ActionAbortHandle>;
+    let mut current = field_input.clone();
+
     let field_element = if let Some(choices) = user_arg.choices {
         let options = <Vec<UserChoice>>::from(choices)
             .into_iter()
             .map(|UserChoice(choice, _)| choice)
             .collect::<Vec<_>>();
-        match field_input {
-            Some(value) => {
-                view! {
-                    <SelectList name options value />
-                }.into_any()
-            }
-            None => {
-                view! {
-                    <SelectList name options />
-                }.into_any()
-            }
-        }
+        // this is used for making sure clients with active scripting (i.e. with immediate
+        // update capabilities), the expected option is selected, rather than relying on
+        // the browser leaving it at a possible stale value.
+        view! {
+            <SelectList name options value=field_input
+                on:change=move |ev| {
+                    let element = ev
+                        .unchecked_ref::<web_sys::Event>()
+                        .target()
+                        .unwrap_throw()
+                        .unchecked_into::<web_sys::HtmlSelectElement>();
+                    let name = element.name();
+                    let value = element.value();
+                    action.dispatch((name, value, 0));
+                }
+                prop:value=move || v.get().unwrap_or("".to_string())
+            />
+        }.into_any()
     } else {
         view! {
-            <input type="text" name=name value=field_input />
+            <input type="text" name=name value=field_input
+                prop:value=move || v.get().unwrap_or("".to_string())
+                on:keyup=move |ev| {
+                    let element = ev
+                        .unchecked_ref::<web_sys::Event>()
+                        .target()
+                        .unwrap_throw()
+                        .unchecked_into::<web_sys::HtmlInputElement>();
+                    let value = element.value();
+                    // the keyup can be triggered by navigating within the
+                    // field, so validate the content has in fact changed.
+                    if Some(&value) != current.as_ref() {
+                        let name = element.name();
+                        // abort the existing abort handle, if any
+                        abort_handle
+                            .take()
+                            .map(ActionAbortHandle::abort);
+                        // record the update here while also dispatch the
+                        // action with a small delay for the newly set
+                        // abort handle to repeat the cycle, effectively
+                        // function as a debouncer.
+                        current = Some(value.clone());
+                        abort_handle = Some(action.dispatch((name, value, 500)));
+                    }
+                }
+            />
         }.into_any()
     };
     view! {
@@ -491,6 +550,8 @@ pub fn Wizard() -> impl IntoView {
                 </ActionForm>
             };
 
+            let exposure_id = info.exposure.id;
+
             let files_view = info.files.into_iter()
                 .filter_map(|(name, value)| {
                     value.map(|(ef_profile, user_prompt_groups)| {
@@ -503,6 +564,7 @@ pub fn Wizard() -> impl IntoView {
                                     .map(|user_arg| {
                                         view! {
                                             <WizardField
+                                                exposure_id
                                                 user_arg=user_arg
                                                 ef_profile=ef_profile.clone()
                                                 />
@@ -530,7 +592,11 @@ pub fn Wizard() -> impl IntoView {
 
             view! {
                 {add_file_form}
-                <form class="standard" action="/api/exposure_wizard_field" method="post">
+                <Form
+                    attr:class="standard"
+                    action=WIZARD_FIELD_ROUTE
+                    method="post"
+                >
                     <input type="hidden" name="exposure_id" value=info.exposure.id/>
                     <fieldset>
                         <legend>"Exposure Files"</legend>
@@ -539,7 +605,7 @@ pub fn Wizard() -> impl IntoView {
                             <button type="submit">"Update"</button>
                         </div>
                     </fieldset>
-                </form>
+                </Form>
             }
         })
     });

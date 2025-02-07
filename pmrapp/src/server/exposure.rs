@@ -95,8 +95,14 @@ pub async fn wizard_field_update(
         vttc.update_user_input(&user_input)
             .await
             // TODO need to distinguish user input error vs platform error
+            // TODO also verify that only unaccepted inputs get rejected while
+            // *all* accepted/valid inputs are processed.
             .map_err(|_| AppError::InternalServerError)?;
     }
+
+    // FIXME should report error if _none_ of the fields updated, to allow
+    // the situation where a single field being updated can easily have the
+    // error response to indicate failure to update that one field.
 
     Ok(())
 }

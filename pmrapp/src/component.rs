@@ -77,17 +77,18 @@ pub fn CodeBlock(code: String, lang: String) -> impl IntoView {
 pub fn SelectList(
     name: String,
     options: Vec<String>,
-    #[prop(optional)] value: Option<String>,
+    #[prop(default = None)] value: Option<String>,
     // #[prop(optional)] default_value: Option<String>,
 ) -> impl IntoView {
-    let options_view = options.into_iter()
-        .map(|option| {
-            let selected = (Some(&option) == value.as_ref()).then_some("selected");
-            view! { <option value=option selected=selected>{option.clone()}</option> }
-        })
-        .collect_view();
     view! {
-        <select name=name>{options_view}</select>
+        <SelectMap
+            name=name
+            options={
+                options.into_iter()
+                    .map(|v| (v.clone(), v))
+                    .collect::<Vec<_>>()
+            }
+            value=value />
     }
 }
 
@@ -95,16 +96,22 @@ pub fn SelectList(
 pub fn SelectMap(
     name: String,
     options: Vec<(String, String)>,
-    #[prop(optional)] value: Option<String>,
+    #[prop(default = None)] value: Option<String>,
     // #[prop(optional)] default_value: Option<String>,
 ) -> impl IntoView {
+    let mut valid_choice = false;
     let options_view = options.into_iter()
         .map(|(option, label)| {
-            let selected = (Some(&option) == value.as_ref()).then_some("selected");
+            let selected = Some(&option) == value.as_ref();
+            valid_choice |= selected;
+            let selected = selected.then_some("selected");
             view! { <option value=option selected=selected>{label}</option> }
         })
         .collect_view();
     view! {
-        <select name=name>{options_view}</select>
+        <select name=name>
+            {(!valid_choice).then_some(view! { <option selected="selected"></option> })}
+            {options_view}
+        </select>
     }
 }

@@ -16,6 +16,7 @@ async fn main() -> anyhow::Result<()> {
     use pmrac::platform::Builder as ACPlatformBuilder;
     use pmrapp::app::*;
     use pmrapp::conf::Cli;
+    use pmrapp::exposure::api::WIZARD_FIELD_ROUTE;
     use pmrapp::server::workspace::raw_workspace_download;
     use pmrapp::server::exposure::wizard_field_update;
     use pmrctrl::platform::Platform;
@@ -112,7 +113,7 @@ async fn main() -> anyhow::Result<()> {
     // build our application with a route
     let app = Router::new()
         .route("/workspace/:workspace_id/rawfile/:commit_id/*path", get(raw_workspace_download))
-        .route("/api/exposure_wizard_field", post(wizard_field_update))
+        .route(WIZARD_FIELD_ROUTE, post(wizard_field_update))
         .leptos_routes(
             &leptos_options,
             routes,
