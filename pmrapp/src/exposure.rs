@@ -29,7 +29,10 @@ use pmrcore::{
 };
 use std::{
     str::FromStr,
-    sync::Arc,
+    sync::{
+        Arc,
+        OnceLock,
+    },
 };
 use wasm_bindgen::{
     JsCast,
@@ -420,7 +423,50 @@ pub fn WizardField(
     let field_input = ef_profile_ref.user_input.get(&user_arg.id).map(|s| s.to_string());
     let name = format!("{}-{}", ef_profile_ref.exposure_file_id, user_arg.id);
     let (v, _) = arc_signal(field_input.clone());
-    let action = Action::new(move |(name, value, delay): &(String, String, u32)| {
+
+    // prepare for the status clear action used in the action for
+    // clearing the status after the update is done.
+    let status_clear = Arc::new(OnceLock::<Action<(), ()>>::new());
+    let status_clear_clone = status_clear.clone();
+
+    let action = Action::new(move |(name, value): &(String, String)| {
+        let name = name.to_owned();
+        let value = value.to_owned();
+        let status_clear = status_clear_clone.clone();
+        async move {
+            logging::log!("sending update to field {name:?} with {value:?}");
+            let result = update_wizard_field(vec![
+                ("exposure_id".to_string(), exposure_id.to_string()),
+                (name, value),
+            ]).await;
+            // TODO only clear status if result is Ok?
+            status_clear.get()
+                .map(|a| a.dispatch(()));
+            result
+        }
+    });
+    let action_pending = action.pending();
+    let action_result = action.value();
+    let mut abort_handle = None::<ActionAbortHandle>;
+    let mut current = field_input.clone();
+
+    // actually define the status clear action, using the action.value() handle
+    let _ = status_clear.set(Action::new(move |()| {
+        let action_result = action_result.clone();
+        // FIXME it is possible this won't be canceled such that updates in a right
+        // timing may make the indicator disappear too early.  Question is whether
+        // it is possible for the clear be applied for the correct version.
+        async move {
+            #[cfg(not(feature = "ssr"))]
+            send_wrapper::SendWrapper::new(async move {
+                gloo_timers::future::TimeoutFuture::new(3000).await
+            }).await;
+            action_result.set(None);
+        }
+    }));
+
+    // this version simply dispatch the action after a delay
+    let delayed_action = Action::new(move |(name, value, delay): &(String, String, u32)| {
         let name = name.to_owned();
         let value = value.to_owned();
         let _delay = *delay;
@@ -429,17 +475,12 @@ pub fn WizardField(
             send_wrapper::SendWrapper::new(async move {
                 gloo_timers::future::TimeoutFuture::new(_delay).await
             }).await;
-            logging::log!("updating field with {value:?}");
-            update_wizard_field(vec![
-                ("exposure_id".to_string(), exposure_id.to_string()),
-                (name, value),
-            ]).await
+            action.dispatch((name, value))
         }
     });
-    let mut abort_handle = None::<ActionAbortHandle>;
-    let mut current = field_input.clone();
 
     let field_element = if let Some(choices) = user_arg.choices {
+        let name = name.clone();
         let options = <Vec<UserChoice>>::from(choices)
             .into_iter()
             .map(|UserChoice(choice, _)| choice)
@@ -457,14 +498,15 @@ pub fn WizardField(
                         .unchecked_into::<web_sys::HtmlSelectElement>();
                     let name = element.name();
                     let value = element.value();
-                    action.dispatch((name, value, 0));
+                    action.dispatch((name, value));
                 }
                 prop:value=move || v.get().unwrap_or("".to_string())
             />
         }.into_any()
     } else {
+        let name = name.clone();
         view! {
-            <input type="text" name=name value=field_input
+            <input type="text" id=name.clone() name=name value=field_input
                 prop:value=move || v.get().unwrap_or("".to_string())
                 on:keyup=move |ev| {
                     let element = ev
@@ -486,14 +528,30 @@ pub fn WizardField(
                         // abort handle to repeat the cycle, effectively
                         // function as a debouncer.
                         current = Some(value.clone());
-                        abort_handle = Some(action.dispatch((name, value, 500)));
+                        abort_handle = Some(delayed_action.dispatch((name, value, 500)));
                     }
                 }
             />
         }.into_any()
     };
     view! {
-        <label>{user_arg.prompt}</label>
+        <label for=name>
+            {user_arg.prompt}
+            <span>{move ||
+                if action_pending.get() {
+                    format!("spinner")
+                }
+                else if let Some(result) = action_result.get() {
+                    match result {
+                        Ok(_) => format!("done"),
+                        Err(_) => format!("error"),
+                    }
+                }
+                else {
+                    format!("")
+                }
+            }</span>
+        </label>
         {field_element}
     }
 }

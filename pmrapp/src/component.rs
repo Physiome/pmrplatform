@@ -109,7 +109,7 @@ pub fn SelectMap(
         })
         .collect_view();
     view! {
-        <select name=name>
+        <select id=name.clone() name=name>
             {(!valid_choice).then_some(view! { <option selected="selected"></option> })}
             {options_view}
         </select>
