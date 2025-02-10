@@ -329,6 +329,7 @@ pub async fn update_wizard_field(
 pub fn update_wizard_field(
     fields: Vec<(String, String)>,
 ) -> impl std::future::Future<Output = Result<(), AppError>> + Send + 'static {
+    use http::status::StatusCode;
     use leptos::prelude::on_cleanup;
     use send_wrapper::SendWrapper;
     use wasm_bindgen::UnwrapThrowExt;
@@ -358,17 +359,26 @@ pub fn update_wizard_field(
 	    )
 	    .unwrap_throw();
 
-        leptos::server_fn::request::browser::Request::post(WIZARD_FIELD_ROUTE)
+        let resp = leptos::server_fn::request::browser::Request::post(WIZARD_FIELD_ROUTE)
             .abort_signal(abort_signal.as_ref())
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(params)
             .map_err(|_| AppError::InternalServerError)?
             .send()
             .await
-            .map(|_| ())
             .map_err(|e| {
-                leptos::logging::error!("{e}");
+                leptos::logging::error!("E: {e}");
                 AppError::InternalServerError
-            })
+            })?;
+
+        if resp.ok() {
+            // TODO check whether or not the field actually got updated
+            Ok(())
+        } else {
+            Err(AppError::from(
+                StatusCode::from_u16(resp.status())
+                    .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
+            ))
+        }
     })
 }

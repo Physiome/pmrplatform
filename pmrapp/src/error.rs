@@ -34,6 +34,18 @@ impl AppError {
     }
 }
 
+impl From<StatusCode> for AppError {
+    // Only convert into status known to AppError
+    fn from(value: StatusCode) -> Self {
+        match value {
+            StatusCode::BAD_REQUEST => AppError::BadRequest,
+            StatusCode::NOT_FOUND => AppError::NotFound,
+            StatusCode::FORBIDDEN => AppError::Forbidden,
+            _ => AppError::InternalServerError,
+        }
+    }
+}
+
 impl FromStr for AppError {
     type Err = Infallible;
 

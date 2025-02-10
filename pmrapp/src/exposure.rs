@@ -48,6 +48,7 @@ use crate::{
         RedirectTS,
         SelectList,
         SelectMap,
+        Spinner,
     },
     error::AppError,
     error_template::ErrorTemplate,
@@ -429,6 +430,9 @@ pub fn WizardField(
     let status_clear = Arc::new(OnceLock::<Action<(), ()>>::new());
     let status_clear_clone = status_clear.clone();
 
+    // this is for the fadeout transition for the okay status
+    let (status_okay_class, set_status_okay_class) = signal("okay".to_string());
+
     let action = Action::new(move |(name, value): &(String, String)| {
         let name = name.to_owned();
         let value = value.to_owned();
@@ -447,21 +451,34 @@ pub fn WizardField(
     });
     let action_pending = action.pending();
     let action_result = action.value();
+    let action_version = action.version();
     let mut abort_handle = None::<ActionAbortHandle>;
     let mut current = field_input.clone();
 
     // actually define the status clear action, using the action.value() handle
     let _ = status_clear.set(Action::new(move |()| {
         let action_result = action_result.clone();
-        // FIXME it is possible this won't be canceled such that updates in a right
-        // timing may make the indicator disappear too early.  Question is whether
-        // it is possible for the clear be applied for the correct version.
         async move {
+            let version = action_version.get_untracked();
             #[cfg(not(feature = "ssr"))]
             send_wrapper::SendWrapper::new(async move {
-                gloo_timers::future::TimeoutFuture::new(3000).await
+                gloo_timers::future::TimeoutFuture::new(1000).await
             }).await;
-            action_result.set(None);
+            // only clear the result if the same version as the one got started to
+            // not preemptively clear unrelated status
+
+            if let Some(Err(_)) = action_result.get_untracked() {
+            } else {
+                if !action_pending.get_untracked()
+                    && action_version.get_untracked() == version
+                {
+                    // instead of clearing the result, just update the class to
+                    // trigger the fadeout if permitted.
+                    // action_result.set(None);
+                    set_status_okay_class.set("okay fadeout".to_string());
+                }
+            }
+
         }
     }));
 
@@ -537,20 +554,30 @@ pub fn WizardField(
     view! {
         <label for=name>
             {user_arg.prompt}
-            <span>{move ||
+            <div class="status">{move ||
                 if action_pending.get() {
-                    format!("spinner")
+                    Some(view! {
+                        <Spinner/>
+                    }.into_any())
                 }
                 else if let Some(result) = action_result.get() {
-                    match result {
-                        Ok(_) => format!("done"),
-                        Err(_) => format!("error"),
-                    }
+                    Some(match result {
+                        Ok(_) => {
+                            set_status_okay_class.set("okay".to_string());
+                            view! {
+                                <div class=move || status_okay_class.get()
+                                    aria-label="field updated">"✔"</div>
+                            }.into_any()
+                        },
+                        Err(e) => view! {
+                            <div class="error">{format!("Error: {e}")}</div>
+                        }.into_any(),
+                    })
                 }
                 else {
-                    format!("")
+                    None
                 }
-            }</span>
+            }</div>
         </label>
         {field_element}
     }
