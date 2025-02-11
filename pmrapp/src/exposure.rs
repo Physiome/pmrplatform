@@ -427,13 +427,13 @@ pub fn WizardField(
 
     // prepare for the status clear action used in the action for
     // clearing the status after the update is done.
-    let status_clear = Arc::new(OnceLock::<Action<(), ()>>::new());
+    let status_clear = Arc::new(OnceLock::<ArcAction<(), ()>>::new());
     let status_clear_clone = status_clear.clone();
 
     // this is for the fadeout transition for the okay status
     let (status_okay_class, set_status_okay_class) = signal("okay".to_string());
 
-    let action = Action::new(move |(name, value): &(String, String)| {
+    let action = ArcAction::new(move |(name, value): &(String, String)| {
         let name = name.to_owned();
         let value = value.to_owned();
         let status_clear = status_clear_clone.clone();
@@ -451,13 +451,15 @@ pub fn WizardField(
     });
     let action_pending = action.pending();
     let action_result = action.value();
-    let action_version = action.version();
     let mut abort_handle = None::<ActionAbortHandle>;
     let mut current = field_input.clone();
 
+    let new_action = action.clone();
     // actually define the status clear action, using the action.value() handle
-    let _ = status_clear.set(Action::new(move |()| {
-        let action_result = action_result.clone();
+    let _ = status_clear.set(ArcAction::new(move |()| {
+        let action_result = new_action.value();
+        let action_version = new_action.version();
+        let action_pending = new_action.pending();
         async move {
             let version = action_version.get_untracked();
             #[cfg(not(feature = "ssr"))]
@@ -482,8 +484,10 @@ pub fn WizardField(
         }
     }));
 
+    let new_action = action.clone();
     // this version simply dispatch the action after a delay
-    let delayed_action = Action::new(move |(name, value, delay): &(String, String, u32)| {
+    let delayed_action = ArcAction::new(move |(name, value, delay): &(String, String, u32)| {
+        let action = new_action.clone();
         let name = name.to_owned();
         let value = value.to_owned();
         let _delay = *delay;
@@ -613,6 +617,16 @@ pub fn Wizard() -> impl IntoView {
 
             let add_file_form = view! {
                 <ActionForm attr:class="standard" action=wizard_add_file>
+                    {move || {
+                        let value = wizard_add_file.value();
+                        match value.get() {
+                            Some(Ok(_)) => {
+                                value.set(None);
+                                wizard_res.refetch();
+                            }
+                            _ => (),
+                        }
+                    }}
                     <fieldset>
                         <legend>"New Exposure File"</legend>
                         <input type="hidden" name="exposure_id" value=info.exposure.id/>
