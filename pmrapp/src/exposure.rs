@@ -623,6 +623,8 @@ pub fn Wizard() -> impl IntoView {
                             Some(Ok(_)) => {
                                 value.set(None);
                                 wizard_res.refetch();
+                                expect_context::<Resource<Result<ExposureInfo, AppError>>>()
+                                    .refetch();
                             }
                             _ => (),
                         }
