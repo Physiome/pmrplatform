@@ -67,7 +67,7 @@ async fn test_platform_create_exposure_list_files() -> anyhow::Result<()> {
         1,
         "083b775d81ec9b66796edbbdce4d714bb2ddc355",
     ).await?;
-    assert_eq!(exposure.list_files()?, &["README", "if1"]);
+    assert_eq!(exposure.list_git_files()?, &["README", "if1"]);
     assert_eq!(exposure.list_exposure_files().await?.len(), 0);
 
     // this stops "`ex2` dropped here while still borrowed" before the

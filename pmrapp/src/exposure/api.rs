@@ -80,7 +80,7 @@ pub async fn get_exposure_info(id: i64) -> Result<EnforcedOk<ExposureInfo>, Serv
     let platform = platform().await?;
     let ctrl = platform.get_exposure(id).await
         .map_err(|_| AppError::InternalServerError)?;
-    let files = ctrl.list_files_info().await
+    let files = ctrl.pair_files_info().await
         .map_err(|_| AppError::InternalServerError)?;
     let exposure = ctrl.exposure().clone_inner();
     let workspace = platform.mc_platform
@@ -275,7 +275,7 @@ pub async fn wizard(
     let platform = platform().await?;
     let ctrl = platform.get_exposure(id).await
         .map_err(|_| AppError::InternalServerError)?;
-    let prompts = ctrl.list_files_profile_prompt_groups().await
+    let prompts = ctrl.pair_files_profile_prompt_groups().await
         .map_err(log_error)?;
     let profiles = platform.list_profiles().await
         .map_err(|_| AppError::InternalServerError)?;

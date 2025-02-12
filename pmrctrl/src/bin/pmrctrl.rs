@@ -302,7 +302,7 @@ async fn parse_exposure<'p>(
         }
         ExposureCmd::Files { id } => {
             let ctrl = platform.get_exposure(id).await?;
-            for (file, flag) in ctrl.list_files_info().await?.iter() {
+            for (file, flag) in ctrl.pair_files_info().await?.iter() {
                 let flag = flag.then_some("*").unwrap_or(" ");
                 println!("[{flag}] {file}");
             }

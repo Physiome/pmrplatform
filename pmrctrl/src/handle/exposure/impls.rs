@@ -250,7 +250,7 @@ impl<'p> ExposureCtrl<'p> {
 
     /// List all underlying files associated with the workspace at the
     /// commit id for this exposure.
-    pub fn list_files(&self) -> Result<Vec<String>, PlatformError> {
+    pub fn list_git_files(&self) -> Result<Vec<String>, PlatformError> {
         Ok(self.0.git_handle.files(Some(&self.0.exposure.commit_id()))?)
     }
 
@@ -313,14 +313,14 @@ impl<'p> ExposureCtrl<'p> {
         )
     }
 
-    /// List all underlying files associated with the workspace at the
+    /// Pairs all underlying files associated with the workspace at the
     /// commit id for this exposure, with an additional flag denoting if
     /// the path has an exposure file.
-    pub async fn list_files_info(
+    pub async fn pair_files_info(
         &'p self,
     ) -> Result<Vec<(String, bool)>, PlatformError> {
         // Ok(self.0.git_handle.files(Some(&self.0.exposure.commit_id()))?)
-        let mut files = self.list_files()?;
+        let mut files = self.list_git_files()?;
         files.sort_unstable();
         let mut exposure_files = self.list_exposure_files().await?;
         exposure_files.sort_unstable();
@@ -339,11 +339,11 @@ impl<'p> ExposureCtrl<'p> {
         )
     }
 
-    pub async fn list_files_efcs(
+    pub async fn pair_files_efcs(
         &'p self,
     ) -> Result<Vec<(String, Option<ExposureFileCtrl<'p>>)>, PlatformError> {
         let mut result = Vec::new();
-        for (path, cond) in self.list_files_info().await?.into_iter() {
+        for (path, cond) in self.pair_files_info().await?.into_iter() {
             let item = if cond {
                 Some(self.ctrl_path(&path).await?)
             } else {
@@ -354,13 +354,13 @@ impl<'p> ExposureCtrl<'p> {
         Ok(result)
     }
 
-    pub async fn list_files_efvttcs(
+    pub async fn pair_files_efvttcs(
         &'p self,
     ) -> Result<&'p [(String, Option<EFViewTaskTemplatesCtrl<'p>>)], PlatformError> {
         Ok(match self.0.efvttcs.get() {
             Some(efvttcs) => efvttcs,
             None => {
-                let efcs = self.list_files_efcs().await?;
+                let efcs = self.pair_files_efcs().await?;
                 let mut efvttcs = Vec::new();
                 for (path, value) in efcs.into_iter() {
                     let item = if let Some(efc) = value {
@@ -373,7 +373,7 @@ impl<'p> ExposureCtrl<'p> {
                 self.0.efvttcs.set(efvttcs)
                     .unwrap_or_else(|_| log::warn!(
                         "concurrent call to the same \
-                        ExposureCtrl.list_files_efvttcs()"
+                        ExposureCtrl.pair_files_efvttcs()"
                     ));
                 self.0.efvttcs.get()
                     .expect("efvttsc has just been set!")
@@ -381,13 +381,13 @@ impl<'p> ExposureCtrl<'p> {
         })
     }
 
-    pub async fn list_files_profile_prompt_groups(
+    pub async fn pair_files_profile_prompt_groups(
         &'p self,
     ) -> Result<
         Vec<(&'p str, Option<(ExposureFileProfile, UserPromptGroupRefs<'p>)>)>,
         PlatformError
     > {
-        let efvttsc = self.list_files_efvttcs().await?;
+        let efvttsc = self.pair_files_efvttcs().await?;
         let mut result = Vec::new();
         for (path, value) in efvttsc.iter() {
             let item = if let Some(efvttsc) = value {
