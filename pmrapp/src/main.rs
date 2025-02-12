@@ -150,6 +150,10 @@ async fn main() -> anyhow::Result<()> {
             async {
                 if let Some(runtime) = runtime{
                     runtime.shutdown_signal().await
+                } else {
+                    tokio::signal::ctrl_c()
+                        .await
+                        .expect("failed to install Ctrl+C handler");
                 }
             }
         })())
