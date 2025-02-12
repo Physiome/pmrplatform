@@ -382,3 +382,38 @@ pub fn update_wizard_field(
         }
     })
 }
+
+#[server]
+pub async fn wizard_build(
+    exposure_id: i64,
+) -> Result<usize, ServerFnError<AppError>> {
+    session().await?
+        .enforcer(format!("/exposure/{exposure_id}/"), "edit").await?;
+    let mut result = 0;
+    let platform = platform().await?;
+    let ec = platform.get_exposure(exposure_id).await
+        .map_err(|_| AppError::InternalServerError)?;
+
+    let mut args = Vec::new();
+    for efvttc in ec.list_files_efvttcs().await
+        .map_err(|_| AppError::InternalServerError)?
+    {
+        let profile = efvttc
+            .exposure_file_ctrl()
+            .profile()
+            .await
+            .map_err(|_| AppError::InternalServerError)?;
+        args.push((efvttc, profile));
+    }
+
+    for (efvttc, profile) in args.iter() {
+        let vttc_tasks = efvttc.create_tasks_from_input(&profile.user_input)
+            .map_err(|_| AppError::InternalServerError)?;
+        result += efvttc
+            .exposure_file_ctrl()
+            .process_vttc_tasks(vttc_tasks).await
+            .map_err(|_| AppError::InternalServerError)?
+            .len();
+    }
+    Ok(result)
+}

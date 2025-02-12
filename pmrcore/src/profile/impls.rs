@@ -12,6 +12,12 @@ impl From<Vec<ViewTaskTemplate>> for ViewTaskTemplates {
     }
 }
 
+impl From<ViewTaskTemplates> for Vec<ViewTaskTemplate> {
+    fn from(value: ViewTaskTemplates) -> Self {
+        value.0
+    }
+}
+
 impl<const N: usize> From<[ViewTaskTemplate; N]> for ViewTaskTemplates {
     fn from(args: [ViewTaskTemplate; N]) -> Self {
         Self(args.into())

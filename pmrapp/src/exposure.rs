@@ -64,6 +64,7 @@ use crate::{
         wizard,
         ExposureInfo,
         WizardAddFile,
+        WizardBuild,
         WIZARD_FIELD_ROUTE,
     },
     view::{
@@ -590,6 +591,7 @@ pub fn WizardField(
 #[component]
 pub fn Wizard() -> impl IntoView {
     let wizard_add_file = ServerAction::<WizardAddFile>::new();
+    let wizard_build = ServerAction::<WizardBuild>::new();
 
     let params = use_params::<ExposureParams>();
     let wizard_res = Resource::new_blocking(
@@ -691,6 +693,25 @@ pub fn Wizard() -> impl IntoView {
                 })
                 .collect_view();
 
+            let build_form = view! {
+                <ActionForm attr:class="standard" action=wizard_build>
+                    <input type="hidden" name="exposure_id" value=info.exposure.id/>
+                    <button type="submit">"Build Exposure"</button>
+                    {move || {
+                        let value = wizard_build.value();
+                        match value.get() {
+                            Some(Ok(v)) => Some(view! {
+                                <div class="status okay">"Queued "{v}" build task(s)"</div>
+                            }.into_any()),
+                            Some(Err(e)) => Some(view! {
+                                <div class="status error">{format!("Error: {e}")}</div>
+                            }.into_any()),
+                            None => None,
+                        }
+                    }}
+                </ActionForm>
+            };
+
             view! {
                 {add_file_form}
                 <Form
@@ -707,6 +728,7 @@ pub fn Wizard() -> impl IntoView {
                         </div>
                     </fieldset>
                 </Form>
+                {build_form}
             }
         })
     });

@@ -62,6 +62,8 @@ impl<'p> ExposureCtrl<'p> {
         }))
     }
 
+    /// Create a file under the specified path.  This path must exist at
+    /// the underlying Git repository.
     pub async fn create_file(
         &'p self,
         workspace_file_path: &'p str,
@@ -103,6 +105,9 @@ impl<'p> ExposureCtrl<'p> {
         )
     }
 
+    /// Control a file using the ExposureFileRef.
+    ///
+    /// The underlying path must exist.
     pub fn ctrl_file(
         &'p self,
         exposure_file_ref: ExposureFileRef<'p>,
@@ -120,6 +125,7 @@ impl<'p> ExposureCtrl<'p> {
             Some(&workspace_file_path),
         )?;
 
+        // FIXME should the ref's platform be checked for validity?
         let exposure_file = ExposureFileCtrl::new(
             self.0.platform,
             self.clone(),
@@ -339,6 +345,9 @@ impl<'p> ExposureCtrl<'p> {
         )
     }
 
+    /// This returns a list of parings of all files from the underlying
+    /// git repository and any `ExposureFileCtrl` that associates with
+    /// that path.
     pub async fn pair_files_efcs(
         &'p self,
     ) -> Result<Vec<(String, Option<ExposureFileCtrl<'p>>)>, PlatformError> {
@@ -354,6 +363,9 @@ impl<'p> ExposureCtrl<'p> {
         Ok(result)
     }
 
+    /// This returns a list of parings of all files from the underlying
+    /// git repository and any `ExposureFileCtrl` that associates with
+    /// that path.
     pub async fn pair_files_efvttcs(
         &'p self,
     ) -> Result<&'p [(String, Option<EFViewTaskTemplatesCtrl<'p>>)], PlatformError> {
@@ -379,6 +391,16 @@ impl<'p> ExposureCtrl<'p> {
                     .expect("efvttsc has just been set!")
             }
         })
+    }
+
+    pub async fn list_files_efvttcs(
+        &'p self,
+    ) -> Result<Vec<&'p EFViewTaskTemplatesCtrl<'p>>, PlatformError> {
+        Ok(self.pair_files_efvttcs()
+            .await?
+            .iter()
+            .filter_map(|(_, efvttc)| efvttc.as_ref())
+            .collect::<Vec<_>>())
     }
 
     pub async fn pair_files_profile_prompt_groups(

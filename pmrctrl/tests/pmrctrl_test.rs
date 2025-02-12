@@ -1087,10 +1087,6 @@ async fn test_platform_vtt_profile() -> anyhow::Result<()> {
         "083b775d81ec9b66796edbbdce4d714bb2ddc355",
     ).await?;
     let efc = exposure.create_file("if1").await?;
-    let exposure_file_id = efc
-        .exposure_file()
-        .id();
-
     efc.set_vttprofile(vttp).await?;
 
     let efvttsc = efc.build_vttc().await?;
