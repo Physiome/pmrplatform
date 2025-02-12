@@ -10,7 +10,7 @@ use pmrmodel::backend::db::{
     MigrationProfile,
     SqliteBackend,
 };
-use pmrtqs::runner::RunnerRuntime;
+use pmrtqs::runtime::Runtime;
 use sqlx::{
     Sqlite,
     migrate::MigrateDatabase,
@@ -97,7 +97,7 @@ fn main() -> Result<(), PlatformError> {
         Ok::<_, PlatformError>(platform)
     })?;
     let executor = Executor::new(platform);
-    let mut runtime = RunnerRuntime::new(executor, args.runners);
+    let mut runtime = Runtime::new(executor, args.runners);
     runtime.start();
     log::info!("runner runtime starting");
     runtime.wait();

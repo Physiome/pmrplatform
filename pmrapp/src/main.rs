@@ -19,12 +19,16 @@ async fn main() -> anyhow::Result<()> {
     use pmrapp::exposure::api::WIZARD_FIELD_ROUTE;
     use pmrapp::server::workspace::raw_workspace_download;
     use pmrapp::server::exposure::wizard_field_update;
-    use pmrctrl::platform::Platform;
+    use pmrctrl::{
+        executor::Executor,
+        platform::Platform,
+    };
     use pmrmodel::backend::db::{
         MigrationProfile,
         SqliteBackend,
     };
     use pmrrbac::Builder as PmrRbacBuilder;
+    use pmrtqs::runtime::Builder as RuntimeBuilder;
     use std::fs;
     use sqlx::{migrate::MigrateDatabase, Sqlite};
     use time::Duration;
@@ -40,6 +44,7 @@ async fn main() -> anyhow::Result<()> {
         .module("pmrtqs")
         .module("pmrac")
         .module("pmrrbac")
+        .module("pmrtqs")
         // .module("axum_login")
         // .module("tower_sessions")
         // .module("tower_sessions_core")
@@ -129,11 +134,29 @@ async fn main() -> anyhow::Result<()> {
         .layer(auth_service)
         .with_state(leptos_options);
 
+    let runtime = (args.with_runners > 0).then(|| {
+        let executor = Executor::new(platform.clone());
+        let mut runtime = RuntimeBuilder::from(executor)
+            .permits(args.with_runners)
+            .build_with_handle(tokio::runtime::Handle::current());
+        runtime.start();
+        runtime
+    });
+
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
     log::info!("listening on http://{}", &addr);
     axum::serve(listener, app.into_make_service())
+        .with_graceful_shutdown((move || {
+            async {
+                if let Some(runtime) = runtime{
+                    runtime.shutdown_signal().await
+                }
+            }
+        })())
         .await
         .unwrap();
+
+
     Ok(())
 }
 

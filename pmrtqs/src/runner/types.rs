@@ -43,10 +43,3 @@ pub struct RunnerHandle<EX: traits::Executor> {
     pub(super) termination_token: Arc<AtomicBool>,
     pub(super) rt_handle: tokio::runtime::Handle,
 }
-
-pub struct RunnerRuntime<EX: traits::Executor> {
-    pub(super) runtime: tokio::runtime::Runtime,
-    pub(super) executor: EX,
-    pub(super) permits: usize,
-    pub(super) handle: Option<RunnerHandle<EX>>,
-}

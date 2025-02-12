@@ -6,7 +6,7 @@ use pmrmodel::backend::db::{
 use pmrtqs::{
     error::RunnerError,
     executor::TMPlatformExecutor,
-    runner::RunnerRuntime,
+    runtime::Runtime,
 };
 use tokio;
 
@@ -57,7 +57,7 @@ fn main() -> Result<(), RunnerError> {
         )
     })?;
     let executor = TMPlatformExecutor::new(backend.clone());
-    let mut runtime = RunnerRuntime::new(executor, args.runners);
+    let mut runtime = Runtime::new(executor, args.runners);
     runtime.start();
     log::info!("runner runtime starting");
     runtime.wait();
