@@ -35,6 +35,7 @@ pmrtqs = { workspace = true, optional = true }
 regex = { workspace = true }
 send_wrapper = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 serde_urlencoded = { workspace = true }
 sqlx = { workspace = true, features = ["sqlite"], optional = true }
 stderrlog = { workspace = true, optional = true }
