@@ -75,11 +75,14 @@ where
             .enable_time()
             .build()
             .expect("unable to create the runner runtime");
-        Self::with_handle(
-            runtime.handle().clone(),
+        let handle = runtime.handle().clone();
+        Self {
+            runtime: Some(runtime),
+            handle,
             executor,
             permits,
-        )
+            driver: None,
+        }
     }
 
     pub fn with_handle(
@@ -88,6 +91,7 @@ where
         permits: usize,
     ) -> Self {
         Self {
+            runtime: None,
             handle,
             executor,
             permits,
@@ -116,9 +120,15 @@ where
     }
 
     pub fn wait(&mut self) {
-        self.handle.block_on(async {
-            self.shutdown_signal().await
-        });
+        if let Some(runtime) = &self.runtime {
+            runtime.block_on(async {
+                self.shutdown_signal().await
+            });
+        } else {
+            self.handle.block_on(async {
+                self.shutdown_signal().await
+            });
+        }
     }
 
     pub async fn shutdown_signal(&self) {
