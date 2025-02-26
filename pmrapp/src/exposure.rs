@@ -210,9 +210,10 @@ pub fn Exposure() -> impl IntoView {
                 .update(|ctx| ctx.replace(resource
                     .map(|resource| {
                         on_cleanup(move || {
-                            expect_context::<WriteSignal<ContentActionCtx>>().update(|ctx| {
-                                ctx.reset_for("/exposure/{id}/");
-                            });
+                            use_context::<WriteSignal<ContentActionCtx>>()
+                                .map(|signal| signal.update(|ctx| {
+                                    ctx.reset_for("/exposure/{id}/");
+                                }));
                         });
 
                         let mut actions = vec![];

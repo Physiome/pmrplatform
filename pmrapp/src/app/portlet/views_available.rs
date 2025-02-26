@@ -29,7 +29,7 @@ impl ViewsAvailableCtx {
 
 #[component]
 pub fn ViewsAvailable() -> impl IntoView {
-    use_context::<ReadSignal<Resource<ViewsAvailableCtx>>>().map(|ctx| {
+    use_context::<ReadSignal<Resource<ViewsAvailableCtx>>>().map(move |ctx| {
         let resource = ctx.get();
         view! {
             <Transition>{

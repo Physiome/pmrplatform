@@ -32,7 +32,7 @@ impl NavigationCtx {
 
 #[component]
 pub fn Navigation() -> impl IntoView {
-    use_context::<ReadSignal<Resource<NavigationCtx>>>().map(|ctx| {
+    use_context::<ReadSignal<Resource<NavigationCtx>>>().map(move |ctx| {
         let resource = ctx.get();
         view! {
             <Transition>{

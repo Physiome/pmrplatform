@@ -31,7 +31,7 @@ impl ExposureSourceCtx {
 
 #[component]
 pub fn ExposureSource() -> impl IntoView {
-    use_context::<ReadSignal<Resource<ExposureSourceCtx>>>().map(|ctx| {
+    use_context::<ReadSignal<Resource<ExposureSourceCtx>>>().map(move |ctx| {
         let resource = ctx.get();
         view! {
             <Transition>{

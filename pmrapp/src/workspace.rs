@@ -96,9 +96,10 @@ fn workspace_root_page_ctx(current_owner: String) {
 
     on_cleanup(move || {
         logging::log!("on_cleanup workspace_root_page_ctx");
-        expect_context::<WriteSignal<ContentActionCtx>>().update(|ctx| {
-            ctx.reset_for(&cleanup_owner);
-        });
+        use_context::<WriteSignal<ContentActionCtx>>()
+            .map(|signal| signal.update(|ctx| {
+                ctx.reset_for(&cleanup_owner);
+            }));
     });
 
     expect_context::<WriteSignal<ContentActionCtx>>()
@@ -229,9 +230,10 @@ pub fn Workspace() -> impl IntoView {
                 .update(|ctx| ctx.replace(resource
                     .map(|resource| {
                         on_cleanup(move || {
-                            expect_context::<WriteSignal<ContentActionCtx>>().update(|ctx| {
-                                ctx.reset_for("/workspace/{id}/");
-                            });
+                            use_context::<WriteSignal<ContentActionCtx>>()
+                                .map(|signal| signal.update(|ctx| {
+                                    ctx.reset_for("/workspace/{id}/");
+                                }));
                         });
 
                         let mut actions = vec![];

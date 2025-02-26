@@ -74,7 +74,7 @@ pub fn ContentAction() -> impl IntoView {
     let account_ctx = expect_context::<AccountCtx>();
     // TODO the res_policy_state must be integrated with the result from the data that
     // is returned for populating contentaction
-    use_context::<ReadSignal<Resource<ContentActionCtx>>>().map(|ctx| {
+    use_context::<ReadSignal<Resource<ContentActionCtx>>>().map(move |ctx| {
         let res_ctx = ctx.get();
         let action_view = move || {
             let res_ps = account_ctx.res_ps.clone();
