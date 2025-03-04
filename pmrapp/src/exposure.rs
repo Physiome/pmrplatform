@@ -199,8 +199,16 @@ pub fn Exposure() -> impl IntoView {
             }
         }
     ));
-    let exposure_info = expect_context::<Resource<Result<ExposureInfo, AppError>>>();
 
+    #[cfg(not(feature = "ssr"))]
+    on_cleanup(move || {
+        use_context::<WriteSignal<ContentActionCtx>>()
+            .map(|signal| signal.update(|ctx| {
+                ctx.reset_for("/exposure/{id}/");
+            }));
+    });
+
+    let exposure_info = expect_context::<Resource<Result<ExposureInfo, AppError>>>();
     let portlets = move || {
         Suspend::new(async move {
             let exposure_info = exposure_info.await;
@@ -210,13 +218,6 @@ pub fn Exposure() -> impl IntoView {
             expect_context::<WriteSignal<ContentActionCtx>>()
                 .update(|ctx| ctx.replace(resource
                     .map(|resource| {
-                        #[cfg(not(feature = "ssr"))]
-                        on_cleanup(move || {
-                            use_context::<WriteSignal<ContentActionCtx>>()
-                                .map(|signal| signal.update(|ctx| {
-                                    ctx.reset_for("/exposure/{id}/");
-                                }));
-                        });
 
                         let mut actions = vec![];
                         actions.push(ContentActionItem {

@@ -218,6 +218,15 @@ pub fn Workspace() -> impl IntoView {
             }
         }
     );
+
+    #[cfg(not(feature = "ssr"))]
+    on_cleanup(move || {
+        use_context::<WriteSignal<ContentActionCtx>>()
+            .map(|signal| signal.update(|ctx| {
+                ctx.reset_for("/workspace/{id}/");
+            }));
+    });
+
     let portlets = move || {
         Suspend::new(async move {
             let repo_result = resource.await;
@@ -232,13 +241,6 @@ pub fn Workspace() -> impl IntoView {
             expect_context::<WriteSignal<ContentActionCtx>>()
                 .update(|ctx| ctx.replace(resource
                     .map(|resource| {
-                        #[cfg(not(feature = "ssr"))]
-                        on_cleanup(move || {
-                            use_context::<WriteSignal<ContentActionCtx>>()
-                                .map(|signal| signal.update(|ctx| {
-                                    ctx.reset_for("/workspace/{id}/");
-                                }));
-                        });
 
                         let mut actions = vec![];
                         actions.push(ContentActionItem {
