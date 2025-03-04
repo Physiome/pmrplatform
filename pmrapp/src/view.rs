@@ -8,6 +8,7 @@ use crate::error::AppError;
 use crate::view::cellml_codegen::CellMLCodegen;
 use crate::view::cellml_math::CellMLMath;
 use crate::view::cellml_metadata::CellMLMetadata;
+use crate::view::license_citation::LicenseCitation;
 use crate::view::view::View;
 
 #[derive(Debug, PartialEq)]
@@ -15,6 +16,7 @@ pub enum EFView {
     CellMLCodegen,
     CellMLMath,
     CellMLMetadata,
+    LicenseCitation,
     View,
 }
 
@@ -26,6 +28,7 @@ impl FromStr for EFView {
             "cellml_codegen" => Ok(EFView::CellMLCodegen),
             "cellml_math" => Ok(EFView::CellMLMath),
             "cellml_metadata" => Ok(EFView::CellMLMetadata),
+            "license_citation" => Ok(EFView::LicenseCitation),
             "view" => Ok(EFView::View),
             _ => Err(AppError::ViewNotImplemented),
         }
@@ -44,6 +47,7 @@ pub fn ExposureFileView(view_key: EFView) -> impl IntoView {
         EFView::CellMLCodegen => view! { <CellMLCodegen/> }.into_any(),
         EFView::CellMLMath => view! { <CellMLMath/> }.into_any(),
         EFView::CellMLMetadata => view! { <CellMLMetadata/> }.into_any(),
+        EFView::LicenseCitation => view! { <LicenseCitation/> }.into_any(),
         EFView::View => view! { <View/> }.into_any(),
     }
 }
@@ -51,4 +55,5 @@ pub fn ExposureFileView(view_key: EFView) -> impl IntoView {
 mod cellml_codegen;
 mod cellml_math;
 mod cellml_metadata;
+mod license_citation;
 mod view;
