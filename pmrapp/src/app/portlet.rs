@@ -38,20 +38,9 @@ fn provide_portlet_context_for<
     + for<'de> Deserialize<'de>
     + 'static
 >() {
-    // While providing the context behind a resource feels very much
-    // superfluous, it does help avoid hydration issues as it functions
-    // as a way to somehow inform the reactive system that this needs
-    // some awaiting to do, as the underlying data may be provided via
-    // a server function.  While just using the read signal does work
-    // for CSR, but that results in hydration issue from mismatch with
-    // SSR render, thus making the simpler approach unsuitable for use.
-    let (rs, ws) = signal(T::default());
-    let (ctx, _) = signal(Resource::new_blocking(
-        move || rs.get(),
-        |rs| async move { rs },
-    ));
+    let (ctx, set_ctx) = signal(T::default());
     provide_context(ctx);
-    provide_context(ws);
+    provide_context(set_ctx);
 }
 
 pub fn provide_portlet_context() {

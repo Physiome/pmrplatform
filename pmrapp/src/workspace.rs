@@ -92,15 +92,18 @@ fn workspace_root_page_ctx(current_owner: String) {
     // this should be a push? children elements will need to also use this and that's a
     // conflict.
     logging::log!("setup workspace_root_page_ctx");
-    let cleanup_owner = current_owner.clone();
 
-    on_cleanup(move || {
-        logging::log!("on_cleanup workspace_root_page_ctx");
-        use_context::<WriteSignal<ContentActionCtx>>()
-            .map(|signal| signal.update(|ctx| {
-                ctx.reset_for(&cleanup_owner);
-            }));
-    });
+    #[cfg(not(feature = "ssr"))]
+    {
+        let cleanup_owner = current_owner.clone();
+        on_cleanup(move || {
+            logging::log!("on_cleanup workspace_root_page_ctx");
+            use_context::<WriteSignal<ContentActionCtx>>()
+                .map(|signal| signal.update(|ctx| {
+                    ctx.reset_for(&cleanup_owner);
+                }));
+        });
+    }
 
     expect_context::<WriteSignal<ContentActionCtx>>()
         .update(|ctx| ctx.set(
@@ -229,6 +232,7 @@ pub fn Workspace() -> impl IntoView {
             expect_context::<WriteSignal<ContentActionCtx>>()
                 .update(|ctx| ctx.replace(resource
                     .map(|resource| {
+                        #[cfg(not(feature = "ssr"))]
                         on_cleanup(move || {
                             use_context::<WriteSignal<ContentActionCtx>>()
                                 .map(|signal| signal.update(|ctx| {

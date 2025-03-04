@@ -20,10 +20,6 @@ pub struct ContentActionItem {
     pub req_action: Option<String>,
 }
 
-// Even if the Resource wrapping this is optional, the inner can still be
-// None to help with error while processing the resource, and have that be
-// distinct from a thing that offers no additional pages if the goal is to
-// also keep the portlet visible.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct ContentActionCtx {
     // This is the current owner of the action context menu
@@ -74,44 +70,42 @@ pub fn ContentAction() -> impl IntoView {
     let account_ctx = expect_context::<AccountCtx>();
     // TODO the res_policy_state must be integrated with the result from the data that
     // is returned for populating contentaction
-    use_context::<ReadSignal<Resource<ContentActionCtx>>>().map(move |ctx| {
-        let res_ctx = ctx.get();
-        let action_view = move || {
-            let res_ps = account_ctx.res_ps.clone();
-            Suspend::new(async move {
-                let enforcer = PolicyEnforcer::from(
-                    res_ps.await.policy
-                        .unwrap_or_default()
-                );
-                res_ctx.await.value.map(|action| {
-                    let view = action.into_iter()
-                        .filter_map(|ContentActionItem { href, text, title, req_action }| {
-                            req_action.as_ref()
-                                .map(|action| enforcer
-                                    .enforce(action)
-                                    .unwrap_or(false))
-                                .unwrap_or(true)
-                                .then(|| view! {
-                                    <li><A href attr:title=title>{text}</A></li>
-                                })
-                        })
-                        .collect_view();
-                    view! {
-                        <nav>
-                            <ul>
-                                {view}
-                            </ul>
-                        </nav>
-                        <div class="flex-grow"></div>
-                    }
-                })
+    let ctx = expect_context::<ReadSignal<ContentActionCtx>>();
+    let action_view = move || {
+        let res_ps = account_ctx.res_ps.clone();
+        Suspend::new(async move {
+            let enforcer = PolicyEnforcer::from(
+                res_ps.await.policy
+                    .unwrap_or_default()
+            );
+            ctx.get().value.map(|action| {
+                let view = action.into_iter()
+                    .filter_map(|ContentActionItem { href, text, title, req_action }| {
+                        req_action.as_ref()
+                            .map(|action| enforcer
+                                .enforce(action)
+                                .unwrap_or(false))
+                            .unwrap_or(true)
+                            .then(|| view! {
+                                <li><A href attr:title=title>{text}</A></li>
+                            })
+                    })
+                    .collect_view();
+                view! {
+                    <nav>
+                        <ul>
+                            {view}
+                        </ul>
+                    </nav>
+                    <div class="flex-grow"></div>
+                }
             })
-        };
-        view! {
-            <section id="content-action">
-                <Transition>{action_view}</Transition>
-                <WorkflowState/>
-            </section>
-        }
-    })
+        })
+    };
+    view! {
+        <section id="content-action">
+            <Transition>{action_view}</Transition>
+            <WorkflowState/>
+        </section>
+    }
 }

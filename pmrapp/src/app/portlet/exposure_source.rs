@@ -8,10 +8,6 @@ pub struct ExposureSourceItem {
     pub workspace_title: String,
 }
 
-// Even if the Resource wrapping this is optional, the inner can still be
-// None to help with error while processing the resource, and have that be
-// distinct from a thing that offers no additional pages if the goal is to
-// also keep the portlet visible.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct ExposureSourceCtx(Option<ExposureSourceItem>);
 
@@ -31,16 +27,13 @@ impl ExposureSourceCtx {
 
 #[component]
 pub fn ExposureSource() -> impl IntoView {
-    use_context::<ReadSignal<Resource<ExposureSourceCtx>>>().map(move |ctx| {
-        let resource = ctx.get();
-        view! {
-            <Transition>{
-                move || Suspend::new(async move {
-                    // TODO maybe set a flag via a signal so that the appropriate class
-                    // can be calculated to avoid the sidebar grid space being reserved?
-                    // Unless of course there is a CSS-based solution.
-                    resource.await.0.map(|ExposureSourceItem { commit_id, workspace_id, workspace_title }| {
-                        view! {
+    let ctx = expect_context::<ReadSignal<ExposureSourceCtx>>();
+    view! {
+	<Transition>{
+            move || {
+                Suspend::new(async move {
+                    ctx.get().0
+                        .map(|ExposureSourceItem { commit_id, workspace_id, workspace_title }| view! {
                             <section>
                                 <h4>"Source"</h4>
                                 <div>"
@@ -53,12 +46,11 @@ pub fn ExposureSource() -> impl IntoView {
                                     ".
                                 "</div>
                             </section>
-                        }
-                    })
+                        })
                 })
-            }</Transition>
-        }
-    })
+            }
+        }</Transition>
+    }
 }
 
 impl From<ExposureSourceItem> for ExposureSourceCtx {

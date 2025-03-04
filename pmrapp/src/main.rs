@@ -1,6 +1,5 @@
 #[cfg(feature = "ssr")]
-// #[tokio::main]
-#[tokio::main(flavor = "current_thread")]
+#[tokio::main]
 async fn main() -> anyhow::Result<()> {
     use axum::{
         Router,

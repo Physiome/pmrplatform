@@ -172,6 +172,7 @@ pub struct ExposureParams {
 
 #[component]
 pub fn Exposure() -> impl IntoView {
+    #[cfg(not(feature = "ssr"))]
     on_cleanup(move || {
         leptos::logging::log!("on_cleanup <Exposure>");
         use_context::<WriteSignal<ExposureSourceCtx>>()
@@ -209,6 +210,7 @@ pub fn Exposure() -> impl IntoView {
             expect_context::<WriteSignal<ContentActionCtx>>()
                 .update(|ctx| ctx.replace(resource
                     .map(|resource| {
+                        #[cfg(not(feature = "ssr"))]
                         on_cleanup(move || {
                             use_context::<WriteSignal<ContentActionCtx>>()
                                 .map(|signal| signal.update(|ctx| {
@@ -333,6 +335,7 @@ pub struct ViewPath(pub Option<String>);
 
 #[component]
 pub fn ExposureFile() -> impl IntoView {
+    #[cfg(not(feature = "ssr"))]
     on_cleanup(|| {
         use_context::<WriteSignal<ViewsAvailableCtx>>()
             .map(|ctx| ctx.update(ViewsAvailableCtx::clear));

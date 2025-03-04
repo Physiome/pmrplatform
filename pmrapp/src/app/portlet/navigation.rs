@@ -32,12 +32,12 @@ impl NavigationCtx {
 
 #[component]
 pub fn Navigation() -> impl IntoView {
-    use_context::<ReadSignal<Resource<NavigationCtx>>>().map(move |ctx| {
-        let resource = ctx.get();
-        view! {
-            <Transition>{
-                move || Suspend::new(async move {
-                    resource.await.0.map(|navigation| {
+    let ctx = expect_context::<ReadSignal<NavigationCtx>>();
+    view! {
+	<Transition>{
+            move || {
+                Suspend::new(async move {
+                    ctx.get().0.map(|navigation| {
                         let view = navigation.into_iter()
                             .map(|NavigationItem { href, text, .. }| view! {
                                 <li><A href>{text}</A></li>
@@ -55,9 +55,9 @@ pub fn Navigation() -> impl IntoView {
                         }
                     })
                 })
-            }</Transition>
-        }
-    })
+            }
+        }</Transition>
+    }
 }
 
 impl From<Vec<NavigationItem>> for NavigationCtx {

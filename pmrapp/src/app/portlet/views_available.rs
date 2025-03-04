@@ -29,15 +29,12 @@ impl ViewsAvailableCtx {
 
 #[component]
 pub fn ViewsAvailable() -> impl IntoView {
-    use_context::<ReadSignal<Resource<ViewsAvailableCtx>>>().map(move |ctx| {
-        let resource = ctx.get();
-        view! {
-            <Transition>{
-                move || Suspend::new(async move {
-                    // TODO maybe set a flag via a signal so that the appropriate class
-                    // can be calculated to avoid the sidebar grid space being reserved?
-                    // Unless of course there is a CSS-based solution.
-                    resource.await.0.map(|views_available| {
+    let ctx = expect_context::<ReadSignal<ViewsAvailableCtx>>();
+    view! {
+	<Transition>{
+            move || {
+                Suspend::new(async move {
+                    ctx.get().0.map(|views_available| {
                         let view = views_available.into_iter()
                             .map(|ViewsAvailableItem { href, text, .. }| view! {
                                 <li><A href>{text}</A></li>
@@ -55,9 +52,9 @@ pub fn ViewsAvailable() -> impl IntoView {
                         }
                     })
                 })
-            }</Transition>
-        }
-    })
+            }
+        }</Transition>
+    }
 }
 
 impl From<&ExposureFile> for ViewsAvailableCtx {
