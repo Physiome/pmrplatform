@@ -117,6 +117,21 @@ pub fn ExposureRoutes() -> impl MatchNestedRoutes + Clone {
 
 #[component]
 pub fn ExposureRoot() -> impl IntoView {
+    // TODO check to see whenever this becomes unnecessary.  For now this
+    // is needed to ensure the policy portlet view is reset as it gets shown
+    // implicitly on the exposure root, but navigating to home will leave it
+    // in place.
+    #[cfg(not(feature = "ssr"))]
+    on_cleanup(move || {
+        use crate::{
+            ac::AccountCtx,
+            enforcement::PolicyState,
+        };
+        if let Some(account_ctx) = use_context::<AccountCtx>() {
+            account_ctx.set_ps.set(PolicyState::default());
+        }
+    });
+
     view! {
         <Title text="Exposure — Physiome Model Repository"/>
         <Outlet/>
