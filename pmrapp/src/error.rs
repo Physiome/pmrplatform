@@ -84,7 +84,7 @@ mod ssr {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum AuthError {
     InternalServerError,
     InvalidCredentials,
