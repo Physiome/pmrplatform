@@ -30,7 +30,7 @@ pub use self::ssr::*;
 pub(crate) async fn sign_in_with_login_password(
     login: String,
     password: String,
-) -> Result<String, ServerFnError<AuthError>> {
+) -> Result<String, AuthError> {
     let mut session = session().await
         .map_err(|_| AuthError::InternalServerError)?;
     // FIXME figure out how to best approach CSRF; maybe this be best moved to the
@@ -39,7 +39,7 @@ pub(crate) async fn sign_in_with_login_password(
 }
 
 #[server]
-pub(crate) async fn sign_out() -> Result<(), ServerFnError<AuthError>> {
+pub(crate) async fn sign_out() -> Result<(), AuthError> {
     let mut session = session().await
         .map_err(|_| AuthError::InternalServerError)?;
     session.sign_out().await?;

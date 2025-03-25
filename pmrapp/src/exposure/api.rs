@@ -1,5 +1,4 @@
 use leptos::{
-    prelude::ServerFnError,
     server,
     server_fn::codec::Rkyv,
 };
@@ -57,7 +56,7 @@ mod ssr {
 use self::ssr::*;
 
 #[server]
-pub async fn list() -> Result<EnforcedOk<Exposures>, ServerFnError<AppError>> {
+pub async fn list() -> Result<EnforcedOk<Exposures>, AppError> {
     let policy_state = session().await?
         .enforcer_and_policy_state("/exposure/", "").await?;
     let platform = platform().await?;
@@ -74,7 +73,7 @@ pub struct ExposureInfo {
 }
 
 #[server]
-pub async fn get_exposure_info(id: i64) -> Result<EnforcedOk<ExposureInfo>, ServerFnError<AppError>> {
+pub async fn get_exposure_info(id: i64) -> Result<EnforcedOk<ExposureInfo>, AppError> {
     let policy_state = session().await?
         .enforcer_and_policy_state(format!("/exposure/{id}/"), "").await?;
     let platform = platform().await?;
@@ -95,7 +94,7 @@ pub async fn get_exposure_info(id: i64) -> Result<EnforcedOk<ExposureInfo>, Serv
 pub async fn resolve_exposure_path(
     id: i64,
     path: String,
-) -> Result<EnforcedOk<ResolvedExposurePath>, ServerFnError<AppError>> {
+) -> Result<EnforcedOk<ResolvedExposurePath>, AppError> {
     let policy_state = session().await?
         .enforcer_and_policy_state(format!("/exposure/{id}/"), "").await?;
     // TODO when there is a proper error type for id not found, use that
@@ -137,10 +136,6 @@ pub async fn resolve_exposure_path(
             // Reason for doing our own thing here is because the target
             // is an endpoint outside of the leptos application and thus
             // not routable/renderable using CSR.
-            //
-            // Returning the path as an Ok(Err(..)) to indicate a proper
-            // result that isn't a ServerFnError, but still an inner Err
-            // to facilitate this custom redirect handling.
             Ok(policy_state.to_enforced_ok(ResolvedExposurePath::Redirect(path)))
         },
         (Ok(efc), Err(CtrlError::EFVCNotFound(viewstr))) if viewstr == "" => {
@@ -176,7 +171,7 @@ pub async fn read_blob(
     path: String,
     efvid: i64,
     key: String,
-) -> Result<Box<[u8]>, ServerFnError<AppError>> {
+) -> Result<Box<[u8]>, AppError> {
     session().await?
         .enforcer(format!("/exposure/{id}/"), "").await?;
     let platform = platform().await?;
@@ -197,7 +192,7 @@ pub async fn read_safe_index_html(
     id: i64,
     path: String,
     efvid: i64,
-) -> Result<String, ServerFnError<AppError>> {
+) -> Result<String, AppError> {
     fn evaluate(url: &str) -> Option<Cow<str>> {
         match url.as_bytes() {
             [b'/', ..] => Some(url.into()),
@@ -223,7 +218,7 @@ pub async fn read_safe_index_html(
 pub async fn create_exposure(
     id: i64,
     commit_id: String,
-) -> Result<(), ServerFnError<AppError>> {
+) -> Result<(), AppError> {
     let policy_state = session().await?
         .enforcer_and_policy_state("/exposure/", "create").await?;
     let platform = platform().await?;
@@ -269,7 +264,7 @@ pub struct WizardInfo {
 #[server]
 pub async fn wizard(
     id: i64,
-) -> Result<EnforcedOk<WizardInfo>, ServerFnError<AppError>> {
+) -> Result<EnforcedOk<WizardInfo>, AppError> {
     let policy_state = session().await?
         .enforcer_and_policy_state(format!("/exposure/{id}/"), "edit").await?;
     let platform = platform().await?;
@@ -303,7 +298,7 @@ pub async fn wizard_add_file(
     exposure_id: i64,
     path: String,
     profile_id: i64,
-) -> Result<(), ServerFnError<AppError>> {
+) -> Result<(), AppError> {
     session().await?
         .enforcer(format!("/exposure/{exposure_id}/"), "edit").await?;
     let platform = platform().await?;
@@ -386,7 +381,7 @@ pub fn update_wizard_field(
 #[server]
 pub async fn wizard_build(
     exposure_id: i64,
-) -> Result<usize, ServerFnError<AppError>> {
+) -> Result<usize, AppError> {
     session().await?
         .enforcer(format!("/exposure/{exposure_id}/"), "edit").await?;
     let mut result = 0;

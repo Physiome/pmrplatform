@@ -168,13 +168,10 @@ fn LoginPage() -> impl IntoView {
                                 <p class="standard ok">{s}</p>
                             })
                         }
-                        Some(Err(ServerFnError::WrappedServerError(e))) => Some(view! {
-                            <p class="standard error">{format!("{e}")}</p>
-                        }),
                         Some(Err(e)) => Some(view! {
-                            <p class="standard error">{format!("System Error: {e:?}")}</p>
+                            <p class="standard error">{format!("Error: {e}")}</p>
                         }),
-                        _ => None,
+                        None => None,
                     }
                 }}
             </div>

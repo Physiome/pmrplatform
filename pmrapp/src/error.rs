@@ -1,4 +1,7 @@
-use leptos::prelude::ServerFnError;
+use leptos::server_fn::error::{
+    FromServerFnError,
+    ServerFnErrorErr,
+};
 use http::status::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -21,6 +24,12 @@ pub enum AppError {
     InternalServerError,
     #[error("500 Internal Server Error")]
     ViewNotImplemented,
+
+    // other non-http error
+    #[error("Network Error")]
+    NetworkError,
+    #[error("Encode/decode error")]
+    SerdeError,
 }
 
 impl AppError {
@@ -61,10 +70,12 @@ impl FromStr for AppError {
     }
 }
 
-impl From<ServerFnError<AppError>> for AppError {
-    fn from(e: ServerFnError<AppError>) -> Self {
+impl FromServerFnError for AppError {
+    fn from_server_fn_error(e: ServerFnErrorErr) -> Self {
         match e {
-            ServerFnError::WrappedServerError(e) => e,
+            ServerFnErrorErr::Request(_) => Self::NetworkError,
+            ServerFnErrorErr::Deserialization(_) |
+            ServerFnErrorErr::Serialization(_) => Self::SerdeError,
             _ => Self::InternalServerError,
         }
     }
@@ -88,6 +99,8 @@ mod ssr {
 pub enum AuthError {
     InternalServerError,
     InvalidCredentials,
+    NetworkError,
+    SerdeError,
 }
 
 impl From<AuthError> for &'static str {
@@ -95,6 +108,8 @@ impl From<AuthError> for &'static str {
         match v {
             AuthError::InternalServerError => "Internal server error",
             AuthError::InvalidCredentials => "Invalid credentials provided",
+            AuthError::NetworkError => "Network error",
+            AuthError::SerdeError => "Encoding error (is the application out of date?)",
         }
     }
 }
@@ -105,21 +120,12 @@ impl fmt::Display for AuthError {
     }
 }
 
-impl FromStr for AuthError {
-    type Err = Infallible;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(match s {
-            "Invalid credentials provided" => AuthError::InvalidCredentials,
-            _ => AuthError::InternalServerError,
-        })
-    }
-}
-
-impl From<ServerFnError<AuthError>> for AuthError {
-    fn from(e: ServerFnError<AuthError>) -> Self {
+impl FromServerFnError for AuthError {
+    fn from_server_fn_error(e: ServerFnErrorErr) -> Self {
         match e {
-            ServerFnError::WrappedServerError(e) => e,
+            ServerFnErrorErr::Request(_) => Self::NetworkError,
+            ServerFnErrorErr::Deserialization(_) |
+            ServerFnErrorErr::Serialization(_) => Self::SerdeError,
             _ => Self::InternalServerError,
         }
     }

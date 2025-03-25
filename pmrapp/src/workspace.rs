@@ -685,11 +685,8 @@ fn WorkspaceCreateExposure() -> impl IntoView {
                 <div>
                     {move || {
                         match action.value().get() {
-                            Some(Err(ServerFnError::WrappedServerError(e))) => Some(view! {
-                                <p class="standard error">{format!("Error: {e}")}</p>
-                            }),
                             Some(Err(e)) => Some(view! {
-                                <p class="standard error">{format!("System Error: {e:?}")}</p>
+                                <p class="standard error">{format!("Error: {e:?}")}</p>
                             }),
                             _ => None,
                         }

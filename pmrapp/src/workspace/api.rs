@@ -1,7 +1,4 @@
-use leptos::{
-    prelude::ServerFnError,
-    server,
-};
+use leptos::server;
 use pmrcore::{
     repo::{
         LogInfo,
@@ -36,7 +33,7 @@ mod ssr {
 use self::ssr::*;
 
 #[server]
-pub async fn list_workspaces() -> Result<EnforcedOk<Workspaces>, ServerFnError<AppError>> {
+pub async fn list_workspaces() -> Result<EnforcedOk<Workspaces>, AppError> {
     let policy_state = session().await?
         .enforcer_and_policy_state("/workspace/", "").await?;
     let platform = platform().await?;
@@ -52,7 +49,7 @@ pub async fn get_workspace_info(
     id: i64,
     commit: Option<String>,
     path: Option<String>,
-) -> Result<EnforcedOk<RepoResult>, ServerFnError<AppError>> {
+) -> Result<EnforcedOk<RepoResult>, AppError> {
     let policy_state = session().await?
         .enforcer_and_policy_state(format!("/workspace/{id}/"), "").await?;
     let platform = platform().await?;
@@ -78,7 +75,7 @@ pub async fn get_workspace_info(
 #[server]
 pub async fn get_log_info(
     id: i64,
-) -> Result<EnforcedOk<LogInfo>, ServerFnError<AppError>> {
+) -> Result<EnforcedOk<LogInfo>, AppError> {
     let policy_state = session().await?
         .enforcer_and_policy_state(format!("/workspace/{id}/"), "").await?;
     let platform = platform().await?;
@@ -95,7 +92,7 @@ pub async fn create_workspace(
     uri: String,
     description: String,
     long_description: String,
-) -> Result<(), ServerFnError<AppError>> {
+) -> Result<(), AppError> {
     let policy_state = session().await?
         .enforcer_and_policy_state("/workspace/", "create").await?;
     let platform = platform().await?;
@@ -135,7 +132,7 @@ pub async fn create_workspace(
 #[server]
 pub async fn synchronize(
     id: i64,
-) -> Result<(), ServerFnError<AppError>> {
+) -> Result<(), AppError> {
     session().await?
         .enforcer(format!("/workspace/{id}/"), "protocol_write").await?;
     let platform = platform().await?;
