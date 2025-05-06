@@ -108,7 +108,7 @@ pub fn ExposureRoutes() -> impl MatchNestedRoutes + Clone {
                 <Route path=StaticSegment("/") view=ExposureMain/>
                 <Route path=StaticSegment("") view=RedirectTS/>
                 <Route path=(StaticSegment("+"), StaticSegment("wizard")) view=Wizard/>
-                <Route path=WildcardSegment("path") view=ExposureFile/>
+                // <Route path=WildcardSegment("path") view=ExposureFile/>
             </ParentRoute>
         </ParentRoute>
     }
@@ -187,19 +187,28 @@ pub struct ExposureParams {
 
 #[component]
 pub fn Exposure() -> impl IntoView {
-    #[cfg(not(feature = "ssr"))]
-    on_cleanup(move || {
+    let exposure_source = ExposureSourceCtx::expect_write();
+    let navigation_ctx = NavigationCtx::expect_write();
+    let content_action_ctx = ContentActionCtx::expect_write();
+    on_cleanup({
         leptos::logging::log!("on_cleanup <Exposure>");
-        use_context::<WriteSignal<ExposureSourceCtx>>()
-            .map(|ctx| ctx.update(ExposureSourceCtx::clear));
-        use_context::<WriteSignal<NavigationCtx>>()
-            .map(|ctx| ctx.update(NavigationCtx::clear));
-        // FIXME when ContentAction is introduced here, use that for implicit cleanup.
-        // if let Some(account_ctx) = use_context::<AccountCtx>() {
-        //     leptos::logging::log!("used context AccountCtx to set_ps");
-        //     account_ctx.set_ps.update(|ctx| *ctx = PolicyState::default());
-        // }
+        let exposure_source = exposure_source.clone();
+        let navigation_ctx = navigation_ctx.clone();
+        move || {
+            exposure_source.update(|ctx| ctx.clear());
+            navigation_ctx.update(|ctx| ctx.clear());
+        }
     });
+
+    // TODO need to figure out how to deal with scoped cleanups
+    // #[cfg(not(feature = "ssr"))]
+    // on_cleanup(move || {
+    //     use_context::<WriteSignal<ContentActionCtx>>()
+    //         .map(|signal| signal.update(|ctx| {
+    //             ctx.reset_for("/exposure/{id}/");
+    //         }));
+    // });
+
     let params = use_params::<ExposureParams>();
     provide_context(Resource::new_blocking(
         move || params.get().map(|p| p.id),
@@ -215,60 +224,32 @@ pub fn Exposure() -> impl IntoView {
         }
     ));
 
-    #[cfg(not(feature = "ssr"))]
-    on_cleanup(move || {
-        use_context::<WriteSignal<ContentActionCtx>>()
-            .map(|signal| signal.update(|ctx| {
-                ctx.reset_for("/exposure/{id}/");
-            }));
-    });
-
     let exposure_info = expect_context::<Resource<Result<ExposureInfo, AppError>>>();
-    let portlets = move || {
-        Suspend::new(async move {
-            let exposure_info = exposure_info.await;
-            let resource = exposure_info.as_ref().ok().map(|info| {
-                format!("/exposure/{}/", info.exposure.id)
-            });
-            expect_context::<WriteSignal<ContentActionCtx>>()
-                .update(|ctx| ctx.replace(resource
-                    .map(|resource| {
 
-                        let mut actions = vec![];
-                        actions.push(ContentActionItem {
-                            href: resource.clone(),
-                            text: "Exposure Top".to_string(),
-                            title: None,
-                            req_action: None,
-                        });
-                        actions.push(ContentActionItem {
-                            href: format!("{resource}+/wizard"),
-                            text: "Wizard".to_string(),
-                            title: Some("Build this exposure".to_string()),
-                            req_action: Some("edit".to_string()),
-                        });
-                        ContentActionCtx::new("/exposure/{id}/".into(), actions)
-                    })
-                    .unwrap_or_default()
-                ));
-            expect_context::<WriteSignal<ExposureSourceCtx>>()
-                .update(|ctx| ctx.replace(exposure_info.as_ref()
-                    .map(|info| {
-                        logging::log!("building ExposureSourceItem");
+    let portlet_ctx = move || {
+        exposure_info.track();
+        exposure_source.update(move |c| {
+            c.set(ArcResource::new_blocking(
+                || (),
+                move |_| async move {
+                    exposure_info.await.map(|info| {
                         ExposureSourceItem {
                             commit_id: info.exposure.commit_id.clone(),
                             workspace_id: info.exposure.workspace_id.to_string(),
                             // TODO put in the workspace title.
                             workspace_title: info.workspace.description.clone().unwrap_or(
                                 format!("Workspace {}", info.exposure.workspace_id)),
-                        }.into()
+                        }
                     })
-                    .ok()
-                    .into()
-                ));
-            expect_context::<WriteSignal<NavigationCtx>>()
-                .update(|ctx| ctx.replace(exposure_info
-                    .map(|info| {
+                }
+            ))
+        });
+
+        navigation_ctx.update(move |c| {
+            c.set(ArcResource::new_blocking(
+                || (),
+                move |_| async move {
+                    exposure_info.await.map(|info| {
                         let exposure_id = info.exposure.id;
                         logging::log!("building NavigationCtx");
                         // TODO should derive from exposure.files when it contains title/description
@@ -283,18 +264,49 @@ pub fn Exposure() -> impl IntoView {
                                 })
                             })
                             .collect::<Vec<_>>()
+                            .into()
                     })
-                    .ok()
-                    .into()
-                ));
-        })
+                }
+            ))
+        });
     };
+
+    // let portlets = move || {
+    //     Suspend::new(async move {
+    //         let exposure_info = exposure_info.await;
+    //         let resource = exposure_info.as_ref().ok().map(|info| {
+    //             format!("/exposure/{}/", info.exposure.id)
+    //         });
+    //         expect_context::<WriteSignal<ContentActionCtx>>()
+    //             .update(|ctx| ctx.set(resource
+    //                 .map(|resource| {
+
+    //                     let mut actions = vec![];
+    //                     actions.push(ContentActionItem {
+    //                         href: resource.clone(),
+    //                         text: "Exposure Top".to_string(),
+    //                         title: None,
+    //                         req_action: None,
+    //                     });
+    //                     actions.push(ContentActionItem {
+    //                         href: format!("{resource}+/wizard"),
+    //                         text: "Wizard".to_string(),
+    //                         title: Some("Build this exposure".to_string()),
+    //                         req_action: Some("edit".to_string()),
+    //                     });
+    //                     ContentActionCtx::new("/exposure/{id}/".into(), actions)
+    //                 })
+    //                 .unwrap_or_default()
+    //             ));
+    //     })
+    // };
 
     view! {
         <Title text="Exposure — Physiome Model Repository"/>
-        <Suspense>
-            {portlets}
-        </Suspense>
+        {portlet_ctx}
+        // <Suspense>
+        //     {portlets}
+        // </Suspense>
         <Outlet/>
     }
 }
@@ -349,6 +361,7 @@ pub struct ExposureFileParams {
 #[derive(Clone, Debug)]
 pub struct ViewPath(pub Option<String>);
 
+/*
 #[component]
 pub fn ExposureFile() -> impl IntoView {
     #[cfg(not(feature = "ssr"))]
@@ -379,6 +392,27 @@ pub fn ExposureFile() -> impl IntoView {
         </li>
     };
 
+    // let views_available_ctx = ViewsAvailableCtx::expect_write()
+    // let portlet_ctx = move || {
+    //     file.track();
+    //     exposure_source.update(move |c| {
+    //         c.set(ArcResource::new_blocking(
+    //             || (),
+    //             move |_| async move {
+    //                 exposure_info.await.map(|info| {
+    //                     ExposureSourceItem {
+    //                         commit_id: info.exposure.commit_id.clone(),
+    //                         workspace_id: info.exposure.workspace_id.to_string(),
+    //                         // TODO put in the workspace title.
+    //                         workspace_title: info.workspace.description.clone().unwrap_or(
+    //                             format!("Workspace {}", info.exposure.workspace_id)),
+    //                     }
+    //                 })
+    //             }
+    //         ))
+    //     });
+    // };
+
     let ep_view = move || Suspend::new(async move {
         match file.await
             .map_err(|_| AppError::NotFound)
@@ -386,7 +420,7 @@ pub fn ExposureFile() -> impl IntoView {
             // TODO figure out how to redirect to the workspace.
             Ok(ResolvedExposurePath::Target(ef, Ok((efv, view_path)))) => {
                 expect_context::<WriteSignal<ViewsAvailableCtx>>()
-                    .update(|ctx| ctx.replace((&ef).into()));
+                    .update(|ctx| ctx.set((&ef).into()));
                 let view_key = efv.view_key.clone();
                 let view_key = EFView::from_str(&view_key
                     .expect("API failed to produce a fully formed ExposureFileView")
@@ -400,7 +434,7 @@ pub fn ExposureFile() -> impl IntoView {
             }
             Ok(ResolvedExposurePath::Target(ef, Err(view_keys))) => {
                 expect_context::<WriteSignal<ViewsAvailableCtx>>()
-                    .update(|ctx| ctx.replace((&ef).into()));
+                    .update(|ctx| ctx.set((&ef).into()));
                 Ok(view! {
                     <h1>
                         "Exposure "{ef.exposure_id}
@@ -431,6 +465,7 @@ pub fn ExposureFile() -> impl IntoView {
         </div>
     }
 }
+*/
 
 #[component]
 pub fn WizardField(

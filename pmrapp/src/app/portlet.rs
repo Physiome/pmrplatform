@@ -8,44 +8,28 @@ pub(super) mod views_available;
 
 pub use self::content_action::{
     ContentAction,
-    ContentActionItem,
     ContentActionCtx,
+    ContentActionItem,
 };
 pub use self::exposure_source::{
     ExposureSource,
-    ExposureSourceItem,
     ExposureSourceCtx,
+    ExposureSourceItem,
 };
 pub use self::navigation::{
     Navigation,
-    NavigationItem,
     NavigationCtx,
+    NavigationItem,
 };
 pub use self::views_available::{
     ViewsAvailable,
-    ViewsAvailableItem,
     ViewsAvailableCtx,
+    ViewsAvailableItem,
 };
 
-fn provide_portlet_context_for<
-    T: Clone
-    + Default
-    + Send
-    + Sync
-    + PartialEq
-    + Serialize
-    // ideally this bound shouldn't be here, but this makes it work for now...
-    + for<'de> Deserialize<'de>
-    + 'static
->() {
-    let (ctx, set_ctx) = signal(T::default());
-    provide_context(ctx);
-    provide_context(set_ctx);
-}
-
 pub fn provide_portlet_context() {
-    provide_portlet_context_for::<ContentActionCtx>();
-    provide_portlet_context_for::<ExposureSourceCtx>();
-    provide_portlet_context_for::<NavigationCtx>();
-    provide_portlet_context_for::<ViewsAvailableCtx>();
+    ContentActionCtx::provide();
+    NavigationCtx::provide();
+    ViewsAvailableCtx::provide();
+    ExposureSourceCtx::provide();
 }

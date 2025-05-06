@@ -1,6 +1,10 @@
-use leptos::server_fn::error::{
-    FromServerFnError,
-    ServerFnErrorErr,
+use leptos::server_fn::{
+    codec::JsonEncoding,
+    error::{
+        FromServerFnError,
+        ServerFnErrorErr,
+        ServerFnError,
+    },
 };
 use http::status::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -70,7 +74,20 @@ impl FromStr for AppError {
     }
 }
 
+impl From<ServerFnError> for AppError {
+    fn from(e: ServerFnError) -> Self {
+        match e {
+            ServerFnError::Request(_) => Self::NetworkError,
+            ServerFnError::Deserialization(_) |
+            ServerFnError::Serialization(_) => Self::SerdeError,
+            _ => Self::InternalServerError,
+        }
+    }
+}
+
 impl FromServerFnError for AppError {
+    type Encoder = JsonEncoding;
+
     fn from_server_fn_error(e: ServerFnErrorErr) -> Self {
         match e {
             ServerFnErrorErr::Request(_) => Self::NetworkError,
@@ -121,6 +138,8 @@ impl fmt::Display for AuthError {
 }
 
 impl FromServerFnError for AuthError {
+    type Encoder = JsonEncoding;
+
     fn from_server_fn_error(e: ServerFnErrorErr) -> Self {
         match e {
             ServerFnErrorErr::Request(_) => Self::NetworkError,

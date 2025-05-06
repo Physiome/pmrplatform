@@ -14,6 +14,7 @@ use leptos_router::{
     },
     StaticSegment,
 };
+use leptos_sync_ssr::component::SyncSsr;
 
 use crate::ac::{
     ACRoutes,
@@ -78,33 +79,35 @@ pub fn App() -> impl IntoView {
                     <SessionStatus/>
                 </nav>
             </header>
-            <main>
-                <section>
-                    <article>
-                        <Routes fallback=|| {
-                            let mut errors = Errors::default();
-                            errors.insert_with_default_key(AppError::NotFound);
-                            view! {
-                                <ErrorTemplate errors/>
-                            }
-                            .into_view()
-                        }>
-                            <Route path=StaticSegment("") view=HomePage/>
-                            <WorkspaceRoutes/>
-                            <ExposureRoutes/>
-                            <ACRoutes/>
-                        </Routes>
-                    </article>
+            <SyncSsr>
+                <main>
+                    <section>
+                        <article>
+                            <Routes fallback=|| {
+                                let mut errors = Errors::default();
+                                errors.insert_with_default_key(AppError::NotFound);
+                                view! {
+                                    <ErrorTemplate errors/>
+                                }
+                                .into_view()
+                            }>
+                                <Route path=StaticSegment("") view=HomePage/>
+                                <WorkspaceRoutes/>
+                                <ExposureRoutes/>
+                                <ACRoutes/>
+                            </Routes>
+                        </article>
+                        <aside>
+                            <ContentAction/>
+                        </aside>
+                    </section>
                     <aside>
-                        <ContentAction/>
+                        <ExposureSource/>
+                        <ViewsAvailable/>
+                        <Navigation/>
                     </aside>
-                </section>
-                <aside>
-                    <ExposureSource/>
-                    <ViewsAvailable/>
-                    <Navigation/>
-                </aside>
-            </main>
+                </main>
+            </SyncSsr>
             <footer>
                 <small>"Copyright 2024 IUPS Physiome Project"</small>
             </footer>

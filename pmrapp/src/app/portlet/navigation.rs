@@ -1,6 +1,9 @@
 use leptos::prelude::*;
 use leptos_router::components::A;
+use leptos_sync_ssr::portlet::PortletCtx;
 use serde::{Serialize, Deserialize};
+
+use crate::error::AppError;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct NavigationItem {
@@ -9,65 +12,48 @@ pub struct NavigationItem {
     pub title: Option<String>,
 }
 
-// Even if the Resource wrapping this is optional, the inner can still be
-// None to help with error while processing the resource, and have that be
-// distinct from a thing that offers no additional pages if the goal is to
-// also keep the portlet visible.
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-pub struct NavigationCtx(pub Option<Vec<NavigationItem>>);
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct NavigationItems(Vec<NavigationItem>);
 
-impl NavigationCtx {
-    pub fn clear(&mut self) {
-        self.0 = None;
+pub type NavigationCtx = PortletCtx<NavigationItems, AppError>;
+
+impl IntoRender for NavigationItems {
+    type Output = AnyView;
+
+    fn into_render(self) -> Self::Output {
+        let view = self.0
+            .into_iter()
+            .map(|NavigationItem { href, text, .. }| view! {
+                <li><A href>{text}</A></li>
+            })
+            .collect_view();
+        view! {
+            <section>
+                <h4>"Navigation"</h4>
+                <nav>
+                    <ul>
+                        {view}
+                    </ul>
+                </nav>
+            </section>
+        }
+        .into_any()
     }
+}
 
-    pub fn set(&mut self, value: Vec<NavigationItem>) {
-        self.0 = Some(value);
+impl From<NavigationItems> for Vec<NavigationItem> {
+    fn from(value: NavigationItems) -> Self {
+        value.0
     }
+}
 
-    pub fn replace(&mut self, value: Self) {
-        self.0 = value.0;
+impl From<Vec<NavigationItem>> for NavigationItems {
+    fn from(value: Vec<NavigationItem>) -> Self {
+        Self(value)
     }
 }
 
 #[component]
 pub fn Navigation() -> impl IntoView {
-    let ctx = expect_context::<ReadSignal<NavigationCtx>>();
-    view! {
-	<Transition>{
-            move || {
-                Suspend::new(async move {
-                    ctx.get().0.map(|navigation| {
-                        let view = navigation.into_iter()
-                            .map(|NavigationItem { href, text, .. }| view! {
-                                <li><A href>{text}</A></li>
-                            })
-                            .collect_view();
-                        view! {
-                            <section>
-                                <h4>"Navigation"</h4>
-                                <nav>
-                                    <ul>
-                                        {view}
-                                    </ul>
-                                </nav>
-                            </section>
-                        }
-                    })
-                })
-            }
-        }</Transition>
-    }
-}
-
-impl From<Vec<NavigationItem>> for NavigationCtx {
-    fn from(item: Vec<NavigationItem>) -> Self {
-        Self(Some(item))
-    }
-}
-
-impl From<Option<Vec<NavigationItem>>> for NavigationCtx {
-    fn from(item: Option<Vec<NavigationItem>>) -> Self {
-        Self(item)
-    }
+    NavigationCtx::render()
 }

@@ -100,11 +100,13 @@ fn workspace_root_page_ctx(current_owner: String) {
             logging::log!("on_cleanup workspace_root_page_ctx");
             use_context::<WriteSignal<ContentActionCtx>>()
                 .map(|signal| signal.update(|ctx| {
-                    ctx.reset_for(&cleanup_owner);
+                    // ctx.reset_for(&cleanup_owner);
+                    ctx.clear();
                 }));
         });
     }
 
+    /*
     expect_context::<WriteSignal<ContentActionCtx>>()
         .update(|ctx| ctx.set(
             current_owner.clone(),
@@ -117,6 +119,7 @@ fn workspace_root_page_ctx(current_owner: String) {
                 },
             ],
         ));
+    */
 }
 
 #[component]
@@ -223,10 +226,12 @@ pub fn Workspace() -> impl IntoView {
     on_cleanup(move || {
         use_context::<WriteSignal<ContentActionCtx>>()
             .map(|signal| signal.update(|ctx| {
-                ctx.reset_for("/workspace/{id}/");
+                // ctx.reset_for("/workspace/{id}/");
+                ctx.clear();
             }));
     });
 
+    /*
     let portlets = move || {
         Suspend::new(async move {
             let repo_result = resource.await;
@@ -239,7 +244,7 @@ pub fn Workspace() -> impl IntoView {
             // be loaded as an alias and the resource need to be the canonical URI.  Leaving
             // this for now in here.
             expect_context::<WriteSignal<ContentActionCtx>>()
-                .update(|ctx| ctx.replace(resource
+                .update(|ctx| ctx.set(resource
                     .map(|resource| {
 
                         let mut actions = vec![];
@@ -267,15 +272,16 @@ pub fn Workspace() -> impl IntoView {
                 ))
         })
     };
+    */
 
     provide_context(resource);
     provide_context(params);
 
     view! {
         <Title text="Workspace — Physiome Model Repository"/>
-        <Suspense>
-            {portlets}
-        </Suspense>
+        // <Suspense>
+        //     {portlets}
+        // </Suspense>
         <Outlet/>
     }
 }

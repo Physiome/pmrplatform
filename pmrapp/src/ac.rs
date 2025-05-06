@@ -42,7 +42,10 @@ pub fn provide_session_context() {
     let ps_read = ps.clone();
     let res_ps = ArcResource::new_blocking(
         move || ps_read.get(),
-        move |ps| async move { ps },
+        move |ps| async move {
+            leptos::logging::log!("got res_ps = {ps:?}");
+            ps
+        },
     );
 
     provide_context(AccountCtx {
@@ -64,14 +67,15 @@ pub fn ACRoutes() -> impl MatchNestedRoutes + Clone {
 #[component]
 pub fn WorkflowState() -> impl IntoView {
     let account_ctx = expect_context::<AccountCtx>();
+    let res_ps = account_ctx.res_ps.clone();
     let action = ServerAction::<WorkflowTransition>::new();
 
     let workflow_view = move || {
-        let res_ps = account_ctx.res_ps.clone();
-        // leptos::logging::log!("{res_ps:?}");
+        let res_ps = res_ps.clone();
+        leptos::logging::log!("{res_ps:?}");
         Suspend::new(async move {
             // TODO figure out where/how to deal with error here
-            let res_ps = action.value()
+            let ps = action.value()
                 .get()
                 // we are just dropping error here, ideally we should check and
                 // render a error tooltip under the workflow state if there was
@@ -80,8 +84,9 @@ pub fn WorkflowState() -> impl IntoView {
                 .ok()
                 .flatten()
                 .unwrap_or(res_ps.await);
-            let workflow_state = res_ps.state;
-            if let Some(policy) = res_ps.policy {
+            let workflow_state = ps.state;
+            leptos::logging::log!("<WorkflowState> {workflow_state}");
+            if let Some(policy) = ps.policy {
                 (policy.agent != Agent::Anonymous).then(|| Some(view! {
                     <div class="flex-grow"></div>
                     <div id="content-action-wf-state"
