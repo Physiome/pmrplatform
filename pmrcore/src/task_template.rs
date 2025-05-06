@@ -47,6 +47,7 @@ pub struct TaskTemplateArg {
     pub task_template_id: i64,
     pub flag: Option<String>,
     pub flag_joined: bool,
+    pub flag_omit_when_null: bool,
     pub prompt: Option<String>,
     pub default: Option<String>,
     // choice_fixed == false should imply flag_joined == true for security

@@ -355,6 +355,7 @@ async fn test_platform_create_exposure_file_view_task() -> anyhow::Result<()> {
                 {
                     "flag": null,
                     "flag_joined": false,
+                    "flag_omit_when_null": false,
                     "prompt": "Example prompt",
                     "default": null,
                     "choice_fixed": false,
@@ -364,6 +365,7 @@ async fn test_platform_create_exposure_file_view_task() -> anyhow::Result<()> {
                 {
                     "flag": null,
                     "flag_joined": false,
+                    "flag_omit_when_null": false,
                     "prompt": "Pick a file",
                     "default": null,
                     "choice_fixed": true,
@@ -481,6 +483,7 @@ async fn make_example_view_task_templates<'p>(
                     {
                         "flag": null,
                         "flag_joined": false,
+                        "flag_omit_when_null": false,
                         "prompt": "Example prompt",
                         "default": null,
                         "choice_fixed": false,
@@ -513,6 +516,7 @@ async fn make_example_view_task_templates<'p>(
                     {
                         "flag": "--file1=",
                         "flag_joined": true,
+                        "flag_omit_when_null": false,
                         "prompt": "Prompt for file",
                         "default": null,
                         "choice_fixed": true,
@@ -534,6 +538,7 @@ async fn make_example_view_task_templates<'p>(
                     {
                         "flag": "--file2=",
                         "flag_joined": true,
+                        "flag_omit_when_null": false,
                         "prompt": "Prompt for alternative file",
                         "default": null,
                         "choice_fixed": true,
@@ -555,6 +560,7 @@ async fn make_example_view_task_templates<'p>(
                     {
                         "flag": "--workspace_file_path=",
                         "flag_joined": true,
+                        "flag_omit_when_null": false,
                         "prompt": "",
                         "default": "workspace_file_path",
                         "choice_fixed": true,
@@ -564,6 +570,7 @@ async fn make_example_view_task_templates<'p>(
                     {
                         "flag": "--working_dir=",
                         "flag_joined": true,
+                        "flag_omit_when_null": false,
                         "prompt": "",
                         "default": "working_dir",
                         "choice_fixed": true,
@@ -613,6 +620,7 @@ async fn make_example_runnable_task_templates<'p>(
                     {{
                         "flag": null,
                         "flag_joined": false,
+                        "flag_omit_when_null": false,
                         "prompt": "Exit Code",
                         "default": null,
                         "choice_fixed": false,
@@ -634,6 +642,7 @@ async fn make_example_runnable_task_templates<'p>(
                     {{
                         "flag": null,
                         "flag_joined": false,
+                        "flag_omit_when_null": false,
                         "prompt": "",
                         "default": "workspace_file_path",
                         "choice_fixed": true,
@@ -643,6 +652,7 @@ async fn make_example_runnable_task_templates<'p>(
                     {{
                         "flag": null,
                         "flag_joined": false,
+                        "flag_omit_when_null": false,
                         "prompt": "",
                         "default": "working_dir",
                         "choice_fixed": true,
@@ -941,6 +951,7 @@ async fn test_platform_vtt_profile() -> anyhow::Result<()> {
                     {
                         "flag": "-A",
                         "flag_joined": false,
+                        "flag_omit_when_null": false,
                         "prompt": "First question in this group",
                         "default": null,
                         "choice_fixed": false,
@@ -950,6 +961,7 @@ async fn test_platform_vtt_profile() -> anyhow::Result<()> {
                     {
                         "flag": "-B",
                         "flag_joined": true,
+                        "flag_omit_when_null": false,
                         "prompt": "Second question in this group",
                         "default": null,
                         "choice_fixed": false,
@@ -959,6 +971,7 @@ async fn test_platform_vtt_profile() -> anyhow::Result<()> {
                     {
                         "flag": "-C",
                         "flag_joined": true,
+                        "flag_omit_when_null": false,
                         "prompt": "Final multiple choice",
                         "default": null,
                         "choice_fixed": false,

@@ -541,6 +541,7 @@ impl TaskTemplateBackend for MockPlatform {
         _task_template_id: i64,
         _flag: Option<&str>,
         _flag_joined: bool,
+        _flag_omit_when_null: bool,
         _prompt: Option<&str>,
         _default: Option<&str>,
         _choice_fixed: bool,

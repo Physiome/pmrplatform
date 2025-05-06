@@ -70,6 +70,7 @@ mod testing {
                     {
                         "flag": null,
                         "flag_joined": false,
+                        "flag_omit_when_null": false,
                         "prompt": "Example prompt",
                         "default": null,
                         "choice_fixed": false,
@@ -79,6 +80,7 @@ mod testing {
                     {
                         "flag": null,
                         "flag_joined": false,
+                        "flag_omit_when_null": false,
                         "prompt": "Another example prompt",
                         "default": null,
                         "choice_fixed": false,
@@ -120,6 +122,7 @@ mod testing {
                         "id": 1,
                         "flag": null,
                         "flag_joined": false,
+                        "flag_omit_when_null": false,
                         "prompt": "Example prompt",
                         "default": null,
                         "choice_fixed": false,
@@ -131,6 +134,7 @@ mod testing {
                         "id": 2,
                         "flag": null,
                         "flag_joined": false,
+                        "flag_omit_when_null": false,
                         "prompt": "Another example prompt",
                         "default": null,
                         "choice_fixed": false,

@@ -149,6 +149,7 @@ async fn add_task_template_arg_sqlite(
     task_template_id: i64,
     flag: Option<&str>,
     flag_joined: bool,
+    flag_omit_when_null: bool,
     prompt: Option<&str>,
     default: Option<&str>,
     choice_fixed: bool,
@@ -160,16 +161,18 @@ INSERT INTO task_template_arg (
     task_template_id,
     flag,
     flag_joined,
+    flag_omit_when_null,
     prompt,
     'default',
     choice_fixed,
     choice_source
 )
-VALUES ( ?1, ?2, ?3, ?4, ?5, ?6, ?7 )
+VALUES ( ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8 )
         "#,
         task_template_id,
         flag,
         flag_joined,
+        flag_omit_when_null,
         prompt,
         default,
         choice_fixed,
@@ -238,6 +241,7 @@ SELECT
     task_template_id,
     flag,
     flag_joined,
+    flag_omit_when_null,
     prompt,
     "default",
     choice_fixed,
@@ -262,6 +266,7 @@ WHERE
         task_template_id: row.task_template_id,
         flag: row.flag,
         flag_joined: row.flag_joined,
+        flag_omit_when_null: row.flag_omit_when_null,
         prompt: row.prompt,
         default: row.default,
         choice_fixed: row.choice_fixed,
@@ -284,6 +289,7 @@ SELECT
     task_template_id,
     flag,
     flag_joined,
+    flag_omit_when_null,
     prompt,
     "default",
     choice_fixed,
@@ -300,6 +306,7 @@ WHERE
         task_template_id: row.task_template_id,
         flag: row.flag,
         flag_joined: row.flag_joined,
+        flag_omit_when_null: row.flag_omit_when_null,
         prompt: row.prompt,
         default: row.default,
         choice_fixed: row.choice_fixed,
@@ -356,6 +363,7 @@ WHERE
         task_template_id: row.task_template_id,
         flag: row.flag,
         flag_joined: row.flag_joined,
+        flag_omit_when_null: row.flag_omit_when_null,
         prompt: row.prompt,
         default: row.default,
         choice_fixed: row.choice_fixed,
@@ -410,6 +418,7 @@ impl TaskTemplateBackend for SqliteBackend {
         task_template_id: i64,
         flag: Option<&str>,
         flag_joined: bool,
+        flag_omit_when_null: bool,
         prompt: Option<&str>,
         default: Option<&str>,
         choice_fixed: bool,
@@ -420,6 +429,7 @@ impl TaskTemplateBackend for SqliteBackend {
             task_template_id,
             flag,
             flag_joined,
+            flag_omit_when_null,
             prompt,
             default,
             choice_fixed,
@@ -583,6 +593,7 @@ mod tests {
             id,
             None,
             false,
+            false,
             Some("Faulty Choice"),
             None,
             false,
@@ -603,6 +614,7 @@ mod tests {
                 task_template_id: 1,
                 flag: None,
                 flag_joined: false,
+                flag_omit_when_null: false,
                 prompt: Some("Faulty Choice".into()),
                 default: None,
                 choice_fixed: false,
@@ -625,6 +637,7 @@ mod tests {
                     "task_template_id": 1,
                     "flag": null,
                     "flag_joined": false,
+                    "flag_omit_when_null": false,
                     "prompt": "Faulty Choice",
                     "default": null,
                     "choice_fixed": false,
@@ -654,6 +667,7 @@ mod tests {
                     "task_template_id": 1,
                     "flag": null,
                     "flag_joined": false,
+                    "flag_omit_when_null": false,
                     "prompt": "Faulty Choice",
                     "default": null,
                     "choice_fixed": false,
@@ -680,6 +694,7 @@ mod tests {
             id,
             None,
             false,
+            false,
             Some("First statement"),
             None,
             false,
@@ -688,6 +703,7 @@ mod tests {
         ttb.add_task_template_arg(
             id,
             None,
+            false,
             false,
             Some("Second statement"),
             None,
@@ -709,6 +725,7 @@ mod tests {
                 task_template_id: 1,
                 flag: None,
                 flag_joined: false,
+                flag_omit_when_null: false,
                 prompt: Some("First statement".into()),
                 default: None,
                 choice_fixed: false,
@@ -719,6 +736,7 @@ mod tests {
                 task_template_id: 1,
                 flag: None,
                 flag_joined: false,
+                flag_omit_when_null: false,
                 prompt: Some("Second statement".into()),
                 default: None,
                 choice_fixed: false,
@@ -741,6 +759,7 @@ mod tests {
                     "task_template_id": 1,
                     "flag": null,
                     "flag_joined": false,
+                    "flag_omit_when_null": false,
                     "prompt": "First statement",
                     "default": null,
                     "choice_fixed": false,
@@ -752,6 +771,7 @@ mod tests {
                     "task_template_id": 1,
                     "flag": null,
                     "flag_joined": false,
+                    "flag_omit_when_null": false,
                     "prompt": "Second statement",
                     "default": null,
                     "choice_fixed": false,
@@ -781,6 +801,7 @@ mod tests {
                     "task_template_id": 1,
                     "flag": null,
                     "flag_joined": false,
+                    "flag_omit_when_null": false,
                     "prompt": "First statement",
                     "default": null,
                     "choice_fixed": false,
@@ -792,6 +813,7 @@ mod tests {
                     "task_template_id": 1,
                     "flag": null,
                     "flag_joined": false,
+                    "flag_omit_when_null": false,
                     "prompt": "Second statement",
                     "default": null,
                     "choice_fixed": false,
@@ -873,7 +895,7 @@ mod tests {
         ).await
             .unwrap();
         TaskTemplateBackend::add_task_template_arg(
-            &backend, 1, Some("-i"), false, None, None, false, None
+            &backend, 1, Some("-i"), false, false, None, None, false, None
         ).await.unwrap();
         let template = TaskTemplateBackend::get_task_template_by_id(
             &backend, id
@@ -890,6 +912,7 @@ mod tests {
                 task_template_id: 1,
                 flag: Some("-i".into()),
                 flag_joined: false,
+                flag_omit_when_null: false,
                 prompt: None,
                 default: None,
                 choice_fixed: false,
@@ -921,6 +944,7 @@ mod tests {
                 task_template_id: 1,
                 flag: Some("-i".into()),
                 flag_joined: false,
+                flag_omit_when_null: false,
                 prompt: None,
                 default: None,
                 choice_fixed: false,
@@ -943,7 +967,7 @@ mod tests {
             &backend, "/bin/true", "1.0.0",
         ).await.unwrap();
         TaskTemplateBackend::add_task_template_arg(
-            &backend, 1, Some("-i"), false, None, None, false, None
+            &backend, 1, Some("-i"), false, false, None, None, false, None
         ).await.unwrap();
         assert_eq!(TaskTemplateBackend::delete_task_template_arg_by_id(
             &backend, 1).await.unwrap(), Some(TaskTemplateArg {
@@ -951,6 +975,7 @@ mod tests {
                 task_template_id: 1,
                 flag: Some("-i".into()),
                 flag_joined: false,
+                flag_omit_when_null: false,
                 prompt: None,
                 default: None,
                 choice_fixed: false,
@@ -1026,12 +1051,13 @@ mod tests {
                 task_template_id,
                 flag,
                 flag_joined,
+                flag_omit_when_null,
                 prompt,
                 'default',
                 choice_fixed,
                 choice_source
             )
-            VALUES ( 1, "-h", FALSE, "The prompt", NULL, FALSE, NULL)
+            VALUES ( 1, "-h", FALSE, FALSE, "The prompt", NULL, FALSE, NULL)
             "#,
         )
         .execute(&*backend.pool)
@@ -1074,6 +1100,7 @@ mod tests {
                 {
                     "flag": null,
                     "flag_joined": false,
+                    "flag_omit_when_null": false,
                     "prompt": "First statement",
                     "default": null,
                     "choice_fixed": false,
@@ -1092,6 +1119,7 @@ mod tests {
                 {
                     "flag": null,
                     "flag_joined": false,
+                    "flag_omit_when_null": false,
                     "prompt": "Second statement",
                     "default": null,
                     "choice_fixed": false,

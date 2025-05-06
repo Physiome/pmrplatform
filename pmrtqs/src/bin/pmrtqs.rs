@@ -84,6 +84,8 @@ enum Arg {
         flag: Option<String>,
         #[arg(long, value_name = "FLAG_JOINED")]
         flag_joined: bool,
+        #[arg(long, value_name = "FLAG_OMIT_WHEN_NULL")]
+        flag_omit_when_null: bool,
         #[arg(long, value_name = "PROMPT")]
         prompt: Option<String>,
         #[arg(long, value_name = "DEFAULT_VALUE")]
@@ -225,13 +227,23 @@ async fn get_task_template_by_id(
 
 async fn parse_arg(arg: Arg, backend: &SqliteBackend) -> anyhow::Result<()> {
     match arg {
-        Arg::Add { id, flag, flag_joined, prompt, default_value, choice_fixed, choice_source } => {
+        Arg::Add {
+            id,
+            flag,
+            flag_joined,
+            flag_omit_when_null,
+            prompt,
+            default_value,
+            choice_fixed,
+            choice_source,
+        } => {
             println!("Setting argument for task template id {id}");
             let argid = TaskTemplateBackend::add_task_template_arg(
                 backend,
                 id,
                 flag.as_deref(),
                 flag_joined,
+                flag_omit_when_null,
                 prompt.as_deref(),
                 default_value.as_deref(),
                 choice_fixed,

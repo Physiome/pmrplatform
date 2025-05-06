@@ -82,6 +82,10 @@ CREATE TABLE IF NOT EXISTS task_template_arg (
     -- with the user provided argument, e.g. for flags ending with = or
     -- cmake styled configuration flags.
     flag_joined BOOLEAN NOT NULL,
+    -- `flag_omit_when_null` specifies whether to omit the flag when the
+    -- target value is a NULL.  This in effect ensures the flag is not
+    -- passed to the program if no value was provided for the argument.
+    flag_omit_when_null BOOLEAN NOT NULL,
     -- `prompt` is the prompt that will be passed to the users for the
     -- request of user arguments.  NULL value implies that no arguments
     -- will be requested and that _any_ arguments generated will result

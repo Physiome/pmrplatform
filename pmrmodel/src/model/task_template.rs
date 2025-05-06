@@ -207,18 +207,39 @@ impl<'a> Iterator for TaskArgBuilder<'a> {
     type Item = TaskArg;
 
     fn next(&mut self) -> Option<TaskArg> {
-        match (
-            self.template.flag_joined,
-            self.args[0].is_some(),
-            self.args[1].is_some(),
-        ) {
-            (true, true, true) => Some([
-                self.args[0].take().unwrap().into(),
-                self.args[1].take().unwrap().into(),
-            ].into()),
-            (_, true, _) => Some(self.args[0].take().unwrap().into()),
-            (_, _, true) => Some(self.args[1].take().unwrap().into()),
-            _ => None,
+        if self.template.flag_omit_when_null {
+            match (
+                self.template.flag_joined,
+                self.args[0].is_some(),
+                self.args[1].is_some(),
+            ) {
+                (true, true, true) => Some([
+                    self.args[0].take().unwrap().into(),
+                    self.args[1].take().unwrap().into(),
+                ].into()),
+                (false, true, true) => Some(self.args[0].take().unwrap().into()),
+                (false, true, false) => {
+                    // simply discard the arg as the final value is null.
+                    self.args[0].take();
+                    None
+                }
+                (_, _, true) => Some(self.args[1].take().unwrap().into()),
+                _ => None,
+            }
+        } else {
+            match (
+                self.template.flag_joined,
+                self.args[0].is_some(),
+                self.args[1].is_some(),
+            ) {
+                (true, true, true) => Some([
+                    self.args[0].take().unwrap().into(),
+                    self.args[1].take().unwrap().into(),
+                ].into()),
+                (_, true, _) => Some(self.args[0].take().unwrap().into()),
+                (_, _, true) => Some(self.args[1].take().unwrap().into()),
+                _ => None,
+            }
         }
     }
 }
@@ -231,7 +252,9 @@ impl<'a> Iterator for TaskArgBuilders<'a> {
     }
 }
 
-// TODO Need a grouping by ViewTaskTemplate, which is two levels up?
+// Is grouping by ViewTaskTemplate needed?
+// - This would be set two levels up.
+// - Given the web-based UI, this might not be strictly necessary.
 impl<'a, I: Iterator<Item=&'a TaskTemplateArg>, T> Iterator for UserArgBuilder<'a, I, T> {
     type Item = UserArgRef<'a>;
 
@@ -1314,6 +1337,60 @@ mod test {
             TaskArg { arg: "".into(), .. Default::default() },
         ]);
 
+        // while similar to test_build_arg_default_mapped_none(), this
+        // one shows the additional flag will be emitted
+        let chunk_iter = TaskArgBuilder::try_from((
+            Some("omit"),
+            &task_template_arg,
+            &cache,
+        ));
+        let result = chunk_iter.unwrap().into_iter().collect::<Vec<_>>();
+        assert_eq!(result, vec![
+            TaskArg { arg: "--flag".into(), .. Default::default() },
+        ]);
+    }
+
+    #[test]
+    fn test_build_arg_flag_linked_null_to_arg() {
+        let task_template_arg = TaskTemplateArg {
+            id: 1,
+            flag: Some("--flag=".into()),
+            flag_joined: true,
+            flag_omit_when_null: true,
+            prompt: Some("Prompt for more user input".into()),
+            choices: serde_json::from_str(r#"[
+                {
+                    "to_arg": null,
+                    "label": "omit"
+                },
+                {
+                    "to_arg": "",
+                    "label": "empty string"
+                }
+            ]"#).unwrap(),
+            choice_fixed: false,
+            choice_source: Some("".into()),
+            .. Default::default()
+        };
+        let registry = PreparedChoiceRegistry::new();
+        let cache = ChoiceRegistryCache::from(
+            &registry as &dyn ChoiceRegistry<_>);
+        let chunk_iter = TaskArgBuilder::try_from((
+            Some("empty string"),
+            &task_template_arg,
+            &cache,
+        ));
+        let result = chunk_iter.unwrap().into_iter().collect::<Vec<_>>();
+        assert_eq!(result, vec![
+            TaskArg { arg: "--flag=".into(), .. Default::default() },
+        ]);
+        let chunk_iter = TaskArgBuilder::try_from((
+            Some("omit"),
+            &task_template_arg,
+            &cache,
+        ));
+        let result = chunk_iter.unwrap().into_iter().collect::<Vec<_>>();
+        assert_eq!(result, vec![]);
     }
 
     #[test]
@@ -1552,6 +1629,7 @@ mod test {
                     task_template_id: 3,
                     flag: Some("--title=".into()),
                     flag_joined: true,
+                    flag_omit_when_null: false,
                     prompt: Some("Heading for this publication".into()),
                     default: None,
                     choice_fixed: false,
@@ -1563,6 +1641,7 @@ mod test {
                     task_template_id: 3,
                     flag: Some("--docsrc".into()),
                     flag_joined: false,
+                    flag_omit_when_null: false,
                     prompt: Some("Documentation file".into()),
                     default: None,
                     choice_fixed: false,
@@ -1580,6 +1659,7 @@ mod test {
                     task_template_id: 3,
                     flag: None,
                     flag_joined: false,
+                    flag_omit_when_null: false,
                     prompt: Some("The model to process".into()),
                     default: None,
                     choice_fixed: true,
@@ -1591,6 +1671,7 @@ mod test {
                     task_template_id: 3,
                     flag: None,
                     flag_joined: false,
+                    flag_omit_when_null: false,
                     prompt: Some("Dry run".into()),
                     default: Some("no".into()),
                     choice_fixed: true,
@@ -1611,6 +1692,7 @@ mod test {
                     task_template_id: 3,
                     flag: None,
                     flag_joined: false,
+                    flag_omit_when_null: false,
                     prompt: Some("Hidden".into()),
                     default: Some("no".into()),
                     choice_fixed: true,
@@ -1887,6 +1969,7 @@ mod test {
                     task_template_id: 3,
                     flag: Some("--title=".into()),
                     flag_joined: true,
+                    flag_omit_when_null: false,
                     prompt: Some("Heading for this publication".into()),
                     default: None,
                     choice_fixed: false,
@@ -1898,6 +1981,7 @@ mod test {
                     task_template_id: 3,
                     flag: Some("--docsrc".into()),
                     flag_joined: false,
+                    flag_omit_when_null: false,
                     prompt: Some("Documentation file".into()),
                     default: None,
                     choice_fixed: false,
@@ -1909,6 +1993,7 @@ mod test {
                     task_template_id: 3,
                     flag: None,
                     flag_joined: false,
+                    flag_omit_when_null: false,
                     prompt: Some("The model to process".into()),
                     default: None,
                     choice_fixed: true,
@@ -1920,6 +2005,7 @@ mod test {
                     task_template_id: 3,
                     flag: None,
                     flag_joined: false,
+                    flag_omit_when_null: false,
                     prompt: Some("Dry run".into()),
                     default: Some("no".into()),
                     choice_fixed: true,
@@ -1940,6 +2026,7 @@ mod test {
                     task_template_id: 3,
                     flag: None,
                     flag_joined: false,
+                    flag_omit_when_null: false,
                     prompt: Some("Hidden".into()),
                     default: Some("no".into()),
                     choice_fixed: true,
@@ -2015,6 +2102,7 @@ mod test {
                     task_template_id: 3,
                     flag: None,
                     flag_joined: false,
+                    flag_omit_when_null: false,
                     prompt: Some("Some path".into()),
                     default: None,
                     choice_fixed: true,
@@ -2026,6 +2114,7 @@ mod test {
                     task_template_id: 3,
                     flag: None,
                     flag_joined: false,
+                    flag_omit_when_null: false,
                     prompt: Some("Some other path".into()),
                     default: None,
                     choice_fixed: true,
@@ -2037,6 +2126,7 @@ mod test {
                     task_template_id: 3,
                     flag: None,
                     flag_joined: false,
+                    flag_omit_when_null: false,
                     prompt: Some("Dry run".into()),
                     default: Some("no".into()),
                     choice_fixed: true,
@@ -2053,6 +2143,7 @@ mod test {
                     task_template_id: 3,
                     flag: None,
                     flag_joined: false,
+                    flag_omit_when_null: false,
                     prompt: Some("Required".into()),
                     default: None,
                     choice_fixed: false,
@@ -2111,6 +2202,7 @@ mod test {
                     task_template_id: 1,
                     flag: Some("-a".into()),
                     flag_joined: false,
+                    flag_omit_when_null: false,
                     prompt: None,
                     default: Some("validation".into()),
                     choice_fixed: true,
@@ -2233,6 +2325,7 @@ mod test {
                     task_template_id: 1,
                     flag: Some("-a".into()),
                     flag_joined: false,
+                    flag_omit_when_null: false,
                     prompt: Some("".into()),
                     default: Some("validation".into()),
                     choice_fixed: true,

@@ -24,23 +24,28 @@
         "type_info": "Bool"
       },
       {
-        "name": "prompt",
+        "name": "flag_omit_when_null",
         "ordinal": 4,
-        "type_info": "Text"
+        "type_info": "Bool"
       },
       {
-        "name": "default",
+        "name": "prompt",
         "ordinal": 5,
         "type_info": "Text"
       },
       {
-        "name": "choice_fixed",
+        "name": "default",
         "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "choice_fixed",
+        "ordinal": 7,
         "type_info": "Bool"
       },
       {
         "name": "choice_source",
-        "ordinal": 7,
+        "ordinal": 8,
         "type_info": "Text"
       }
     ],
@@ -51,6 +56,7 @@
       false,
       false,
       true,
+      false,
       false,
       true,
       true,
