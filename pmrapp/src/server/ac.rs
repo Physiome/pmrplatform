@@ -3,6 +3,10 @@ use axum_login::{
     AuthSession,
     Error as AxumLoginError,
 };
+use leptos::{
+    prelude::Set,
+    context::use_context,
+};
 use pmrac::{
     error::Error as ACError,
     axum_login::{
@@ -16,6 +20,7 @@ use pmrcore::ac::{
     user::User,
 };
 use crate::{
+    ac::AccountCtx,
     enforcement::PolicyState,
     error::{
         AppError,
@@ -68,6 +73,9 @@ impl Session {
         }
     }
 
+    // **Important** each component should only invoke this indirectly exactly
+    // _once_!  The design has the weakness where each end point has only one
+    // enforced policy active at a time.
     pub async fn enforcer_and_policy_state(
         &self,
         resource: impl Into<String>,
@@ -90,7 +98,12 @@ impl Session {
                 .get_wf_state_for_res(&resource)
                 .await
                 .map_err(|_| AppError::InternalServerError)?;
-            Ok(PolicyState::new(Some(policy), state))
+            let ps = PolicyState::new(Some(policy), state);
+            if let Some(ctx) = use_context::<AccountCtx>() {
+                // leptos::logging::log!("sfn EnforcedOk::notify_into calling set_ps with {ps:?}");
+                ctx.set_ps.set(ps.clone());
+            }
+            Ok(ps)
         } else {
             Err(AppError::Forbidden)
         }
