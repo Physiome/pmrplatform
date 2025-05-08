@@ -84,6 +84,11 @@ pub fn WorkflowState() -> impl IntoView {
                 .ok()
                 .flatten()
                 .unwrap_or(res_ps.await);
+            // Ensure the action value is always cleared; this is to ensure
+            // reactivity be preserved for the menu, otherwise all further
+            // rendering after an action is taken below will be result in the
+            // returned value from the action be used.
+            action.value().set(None);
             let workflow_state = ps.state;
             leptos::logging::log!("<WorkflowState> {workflow_state}");
             if let Some(policy) = ps.policy {
