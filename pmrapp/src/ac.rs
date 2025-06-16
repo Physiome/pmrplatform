@@ -6,6 +6,7 @@ use leptos_router::{
     SsrMode,
     StaticSegment,
 };
+use leptos_sync_ssr::signal::SsrSignalResource;
 use pmrcore::ac::{
     agent::Agent,
     user::User,
@@ -28,8 +29,13 @@ use api::{
 #[derive(Clone)]
 pub struct AccountCtx {
     pub current_user: ArcResource<Result<Option<User>, ServerFnError>>,
-    pub set_ps: ArcWriteSignal<PolicyState>,
-    pub res_ps: ArcResource<PolicyState>,
+    pub policy_state: SsrSignalResource<Option<PolicyState>>,
+}
+
+impl AccountCtx {
+    pub fn cleanup_policy_state(&self) {
+        self.policy_state.inner_write_only().set(Some(PolicyState::default()));
+    }
 }
 
 pub fn provide_session_context() {
@@ -39,21 +45,11 @@ pub fn provide_session_context() {
             current_user().await
         },
     );
-    let (ps, set_ps) = arc_signal(PolicyState::default());
-
-    let ps_read = ps.clone();
-    let res_ps = ArcResource::new_blocking(
-        move || ps_read.get(),
-        move |ps| async move {
-            leptos::logging::log!("got res_ps = {ps:?}");
-            ps
-        },
-    );
+    let policy_state = SsrSignalResource::new(None);
 
     provide_context(AccountCtx {
         current_user,
-        set_ps,
-        res_ps,
+        policy_state,
     });
 }
 
@@ -73,12 +69,23 @@ pub fn ACRoutes() -> impl MatchNestedRoutes + Clone {
 #[component]
 pub fn WorkflowState() -> impl IntoView {
     let account_ctx = expect_context::<AccountCtx>();
-    let res_ps = account_ctx.res_ps.clone();
     let action = ServerAction::<WorkflowTransition>::new();
+
+    let policy_state = account_ctx.policy_state.read_only();
+    let res_ps = ArcResource::new_blocking(
+        || (),
+        move |_| {
+            let policy_state = policy_state.clone();
+            #[cfg(not(feature = "ssr"))]
+            policy_state.track();
+            async move {
+                policy_state.await
+            }
+        }
+    );
 
     let workflow_view = move || {
         let res_ps = res_ps.clone();
-        leptos::logging::log!("{res_ps:?}");
         Suspend::new(async move {
             // TODO figure out where/how to deal with error here
             let ps = action.value()
@@ -89,7 +96,7 @@ pub fn WorkflowState() -> impl IntoView {
                 .transpose()
                 .ok()
                 .flatten()
-                .unwrap_or(res_ps.await);
+                .unwrap_or(res_ps.await.unwrap_or_default());
             // Ensure the action value is always cleared; this is to ensure
             // reactivity be preserved for the menu, otherwise all further
             // rendering after an action is taken below will be result in the
@@ -99,7 +106,6 @@ pub fn WorkflowState() -> impl IntoView {
             leptos::logging::log!("<WorkflowState> {workflow_state}");
             if let Some(policy) = ps.policy {
                 (policy.agent != Agent::Anonymous).then(|| Some(view! {
-                    <div class="flex-grow"></div>
                     <div id="content-action-wf-state"
                         class=format!("action state-{workflow_state}")
                     >

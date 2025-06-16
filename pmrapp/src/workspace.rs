@@ -22,6 +22,7 @@ use leptos_router::{
     StaticSegment,
     WildcardSegment,
 };
+use leptos_sync_ssr::signal::SsrWriteSignal;
 use pmrcore::repo::{
     LogEntryInfo,
     PathObjectInfo,
@@ -32,8 +33,12 @@ use pmrcore::repo::{
 mod api;
 
 use crate::{
+    ac::AccountCtx,
     component::RedirectTS,
-    enforcement::EnforcedOk,
+    enforcement::{
+        EnforcedOk,
+        PolicyState,
+    },
     error::AppError,
     error_template::ErrorTemplate,
     exposure::api::CreateExposure,
@@ -79,47 +84,51 @@ pub fn WorkspaceRoutes() -> impl MatchNestedRoutes + Clone {
 
 #[component]
 pub fn WorkspaceRoot() -> impl IntoView {
+    let account_ctx = expect_context::<AccountCtx>();
+    #[cfg(not(feature = "ssr"))]
+    on_cleanup({
+        move || account_ctx.cleanup_policy_state()
+    });
     view! {
         <Title text="Workspace — Physiome Model Repository"/>
         <Outlet/>
     }
 }
 
-fn workspace_root_page_ctx(current_owner: String) {
-    // doing it here is a way to ensure this is set reactively, however this isn't reacting
-    // to the account changes, and it leaves a compulsory empty bar when this action isn't
-    // available.
-    // this should be a push? children elements will need to also use this and that's a
-    // conflict.
-    logging::log!("setup workspace_root_page_ctx");
-
+fn workspace_root_page_ctx(route: &'static str) -> impl IntoView {
+    let content_action_ctx = ContentActionCtx::expect();
     #[cfg(not(feature = "ssr"))]
-    {
-        let cleanup_owner = current_owner.clone();
-        on_cleanup(move || {
-            logging::log!("on_cleanup workspace_root_page_ctx");
-            use_context::<WriteSignal<ContentActionCtx>>()
-                .map(|signal| signal.update(|ctx| {
-                    // ctx.reset_for(&cleanup_owner);
-                    ctx.clear();
-                }));
-        });
-    }
-
-    /*
-    expect_context::<WriteSignal<ContentActionCtx>>()
-        .update(|ctx| ctx.set(
-            current_owner.clone(),
-            vec![
-                ContentActionItem {
-                    href: format!("/workspace/+/add"),
-                    text: "Add Workspace".to_string(),
-                    title: Some("Add a new workspace".to_string()),
-                    req_action: Some("create".to_string()),
-                },
-            ],
-        ));
-    */
+    on_cleanup({
+        let content_action_ctx = content_action_ctx.clone();
+        move || {
+            content_action_ctx.inner_write_only().update(
+                move |content_actions| if let Some(content_actions) = content_actions {
+                    content_actions.update(route, None);
+                }
+            );
+        }
+    });
+    content_action_ctx.update_with(
+        move || {
+            async move {
+                Some(vec![
+                    ContentActionItem {
+                        href: format!("/workspace/+/add"),
+                        text: "Add Workspace".to_string(),
+                        title: Some("Add a new workspace".to_string()),
+                        req_action: Some("create".to_string()),
+                    },
+                ])
+            }
+        },
+        move |content_actions, new_actions| {
+            if let Some(content_actions) = content_actions {
+                content_actions.update(route, new_actions);
+            } else {
+                *content_actions = Some((route, new_actions).into());
+            }
+        },
+    )
 }
 
 #[component]
@@ -156,9 +165,9 @@ pub fn WorkspaceListing() -> impl IntoView {
             )
         })
     };
-    workspace_root_page_ctx("/workspace/".into());
 
     view! {
+        {workspace_root_page_ctx("/workspace/")}
         <div class="main">
             <h1>"Listing of workspaces"</h1>
             <div>
@@ -175,9 +184,9 @@ pub fn WorkspaceListing() -> impl IntoView {
 #[component]
 pub fn WorkspaceAdd() -> impl IntoView {
     let action = ServerAction::<CreateWorkspace>::new();
-    workspace_root_page_ctx("/workspace/+/add".into());
 
     view! {
+        {workspace_root_page_ctx("/workspace/+/add")}
         <h1>"Add a workspace"</h1>
         <ActionForm attr:class="standard" action=action>
             <div>
@@ -206,82 +215,84 @@ pub struct WorkspaceParams {
 
 #[component]
 pub fn Workspace() -> impl IntoView {
+    let account_ctx = expect_context::<AccountCtx>();
+    let content_action_ctx = ContentActionCtx::expect();
     let params = use_params::<WorkspaceParams>();
     let resource = Resource::new_blocking(
         move || params.get().map(|p| p.id),
-        |id| async move {
-            logging::log!("processing requested workspace {:?}", &id);
-            match id {
-                Err(_) => Err(AppError::InternalServerError),
-                Ok(None) => Err(AppError::NotFound),
-                Ok(Some(id)) => get_workspace_info(id, None, None)
-                    .await
-                    .map(EnforcedOk::notify_into)
-                    .map_err(AppError::from),
+        move |id| {
+            let set_ps = account_ctx.policy_state.write_only();
+            async move {
+                logging::log!("processing requested workspace {:?}", &id);
+                provide_context(set_ps);
+                let result = match id {
+                    Err(_) => Err(AppError::InternalServerError),
+                    Ok(None) => Err(AppError::NotFound),
+                    Ok(Some(id)) => get_workspace_info(id, None, None)
+                        .await
+                        .map(EnforcedOk::notify_into)
+                        .map_err(AppError::from),
+                };
+                let _ = take_context::<SsrWriteSignal<Option<PolicyState>>>();
+                result
             }
         }
     );
 
+    let route = "/workspace/{id}/";
     #[cfg(not(feature = "ssr"))]
-    on_cleanup(move || {
-        use_context::<WriteSignal<ContentActionCtx>>()
-            .map(|signal| signal.update(|ctx| {
-                // ctx.reset_for("/workspace/{id}/");
-                ctx.clear();
-            }));
+    on_cleanup({
+        let content_action_ctx = content_action_ctx.clone();
+        move || {
+            content_action_ctx.inner_write_only().update(
+                move |content_actions| if let Some(content_actions) = content_actions {
+                    content_actions.update(route, None);
+                }
+            );
+        }
     });
-
-    /*
-    let portlets = move || {
-        Suspend::new(async move {
-            let repo_result = resource.await;
-            // TODO see if a check on existing value may avoid setting thus avoid a refetch upon hydration?
-            let resource = repo_result.as_ref().ok().map(|info| {
-                format!("/workspace/{}/", info.workspace.id)
-            });
-            // This supposedly normally may be written outside of a suspense, but this does
-            // depend on the above resource (repo_result), as the future work may have this
-            // be loaded as an alias and the resource need to be the canonical URI.  Leaving
-            // this for now in here.
-            expect_context::<WriteSignal<ContentActionCtx>>()
-                .update(|ctx| ctx.set(resource
-                    .map(|resource| {
-
-                        let mut actions = vec![];
-                        actions.push(ContentActionItem {
-                            href: resource.clone(),
-                            text: "Main View".to_string(),
-                            title: Some("Return to the top level workspace view".to_string()),
-                            req_action: None,
-                        });
-                        actions.push(ContentActionItem {
-                            href: format!("{resource}log"),
-                            text: "History".to_string(),
-                            title: None,
-                            req_action: None,
-                        });
-                        actions.push(ContentActionItem {
-                            href: format!("{resource}synchronize"),
-                            text: "Synchronize".to_string(),
-                            title: Some("Synchronize with the stored Git Repository URI".to_string()),
-                            req_action: Some("protocol_write".to_string()),
-                        });
-                        ContentActionCtx::new("/workspace/{id}/".into(), actions)
-                    })
-                    .unwrap_or_default()
-                ))
-        })
-    };
-    */
 
     provide_context(resource);
     provide_context(params);
 
     view! {
+        {content_action_ctx.update_with(
+            move || {
+                async move {
+                    resource.await.ok().map(|info| {
+                        let resource = format!("/workspace/{}/", info.workspace.id);
+                        vec![
+                            ContentActionItem {
+                                href: resource.clone(),
+                                text: "Main View".to_string(),
+                                title: Some("Return to the top level workspace view".to_string()),
+                                req_action: None,
+                            },
+                            ContentActionItem {
+                                href: format!("{resource}log"),
+                                text: "History".to_string(),
+                                title: None,
+                                req_action: None,
+                            },
+                            ContentActionItem {
+                                href: format!("{resource}synchronize"),
+                                text: "Synchronize".to_string(),
+                                title: Some("Synchronize with the stored Git Repository URI".to_string()),
+                                req_action: Some("protocol_write".to_string()),
+                            },
+                        ]
+                    })
+                }
+            },
+            move |content_actions, new_actions| {
+                if let Some(content_actions) = content_actions {
+                    content_actions.update(route, new_actions);
+                } else {
+                    *content_actions = Some((route, new_actions).into());
+                }
+            },
+        )}
         <Title text="Workspace — Physiome Model Repository"/>
-        // <Suspense>
-        //     {portlets}
-        // </Suspense>
         <Outlet/>
     }
 }

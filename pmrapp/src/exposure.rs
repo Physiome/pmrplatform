@@ -16,6 +16,7 @@ use leptos_router::{
     StaticSegment,
     WildcardSegment,
 };
+use leptos_sync_ssr::signal::SsrWriteSignal;
 use pmrcore::{
     exposure::{
         self,
@@ -42,7 +43,7 @@ use wasm_bindgen::{
 pub mod api;
 
 use crate::{
-    // ac::AccountCtx,
+    ac::AccountCtx,
     component::{
         Redirect,
         RedirectTS,
@@ -54,7 +55,7 @@ use crate::{
     error_template::ErrorTemplate,
     enforcement::{
         EnforcedOk,
-        // PolicyState,
+        PolicyState,
     },
     exposure::api::{
         list,
@@ -118,19 +119,10 @@ pub fn ExposureRoutes() -> impl MatchNestedRoutes + Clone {
 
 #[component]
 pub fn ExposureRoot() -> impl IntoView {
-    // TODO check to see whenever this becomes unnecessary.  For now this
-    // is needed to ensure the policy portlet view is reset as it gets shown
-    // implicitly on the exposure root, but navigating to home will leave it
-    // in place.
+    let account_ctx = expect_context::<AccountCtx>();
     #[cfg(not(feature = "ssr"))]
-    on_cleanup(move || {
-        use crate::{
-            ac::AccountCtx,
-            enforcement::PolicyState,
-        };
-        if let Some(account_ctx) = use_context::<AccountCtx>() {
-            account_ctx.set_ps.set(PolicyState::default());
-        }
+    on_cleanup({
+        move || account_ctx.cleanup_policy_state()
     });
 
     view! {
@@ -141,15 +133,37 @@ pub fn ExposureRoot() -> impl IntoView {
 
 #[component]
 pub fn ExposureListing() -> impl IntoView {
+    let account_ctx = expect_context::<AccountCtx>();
+    #[cfg(not(feature = "ssr"))]
+    on_cleanup({
+        let account_ctx = account_ctx.clone();
+        move || account_ctx.cleanup_policy_state()
+    });
+
+    // #[cfg(not(feature = "ssr"))]
+    // on_cleanup({
+    //     let policy_state = account_ctx.policy_state.inner_write_only();
+    //     move || policy_state.set(PolicyState::default())
+    // });
+
     let exposures = Resource::new_blocking(
         move || (),
-        move |_| async move {
-            let result = list().await;
-            match result {
-                Ok(ref result) => logging::log!("{}", result.inner.len()),
-                Err(_) => logging::log!("error loading exposures"),
-            };
-            result.map(EnforcedOk::notify_into)
+        move |_| {
+            let set_ps = account_ctx.policy_state.write_only();
+            async move {
+                let result = list().await;
+                // required by notify_into which will take it.
+                provide_context(set_ps);
+                match result {
+                    Ok(ref result) => logging::log!("{}", result.inner.len()),
+                    Err(_) => logging::log!("error loading exposures"),
+                };
+                let result = result.map(EnforcedOk::notify_into);
+                // this ensures if not taken, this will take it and effect the
+                // drop to release the lock.
+                let _ = take_context::<SsrWriteSignal<Option<PolicyState>>>();
+                result
+            }
         },
     );
     let exposure_listing = move || Suspend::new(async move {
@@ -191,71 +205,45 @@ pub fn Exposure() -> impl IntoView {
     let exposure_source_ctx = ExposureSourceCtx::expect();
     let navigation_ctx = NavigationCtx::expect();
     let content_action_ctx = ContentActionCtx::expect();
+    let account_ctx = expect_context::<AccountCtx>();
 
     #[cfg(not(feature = "ssr"))]
     on_cleanup({
         let exposure_source_ctx = exposure_source_ctx.clone();
         let navigation_ctx = navigation_ctx.clone();
+        let content_action_ctx = content_action_ctx.clone();
         move || {
             exposure_source_ctx.clear();
             navigation_ctx.clear();
+            content_action_ctx.inner_write_only().update(
+                move |content_actions| if let Some(content_actions) = content_actions {
+                    content_actions.update("/exposure/{id}/", None);
+                }
+            );
         }
     });
-
-    // TODO need to figure out how to deal with scoped cleanups
-    // #[cfg(not(feature = "ssr"))]
-    // on_cleanup(move || {
-    //     use_context::<WriteSignal<ContentActionCtx>>()
-    //         .map(|signal| signal.update(|ctx| {
-    //             ctx.reset_for("/exposure/{id}/");
-    //         }));
-    // });
 
     let params = use_params::<ExposureParams>();
     provide_context(Resource::new_blocking(
         move || params.get().map(|p| p.id),
-        |p| async move {
-            match p {
-                Err(_) => Err(AppError::InternalServerError),
-                Ok(Some(id)) => get_exposure_info(id)
-                    .await
-                    .map(EnforcedOk::notify_into)
-                    .map_err(AppError::from),
-                _ => Err(AppError::NotFound),
+        move |p| {
+            provide_context(account_ctx.policy_state.write_only());
+            async move {
+                let result = match p {
+                    Err(_) => Err(AppError::InternalServerError),
+                    Ok(Some(id)) => get_exposure_info(id)
+                        .await
+                        .map(EnforcedOk::notify_into)
+                        .map_err(AppError::from),
+                    _ => Err(AppError::NotFound),
+                };
+                let _ = take_context::<SsrWriteSignal<Option<PolicyState>>>();
+                result
             }
         }
     ));
 
     let exposure_info = expect_context::<Resource<Result<ExposureInfo, AppError>>>();
-
-    // let portlets = move || {
-    //     Suspend::new(async move {
-    //         let exposure_info = exposure_info.await;
-    //         let resource = exposure_info.as_ref().ok().map(|info| {
-    //             format!("/exposure/{}/", info.exposure.id)
-    //         });
-    //         expect_context::<WriteSignal<ContentActionCtx>>()
-    //             .update(|ctx| ctx.set(resource
-    //                 .map(|resource| {
-    //                     let mut actions = vec![];
-    //                     actions.push(ContentActionItem {
-    //                         href: resource.clone(),
-    //                         text: "Exposure Top".to_string(),
-    //                         title: None,
-    //                         req_action: None,
-    //                     });
-    //                     actions.push(ContentActionItem {
-    //                         href: format!("{resource}+/wizard"),
-    //                         text: "Wizard".to_string(),
-    //                         title: Some("Build this exposure".to_string()),
-    //                         req_action: Some("edit".to_string()),
-    //                     });
-    //                     ContentActionCtx::new("/exposure/{id}/".into(), actions)
-    //                 })
-    //                 .unwrap_or_default()
-    //             ));
-    //     })
-    // };
 
     view! {
         <Title text="Exposure — Physiome Model Repository"/>
@@ -297,6 +285,38 @@ pub fn Exposure() -> impl IntoView {
                 })
             }
         })}
+        {content_action_ctx.update_with(
+            move || {
+                #[cfg(not(feature = "ssr"))]
+                exposure_info.track();
+                async move {
+                    exposure_info.await.ok().map(|info| {
+                        let resource = format!("/exposure/{}/", info.exposure.id);
+                        vec![
+                            ContentActionItem {
+                                href: resource.clone(),
+                                text: "Exposure Top".to_string(),
+                                title: None,
+                                req_action: None,
+                            },
+                            ContentActionItem {
+                                href: format!("{resource}+/wizard"),
+                                text: "Wizard".to_string(),
+                                title: Some("Build this exposure".to_string()),
+                                req_action: Some("edit".to_string()),
+                            },
+                        ]
+                    })
+                }
+            },
+            move |content_actions, new_actions| {
+                if let Some(content_actions) = content_actions {
+                    content_actions.update("/exposure/{id}/", new_actions);
+                } else {
+                    *content_actions = Some(("/exposure/{id}/", new_actions).into());
+                }
+            },
+        )}
         <Outlet/>
     }
 }

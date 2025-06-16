@@ -1,11 +1,10 @@
-use leptos::{
-    context::use_context,
-    prelude::{
-        Resource,
-        ServerFnError,
-        Set as _,
-    },
+use leptos::prelude::{
+    Resource,
+    ServerFnError,
+    Set as _,
+    take_context,
 };
+use leptos_sync_ssr::signal::SsrWriteSignal;
 use pmrcore::ac::{
     genpolicy::Policy,
     workflow::State,
@@ -48,11 +47,11 @@ impl<T> EnforcedOk<T> {
     }
 
     pub fn notify_into(self) -> T {
-        if let Some(ctx) = use_context::<AccountCtx>() {
+        if let Some(ctx) = take_context::<SsrWriteSignal<Option<PolicyState>>>() {
             leptos::logging::warn!("EnforcedOk::notify_into calling set_ps with {:?}", &self.ps);
-            ctx.set_ps.set(self.ps);
+            ctx.set(Some(self.ps));
         } else {
-            leptos::logging::warn!("AccountCtx context is missing");
+            leptos::logging::warn!("SsrWriteSignal<Option<PolicyState>> not provided as a context to be taken");
         }
         self.inner
     }

@@ -259,7 +259,8 @@ form#sign-in input {
     padding: 0;
 }
 
-#content-action > div.flex-grow > span {
+#content-action div.flex-grow:only-child {
+    margin: 0;
 }
 
 #content-action a {
