@@ -3,8 +3,6 @@ use leptos_router::components::A;
 use leptos_sync_ssr::portlet::PortletCtx;
 use serde::{Serialize, Deserialize};
 
-use crate::error::AppError;
-
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct NavigationItem {
     pub href: String,
@@ -15,7 +13,7 @@ pub struct NavigationItem {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct NavigationItems(Vec<NavigationItem>);
 
-pub type NavigationCtx = PortletCtx<NavigationItems, AppError>;
+pub type NavigationCtx = PortletCtx<NavigationItems>;
 
 impl IntoRender for NavigationItems {
     type Output = AnyView;

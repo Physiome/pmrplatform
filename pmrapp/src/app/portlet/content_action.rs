@@ -11,7 +11,6 @@ use crate::{
         WorkflowState,
     },
     enforcement::PolicyState,
-    error::AppError,
 };
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -20,16 +19,15 @@ pub struct ContentActionItem {
     pub text: String,
     pub title: Option<String>,
     pub req_action: Option<String>,
+    pub parent: String,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct ContentAction {
-    // This is the current owner of the action context menu
-    current_owner: Option<String>,
-    action: Option<Vec<ContentActionItem>>,
+    action: Vec<ContentActionItem>,
 }
 
-pub type ContentActionCtx = PortletCtx<ContentAction, AppError>;
+pub type ContentActionCtx = PortletCtx<ContentAction>;
 
 #[component]
 pub fn ContentAction() -> impl IntoView {
@@ -45,8 +43,7 @@ impl IntoRender for ContentAction {
     type Output = AnyView;
 
     fn into_render(self) -> Self::Output {
-        // let account_ctx = expect_context::<AccountCtx>();
-        // let Self { current_owner, action } = self;
+        let account_ctx = expect_context::<AccountCtx>();
         // let res_ps = account_ctx.res_ps.clone();
         // let enforcer = PolicyEnforcer::from(
         //     res_ps.await.policy

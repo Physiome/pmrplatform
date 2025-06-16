@@ -1,7 +1,9 @@
 use leptos::prelude::*;
 use leptos_router::{
-    components::{A, Route},
+    components::{A, ParentRoute, Route},
+    nested_router::Outlet,
     MatchNestedRoutes,
+    SsrMode,
     StaticSegment,
 };
 use pmrcore::ac::{
@@ -55,11 +57,15 @@ pub fn provide_session_context() {
     });
 }
 
-#[component]
+#[component(transparent)]
 pub fn ACRoutes() -> impl MatchNestedRoutes + Clone {
+    let ssr = SsrMode::Async;
     view! {
-        <Route path=StaticSegment("login") view=LoginPage/>
-        <Route path=StaticSegment("logged_out") view=LogoutPage/>
+        <ParentRoute path=StaticSegment("auth") view=AuthRoot ssr>
+            <Route path=StaticSegment("/") view=LoginPage/>
+            <Route path=StaticSegment("login") view=LoginPage/>
+            <Route path=StaticSegment("logged_out") view=LogoutPage/>
+        </ParentRoute>
     }
     .into_inner()
 }
@@ -141,7 +147,7 @@ pub fn SessionStatus() -> impl IntoView {
                             </ActionForm>
                         }.into_any())
                         .unwrap_or_else(|| view! {
-                            <A href="/login">"Sign in"</A>
+                            <A href="/auth/login">"Sign in"</A>
                         }.into_any())
                 })
                 .unwrap_or_else(|_| view! {
@@ -158,6 +164,21 @@ pub fn SessionStatus() -> impl IntoView {
             }}
             <Suspense>{session_status_view}</Suspense>
         </div>
+    }
+}
+
+#[component]
+fn AuthRoot() -> impl IntoView {
+    view! {
+        <Outlet/>
+    }
+}
+
+#[component]
+fn AuthTop() -> impl IntoView {
+    view! {
+        <h1>"Account"</h1>
+        // TODO fill in the rest
     }
 }
 

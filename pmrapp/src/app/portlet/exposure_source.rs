@@ -2,8 +2,6 @@ use leptos::prelude::*;
 use leptos_sync_ssr::portlet::PortletCtx;
 use serde::{Serialize, Deserialize};
 
-use crate::error::AppError;
-
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ExposureSourceItem {
     pub commit_id: String,
@@ -11,7 +9,7 @@ pub struct ExposureSourceItem {
     pub workspace_title: String,
 }
 
-pub type ExposureSourceCtx = PortletCtx<ExposureSourceItem, AppError>;
+pub type ExposureSourceCtx = PortletCtx<ExposureSourceItem>;
 
 impl IntoRender for ExposureSourceItem {
     type Output = AnyView;

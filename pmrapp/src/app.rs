@@ -14,7 +14,7 @@ use leptos_router::{
     },
     StaticSegment,
 };
-use leptos_sync_ssr::component::SyncSsr;
+use leptos_sync_ssr::component::SyncSsrSignal;
 
 use crate::ac::{
     ACRoutes,
@@ -57,8 +57,6 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
 pub fn App() -> impl IntoView {
     // Provides context that manages stylesheets, titles, meta tags, etc.
     provide_meta_context();
-    provide_portlet_context();
-    provide_session_context();
 
     view! {
         // injects a stylesheet into the document <head>
@@ -70,16 +68,19 @@ pub fn App() -> impl IntoView {
 
         // content for this welcome page
         <Router>
-            <header>
-                <nav>
-                    <A href="/">"Home"</A>
-                    <A href="/workspace/">"Workspace"</A>
-                    <A href="/exposure/">"Exposure"</A>
-                    <div class="flex-grow"></div>
-                    <SessionStatus/>
-                </nav>
-            </header>
-            <SyncSsr>
+            <SyncSsrSignal setup=|| {
+                provide_portlet_context();
+                provide_session_context();
+            }>
+                <header>
+                    <nav>
+                        <A href="/">"Home"</A>
+                        <A href="/workspace/">"Workspace"</A>
+                        <A href="/exposure/">"Exposure"</A>
+                        <div class="flex-grow"></div>
+                        <SessionStatus/>
+                    </nav>
+                </header>
                 <main>
                     <section>
                         <article>
@@ -107,7 +108,7 @@ pub fn App() -> impl IntoView {
                         <Navigation/>
                     </aside>
                 </main>
-            </SyncSsr>
+            </SyncSsrSignal>
             <footer>
                 <small>"Copyright 2024 IUPS Physiome Project"</small>
             </footer>

@@ -43,7 +43,7 @@ pub(crate) async fn sign_out() -> Result<(), AuthError> {
     let mut session = session().await
         .map_err(|_| AuthError::InternalServerError)?;
     session.sign_out().await?;
-    leptos_axum::redirect("/logged_out");
+    leptos_axum::redirect("/auth/logged_out");
     Ok(())
 }
 

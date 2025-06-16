@@ -49,6 +49,7 @@ impl<T> EnforcedOk<T> {
 
     pub fn notify_into(self) -> T {
         if let Some(ctx) = use_context::<AccountCtx>() {
+            leptos::logging::warn!("EnforcedOk::notify_into calling set_ps with {:?}", &self.ps);
             ctx.set_ps.set(self.ps);
         } else {
             leptos::logging::warn!("AccountCtx context is missing");

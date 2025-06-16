@@ -4,8 +4,6 @@ use leptos_sync_ssr::portlet::PortletCtx;
 use pmrcore::exposure::ExposureFile;
 use serde::{Serialize, Deserialize};
 
-use crate::error::AppError;
-
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ViewsAvailableItem {
     pub href: String,
@@ -16,7 +14,7 @@ pub struct ViewsAvailableItem {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ViewsAvailableItems(Vec<ViewsAvailableItem>);
 
-pub type ViewsAvailableCtx = PortletCtx<ViewsAvailableItems, AppError>;
+pub type ViewsAvailableCtx = PortletCtx<ViewsAvailableItems>;
 
 impl IntoRender for ViewsAvailableItems {
     type Output = AnyView;
@@ -59,7 +57,6 @@ impl From<Vec<ViewsAvailableItem>> for ViewsAvailableItems {
     }
 }
 
-/*
 impl From<&ExposureFile> for ViewsAvailableItems {
     fn from(item: &ExposureFile) -> Self {
         let exposure_id = item.exposure_id;
@@ -78,9 +75,9 @@ impl From<&ExposureFile> for ViewsAvailableItems {
                         })
                     })
             })
+            .unwrap()
             .collect::<Vec<_>>()
             .into()
         )
     }
 }
-*/

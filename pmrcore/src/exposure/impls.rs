@@ -137,6 +137,15 @@ impl DerefMut for ExposureFileViews {
     }
 }
 
+impl IntoIterator for ExposureFileViews {
+    type Item = ExposureFileView;
+    type IntoIter = std::vec::IntoIter<ExposureFileView>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 impl<'a> From<Vec<ExposureFileViewRef<'a>>> for ExposureFileViewRefs<'a> {
     fn from(args: Vec<ExposureFileViewRef<'a>>) -> Self {
         Self(args)
