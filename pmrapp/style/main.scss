@@ -44,6 +44,7 @@ body > header > nav a {
 }
 
 #content-action a:hover,
+#content-action a[aria-current="page"],
 body > header > nav a:hover {
     background: #c00;
 }

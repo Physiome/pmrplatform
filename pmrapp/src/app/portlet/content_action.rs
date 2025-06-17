@@ -84,7 +84,7 @@ pub fn ContentActionItems() -> impl IntoView {
                             .unwrap_or(false))
                         .unwrap_or(true)
                         .then(|| view! {
-                            <li><A href attr:title=title>{text}</A></li>
+                            <li><A href exact=true attr:title=title>{text}</A></li>
                         })
                 })
                 .collect_view();
