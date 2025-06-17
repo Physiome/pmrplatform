@@ -83,6 +83,9 @@ pub fn App() -> impl IntoView {
                 </header>
                 <main>
                     <section>
+                        <aside>
+                            <ContentAction/>
+                        </aside>
                         <article>
                             <Routes fallback=|| {
                                 let mut errors = Errors::default();
@@ -98,9 +101,6 @@ pub fn App() -> impl IntoView {
                                 <ACRoutes/>
                             </Routes>
                         </article>
-                        <aside>
-                            <ContentAction/>
-                        </aside>
                     </section>
                     <aside>
                         <ExposureSource/>

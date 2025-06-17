@@ -55,55 +55,60 @@ impl From<(&str, Option<Vec<ContentActionItem>>)> for ContentActions {
 pub type ContentActionCtx = PortletCtx<ContentActions>;
 
 #[component]
+pub fn ContentActionItems() -> impl IntoView {
+    let account_ctx = expect_context::<AccountCtx>();
+    let ctx = expect_context::<ContentActionCtx>();
+    let resource = ctx.inner_resource();
+
+    let suspend = move || {
+	let resource = resource.clone();
+        // FIXME unsure why this resource needs manual tracking here.
+        // this is due to some views not actually having this show.
+        #[cfg(not(feature = "ssr"))]
+        resource.track();
+        let res_ps = account_ctx.policy_state.read_only();
+	Suspend::new(async move {
+            leptos::logging::log!("ContentActionItems Suspend");
+	    let actions = resource.await?.actions;
+            leptos::logging::log!("{actions:?}");
+            let policy = res_ps.await
+                .map(|ps| ps.policy)
+                .unwrap_or_default()
+                .unwrap_or_default();
+            let enforcer = PolicyEnforcer::from(policy);
+            let view = actions.into_iter()
+                .filter_map(|(_, ContentActionItem { href, text, title, req_action })| {
+                    req_action.as_ref()
+                        .map(|action| enforcer
+                            .enforce(action)
+                            .unwrap_or(false))
+                        .unwrap_or(true)
+                        .then(|| view! {
+                            <li><A href attr:title=title>{text}</A></li>
+                        })
+                })
+                .collect_view();
+            Some(view! {
+                <nav>
+                    <ul>
+                        {view}
+                    </ul>
+                </nav>
+            })
+	})
+    };
+    view! { <Transition>{suspend}</Transition> }
+}
+
+#[component]
 pub fn ContentAction() -> impl IntoView {
     view! {
         <section id="content-action">
-            {ContentActionCtx::render()}
+            <ContentActionItems/>
             // this div was originally inside the above, but having that there
             // messes up hydration such the above is reordered to be the bottom.
             <div class="flex-grow"></div>
             <WorkflowState/>
         </section>
-    }
-}
-
-impl IntoRender for ContentActions {
-    type Output = AnyView;
-
-    fn into_render(self) -> Self::Output {
-        let account_ctx = expect_context::<AccountCtx>();
-        let view = move || {
-            let res_ps = account_ctx.policy_state.read_only();
-            let actions = self.actions.clone();
-            Suspend::new(async move {
-                let policy = res_ps.await
-                    .map(|ps| ps.policy)
-                    .unwrap_or_default()
-                    .unwrap_or_default();
-                let enforcer = PolicyEnforcer::from(policy);
-                actions.into_iter()
-                    .filter_map(|(_, ContentActionItem { href, text, title, req_action })| {
-                        req_action.as_ref()
-                            .map(|action| enforcer
-                                .enforce(action)
-                                .unwrap_or(false))
-                            .unwrap_or(true)
-                            .then(|| view! {
-                                <li><A href attr:title=title>{text}</A></li>
-                            })
-                    })
-                    .collect_view()
-            })
-        };
-
-        view! {
-            <nav>
-                <ul>
-                    <Suspense>{view}</Suspense>
-                </ul>
-            </nav>
-            // <div class="flex-grow"></div>
-        }
-        .into_any()
     }
 }
