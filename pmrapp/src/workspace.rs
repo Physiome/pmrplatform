@@ -97,17 +97,22 @@ pub fn WorkspaceRoot() -> impl IntoView {
 
 fn workspace_root_page_ctx(route: &'static str) -> impl IntoView {
     let content_action_ctx = ContentActionCtx::expect();
+    let account_ctx = expect_context::<AccountCtx>();
+
     #[cfg(not(feature = "ssr"))]
     on_cleanup({
+        let account_ctx = account_ctx.clone();
         let content_action_ctx = content_action_ctx.clone();
         move || {
-            content_action_ctx.inner_write_only().update(
+            account_ctx.cleanup_policy_state();
+            content_action_ctx.inner_write_signal().update(
                 move |content_actions| if let Some(content_actions) = content_actions {
                     content_actions.update(route, None);
                 }
             );
         }
     });
+
     content_action_ctx.update_with(
         move || {
             async move {
@@ -133,15 +138,23 @@ fn workspace_root_page_ctx(route: &'static str) -> impl IntoView {
 
 #[component]
 pub fn WorkspaceListing() -> impl IntoView {
+    let account_ctx = expect_context::<AccountCtx>();
+
     let workspaces = Resource::new(
         move || (),
-        move |_| async move {
-            let result = list_workspaces().await;
-            match result {
-                Ok(ref result) => logging::log!("loaded {} workspace entries", result.inner.len()),
-                Err(_) => logging::log!("error loading workspaces"),
-            };
-            result.map(EnforcedOk::notify_into)
+        move |_| {
+            let set_ps = account_ctx.policy_state.write_only();
+            async move {
+                provide_context(set_ps);
+                let result = list_workspaces().await;
+                match result {
+                    Ok(ref result) => logging::log!("loaded {} workspace entries", result.inner.len()),
+                    Err(_) => logging::log!("error loading workspaces"),
+                };
+                let result = result.map(EnforcedOk::notify_into);
+                let _ = take_context::<SsrWriteSignal<Option<PolicyState>>>();
+                result
+            }
         },
     );
 
@@ -244,7 +257,7 @@ pub fn Workspace() -> impl IntoView {
     on_cleanup({
         let content_action_ctx = content_action_ctx.clone();
         move || {
-            content_action_ctx.inner_write_only().update(
+            content_action_ctx.inner_write_signal().update(
                 move |content_actions| if let Some(content_actions) = content_actions {
                     content_actions.update(route, None);
                 }

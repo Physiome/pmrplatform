@@ -142,7 +142,7 @@ pub fn ExposureListing() -> impl IntoView {
 
     // #[cfg(not(feature = "ssr"))]
     // on_cleanup({
-    //     let policy_state = account_ctx.policy_state.inner_write_only();
+    //     let policy_state = account_ctx.policy_state.inner_write_signal();
     //     move || policy_state.set(PolicyState::default())
     // });
 
@@ -215,7 +215,7 @@ pub fn Exposure() -> impl IntoView {
         move || {
             exposure_source_ctx.clear();
             navigation_ctx.clear();
-            content_action_ctx.inner_write_only().update(
+            content_action_ctx.inner_write_signal().update(
                 move |content_actions| if let Some(content_actions) = content_actions {
                     content_actions.update("/exposure/{id}/", None);
                 }
@@ -403,27 +403,6 @@ pub fn ExposureFile() -> impl IntoView {
             </a>
         </li>
     };
-
-    // let views_available_ctx = ViewsAvailableCtx::expect_write()
-    // let portlet_ctx = move || {
-    //     file.track();
-    //     exposure_source.update(move |c| {
-    //         c.set(ArcResource::new_blocking(
-    //             || (),
-    //             move |_| async move {
-    //                 exposure_info.await.map(|info| {
-    //                     ExposureSourceItem {
-    //                         commit_id: info.exposure.commit_id.clone(),
-    //                         workspace_id: info.exposure.workspace_id.to_string(),
-    //                         // TODO put in the workspace title.
-    //                         workspace_title: info.workspace.description.clone().unwrap_or(
-    //                             format!("Workspace {}", info.exposure.workspace_id)),
-    //                     }
-    //                 })
-    //             }
-    //         ))
-    //     });
-    // };
 
     let ep_view = move || Suspend::new(async move {
         match file.await
