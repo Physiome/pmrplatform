@@ -46,6 +46,7 @@ use crate::{
         list_workspaces,
         get_log_info,
         get_workspace_info,
+        workspace_root_policy_state,
         CreateWorkspace,
         Synchronize,
     },
@@ -84,20 +85,25 @@ pub fn WorkspaceRoutes() -> impl MatchNestedRoutes + Clone {
 
 #[component]
 pub fn WorkspaceRoot() -> impl IntoView {
-    let account_ctx = expect_context::<AccountCtx>();
     #[cfg(not(feature = "ssr"))]
-    on_cleanup({
-        move || account_ctx.cleanup_policy_state()
-    });
+    {
+        let account_ctx = expect_context::<AccountCtx>();
+        on_cleanup({
+            move || account_ctx.cleanup_policy_state()
+        });
+    }
+
     view! {
         <Title text="Workspace — Physiome Model Repository"/>
         <Outlet/>
     }
 }
 
-fn workspace_root_page_ctx(route: &'static str) -> impl IntoView {
+fn workspace_root_page_ctx() -> impl IntoView {
     let content_action_ctx = ContentActionCtx::expect();
+    #[cfg(not(feature = "ssr"))]
     let account_ctx = expect_context::<AccountCtx>();
+    let route = "/workspace/";
 
     #[cfg(not(feature = "ssr"))]
     on_cleanup({
@@ -140,6 +146,11 @@ fn workspace_root_page_ctx(route: &'static str) -> impl IntoView {
 pub fn WorkspaceListing() -> impl IntoView {
     let account_ctx = expect_context::<AccountCtx>();
 
+    // TODO when appropriate, consider moving this to the root as a context,
+    // so that the policy_state may potentially be shared, but this can also
+    // cause a conflict given the design is that there's really only one
+    // policy active at a time.  That also require the policy to be scoped
+    // or named much like content actions.
     let workspaces = Resource::new(
         move || (),
         move |_| {
@@ -181,7 +192,7 @@ pub fn WorkspaceListing() -> impl IntoView {
 
     view! {
         <div class="main">
-            {workspace_root_page_ctx("/workspace/")}
+            {workspace_root_page_ctx()}
             <h1>"Listing of workspaces"</h1>
             <div>
             <Transition fallback=move || view! { <p>"Loading..."</p> }>
@@ -197,10 +208,27 @@ pub fn WorkspaceListing() -> impl IntoView {
 #[component]
 pub fn WorkspaceAdd() -> impl IntoView {
     let action = ServerAction::<CreateWorkspace>::new();
+    let account_ctx = expect_context::<AccountCtx>();
+
+    let policy_state = Resource::new(
+        move || (),
+        move |_| {
+            let set_ps = account_ctx.policy_state.write_only();
+            async move {
+                set_ps.set(workspace_root_policy_state().await.ok());
+            }
+        },
+    );
 
     view! {
         <div class="main">
-            {workspace_root_page_ctx("/workspace/+/add")}
+            <Suspense>
+                {move || Suspend::new(async move {
+                    // TODO apply this to control the visibility of the form.
+                    policy_state.await
+                })}
+            </Suspense>
+            {workspace_root_page_ctx()}
             <h1>"Add a workspace"</h1>
             <ActionForm attr:class="standard" action=action>
                 <div>

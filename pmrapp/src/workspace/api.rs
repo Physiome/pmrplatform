@@ -7,7 +7,7 @@ use pmrcore::{
     workspace::Workspaces,
 };
 use crate::{
-    enforcement::EnforcedOk,
+    enforcement::{EnforcedOk, PolicyState},
     error::AppError,
 };
 
@@ -31,6 +31,12 @@ mod ssr {
 }
 #[cfg(feature = "ssr")]
 use self::ssr::*;
+
+#[server]
+pub async fn workspace_root_policy_state() -> Result<PolicyState, AppError> {
+    Ok(session().await?
+        .enforcer_and_policy_state("/workspace/", "").await?)
+}
 
 #[server]
 pub async fn list_workspaces() -> Result<EnforcedOk<Workspaces>, AppError> {
