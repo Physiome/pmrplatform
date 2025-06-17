@@ -94,6 +94,7 @@ pub fn ContentActionItems() -> impl IntoView {
                         {view}
                     </ul>
                 </nav>
+                <div class="flex-grow"></div>
             })
 	})
     };
@@ -105,9 +106,6 @@ pub fn ContentAction() -> impl IntoView {
     view! {
         <section id="content-action">
             <ContentActionItems/>
-            // this div was originally inside the above, but having that there
-            // messes up hydration such the above is reordered to be the bottom.
-            <div class="flex-grow"></div>
             <WorkflowState/>
         </section>
     }

@@ -106,6 +106,7 @@ pub fn WorkflowState() -> impl IntoView {
             leptos::logging::log!("<WorkflowState> {workflow_state}");
             if let Some(policy) = ps.policy {
                 (policy.agent != Agent::Anonymous).then(|| Some(view! {
+                    <div class="flex-grow"></div>
                     <div id="content-action-wf-state"
                         class=format!("action state-{workflow_state}")
                     >
