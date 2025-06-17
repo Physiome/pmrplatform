@@ -180,8 +180,8 @@ pub fn WorkspaceListing() -> impl IntoView {
     };
 
     view! {
-        {workspace_root_page_ctx("/workspace/")}
         <div class="main">
+            {workspace_root_page_ctx("/workspace/")}
             <h1>"Listing of workspaces"</h1>
             <div>
             <Transition fallback=move || view! { <p>"Loading..."</p> }>
@@ -199,25 +199,27 @@ pub fn WorkspaceAdd() -> impl IntoView {
     let action = ServerAction::<CreateWorkspace>::new();
 
     view! {
-        {workspace_root_page_ctx("/workspace/+/add")}
-        <h1>"Add a workspace"</h1>
-        <ActionForm attr:class="standard" action=action>
-            <div>
-                <label for="uri">"Remote Git URI"</label>
-                <input type="text" name="uri" required/>
-            </div>
-            <div>
-                <label for="description">"Description"</label>
-                <input type="text" name="description" required/>
-            </div>
-            <div>
-                <label for="long_description">"Long Description"</label>
-                <input type="text" name="long_description"/>
-            </div>
-            <div>
-                <input type="submit" value="Add Workspace"/>
-            </div>
-        </ActionForm>
+        <div class="main">
+            {workspace_root_page_ctx("/workspace/+/add")}
+            <h1>"Add a workspace"</h1>
+            <ActionForm attr:class="standard" action=action>
+                <div>
+                    <label for="uri">"Remote Git URI"</label>
+                    <input type="text" name="uri" required/>
+                </div>
+                <div>
+                    <label for="description">"Description"</label>
+                    <input type="text" name="description" required/>
+                </div>
+                <div>
+                    <label for="long_description">"Long Description"</label>
+                    <input type="text" name="long_description"/>
+                </div>
+                <div>
+                    <input type="submit" value="Add Workspace"/>
+                </div>
+            </ActionForm>
+        </div>
     }
 }
 
