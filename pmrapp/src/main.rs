@@ -117,6 +117,7 @@ async fn main() -> anyhow::Result<()> {
 
     // build our application with a route
     let app = Router::new()
+        .without_v07_checks()
         .route("/workspace/{workspace_id}/rawfile/{commit_id}/{*path}", get(raw_workspace_download))
         .route(WIZARD_FIELD_ROUTE, post(wizard_field_update))
         .leptos_routes(

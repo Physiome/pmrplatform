@@ -63,7 +63,7 @@ pub fn WorkspaceRoutes() -> impl MatchNestedRoutes + Clone {
         <ParentRoute path=StaticSegment("/workspace") view=WorkspaceRoot ssr>
             <Route path=StaticSegment("/") view=WorkspaceListing/>
             <Route path=StaticSegment("") view=RedirectTS/>
-            <Route path=(StaticSegment("+"), StaticSegment("add")) view=WorkspaceAdd/>
+            <Route path=(StaticSegment(":"), StaticSegment("add")) view=WorkspaceAdd/>
             <ParentRoute path=ParamSegment("id") view=Workspace>
                 <Route path=StaticSegment("/") view=WorkspaceMain/>
                 <Route path=StaticSegment("") view=RedirectTS/>
@@ -124,7 +124,7 @@ fn workspace_root_page_ctx() -> impl IntoView {
             async move {
                 Some(vec![
                     ContentActionItem {
-                        href: format!("/workspace/+/add"),
+                        href: format!("/workspace/:/add"),
                         text: "Add Workspace".to_string(),
                         title: Some("Add a new workspace".to_string()),
                         req_action: Some("create".to_string()),

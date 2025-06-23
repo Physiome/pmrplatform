@@ -109,7 +109,7 @@ pub fn ExposureRoutes() -> impl MatchNestedRoutes + Clone {
             <ParentRoute path=ParamSegment("id") view=Exposure>
                 <Route path=StaticSegment("/") view=ExposureMain/>
                 <Route path=StaticSegment("") view=RedirectTS/>
-                <Route path=(StaticSegment("+"), StaticSegment("wizard")) view=Wizard/>
+                <Route path=(StaticSegment(":"), StaticSegment("wizard")) view=Wizard/>
                 <Route path=WildcardSegment("path") view=ExposureFile/>
             </ParentRoute>
         </ParentRoute>
@@ -300,7 +300,7 @@ pub fn Exposure() -> impl IntoView {
                                 req_action: None,
                             },
                             ContentActionItem {
-                                href: format!("{resource}+/wizard"),
+                                href: format!("{resource}:/wizard"),
                                 text: "Wizard".to_string(),
                                 title: Some("Build this exposure".to_string()),
                                 req_action: Some("edit".to_string()),
