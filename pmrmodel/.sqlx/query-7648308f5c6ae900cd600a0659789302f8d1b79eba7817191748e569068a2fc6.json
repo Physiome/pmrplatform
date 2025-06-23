@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nINSERT INTO alias ( kind, kind_id, alias, created_ts )\nVALUES ( ?1, ?2, ?3, ?4 )\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "7648308f5c6ae900cd600a0659789302f8d1b79eba7817191748e569068a2fc6"
+}

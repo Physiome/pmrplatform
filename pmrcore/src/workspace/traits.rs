@@ -21,7 +21,6 @@ mod backend {
         workspace::{
             Workspace,
             Workspaces,
-            WorkspaceAlias,
             WorkspaceSync,
             WorkspaceSyncStatus,
             WorkspaceTag,
@@ -53,19 +52,6 @@ mod backend {
             &self,
             url: &str,
         ) -> Result<Workspaces, BackendError>;
-    }
-
-    #[async_trait]
-    pub trait WorkspaceAliasBackend {
-        async fn add_alias(
-            &self,
-            workspace_id: i64,
-            alias: &str,
-        ) -> Result<i64, BackendError>;
-        async fn get_aliases(
-            &self,
-            workspace_id: i64,
-        ) -> Result<Vec<WorkspaceAlias>, BackendError>;
     }
 
     #[async_trait]
@@ -103,7 +89,6 @@ mod backend {
 pub use data::Workspace;
 pub use backend::{
     WorkspaceBackend,
-    WorkspaceAliasBackend,
     WorkspaceSyncBackend,
     WorkspaceTagBackend,
 };

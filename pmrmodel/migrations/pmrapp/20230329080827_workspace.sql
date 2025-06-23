@@ -27,13 +27,3 @@ CREATE TABLE IF NOT EXISTS workspace_tag (
 CREATE INDEX IF NOT EXISTS workspace_tag_idx_workspace_id ON workspace_tag(workspace_id);
 CREATE UNIQUE INDEX IF NOT EXISTS workspace_tag_idx_workspace_id_name ON workspace_tag(workspace_id, name);
 CREATE UNIQUE INDEX IF NOT EXISTS workspace_tag_idx_workspace_id_name_commit_id ON workspace_tag(workspace_id, name, commit_id);
-
-CREATE TABLE IF NOT EXISTS workspace_alias (
-    id INTEGER PRIMARY KEY NOT NULL,
-    workspace_id INTEGER NOT NULL,
-    alias TEXT NOT NULL UNIQUE,
-    created_ts INTEGER NOT NULL,
-    FOREIGN KEY(workspace_id) REFERENCES workspace(id)
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS workspace_alias_idx_workspace_id_alias ON workspace_alias(workspace_id, alias);

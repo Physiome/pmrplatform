@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use crate::{
+    alias::traits::AliasBackend,
     error::BackendError,
     exposure::{
         self,
@@ -29,7 +30,6 @@ use crate::{
     workspace,
     workspace::traits::{
         WorkspaceBackend,
-        WorkspaceAliasBackend,
         WorkspaceSyncBackend,
         WorkspaceTagBackend,
     },
@@ -42,7 +42,6 @@ use crate::{
 /// correctly implements the relevant backends that compose this trait.
 #[async_trait]
 pub trait MCPlatform: WorkspaceBackend
-    + WorkspaceAliasBackend
     + WorkspaceSyncBackend
     + WorkspaceTagBackend
     + ExposureBackend
@@ -51,6 +50,8 @@ pub trait MCPlatform: WorkspaceBackend
     + ExposureFileViewBackend
     + ExposureTaskBackend
     + ExposureTaskTemplateBackend
+
+    + AliasBackend
 
     + ProfileBackend
     + ViewTaskTemplateBackend
@@ -215,7 +216,6 @@ pub trait MCPlatform: WorkspaceBackend
 }
 
 impl<P: workspace::traits::WorkspaceBackend
-    + WorkspaceAliasBackend
     + WorkspaceSyncBackend
     + WorkspaceTagBackend
     + ExposureBackend
@@ -224,6 +224,8 @@ impl<P: workspace::traits::WorkspaceBackend
     + ExposureFileViewBackend
     + ExposureTaskBackend
     + ExposureTaskTemplateBackend
+
+    + AliasBackend
 
     + ProfileBackend
     + ViewTaskTemplateBackend

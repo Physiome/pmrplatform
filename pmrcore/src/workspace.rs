@@ -17,14 +17,6 @@ pub struct Workspace {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Workspaces(Vec<Workspace>);
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct WorkspaceAlias {
-    pub id: i64,
-    pub workspace_id: i64,
-    pub alias: String,
-    pub created_ts: i64,
-}
-
 #[derive(Debug, PartialEq, FromPrimitive)]
 #[repr(i64)]
 pub enum WorkspaceSyncStatus {

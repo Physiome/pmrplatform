@@ -22,7 +22,6 @@ use pmrcore::{
     repo::PathObjectInfo,
     workspace::traits::{
         WorkspaceBackend,
-        WorkspaceAliasBackend,
         WorkspaceSyncBackend,
         WorkspaceTagBackend,
     },
@@ -86,12 +85,6 @@ enum Command {
         workspace_id: i64,
         #[structopt(short, long)]
         commit_id: Option<String>,
-    },
-    Alias {
-        workspace_id: i64,
-        #[structopt(short = "a", long = "alias")]
-        alias: Option<String>,
-        // TODO include reverse lookup here?
     },
 }
 
@@ -254,20 +247,6 @@ async fn main(args: Args) -> anyhow::Result<()> {
             else {
                 let mut writer = io::stdout();
                 writer.write(format!("have log_info {:?}", logs).as_bytes())?;
-            }
-        }
-        Some(Command::Alias { workspace_id, alias }) => {
-            if alias.is_none() {
-                let aliases = WorkspaceAliasBackend::get_aliases(platform, workspace_id).await?;
-                println!("Printing list of all aliases");
-                for rec in aliases {
-                    println!("{}", rec);
-                }
-            }
-            else {
-                let alias = alias.unwrap();
-                WorkspaceAliasBackend::add_alias(platform, workspace_id, &alias).await?;
-                println!("setting alias to {}", alias);
             }
         }
         None => {

@@ -1,15 +1,15 @@
 {
   "db_name": "SQLite",
-  "query": "\nSELECT id, workspace_id, alias, created_ts\nFROM workspace_alias\nWHERE workspace_id = ?1\n            ",
+  "query": "\nSELECT kind, kind_id, alias, created_ts\nFROM alias\nWHERE kind = ?1 AND kind_id = ?2\n            ",
   "describe": {
     "columns": [
       {
-        "name": "id",
+        "name": "kind",
         "ordinal": 0,
-        "type_info": "Integer"
+        "type_info": "Text"
       },
       {
-        "name": "workspace_id",
+        "name": "kind_id",
         "ordinal": 1,
         "type_info": "Integer"
       },
@@ -25,7 +25,7 @@
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 2
     },
     "nullable": [
       false,
@@ -34,5 +34,5 @@
       false
     ]
   },
-  "hash": "729c9e3830db70ce5271f2e3dd99dde8969aaf77837d1aa10fb0f8944a12c222"
+  "hash": "84430090bee90dd52467fc1a7c2a74cb63ea46cf00ad7615d5a0fc4d38d5631d"
 }

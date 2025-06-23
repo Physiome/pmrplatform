@@ -23,17 +23,6 @@ impl Display for Workspace {
     }
 }
 
-impl Display for WorkspaceAlias {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(
-            f,
-            "{} - {}",
-            &self.workspace_id,
-            &self.alias,
-        )
-    }
-}
-
 impl Display for WorkspaceSync {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
