@@ -61,7 +61,7 @@ WHERE kind = ?1 AND kind_id = ?2
         &self,
         kind: &str,
         alias: &str,
-    ) -> Result<i64, BackendError> {
+    ) -> Result<Option<i64>, BackendError> {
         let rec = sqlx::query!(
             r#"
 SELECT kind_id
@@ -72,7 +72,7 @@ WHERE kind = ?1 AND alias = ?2
             alias,
         )
         .map(|rec| rec.kind_id)
-        .fetch_one(&*self.pool)
+        .fetch_optional(&*self.pool)
         .await?;
         Ok(rec)
     }

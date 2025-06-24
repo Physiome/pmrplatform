@@ -75,6 +75,11 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Commands {
     #[command(arg_required_else_help = true)]
+    Alias {
+        #[command(subcommand)]
+        cmd: AliasCmd,
+    },
+    #[command(arg_required_else_help = true)]
     Exposure {
         #[command(subcommand)]
         cmd: ExposureCmd,
@@ -98,6 +103,26 @@ enum Commands {
     Vtt {
         #[command(subcommand)]
         cmd: VttCmd,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum AliasCmd {
+    #[command(arg_required_else_help = true)]
+    Add {
+        kind: String,
+        kind_id: i64,
+        alias: String,
+    },
+    #[command(arg_required_else_help = true)]
+    List {
+        kind: String,
+        kind_id: i64,
+    },
+    #[command(arg_required_else_help = true)]
+    Resolve {
+        kind: String,
+        alias: String,
     },
 }
 
@@ -270,6 +295,9 @@ async fn main() -> anyhow::Result<()> {
     );
 
     match args.command {
+        Commands::Alias { cmd } => {
+            parse_alias(&platform, cmd).await?;
+        },
         Commands::Exposure { cmd } => {
             parse_exposure(&platform, cmd).await?;
         },
@@ -287,6 +315,34 @@ async fn main() -> anyhow::Result<()> {
         },
     }
 
+    Ok(())
+}
+
+async fn parse_alias<'p>(
+    platform: &'p Platform,
+    arg: AliasCmd,
+) -> anyhow::Result<()> {
+    match arg {
+        AliasCmd::Add { kind, kind_id, alias } => {
+            platform.mc_platform.add_alias(&kind, kind_id, &alias).await?;
+            println!("added alias {alias} pointing to {kind}/:/id/{kind_id}");
+        }
+        AliasCmd::List { kind, kind_id } => {
+            let aliases = platform.mc_platform.get_aliases(&kind, kind_id).await?;
+            println!("listing aliases for {kind}/:/id/{kind_id}");
+            for alias in aliases {
+                let alias = &alias.alias;
+                println!("- {kind}/{alias}");
+            }
+        }
+        AliasCmd::Resolve { kind, alias } => {
+            if let Some(kind_id) = platform.mc_platform.resolve_alias(&kind, &alias).await? {
+                println!("aliases for {kind}/{alias} points to {kind}/:/id/{kind_id}");
+            } else {
+                println!("no such aliases: {kind}/{alias}; assume it points to {kind}/:id/{alias}");
+            }
+        }
+    }
     Ok(())
 }
 

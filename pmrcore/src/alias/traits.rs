@@ -21,5 +21,5 @@ pub trait AliasBackend {
         &self,
         kind: &str,
         alias: &str,
-    ) -> Result<i64, BackendError>;
+    ) -> Result<Option<i64>, BackendError>;
 }
