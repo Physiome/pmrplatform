@@ -3,6 +3,7 @@ use chrono::{
     Utc,
 };
 use leptos::logging;
+use leptos::context::Provider;
 use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::{
@@ -50,9 +51,12 @@ use crate::{
         CreateWorkspace,
         Synchronize,
     },
-    app::portlet::{
-        ContentActionCtx,
-        ContentActionItem,
+    app::{
+        portlet::{
+            ContentActionCtx,
+            ContentActionItem,
+        },
+        Root,
     },
 };
 
@@ -63,21 +67,36 @@ pub fn WorkspaceRoutes() -> impl MatchNestedRoutes + Clone {
         <ParentRoute path=StaticSegment("/workspace") view=WorkspaceRoot ssr>
             <Route path=StaticSegment("/") view=WorkspaceListing/>
             <Route path=StaticSegment("") view=RedirectTS/>
-            <Route path=(StaticSegment(":"), StaticSegment("add")) view=WorkspaceAdd/>
-            <ParentRoute path=ParamSegment("id") view=Workspace>
-                <Route path=StaticSegment("/") view=WorkspaceMain/>
-                <Route path=StaticSegment("") view=RedirectTS/>
-                <Route path=StaticSegment("synchronize") view=WorkspaceSynchronize/>
-                <Route
-                    path=(StaticSegment("file"), ParamSegment("commit"), WildcardSegment("path"),)
-                    view=WorkspaceCommitPath
-                    />
-                <Route
-                    path=(StaticSegment("create_exposure"), ParamSegment("commit"),)
-                    view=WorkspaceCreateExposure
-                    />
-                <Route path=StaticSegment("log") view=WorkspaceLog/>
+            <ParentRoute path=StaticSegment(":") view=Outlet>
+                <Route path=StaticSegment("add") view=WorkspaceAdd/>
+                <ParentRoute path=StaticSegment("id") view=WorkspaceIdRoot>
+                    <WorkspaceViewRoutes/>
+                </ParentRoute>
             </ParentRoute>
+            // this should have a default root provided, or at the higher level?
+            <WorkspaceViewRoutes/>
+        </ParentRoute>
+    }
+    .into_inner()
+}
+
+#[component]
+fn WorkspaceViewRoutes() -> impl MatchNestedRoutes + Clone {
+    let ssr = SsrMode::Async;
+    view! {
+        <ParentRoute path=ParamSegment("id") view=Workspace ssr>
+            <Route path=StaticSegment("/") view=WorkspaceMain/>
+            <Route path=StaticSegment("") view=RedirectTS/>
+            <Route path=StaticSegment("synchronize") view=WorkspaceSynchronize/>
+            <Route
+                path=(StaticSegment("file"), ParamSegment("commit"), WildcardSegment("path"),)
+                view=WorkspaceCommitPath
+                />
+            <Route
+                path=(StaticSegment("create_exposure"), ParamSegment("commit"),)
+                view=WorkspaceCreateExposure
+                />
+            <Route path=StaticSegment("log") view=WorkspaceLog/>
         </ParentRoute>
     }
     .into_inner()
@@ -95,7 +114,18 @@ pub fn WorkspaceRoot() -> impl IntoView {
 
     view! {
         <Title text="Workspace — Physiome Model Repository"/>
-        <Outlet/>
+        <Provider value=Root::Aliased("/workspace/")>
+            <Outlet/>
+        </Provider>
+    }
+}
+
+#[component]
+pub fn WorkspaceIdRoot() -> impl IntoView {
+    view! {
+        <Provider value=Root::Id("/workspace/:/id/")>
+            <Outlet/>
+        </Provider>
     }
 }
 
@@ -103,7 +133,7 @@ fn workspace_root_page_ctx() -> impl IntoView {
     let content_action_ctx = ContentActionCtx::expect();
     #[cfg(not(feature = "ssr"))]
     let account_ctx = expect_context::<AccountCtx>();
-    let route = "/workspace/";
+    let root = expect_context::<Root>();
 
     #[cfg(not(feature = "ssr"))]
     on_cleanup({
@@ -113,7 +143,7 @@ fn workspace_root_page_ctx() -> impl IntoView {
             account_ctx.cleanup_policy_state();
             content_action_ctx.inner_write_signal().update(
                 move |content_actions| if let Some(content_actions) = content_actions {
-                    content_actions.update(route, None);
+                    content_actions.update(root, None);
                 }
             );
         }
@@ -124,7 +154,7 @@ fn workspace_root_page_ctx() -> impl IntoView {
             async move {
                 Some(vec![
                     ContentActionItem {
-                        href: format!("/workspace/:/add"),
+                        href: format!("{root}:/add"),
                         text: "Add Workspace".to_string(),
                         title: Some("Add a new workspace".to_string()),
                         req_action: Some("create".to_string()),
@@ -134,9 +164,9 @@ fn workspace_root_page_ctx() -> impl IntoView {
         },
         move |content_actions, new_actions| {
             if let Some(content_actions) = content_actions {
-                content_actions.update(route, new_actions);
+                content_actions.update(root, new_actions);
             } else {
-                *content_actions = Some((route, new_actions).into());
+                *content_actions = Some((root.as_ref(), new_actions).into());
             }
         },
     )
@@ -145,6 +175,7 @@ fn workspace_root_page_ctx() -> impl IntoView {
 #[component]
 pub fn WorkspaceListing() -> impl IntoView {
     let account_ctx = expect_context::<AccountCtx>();
+    let root = expect_context::<Root>();
 
     // TODO when appropriate, consider moving this to the root as a context,
     // so that the policy_state may potentially be shared, but this can also
@@ -176,7 +207,8 @@ pub fn WorkspaceListing() -> impl IntoView {
                 .map(move |workspace| {
                     view! {
                         <div>
-                            <div><a href=format!("/workspace/{}/", workspace.id)>
+                            // TODO the link should point to the primary alias
+                            <div><a href=format!("{root}{}/", workspace.id)>
                                 {workspace.description.unwrap_or_else(
                                     || format!("Workspace {}", workspace.id))}
                             </a></div>
@@ -259,6 +291,7 @@ pub struct WorkspaceParams {
 #[component]
 pub fn Workspace() -> impl IntoView {
     let account_ctx = expect_context::<AccountCtx>();
+    let root = expect_context::<Root>();
     let content_action_ctx = ContentActionCtx::expect();
     let params = use_params::<WorkspaceParams>();
     let resource = Resource::new_blocking(
@@ -282,14 +315,14 @@ pub fn Workspace() -> impl IntoView {
         }
     );
 
-    let route = "/workspace/{id}/";
     #[cfg(not(feature = "ssr"))]
     on_cleanup({
         let content_action_ctx = content_action_ctx.clone();
         move || {
             content_action_ctx.inner_write_signal().update(
                 move |content_actions| if let Some(content_actions) = content_actions {
-                    content_actions.update(route, None);
+                    let route = format!("{root}{{id}}/");
+                    content_actions.update(&route, None);
                 }
             );
         }
@@ -303,7 +336,7 @@ pub fn Workspace() -> impl IntoView {
             move || {
                 async move {
                     resource.await.ok().map(|info| {
-                        let resource = format!("/workspace/{}/", info.workspace.id);
+                        let resource = format!("{root}{}/", info.workspace.id);
                         vec![
                             ContentActionItem {
                                 href: resource.clone(),
@@ -328,10 +361,11 @@ pub fn Workspace() -> impl IntoView {
                 }
             },
             move |content_actions, new_actions| {
+                let route = format!("{root}{{id}}/");
                 if let Some(content_actions) = content_actions {
-                    content_actions.update(route, new_actions);
+                    content_actions.update(&route, new_actions);
                 } else {
-                    *content_actions = Some((route, new_actions).into());
+                    *content_actions = Some((route.as_ref(), new_actions).into());
                 }
             },
         )}
@@ -459,6 +493,8 @@ fn WorkspaceListingView(repo_result: RepoResult) -> impl IntoView {
 
 #[component]
 fn WorkspaceFileInfoView(repo_result: RepoResult) -> impl IntoView {
+    let root = expect_context::<Root>();
+
     let path = repo_result.path.clone().unwrap_or_else(|| String::new());
     let commit_id = repo_result.commit
         .map(|commit| commit.commit_id)
@@ -467,7 +503,8 @@ fn WorkspaceFileInfoView(repo_result: RepoResult) -> impl IntoView {
     match repo_result.target {
         Some(PathObjectInfo::FileInfo(ref file_info)) => {
             let href = format!(
-                "/workspace/{}/rawfile/{}/{}",
+                "{root}{}/rawfile/{}/{}",
+                // TODO this need to include alias, and current mode
                 &repo_result.workspace.id,
                 &commit_id,
                 &path,
@@ -541,6 +578,7 @@ fn WorkspaceTreeInfoRow(
     #[prop(into)]
     name: String,
 ) -> impl IntoView {
+    let root = use_context::<Root>().unwrap_or(Root::Aliased("/workspace/"));
     let path_name = if name == ".." {
         let idx = path[0..path.len() - 1].rfind('/').unwrap_or(0);
         if idx == 0 {
@@ -551,12 +589,12 @@ fn WorkspaceTreeInfoRow(
     } else {
         // FIXME this assumes the incoming path has the trailing slash set.
         format!("{}{}", path, if kind == "tree" {
-            format!("{}/", name)
+            format!("{name}/")
         } else {
-            format!("{}", name)
+            format!("{name}")
         })
     };
-    let href = format!("/workspace/{}/file/{}/{}", workspace_id, commit_id, path_name);
+    let href = format!("{root}{workspace_id}/file/{commit_id}/{path_name}");
     view! {
         <tr>
             <td class=format!("gitobj-{}", kind)>
@@ -581,6 +619,7 @@ pub struct WorkspaceCommitPathParams {
 
 #[component]
 pub fn WorkspaceCommitPath() -> impl IntoView {
+    let root = expect_context::<Root>();
     logging::log!("in <WorkspaceCommitPath>");
     let workspace_params = expect_context::<Memo<Result<WorkspaceParams, ParamsError>>>();
     let params = use_params::<WorkspaceCommitPathParams>();
@@ -602,7 +641,7 @@ pub fn WorkspaceCommitPath() -> impl IntoView {
 
     let view = move || Suspend::new(async move {
         resource.await.map(|info| {
-            let href = format!("/workspace/{}/", &info.workspace.id);
+            let href = format!("{root}{}/", &info.workspace.id);
             let desc = info.workspace.description
                 .clone()
                 .unwrap_or_else(
@@ -629,6 +668,7 @@ pub fn WorkspaceCommitPath() -> impl IntoView {
 #[component]
 pub fn WorkspaceLog() -> impl IntoView {
     let workspace_params = expect_context::<Memo<Result<WorkspaceParams, ParamsError>>>();
+    let root = expect_context::<Root>();
 
     let repo_result = expect_context::<Resource<Result<RepoResult, AppError>>>();
     let log_info = Resource::new_blocking(
@@ -648,7 +688,7 @@ pub fn WorkspaceLog() -> impl IntoView {
     let view = move || Suspend::new(async move {
         let log_info = log_info.await?;
         repo_result.await.map(|info| {
-            let href = format!("/workspace/{}/", &info.workspace.id);
+            let href = format!("{root}{}/", &info.workspace.id);
             view! {
                 <table class="log-listing">
                     <thead>

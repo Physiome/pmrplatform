@@ -27,7 +27,10 @@ pub struct ContentActions {
 }
 
 impl ContentActions {
-    pub fn new(parent: &str, items: Option<Vec<ContentActionItem>>) -> Self {
+    pub fn new<S>(parent: S, items: Option<Vec<ContentActionItem>>) -> Self
+    where
+        S: AsRef<str> + ToString,
+    {
         let actions = items.unwrap_or_default()
             .into_iter()
             .map(|item| (parent.to_string(), item))
@@ -35,8 +38,11 @@ impl ContentActions {
         Self { actions }
     }
 
-    pub fn update(&mut self, parent: &str, items: Option<Vec<ContentActionItem>>) {
-        self.actions.retain(|(p, _)| (parent != p));
+    pub fn update<S>(&mut self, parent: S, items: Option<Vec<ContentActionItem>>)
+    where
+        S: AsRef<str> + ToString,
+    {
+        self.actions.retain(|(p, _)| (parent.as_ref() != p));
         if let Some(items) = items {
             let mut new = items.into_iter()
                 .map(|item| (parent.to_string(), item))

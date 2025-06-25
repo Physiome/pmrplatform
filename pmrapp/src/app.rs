@@ -27,6 +27,9 @@ use crate::exposure::ExposureRoutes;
 use crate::workspace::WorkspaceRoutes;
 
 pub mod portlet;
+mod root;
+
+pub use self::root::Root;
 use self::portlet::{
     ContentAction,
     ExposureSource,
