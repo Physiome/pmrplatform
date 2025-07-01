@@ -19,9 +19,9 @@ impl AliasBackend for SqliteBackend {
         kind: &str,
         kind_id: i64,
         alias: &str
-    ) -> Result<i64, BackendError> {
+    ) -> Result<(), BackendError> {
         let ts = Utc::now().timestamp();
-        let id = sqlx::query!(
+        sqlx::query!(
             r#"
 INSERT INTO alias ( kind, kind_id, alias, created_ts )
 VALUES ( ?1, ?2, ?3, ?4 )
@@ -32,10 +32,9 @@ VALUES ( ?1, ?2, ?3, ?4 )
             ts,
         )
         .execute(&*self.pool)
-        .await?
-        .last_insert_rowid();
+        .await?;
 
-        Ok(id)
+        Ok(())
     }
 
     async fn get_aliases(
@@ -75,5 +74,71 @@ WHERE kind = ?1 AND alias = ?2
         .fetch_optional(&*self.pool)
         .await?;
         Ok(rec)
+    }
+
+    async fn aliases_by_kind(
+        &self,
+        kind: &str,
+    ) -> Result<Vec<(String, i64)>, BackendError> {
+        let recs = sqlx::query!(
+            r#"
+SELECT alias, kind_id
+FROM alias
+WHERE kind = ?1
+            "#,
+            kind,
+        )
+        .map(|rec| (rec.alias, rec.kind_id))
+        .fetch_all(&*self.pool)
+        .await?;
+        Ok(recs)
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod testing {
+    use pmrcore::alias::{
+        Alias,
+        traits::AliasBackend,
+    };
+    use crate::backend::db::{
+        MigrationProfile,
+        SqliteBackend,
+    };
+
+    #[async_std::test]
+    async fn test_basic() -> anyhow::Result<()> {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await?
+            .run_migration_profile(MigrationProfile::Pmrapp)
+            .await?;
+        backend.add_alias("workspace", 1, "test_workspace").await?;
+        backend.add_alias("exposure", 1, "main_exposure").await?;
+        backend.add_alias("exposure", 2, "alternate_exposure").await?;
+
+        let answer = Alias {
+            kind: "workspace".to_string(),
+            kind_id: 1,
+            alias: "test_workspace".to_string(),
+            created_ts: 1234567890,
+        };
+
+        let results = backend.get_aliases("workspace", 1).await?;
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0], answer);
+
+        let result = backend.resolve_alias("workspace", "test_workspace").await?;
+        assert_eq!(result, Some(answer.kind_id));
+
+        let result = backend.resolve_alias("workspace", "does_not_exist").await?;
+        assert_eq!(result, None);
+
+        let mut results = backend.aliases_by_kind("exposure").await?;
+        results.sort();
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0], ("alternate_exposure".to_string(), 2));
+        assert_eq!(results[1], ("main_exposure".to_string(), 1));
+
+        Ok(())
     }
 }

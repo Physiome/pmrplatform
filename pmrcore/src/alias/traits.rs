@@ -11,7 +11,7 @@ pub trait AliasBackend {
         kind: &str,
         kind_id: i64,
         alias: &str
-    ) -> Result<i64, BackendError>;
+    ) -> Result<(), BackendError>;
     async fn get_aliases(
         &self,
         kind: &str,
@@ -22,4 +22,8 @@ pub trait AliasBackend {
         kind: &str,
         alias: &str,
     ) -> Result<Option<i64>, BackendError>;
+    async fn aliases_by_kind(
+        &self,
+        kind: &str,
+    ) -> Result<Vec<(String, i64)>, BackendError>;
 }

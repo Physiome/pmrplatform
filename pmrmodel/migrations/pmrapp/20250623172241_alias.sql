@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS alias (
     kind TEXT NOT NULL,
-    kind_id INTEGER PRIMARY KEY NOT NULL,
+    kind_id INTEGER NOT NULL,
     alias TEXT NOT NULL,
     created_ts INTEGER NOT NULL
 );
@@ -10,7 +10,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS alias__kind_alias ON alias(kind, alias);
 
 CREATE TABLE IF NOT EXISTS alias_request (
     kind TEXT NOT NULL,
-    kind_id INTEGER PRIMARY KEY NOT NULL,
+    kind_id INTEGER NOT NULL,
     alias TEXT NOT NULL,
     created_ts INTEGER NOT NULL,
     -- references the pmrac model

@@ -208,6 +208,7 @@ mock! {
         async fn list_workspaces(&self) -> Result<Workspaces, BackendError>;
         async fn get_workspace_by_id(&self, id: i64) -> Result<Workspace, BackendError>;
         async fn list_workspace_by_url(&self, url: &str) -> Result<Workspaces, BackendError>;
+        async fn list_workspace_by_ids(&self, ids: &[i64]) -> Result<Workspaces, BackendError>;
     }
 
     #[async_trait]
@@ -219,9 +220,10 @@ mock! {
 
     #[async_trait]
     impl AliasBackend for Platform {
-        async fn add_alias(&self, kind: &str, workspace_id: i64, alias: &str) -> Result<i64, BackendError>;
+        async fn add_alias(&self, kind: &str, workspace_id: i64, alias: &str) -> Result<(), BackendError>;
         async fn get_aliases(&self, kind: &str, kind_id: i64) -> Result<Vec<Alias>, BackendError>;
         async fn resolve_alias(&self, kind: &str, alias: &str) -> Result<Option<i64>, BackendError>;
+        async fn aliases_by_kind(&self, kind: &str) -> Result<Vec<(String, i64)>, BackendError>;
     }
 
     #[async_trait]

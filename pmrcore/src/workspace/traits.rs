@@ -52,6 +52,10 @@ mod backend {
             &self,
             url: &str,
         ) -> Result<Workspaces, BackendError>;
+        async fn list_workspace_by_ids(
+            &self,
+            ids: &[i64],
+        ) -> Result<Workspaces, BackendError>;
     }
 
     #[async_trait]

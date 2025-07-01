@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\nSELECT alias, kind_id\nFROM alias\nWHERE kind = ?1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "alias",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "kind_id",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "21b3f612d7da44701ce03162edb718321812db84de3ccb778594a96a89dcd7e4"
+}

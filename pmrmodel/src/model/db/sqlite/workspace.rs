@@ -7,6 +7,7 @@ use pmrcore::{
         traits::WorkspaceBackend,
     }
 };
+use sqlx::{QueryBuilder, Row, Sqlite};
 
 use crate::{
     backend::db::SqliteBackend,
@@ -167,6 +168,46 @@ WHERE
     Ok(recs.into())
 }
 
+async fn list_workspaces_by_ids_sqlite(
+    backend: &SqliteBackend,
+    ids: &[i64],
+) -> Result<Workspaces, BackendError> {
+    let mut query_builder: QueryBuilder<Sqlite> = QueryBuilder::new(r#"
+SELECT
+    id,
+    url,
+    superceded_by_id,
+    description,
+    long_description,
+    created_ts
+FROM
+    workspace
+WHERE
+    id IN ("#);
+
+    let mut separated = query_builder.separated(", ");
+    for id in ids.iter() {
+        separated.push_bind(id);
+    }
+    separated.push_unseparated(")");
+
+    let recs = query_builder
+        .build()
+        .try_map(|row| Ok(Workspace {
+            id: row.try_get("id")?,
+            url: row.try_get("url")?,
+            superceded_by_id: row.try_get("superceded_by_id")?,
+            description: row.try_get("description")?,
+            long_description: row.try_get("long_description")?,
+            created_ts: row.try_get("created_ts")?,
+            exposures: None,
+        }))
+        .fetch_all(&*backend.pool)
+        .await?;
+
+    Ok(recs.into())
+}
+
 #[async_trait]
 impl WorkspaceBackend for SqliteBackend {
     async fn add_workspace(
@@ -215,6 +256,13 @@ impl WorkspaceBackend for SqliteBackend {
         url: &str,
     ) -> Result<Workspaces, BackendError> {
         list_workspaces_by_url_sqlite(&self, url).await
+    }
+
+    async fn list_workspace_by_ids(
+        &self,
+        ids: &[i64],
+    ) -> Result<Workspaces, BackendError> {
+        list_workspaces_by_ids_sqlite(&self, ids).await
     }
 }
 
@@ -285,10 +333,19 @@ pub(crate) mod testing {
             .run_migration_profile(MigrationProfile::Pmrapp)
             .await?;
         let wb: &dyn WorkspaceBackend = &backend;
-        make_example_workspace(wb).await?;
-        make_example_workspace(wb).await?;
-        make_example_workspace(wb).await?;
+        let id1 = make_example_workspace(wb).await?;
+        let id2 = make_example_workspace(wb).await?;
+        let id3 = make_example_workspace(wb).await?;
         assert_eq!(wb.list_workspaces().await?.len(), 3);
+
+        let by_ids = wb.list_workspace_by_ids(&[id1, id3]).await?;
+        assert_eq!(by_ids.len(), 2);
+
+        let by_ids = wb.list_workspace_by_ids(&[id1]).await?;
+        assert_eq!(by_ids[0].id, id1);
+
+        let by_ids = wb.list_workspace_by_ids(&[id2]).await?;
+        assert_eq!(by_ids[0].id, id2);
 
         Ok(())
     }
