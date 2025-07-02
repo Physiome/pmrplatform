@@ -12,6 +12,11 @@ pub trait AliasBackend {
         kind_id: i64,
         alias: &str
     ) -> Result<(), BackendError>;
+    async fn get_alias(
+        &self,
+        kind: &str,
+        kind_id: i64,
+    ) -> Result<Option<String>, BackendError>;
     async fn get_aliases(
         &self,
         kind: &str,

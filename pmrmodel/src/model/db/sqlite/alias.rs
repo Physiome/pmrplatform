@@ -37,6 +37,28 @@ VALUES ( ?1, ?2, ?3, ?4 )
         Ok(())
     }
 
+    async fn get_alias(
+        &self,
+        kind: &str,
+        kind_id: i64,
+    ) -> Result<Option<String>, BackendError> {
+        let rec = sqlx::query!(
+            r#"
+SELECT alias
+FROM alias
+WHERE kind = ?1 AND kind_id = ?2
+ORDER BY created_ts
+LIMIT 1
+            "#,
+            kind,
+            kind_id,
+        )
+        .map(|rec| rec.alias)
+        .fetch_optional(&*self.pool)
+        .await?;
+        Ok(rec)
+    }
+
     async fn get_aliases(
         &self,
         kind: &str,
@@ -101,6 +123,7 @@ pub(crate) mod testing {
         Alias,
         traits::AliasBackend,
     };
+    use test_pmr::chrono::set_timestamp;
     use crate::backend::db::{
         MigrationProfile,
         SqliteBackend,
@@ -139,6 +162,24 @@ pub(crate) mod testing {
         assert_eq!(results[0], ("alternate_exposure".to_string(), 2));
         assert_eq!(results[1], ("main_exposure".to_string(), 1));
 
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn test_get_alias() -> anyhow::Result<()> {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await?
+            .run_migration_profile(MigrationProfile::Pmrapp)
+            .await?;
+        set_timestamp(987);
+        backend.add_alias("workspace", 1, "test_alias").await?;
+        set_timestamp(456);
+        backend.add_alias("workspace", 1, "other_alias").await?;
+        assert_eq!(
+            backend.get_alias("workspace", 1).await?.as_deref(),
+            Some("other_alias"),
+        );
+        assert!(backend.get_alias("exposure", 1).await?.is_none());
         Ok(())
     }
 }
