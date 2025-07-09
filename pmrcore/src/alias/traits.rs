@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use crate::{
     error::BackendError,
-    alias::Alias
+    alias,
 };
 
 #[async_trait]
@@ -21,7 +21,7 @@ pub trait AliasBackend {
         &self,
         kind: &str,
         kind_id: i64,
-    ) -> Result<Vec<Alias>, BackendError>;
+    ) -> Result<Vec<alias::Alias>, BackendError>;
     async fn resolve_alias(
         &self,
         kind: &str,
@@ -31,4 +31,13 @@ pub trait AliasBackend {
         &self,
         kind: &str,
     ) -> Result<Vec<(String, i64)>, BackendError>;
+}
+
+#[async_trait]
+pub trait Alias<'a, T> {
+    fn kind(&self) -> &str;
+    fn kind_id(&self) -> i64;
+    fn alias(&self) -> &str;
+    fn created_ts(&self) -> i64;
+    fn aliased(&'a self) -> Option<&'a T>;
 }

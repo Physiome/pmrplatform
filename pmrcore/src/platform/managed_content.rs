@@ -1,6 +1,11 @@
+use std::collections::BTreeMap;
 use async_trait::async_trait;
 use crate::{
-    alias::traits::AliasBackend,
+    alias::{
+        traits::AliasBackend,
+        AliasEntries,
+        AliasEntry,
+    },
     error::BackendError,
     exposure::{
         self,
@@ -29,6 +34,7 @@ use crate::{
     },
     workspace,
     workspace::traits::{
+        Workspace as _,
         WorkspaceBackend,
         WorkspaceSyncBackend,
         WorkspaceTagBackend,
@@ -190,6 +196,31 @@ pub trait MCPlatform: WorkspaceBackend
         workspace::traits::WorkspaceBackend::list_workspaces(self)
             .await
             .map(|v| v.bind(self.as_dyn()).into())
+    }
+
+    /// list workspace by their aliases.
+    async fn list_aliased_workspaces<'a>(
+        &'a self,
+    ) -> Result<AliasEntries<workspace::WorkspaceRef<'a>>, BackendError> {
+        let this = self.as_dyn();
+        let aliases = self.aliases_by_kind("workspace").await?;
+        let mut id_map = aliases.into_iter()
+            .map(|(key, id)| (id, key))
+            .collect::<BTreeMap<_, _>>();
+        let ids = id_map.keys()
+            .map(|id| *id)
+            .collect::<Vec<_>>();
+        Ok(AliasEntries {
+            kind: "workspace".to_string(),
+            entries: self.list_workspace_by_ids(&ids).await?
+                .into_iter()
+                .map(|workspace| AliasEntry {
+                    alias: id_map.remove(&workspace.id())
+                        .expect("unexpected id queried without an alias queried"),
+                    entity: workspace.bind(this),
+                })
+                .collect::<Vec<_>>(),
+        })
     }
 
     async fn set_ef_vttprofile(
