@@ -34,7 +34,11 @@ use pmrcore::{
             },
         },
     },
-    platform::PlatformUrl,
+    platform::{
+        DefaultMCPlatform,
+        DefaultTMPlatform,
+        PlatformUrl,
+    },
     task::{
         Task,
         traits::TaskBackend,
@@ -349,6 +353,9 @@ mock! {
     impl PlatformUrl for Platform {
         fn url(&self) -> &str;
     }
+
+    impl DefaultMCPlatform for Platform {}
+    impl DefaultTMPlatform for Platform {}
 }
 
 #[async_trait]

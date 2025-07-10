@@ -199,6 +199,8 @@ pub trait MCPlatform: WorkspaceBackend
     }
 
     /// list workspace by their aliases.
+    ///
+    /// This is provided as a generic implementation
     async fn list_aliased_workspaces<'a>(
         &'a self,
     ) -> Result<AliasEntries<workspace::WorkspaceRef<'a>>, BackendError> {
@@ -246,6 +248,8 @@ pub trait MCPlatform: WorkspaceBackend
     }
 }
 
+pub trait DefaultMCPlatform: MCPlatform {}
+
 impl<P: workspace::traits::WorkspaceBackend
     + WorkspaceSyncBackend
     + WorkspaceTagBackend
@@ -264,6 +268,8 @@ impl<P: workspace::traits::WorkspaceBackend
     + ViewTaskTemplateProfileBackend
 
     + PlatformUrl
+
+    + DefaultMCPlatform
 
     + Send
     + Sync

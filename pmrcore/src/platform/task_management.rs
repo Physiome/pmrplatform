@@ -24,7 +24,7 @@ pub trait TMPlatform: TaskBackend
     + Send
     + Sync
 {
-    fn as_dyn(&self) -> &(dyn TMPlatform);
+    fn as_dyn(&self) -> &dyn TMPlatform;
 
     async fn start_task(
         &self,
@@ -36,14 +36,18 @@ pub trait TMPlatform: TaskBackend
     }
 }
 
+pub trait DefaultTMPlatform: TMPlatform {}
+
 impl<P: TaskBackend
     + TaskTemplateBackend
     + PlatformUrl
 
+    + DefaultTMPlatform
+
     + Send
     + Sync
 > TMPlatform for P {
-    fn as_dyn(&self) -> &(dyn TMPlatform) {
+    fn as_dyn(&self) -> &dyn TMPlatform {
         self
     }
 }

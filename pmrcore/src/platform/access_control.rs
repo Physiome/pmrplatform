@@ -28,8 +28,10 @@ pub trait ACPlatform: PolicyBackend
     + Send
     + Sync
 {
-    fn as_dyn(&self) -> &(dyn ACPlatform);
+    fn as_dyn(&self) -> &dyn ACPlatform;
 }
+
+pub trait DefaultACPlatform: ACPlatform {}
 
 impl<P: PolicyBackend
     + ResourceBackend
@@ -37,6 +39,8 @@ impl<P: PolicyBackend
     + SessionBackend
 
     + PlatformUrl
+
+    + DefaultACPlatform
 
     + Send
     + Sync
