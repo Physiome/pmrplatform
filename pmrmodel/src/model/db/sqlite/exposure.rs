@@ -7,6 +7,7 @@ use pmrcore::{
         traits::ExposureBackend,
     },
 };
+use sqlx::{QueryBuilder, Row, Sqlite};
 
 use crate::{
     backend::db::SqliteBackend,
@@ -112,6 +113,48 @@ FROM exposure
     Ok(rec.into())
 }
 
+async fn list_exposures_by_ids_sqlite(
+    sqlite: &SqliteBackend,
+    ids: &[i64],
+) -> Result<Exposures, BackendError> {
+    let mut query_builder: QueryBuilder<Sqlite> = QueryBuilder::new(r#"
+SELECT
+    id,
+    description,
+    workspace_id,
+    workspace_tag_id,
+    commit_id,
+    created_ts,
+    default_file_id
+FROM exposure
+WHERE
+    id IN ("#);
+
+    let mut separated = query_builder.separated(", ");
+    for id in ids.iter() {
+        separated.push_bind(id);
+    }
+    separated.push_unseparated(")");
+
+    let recs = query_builder
+        .build()
+        .try_map(|row| Ok(Exposure {
+            id: row.try_get("id")?,
+            description: row.try_get("description")?,
+            workspace_id: row.try_get("workspace_id")?,
+            workspace_tag_id: row.try_get("workspace_tag_id")?,
+            commit_id: row.try_get("commit_id")?,
+            created_ts: row.try_get("created_ts")?,
+            default_file_id: row.try_get("default_file_id")?,
+            // won't have files.
+            files: None,
+        }))
+        .fetch_all(&*sqlite.pool)
+        .await?;
+
+    Ok(recs.into())
+}
+
 async fn list_exposures_for_workspace_sqlite(
     sqlite: &SqliteBackend,
     workspace_id: i64,
@@ -195,6 +238,16 @@ impl ExposureBackend for SqliteBackend {
     ) -> Result<Exposures, BackendError> {
         list_exposures_sqlite(
             &self,
+        ).await
+    }
+
+    async fn list_by_ids(
+        &self,
+        ids: &[i64],
+    ) -> Result<Exposures, BackendError> {
+        list_exposures_by_ids_sqlite(
+            &self,
+            ids,
         ).await
     }
 

@@ -89,6 +89,10 @@ mock! {
         pub async fn exposure_list(
             &self,
         ) -> Result<Exposures, BackendError>;
+        pub async fn exposure_list_by_ids(
+            &self,
+            ids: &[i64],
+        ) -> Result<Exposures, BackendError>;
         pub async fn exposure_list_for_workspace(
             &self,
             workspace_id: i64,
@@ -374,6 +378,12 @@ impl ExposureBackend for MockPlatform {
         &self,
     ) -> Result<Exposures, BackendError> {
         self.exposure_list().await
+    }
+    async fn list_by_ids(
+        &self,
+        ids: &[i64],
+    ) -> Result<Exposures, BackendError> {
+        self.exposure_list_by_ids(ids).await
     }
     async fn list_for_workspace(
         &self,

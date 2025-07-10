@@ -225,6 +225,42 @@ pub trait MCPlatform: WorkspaceBackend
         })
     }
 
+    /// get the `ExposureRefs`
+    async fn list_exposures<'a>(
+        &'a self,
+    ) -> Result<exposure::ExposureRefs<'a>, BackendError> {
+        exposure::traits::ExposureBackend::list(self)
+            .await
+            .map(|v| v.bind(self.as_dyn()).into())
+    }
+
+    /// list exposures by their aliases.
+    ///
+    /// This is provided as a generic implementation
+    async fn list_aliased_exposures<'a>(
+        &'a self,
+    ) -> Result<AliasEntries<exposure::ExposureRef<'a>>, BackendError> {
+        let this = self.as_dyn();
+        let aliases = self.aliases_by_kind("exposure").await?;
+        let mut id_map = aliases.into_iter()
+            .map(|(key, id)| (id, key))
+            .collect::<BTreeMap<_, _>>();
+        let ids = id_map.keys()
+            .map(|id| *id)
+            .collect::<Vec<_>>();
+        Ok(AliasEntries {
+            kind: "exposure".to_string(),
+            entries: exposure::traits::ExposureBackend::list_by_ids(self, &ids).await?
+                .into_iter()
+                .map(|exposure| AliasEntry {
+                    alias: id_map.remove(&exposure.id)
+                        .expect("unexpected id queried without an alias queried"),
+                    entity: exposure.bind(this),
+                })
+                .collect::<Vec<_>>(),
+        })
+    }
+
     async fn set_ef_vttprofile(
         &self,
         exposure_file_id: i64,

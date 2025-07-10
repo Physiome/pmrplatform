@@ -61,6 +61,12 @@ pub trait ExposureBackend {
         &self,
     ) -> Result<exposure::Exposures, BackendError>;
 
+    /// Returns all `Exposures` by ids
+    async fn list_by_ids(
+        &self,
+        ids: &[i64],
+    ) -> Result<exposure::Exposures, BackendError>;
+
     /// Returns all `Exposures` for the given `workspace_id`.
     async fn list_for_workspace(
         &self,
