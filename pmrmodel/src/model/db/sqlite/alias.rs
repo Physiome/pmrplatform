@@ -6,6 +6,7 @@ use pmrcore::{
         traits::AliasBackend,
     },
 };
+use sqlx::{QueryBuilder, Row, Sqlite};
 
 use crate::{
     backend::db::SqliteBackend,
@@ -113,6 +114,33 @@ WHERE kind = ?1
         .map(|rec| (rec.alias, rec.kind_id))
         .fetch_all(&*self.pool)
         .await?;
+        Ok(recs)
+    }
+
+    async fn aliases_by_kind_ids(
+        &self,
+        kind: &str,
+        ids: &[i64],
+    ) -> Result<Vec<(String, i64)>, BackendError> {
+        let mut query_builder: QueryBuilder<Sqlite> = QueryBuilder::new(r#"
+SELECT alias, kind_id
+FROM alias
+WHERE kind = "#);
+        query_builder.push_bind(kind);
+        query_builder.push("AND id IN (");
+
+        let mut separated = query_builder.separated(", ");
+        for id in ids.iter() {
+            separated.push_bind(id);
+        }
+        separated.push_unseparated(")");
+
+        let recs = query_builder
+            .build()
+            .try_map(|rec| Ok((rec.try_get("alias")?, rec.try_get("kind_id")?)))
+            .fetch_all(&*self.pool)
+            .await?;
+
         Ok(recs)
     }
 }

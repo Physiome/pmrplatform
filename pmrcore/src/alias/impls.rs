@@ -149,3 +149,15 @@ impl<T> IntoIterator for AliasEntries<T> {
         self.entries.into_iter()
     }
 }
+
+impl<T> AliasEntry<T> {
+    pub fn map<U, F>(self, f: F) -> AliasEntry<U>
+    where
+        F: FnOnce(T) -> U,
+    {
+        AliasEntry {
+            alias: self.alias,
+            entity: f(self.entity),
+        }
+    }
+}

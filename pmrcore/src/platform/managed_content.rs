@@ -21,6 +21,7 @@ use crate::{
             ExposureFileBackend,
             ExposureFileViewBackend,
         },
+        Exposure,
     },
     platform::PlatformUrl,
     profile::{
@@ -229,7 +230,17 @@ pub trait MCPlatform: WorkspaceBackend
     async fn list_exposures<'a>(
         &'a self,
     ) -> Result<exposure::ExposureRefs<'a>, BackendError> {
-        exposure::traits::ExposureBackend::list(self)
+        ExposureBackend::list(self)
+            .await
+            .map(|v| v.bind(self.as_dyn()).into())
+    }
+
+    /// get `ExposureRefs` for the workspace by the `workspace_id`
+    async fn list_exposures_for_workspace<'a>(
+        &'a self,
+        workspace_id: i64,
+    ) -> Result<exposure::ExposureRefs<'a>, BackendError> {
+        ExposureBackend::list_for_workspace(self, workspace_id)
             .await
             .map(|v| v.bind(self.as_dyn()).into())
     }
@@ -250,7 +261,7 @@ pub trait MCPlatform: WorkspaceBackend
             .collect::<Vec<_>>();
         Ok(AliasEntries {
             kind: "exposure".to_string(),
-            entries: exposure::traits::ExposureBackend::list_by_ids(self, &ids).await?
+            entries: ExposureBackend::list_by_ids(self, &ids).await?
                 .into_iter()
                 .map(|exposure| AliasEntry {
                     alias: id_map.remove(&exposure.id)
@@ -258,6 +269,37 @@ pub trait MCPlatform: WorkspaceBackend
                     entity: exposure.bind(this),
                 })
                 .collect::<Vec<_>>(),
+        })
+    }
+
+    /// list `ExposureRefs` for the workspace by the `workspace_id` with their alias
+    ///
+    /// This is provided as a generic implementation.
+    async fn list_aliased_exposures_for_workspace<'a>(
+        &'a self,
+        workspace_id: i64,
+    ) -> Result<AliasEntries<exposure::ExposureRef<'a>>, BackendError> {
+        let this = self.as_dyn();
+        let exposures = ExposureBackend::list_for_workspace(self, workspace_id)
+            .await?;
+        let mut id_map = exposures.into_iter()
+            .map(|exposure| (exposure.id, exposure))
+            .collect::<BTreeMap<_, _>>();
+        let ids = id_map.keys()
+            .map(|id| *id)
+            .collect::<Vec<_>>();
+
+        Ok(AliasEntries {
+            kind: "exposure".to_string(),
+            entries: self.aliases_by_kind_ids("exposure", &ids).await?
+                .into_iter()
+                .map(|(alias, id)| AliasEntry {
+                    alias,
+                    entity: id_map.remove(&id)
+                        .expect("unexpected id queried for alias")
+                        .bind(this),
+                })
+                .collect::<Vec<_>>()
         })
     }
 
