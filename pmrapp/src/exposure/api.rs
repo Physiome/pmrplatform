@@ -3,6 +3,7 @@ use leptos::{
     server_fn::codec::Rkyv,
 };
 use pmrcore::{
+    alias::AliasEntry,
     exposure::{
         Exposure,
         Exposures,
@@ -65,6 +66,20 @@ pub async fn list() -> Result<EnforcedOk<Exposures>, AppError> {
         .map_err(|_| AppError::InternalServerError)?))
 }
 
+#[server]
+pub async fn list_aliased() -> Result<EnforcedOk<Vec<AliasEntry<Exposure>>>, AppError> {
+    let policy_state = session().await?
+        .enforcer_and_policy_state("/exposure/", "").await?;
+    let platform = platform().await?;
+    let exposures = platform.mc_platform.list_aliased_exposures()
+        .await
+        .map_err(|_| AppError::InternalServerError)?
+        .into_iter()
+        .map(|exposure| exposure.map(|entity| entity.into_inner()))
+        .collect();
+    Ok(policy_state.to_enforced_ok(exposures))
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ExposureInfo {
     pub exposure: Exposure,
@@ -88,6 +103,21 @@ pub async fn get_exposure_info(id: i64) -> Result<EnforcedOk<ExposureInfo>, AppE
         .map_err(|_| AppError::InternalServerError)?
         .into_inner();
     Ok(policy_state.to_enforced_ok(ExposureInfo { exposure, files, workspace }))
+}
+
+#[server]
+pub async fn get_exposure_info_by_alias(alias: String) -> Result<EnforcedOk<ExposureInfo>, AppError> {
+    // This simply leverages the existing function above, and not the one provided by
+    // the platform.
+    Ok(get_exposure_info(
+        platform()
+            .await?
+            .mc_platform
+            .resolve_alias("exposure", &alias)
+            .await
+            .map_err(|_| AppError::InternalServerError)?
+            .ok_or(AppError::NotFound)?
+    ).await?)
 }
 
 #[server]

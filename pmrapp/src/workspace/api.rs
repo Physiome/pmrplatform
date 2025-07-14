@@ -1,10 +1,14 @@
 use leptos::server;
 use pmrcore::{
+    alias::AliasEntry,
     repo::{
         LogInfo,
         RepoResult,
     },
-    workspace::Workspaces,
+    workspace::{
+        Workspace,
+        Workspaces,
+    },
 };
 use crate::{
     enforcement::{EnforcedOk, PolicyState},
@@ -20,7 +24,7 @@ mod ssr {
             workflow::State,
         },
         workspace::traits::{
-            Workspace,
+            Workspace as _,
             WorkspaceBackend,
         },
     };
@@ -48,6 +52,20 @@ pub async fn list_workspaces() -> Result<EnforcedOk<Workspaces>, AppError> {
             platform.mc_platform.as_ref()).await
             .map_err(|_| AppError::InternalServerError)?
     ))
+}
+
+#[server]
+pub async fn list_aliased_workspaces() -> Result<EnforcedOk<Vec<AliasEntry<Workspace>>>, AppError> {
+    let policy_state = session().await?
+        .enforcer_and_policy_state("/workspace/", "").await?;
+    let platform = platform().await?;
+    let workspaces = platform.mc_platform.list_aliased_workspaces()
+        .await
+        .map_err(|_| AppError::InternalServerError)?
+        .into_iter()
+        .map(|workspace| workspace.map(|entity| entity.into_inner()))
+        .collect();
+    Ok(policy_state.to_enforced_ok(workspaces))
 }
 
 #[server]
