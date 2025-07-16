@@ -44,7 +44,8 @@ use crate::{
     error_template::ErrorTemplate,
     exposure::api::CreateExposure,
     workspace::api::{
-        list_workspaces,
+        // list_workspaces,
+        list_aliased_workspaces,
         get_log_info,
         get_workspace_info,
         workspace_root_policy_state,
@@ -56,6 +57,7 @@ use crate::{
             ContentActionCtx,
             ContentActionItem,
         },
+        id::Id,
         Root,
     },
 };
@@ -188,7 +190,7 @@ pub fn WorkspaceListing() -> impl IntoView {
             let set_ps = account_ctx.policy_state.write_only();
             async move {
                 provide_context(set_ps);
-                let result = list_workspaces().await;
+                let result = list_aliased_workspaces().await;
                 match result {
                     Ok(ref result) => logging::log!("loaded {} workspace entries", result.inner.len()),
                     Err(_) => logging::log!("error loading workspaces"),
@@ -208,12 +210,12 @@ pub fn WorkspaceListing() -> impl IntoView {
                     view! {
                         <div>
                             // TODO the link should point to the primary alias
-                            <div><a href=format!("{root}{}/", workspace.id)>
-                                {workspace.description.unwrap_or_else(
-                                    || format!("Workspace {}", workspace.id))}
+                            <div><a href=format!("{root}{}/", workspace.alias)>
+                                {workspace.entity.description.unwrap_or_else(
+                                    || format!("Workspace {}", workspace.entity.id))}
                             </a></div>
-                            <div>{workspace.url}</div>
-                            <div>{workspace.long_description.unwrap_or("".to_string())}</div>
+                            <div>{workspace.entity.url}</div>
+                            <div>{workspace.entity.long_description.unwrap_or("".to_string())}</div>
                         </div>
                     }
                 })
@@ -285,7 +287,7 @@ pub fn WorkspaceAdd() -> impl IntoView {
 
 #[derive(Params, PartialEq, Clone, Debug)]
 pub struct WorkspaceParams {
-    id: Option<i64>,
+    id: Option<String>,
 }
 
 #[component]
@@ -304,10 +306,13 @@ pub fn Workspace() -> impl IntoView {
                 let result = match id {
                     Err(_) => Err(AppError::InternalServerError),
                     Ok(None) => Err(AppError::NotFound),
-                    Ok(Some(id)) => get_workspace_info(id, None, None)
-                        .await
-                        .map(EnforcedOk::notify_into)
-                        .map_err(AppError::from),
+                    Ok(Some(id)) => {
+                        let id = root.build_id(id)?;
+                        get_workspace_info(id, None, None)
+                            .await
+                            .map(EnforcedOk::notify_into)
+                            .map_err(AppError::from)
+                    }
                 };
                 let _ = take_context::<SsrWriteSignal<Option<PolicyState>>>();
                 result
@@ -493,6 +498,7 @@ fn WorkspaceListingView(repo_result: RepoResult) -> impl IntoView {
 
 #[component]
 fn WorkspaceFileInfoView(repo_result: RepoResult) -> impl IntoView {
+    let workspace_params = expect_context::<Memo<Result<WorkspaceParams, ParamsError>>>();
     let root = expect_context::<Root>();
 
     let path = repo_result.path.clone().unwrap_or_else(|| String::new());
@@ -503,9 +509,12 @@ fn WorkspaceFileInfoView(repo_result: RepoResult) -> impl IntoView {
     match repo_result.target {
         Some(PathObjectInfo::FileInfo(ref file_info)) => {
             let href = format!(
-                "{root}{}/rawfile/{}/{}",
-                // TODO this need to include alias, and current mode
-                &repo_result.workspace.id,
+                "{}/rawfile/{}/{}",
+                root.build_href(workspace_params.get()
+                    .expect("this should be a valid id")
+                    .id
+                    .expect("this should be a valid id")
+                ),
                 &commit_id,
                 &path,
             );
@@ -578,6 +587,7 @@ fn WorkspaceTreeInfoRow(
     #[prop(into)]
     name: String,
 ) -> impl IntoView {
+    let workspace_params = expect_context::<Memo<Result<WorkspaceParams, ParamsError>>>();
     let root = use_context::<Root>().unwrap_or(Root::Aliased("/workspace/"));
     let path_name = if name == ".." {
         let idx = path[0..path.len() - 1].rfind('/').unwrap_or(0);
@@ -594,7 +604,12 @@ fn WorkspaceTreeInfoRow(
             format!("{name}")
         })
     };
-    let href = format!("{root}{workspace_id}/file/{commit_id}/{path_name}");
+    let base = root.build_href(workspace_params.get()
+        .expect("this should be a valid id")
+        .id
+        .expect("this should be a valid id")
+    );
+    let href = format!("{base}/file/{commit_id}/{path_name}");
     view! {
         <tr>
             <td class=format!("gitobj-{}", kind)>
@@ -629,11 +644,14 @@ pub fn WorkspaceCommitPath() -> impl IntoView {
             workspace_params.get().map(|p| p.id),
             params.get().map(|p| (p.commit, p.path)),
         ),
-        |p| async move {
+        move |p| async move {
             match p {
-                (Ok(Some(id)), Ok((commit, path))) => get_workspace_info(id, commit, path).await
-                    .map(EnforcedOk::notify_into)
-                    .map_err(AppError::from),
+                (Ok(Some(id)), Ok((commit, path))) => {
+                    let id = root.build_id(id)?;
+                    get_workspace_info(id, commit, path).await
+                        .map(EnforcedOk::notify_into)
+                        .map_err(AppError::from)
+                }
                 _ => Err(AppError::InternalServerError),
             }
         }
@@ -641,7 +659,11 @@ pub fn WorkspaceCommitPath() -> impl IntoView {
 
     let view = move || Suspend::new(async move {
         resource.await.map(|info| {
-            let href = format!("{root}{}/", &info.workspace.id);
+            let href = root.build_href(workspace_params.get()
+                .expect("this should be a valid id")
+                .id
+                .expect("this should be a valid id")
+            );
             let desc = info.workspace.description
                 .clone()
                 .unwrap_or_else(
@@ -673,14 +695,17 @@ pub fn WorkspaceLog() -> impl IntoView {
     let repo_result = expect_context::<Resource<Result<RepoResult, AppError>>>();
     let log_info = Resource::new_blocking(
         move || workspace_params.get().map(|p| p.id),
-        |id| async move {
+        move |id| async move {
             match id {
                 Err(_) => Err(AppError::InternalServerError),
                 Ok(None) => Err(AppError::NotFound),
-                Ok(Some(id)) => get_log_info(id)
-                    .await
-                    .map(EnforcedOk::notify_into)
-                    .map_err(AppError::from),
+                Ok(Some(id)) => {
+                    let id = root.build_id(id)?;
+                    get_log_info(id)
+                        .await
+                        .map(EnforcedOk::notify_into)
+                        .map_err(AppError::from)
+                }
             }
         }
     );
@@ -688,7 +713,11 @@ pub fn WorkspaceLog() -> impl IntoView {
     let view = move || Suspend::new(async move {
         let log_info = log_info.await?;
         repo_result.await.map(|info| {
-            let href = format!("{root}{}/", &info.workspace.id);
+            let href = root.build_href(workspace_params.get()
+                .expect("this should be a valid id")
+                .id
+                .expect("this should be a valid id")
+            );
             view! {
                 <table class="log-listing">
                     <thead>
@@ -748,17 +777,21 @@ fn WorkspaceCreateExposure() -> impl IntoView {
     let workspace_params = expect_context::<Memo<Result<WorkspaceParams, ParamsError>>>();
     let params = use_params::<WorkspaceCommitParams>();
     let action = ServerAction::<CreateExposure>::new();
+    let root = expect_context::<Root>();
 
     let resource = Resource::new_blocking(
         move || (
             workspace_params.get().map(|p| p.id),
             params.get().map(|p| p.commit),
         ),
-        |p| async move {
+        move |p| async move {
             match p {
-                (Ok(Some(id)), Ok(commit)) => get_workspace_info(id, commit, None).await
-                    .map(EnforcedOk::notify_into)
-                    .map_err(AppError::from),
+                (Ok(Some(id)), Ok(commit)) => {
+                    let id = root.build_id(id)?;
+                    get_workspace_info(id, commit, None).await
+                        .map(EnforcedOk::notify_into)
+                        .map_err(AppError::from)
+                }
                 _ => Err(AppError::InternalServerError),
             }
         }

@@ -6,11 +6,12 @@ use pmrcore::{
         RepoResult,
     },
     workspace::{
+        self,
         Workspace,
-        Workspaces,
     },
 };
 use crate::{
+    app::id::Id,
     enforcement::{EnforcedOk, PolicyState},
     error::AppError,
 };
@@ -36,6 +37,8 @@ mod ssr {
 #[cfg(feature = "ssr")]
 use self::ssr::*;
 
+pub type Workspaces = Vec<AliasEntry<Workspace>>;
+
 #[server]
 pub async fn workspace_root_policy_state() -> Result<PolicyState, AppError> {
     Ok(session().await?
@@ -48,14 +51,19 @@ pub async fn list_workspaces() -> Result<EnforcedOk<Workspaces>, AppError> {
         .enforcer_and_policy_state("/workspace/", "").await?;
     let platform = platform().await?;
     Ok(policy_state.to_enforced_ok(
-        WorkspaceBackend::list_workspaces(
-            platform.mc_platform.as_ref()).await
+        WorkspaceBackend::list_workspaces(platform.mc_platform.as_ref()).await
             .map_err(|_| AppError::InternalServerError)?
+            .into_iter()
+            .map(|workspace| AliasEntry {
+                alias: workspace.id.to_string(),
+                entity: workspace,
+            })
+            .collect()
     ))
 }
 
 #[server]
-pub async fn list_aliased_workspaces() -> Result<EnforcedOk<Vec<AliasEntry<Workspace>>>, AppError> {
+pub async fn list_aliased_workspaces() -> Result<EnforcedOk<Workspaces>, AppError> {
     let policy_state = session().await?
         .enforcer_and_policy_state("/workspace/", "").await?;
     let platform = platform().await?;
@@ -68,12 +76,28 @@ pub async fn list_aliased_workspaces() -> Result<EnforcedOk<Vec<AliasEntry<Works
     Ok(policy_state.to_enforced_ok(workspaces))
 }
 
+#[cfg(feature = "ssr")]
+async fn resolve_id(id: Id) -> Result<i64, AppError> {
+    Ok(match id {
+        Id::Number(s) => s.parse().map_err(|_| AppError::NotFound)?,
+        Id::Aliased(s) => platform()
+            .await?
+            .mc_platform
+            .resolve_alias("workspace", &s)
+            .await
+            .map_err(|_| AppError::InternalServerError)?
+            .ok_or(AppError::NotFound)?,
+    })
+}
+
 #[server]
 pub async fn get_workspace_info(
-    id: i64,
+    // TODO this may need to be a enum to disambiguate the id vs. alias
+    id: Id,
     commit: Option<String>,
     path: Option<String>,
 ) -> Result<EnforcedOk<RepoResult>, AppError> {
+    let id = resolve_id(id).await?;
     let policy_state = session().await?
         .enforcer_and_policy_state(format!("/workspace/{id}/"), "").await?;
     let platform = platform().await?;
@@ -98,8 +122,9 @@ pub async fn get_workspace_info(
 
 #[server]
 pub async fn get_log_info(
-    id: i64,
+    id: Id,
 ) -> Result<EnforcedOk<LogInfo>, AppError> {
+    let id = resolve_id(id).await?;
     let policy_state = session().await?
         .enforcer_and_policy_state(format!("/workspace/{id}/"), "").await?;
     let platform = platform().await?;
@@ -155,8 +180,9 @@ pub async fn create_workspace(
 
 #[server]
 pub async fn synchronize(
-    id: i64,
+    id: Id,
 ) -> Result<(), AppError> {
+    let id = resolve_id(id).await?;
     session().await?
         .enforcer(format!("/workspace/{id}/"), "protocol_write").await?;
     let platform = platform().await?;

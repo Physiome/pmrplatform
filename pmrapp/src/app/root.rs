@@ -1,4 +1,7 @@
-use std::fmt::{Display, Formatter, Result};
+use crate::{
+    app::id::Id,
+    error::AppError,
+};
 
 /// Helper enum for declaring the current root and mode
 #[derive(Clone, Copy)]
@@ -9,11 +12,16 @@ pub enum Root {
     Id(&'static str),
 }
 
-impl Display for Root {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        match self {
-            Self::Aliased(s) => s.fmt(f),
-            Self::Id(s) => s.fmt(f),
+mod display {
+    use std::fmt::{Display, Formatter, Result};
+    use super::*;
+
+    impl Display for Root {
+        fn fmt(&self, f: &mut Formatter) -> Result {
+            match self {
+                Self::Aliased(s) => s.fmt(f),
+                Self::Id(s) => s.fmt(f),
+            }
         }
     }
 }
@@ -27,5 +35,18 @@ impl AsRef<str> for Root {
     }
 }
 
-// TODO ideally, we need a trait for resolving real items
-// they need to be implemented for workspace and exposure records
+impl Root {
+    pub fn build_id(&self, s: String) -> Result<Id, AppError> {
+        Ok(match self {
+            Root::Aliased(_) => Id::Aliased(s),
+            Root::Id(_) => Id::Number(s.parse().map_err(|_| AppError::NotFound)?),
+        })
+    }
+
+    pub fn build_href(&self, s: String) -> String {
+        match self {
+            Root::Aliased(prefix) => format!("{prefix}{s}"),
+            Root::Id(prefix) => format!("{prefix}{s}"),
+        }
+    }
+}

@@ -26,6 +26,7 @@ use crate::error_template::ErrorTemplate;
 use crate::exposure::ExposureRoutes;
 use crate::workspace::WorkspaceRoutes;
 
+pub mod id;
 pub mod portlet;
 mod root;
 
