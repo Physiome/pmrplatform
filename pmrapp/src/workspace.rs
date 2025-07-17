@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use chrono::{
     TimeZone,
     Utc,
@@ -44,7 +45,7 @@ use crate::{
     error_template::ErrorTemplate,
     exposure::api::CreateExposure,
     workspace::api::{
-        // list_workspaces,
+        list_workspaces,
         list_aliased_workspaces,
         get_log_info,
         get_workspace_info,
@@ -72,6 +73,7 @@ pub fn WorkspaceRoutes() -> impl MatchNestedRoutes + Clone {
             <ParentRoute path=StaticSegment(":") view=Outlet>
                 <Route path=StaticSegment("add") view=WorkspaceAdd/>
                 <ParentRoute path=StaticSegment("id") view=WorkspaceIdRoot>
+                    <Route path=StaticSegment("/") view=WorkspaceListing/>
                     <WorkspaceViewRoutes/>
                 </ParentRoute>
             </ParentRoute>
@@ -190,7 +192,10 @@ pub fn WorkspaceListing() -> impl IntoView {
             let set_ps = account_ctx.policy_state.write_only();
             async move {
                 provide_context(set_ps);
-                let result = list_aliased_workspaces().await;
+                let result = match root {
+                    Root::Id(_) => list_workspaces().await,
+                    Root::Aliased(_) => list_aliased_workspaces().await,
+                };
                 match result {
                     Ok(ref result) => logging::log!("loaded {} workspace entries", result.inner.len()),
                     Err(_) => logging::log!("error loading workspaces"),
@@ -382,9 +387,16 @@ pub fn Workspace() -> impl IntoView {
 #[component]
 pub fn WorkspaceMain() -> impl IntoView {
     let resource = expect_context::<Resource<Result<RepoResult, AppError>>>();
+    let workspace_params = expect_context::<Memo<Result<WorkspaceParams, ParamsError>>>();
+    let root = use_context::<Root>().unwrap_or(Root::Aliased("/workspace/"));
 
     let workspace_view = move || Suspend::new(async move {
         resource.await.map(|info| {
+            let base_href = root.build_href(workspace_params.get()
+                .expect("this should be a valid id")
+                .id
+                .expect("this should be a valid id")
+            );
             view! {
                 // render content
                 <h1>{info.workspace.description.clone().unwrap_or(
@@ -393,7 +405,7 @@ pub fn WorkspaceMain() -> impl IntoView {
                     <dt>"Git Repository URI"</dt>
                     <dd>{info.workspace.url.clone()}</dd>
                     <div class="workspace-pathinfo">
-                        <WorkspaceListingView repo_result=info/>
+                        <WorkspaceListingView repo_result=info base_href/>
                     </div>
                 </dl>
             }
@@ -444,22 +456,28 @@ pub fn WorkspaceSynchronize() -> impl IntoView {
 }
 
 #[component]
-fn WorkspaceListingView(repo_result: RepoResult) -> impl IntoView {
-    let workspace_id = repo_result.workspace.id;
+fn WorkspaceListingView(
+    repo_result: RepoResult,
+    #[prop(into)]
+    base_href: Arc<str>,
+) -> impl IntoView {
     let commit_id = repo_result.commit
         .clone()
         .map(|commit| commit.commit_id)
         .unwrap_or_else(|| "<none>".to_string());
     let path = repo_result.path.clone().unwrap_or_else(|| String::new());
     let pardir = path != "";
-    let pardir = move || { pardir.then(|| view! {
-        <WorkspaceTreeInfoRow
-            workspace_id=workspace_id
-            commit_id=commit_id.as_str()
-            path=path.as_str()
-            kind="pardir"
-            name=".."/>
-    })};
+    let pardir = {
+        let base_href = base_href.clone();
+        move || { pardir.then(|| view! {
+            <WorkspaceTreeInfoRow
+                base_href=base_href.clone()
+                commit_id=commit_id.as_str()
+                path=path.as_str()
+                kind="pardir"
+                name=".."/>
+        })}
+    };
 
     let path = repo_result.path.clone().unwrap_or_else(|| String::new());
     let commit_id = repo_result.commit
@@ -482,7 +500,7 @@ fn WorkspaceListingView(repo_result: RepoResult) -> impl IntoView {
                     Some(PathObjectInfo::TreeInfo(tree_info)) =>
                         Some(view! {
                             <WorkspaceTreeInfoRows
-                                workspace_id=workspace_id
+                                base_href=base_href
                                 commit_id=commit_id
                                 path=path
                                 tree_info
@@ -497,10 +515,11 @@ fn WorkspaceListingView(repo_result: RepoResult) -> impl IntoView {
 }
 
 #[component]
-fn WorkspaceFileInfoView(repo_result: RepoResult) -> impl IntoView {
-    let workspace_params = expect_context::<Memo<Result<WorkspaceParams, ParamsError>>>();
-    let root = expect_context::<Root>();
-
+fn WorkspaceFileInfoView(
+    repo_result: RepoResult,
+    #[prop(into)]
+    base_href: Arc<str>,
+) -> impl IntoView {
     let path = repo_result.path.clone().unwrap_or_else(|| String::new());
     let commit_id = repo_result.commit
         .map(|commit| commit.commit_id)
@@ -508,16 +527,7 @@ fn WorkspaceFileInfoView(repo_result: RepoResult) -> impl IntoView {
         .clone();
     match repo_result.target {
         Some(PathObjectInfo::FileInfo(ref file_info)) => {
-            let href = format!(
-                "{}/rawfile/{}/{}",
-                root.build_href(workspace_params.get()
-                    .expect("this should be a valid id")
-                    .id
-                    .expect("this should be a valid id")
-                ),
-                &commit_id,
-                &path,
-            );
+            let href = format!("{base_href}/rawfile/{commit_id}/{path}");
             let info = format!("{:?}", file_info);
             Some(view! {
                 <div>
@@ -543,52 +553,56 @@ fn WorkspaceFileInfoView(repo_result: RepoResult) -> impl IntoView {
 }
 
 #[component]
-fn WorkspaceRepoResultView(repo_result: RepoResult) -> impl IntoView {
+fn WorkspaceRepoResultView(
+    repo_result: RepoResult,
+    #[prop(into)]
+    base_href: Arc<str>,
+) -> impl IntoView {
     match repo_result.target {
         Some(PathObjectInfo::TreeInfo(_)) =>
-            Some(view! { <div><WorkspaceListingView repo_result/></div> }.into_any()),
+            Some(view! { <div><WorkspaceListingView repo_result base_href/></div> }.into_any()),
         Some(PathObjectInfo::FileInfo(_)) =>
-            Some(view! { <div><WorkspaceFileInfoView repo_result/></div> }.into_any()),
+            Some(view! { <div><WorkspaceFileInfoView repo_result base_href/></div> }.into_any()),
         _ => None,
     }
 }
 
 #[component]
 fn WorkspaceTreeInfoRows(
-    workspace_id: i64,
     #[prop(into)]
-    commit_id: String,
+    base_href: Arc<str>,
     #[prop(into)]
-    path: String,
+    commit_id: Arc<str>,
+    #[prop(into)]
+    path: Arc<str>,
     tree_info: TreeInfo,
 ) -> impl IntoView {
     tree_info.entries
-        .iter()
+        .into_iter()
         .map(|info| view! {
             <WorkspaceTreeInfoRow
-                workspace_id=workspace_id
-                commit_id=commit_id.as_str()
-                path=path.as_str()
-                kind=info.kind.as_str()
-                name=info.name.as_str()/>
+                base_href=base_href.clone()
+                commit_id=commit_id.clone()
+                path=path.clone()
+                kind=info.kind
+                name=info.name/>
         })
         .collect_view()
 }
 
 #[component]
 fn WorkspaceTreeInfoRow(
-    workspace_id: i64,
     #[prop(into)]
-    commit_id: String,
+    base_href: Arc<str>,
     #[prop(into)]
-    path: String,
+    commit_id: Arc<str>,
+    #[prop(into)]
+    path: Arc<str>,
     #[prop(into)]
     kind: String,
     #[prop(into)]
     name: String,
 ) -> impl IntoView {
-    let workspace_params = expect_context::<Memo<Result<WorkspaceParams, ParamsError>>>();
-    let root = use_context::<Root>().unwrap_or(Root::Aliased("/workspace/"));
     let path_name = if name == ".." {
         let idx = path[0..path.len() - 1].rfind('/').unwrap_or(0);
         if idx == 0 {
@@ -604,12 +618,7 @@ fn WorkspaceTreeInfoRow(
             format!("{name}")
         })
     };
-    let base = root.build_href(workspace_params.get()
-        .expect("this should be a valid id")
-        .id
-        .expect("this should be a valid id")
-    );
-    let href = format!("{base}/file/{commit_id}/{path_name}");
+    let href = format!("{base_href}/file/{commit_id}/{path_name}");
     view! {
         <tr>
             <td class=format!("gitobj-{}", kind)>
@@ -659,7 +668,7 @@ pub fn WorkspaceCommitPath() -> impl IntoView {
 
     let view = move || Suspend::new(async move {
         resource.await.map(|info| {
-            let href = root.build_href(workspace_params.get()
+            let base_href = root.build_href(workspace_params.get()
                 .expect("this should be a valid id")
                 .id
                 .expect("this should be a valid id")
@@ -670,9 +679,9 @@ pub fn WorkspaceCommitPath() -> impl IntoView {
                     || format!("Workspace {}", &info.workspace.id)
                 );
             view! {
-                <h1><a href=href>{desc}</a></h1>
+                <h1><a href=base_href.clone()>{desc}</a></h1>
                 <div class="workspace-pathinfo">
-                    <WorkspaceRepoResultView repo_result=info/>
+                    <WorkspaceRepoResultView repo_result=info base_href/>
                 </div>
             }
         })
