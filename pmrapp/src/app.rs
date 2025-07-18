@@ -30,7 +30,7 @@ pub mod id;
 pub mod portlet;
 mod root;
 
-pub use self::root::Root;
+pub use self::root::{EntityRoot, Root};
 use self::portlet::{
     ContentAction,
     ExposureSource,

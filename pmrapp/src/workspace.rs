@@ -59,6 +59,7 @@ use crate::{
             ContentActionItem,
         },
         id::Id,
+        EntityRoot,
         Root,
     },
 };
@@ -301,6 +302,16 @@ pub fn Workspace() -> impl IntoView {
     let root = expect_context::<Root>();
     let content_action_ctx = ContentActionCtx::expect();
     let params = use_params::<WorkspaceParams>();
+
+    let entity_root: Memo<EntityRoot> = Memo::new(move |_| {
+        root.build_entity_root(params.get()
+            .expect("conversion to string must be infallible")
+            .id
+            .expect("this must be used inside a route with an id parameter")
+        )
+    });
+    provide_context(entity_root);
+
     let resource = Resource::new_blocking(
         move || params.get().map(|p| p.id),
         move |id| {
@@ -345,23 +356,23 @@ pub fn Workspace() -> impl IntoView {
         {content_action_ctx.update_with(
             move || {
                 async move {
-                    resource.await.ok().map(|info| {
-                        let resource = format!("{root}{}/", info.workspace.id);
+                    resource.await.ok().map(|_| {
+                        let base_href = entity_root.read();
                         vec![
                             ContentActionItem {
-                                href: resource.clone(),
+                                href: format!("{base_href}/"),
                                 text: "Main View".to_string(),
                                 title: Some("Return to the top level workspace view".to_string()),
                                 req_action: None,
                             },
                             ContentActionItem {
-                                href: format!("{resource}log"),
+                                href: format!("{base_href}/log"),
                                 text: "History".to_string(),
                                 title: None,
                                 req_action: None,
                             },
                             ContentActionItem {
-                                href: format!("{resource}synchronize"),
+                                href: format!("{base_href}/synchronize"),
                                 text: "Synchronize".to_string(),
                                 title: Some("Synchronize with the stored Git Repository URI".to_string()),
                                 req_action: Some("protocol_write".to_string()),
@@ -379,7 +390,6 @@ pub fn Workspace() -> impl IntoView {
                 }
             },
         )}
-        <Title text="Workspace — Physiome Model Repository"/>
         <Outlet/>
     }
 }
@@ -388,15 +398,11 @@ pub fn Workspace() -> impl IntoView {
 pub fn WorkspaceMain() -> impl IntoView {
     let resource = expect_context::<Resource<Result<RepoResult, AppError>>>();
     let workspace_params = expect_context::<Memo<Result<WorkspaceParams, ParamsError>>>();
-    let root = use_context::<Root>().unwrap_or(Root::Aliased("/workspace/"));
+    let entity_root = expect_context::<Memo<EntityRoot>>();
 
     let workspace_view = move || Suspend::new(async move {
         resource.await.map(|info| {
-            let base_href = root.build_href(workspace_params.get()
-                .expect("this should be a valid id")
-                .id
-                .expect("this should be a valid id")
-            );
+            let base_href = entity_root.get().to_string();
             view! {
                 // render content
                 <h1>{info.workspace.description.clone().unwrap_or(
@@ -644,6 +650,7 @@ pub struct WorkspaceCommitPathParams {
 #[component]
 pub fn WorkspaceCommitPath() -> impl IntoView {
     let root = expect_context::<Root>();
+    let entity_root = expect_context::<Memo<EntityRoot>>();
     logging::log!("in <WorkspaceCommitPath>");
     let workspace_params = expect_context::<Memo<Result<WorkspaceParams, ParamsError>>>();
     let params = use_params::<WorkspaceCommitPathParams>();
@@ -668,11 +675,7 @@ pub fn WorkspaceCommitPath() -> impl IntoView {
 
     let view = move || Suspend::new(async move {
         resource.await.map(|info| {
-            let base_href = root.build_href(workspace_params.get()
-                .expect("this should be a valid id")
-                .id
-                .expect("this should be a valid id")
-            );
+            let base_href = entity_root.get().to_string();
             let desc = info.workspace.description
                 .clone()
                 .unwrap_or_else(
@@ -700,6 +703,7 @@ pub fn WorkspaceCommitPath() -> impl IntoView {
 pub fn WorkspaceLog() -> impl IntoView {
     let workspace_params = expect_context::<Memo<Result<WorkspaceParams, ParamsError>>>();
     let root = expect_context::<Root>();
+    let entity_root = expect_context::<Memo<EntityRoot>>();
 
     let repo_result = expect_context::<Resource<Result<RepoResult, AppError>>>();
     let log_info = Resource::new_blocking(
@@ -722,11 +726,7 @@ pub fn WorkspaceLog() -> impl IntoView {
     let view = move || Suspend::new(async move {
         let log_info = log_info.await?;
         repo_result.await.map(|info| {
-            let href = root.build_href(workspace_params.get()
-                .expect("this should be a valid id")
-                .id
-                .expect("this should be a valid id")
-            );
+            let href = entity_root.read();
             view! {
                 <table class="log-listing">
                     <thead>
@@ -758,8 +758,8 @@ pub fn WorkspaceLog() -> impl IntoView {
                                     <td>{author.clone()}</td>
                                     <td>{message.clone()}</td>
                                     <td>
-                                        <a href=format!("{href}file/{commit_id}/")>"[files]"</a>
-                                        <a href=format!("{href}create_exposure/{commit_id}/")>"[create_exposure]"</a>
+                                        <a href=format!("{href}/file/{commit_id}/")>"[files]"</a>
+                                        <a href=format!("{href}/create_exposure/{commit_id}/")>"[create_exposure]"</a>
                                     </td>
                                     <td></td>
                                 </tr>

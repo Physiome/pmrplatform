@@ -4,7 +4,7 @@ use crate::{
 };
 
 /// Helper enum for declaring the current root and mode
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub enum Root {
     /// Root instantiated with this mode declares the route to allow alias for use with params.
     Aliased(&'static str),
@@ -12,18 +12,11 @@ pub enum Root {
     Id(&'static str),
 }
 
-mod display {
-    use std::fmt::{Display, Formatter, Result};
-    use super::*;
-
-    impl Display for Root {
-        fn fmt(&self, f: &mut Formatter) -> Result {
-            match self {
-                Self::Aliased(s) => s.fmt(f),
-                Self::Id(s) => s.fmt(f),
-            }
-        }
-    }
+/// A defined root for some singular entity with an single identifier.
+#[derive(Clone, Eq, PartialEq)]
+pub struct EntityRoot {
+    root: Root,
+    id: String,
 }
 
 impl AsRef<str> for Root {
@@ -43,10 +36,30 @@ impl Root {
         })
     }
 
-    pub fn build_href(&self, s: String) -> String {
-        match self {
-            Root::Aliased(prefix) => format!("{prefix}{s}"),
-            Root::Id(prefix) => format!("{prefix}{s}"),
+    pub fn build_entity_root(&self, id: String) -> EntityRoot {
+        EntityRoot {
+            root: *self,
+            id
+        }
+    }
+}
+
+mod display {
+    use std::fmt::{Display, Formatter, Result};
+    use super::*;
+
+    impl Display for Root {
+        fn fmt(&self, f: &mut Formatter) -> Result {
+            match self {
+                Self::Aliased(s) => s.fmt(f),
+                Self::Id(s) => s.fmt(f),
+            }
+        }
+    }
+
+    impl Display for EntityRoot {
+        fn fmt(&self, f: &mut Formatter) -> Result {
+            write!(f, "{}{}", self.root, self.id)
         }
     }
 }
