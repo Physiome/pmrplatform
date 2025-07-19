@@ -4,6 +4,7 @@ pub mod error;
 pub mod exposure;
 #[cfg(feature = "git")]
 pub mod git;
+pub mod idgen;
 pub mod platform;
 pub mod profile;
 pub mod repo;

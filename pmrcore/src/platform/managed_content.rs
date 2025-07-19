@@ -23,6 +23,7 @@ use crate::{
         },
         Exposure,
     },
+    idgen::traits::GenAliasBackend,
     platform::PlatformUrl,
     profile::{
         ViewTaskTemplateProfile,
@@ -59,6 +60,7 @@ pub trait MCPlatform: WorkspaceBackend
     + ExposureTaskTemplateBackend
 
     + AliasBackend
+    + GenAliasBackend
 
     + ProfileBackend
     + ViewTaskTemplateBackend
@@ -339,6 +341,7 @@ impl<P: workspace::traits::WorkspaceBackend
     + ExposureTaskTemplateBackend
 
     + AliasBackend
+    + GenAliasBackend
 
     + ProfileBackend
     + ViewTaskTemplateBackend

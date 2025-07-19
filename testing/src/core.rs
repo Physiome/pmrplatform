@@ -34,6 +34,10 @@ use pmrcore::{
             },
         },
     },
+    idgen::{
+        traits::GenAliasBackend,
+        HexId,
+    },
     platform::{
         DefaultMCPlatform,
         DefaultTMPlatform,
@@ -234,6 +238,11 @@ mock! {
         async fn resolve_alias(&self, kind: &str, alias: &str) -> Result<Option<i64>, BackendError>;
         async fn aliases_by_kind(&self, kind: &str) -> Result<Vec<(String, i64)>, BackendError>;
         async fn aliases_by_kind_ids(&self, kind: &str, ids: &[i64]) -> Result<Vec<(String, i64)>, BackendError>;
+    }
+
+    #[async_trait]
+    impl GenAliasBackend for Platform {
+        async fn next(&self) -> Result<HexId, BackendError>;
     }
 
     #[async_trait]
