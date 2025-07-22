@@ -34,12 +34,15 @@ use crate::{
             ViewTaskTemplateProfileBackend,
         },
     },
-    workspace,
-    workspace::traits::{
-        Workspace as _,
-        WorkspaceBackend,
-        WorkspaceSyncBackend,
-        WorkspaceTagBackend,
+    workspace::{
+        WorkspaceRef,
+        self,
+        traits::{
+            Workspace as _,
+            WorkspaceBackend,
+            WorkspaceSyncBackend,
+            WorkspaceTagBackend,
+        },
     },
 };
 
@@ -73,6 +76,20 @@ pub trait MCPlatform: WorkspaceBackend
     + Sync
 {
     fn as_dyn(&self) -> &dyn MCPlatform;
+
+    /// create workspace with a default alias
+    async fn create_aliased_workspace<'a>(
+        &'a self,
+        url: &str,
+        description: &str,
+        long_description: &str,
+    ) -> Result<AliasEntry<WorkspaceRef<'a>>, BackendError> {
+        let id = WorkspaceBackend::add_workspace(self, url, description, long_description).await?;
+        let alias = GenAliasBackend::next(self).await?.to_string();
+        self.add_alias("workspace", id, &alias).await?;
+        let entity = self.get_workspace(id).await?;
+        Ok(AliasEntry { alias, entity })
+    }
 
     /// get the `ExposureRef` by the provided `id`
     async fn get_exposure<'a>(
@@ -206,7 +223,7 @@ pub trait MCPlatform: WorkspaceBackend
     /// This is provided as a generic implementation
     async fn list_aliased_workspaces<'a>(
         &'a self,
-    ) -> Result<AliasEntries<workspace::WorkspaceRef<'a>>, BackendError> {
+    ) -> Result<AliasEntries<WorkspaceRef<'a>>, BackendError> {
         let this = self.as_dyn();
         let aliases = self.aliases_by_kind("workspace").await?;
         let mut id_map = aliases.into_iter()

@@ -1,7 +1,5 @@
-use mockall::predicate::eq;
 use pmrcore::{
     alias::AliasEntry,
-    error::BackendError,
     workspace::{
         Workspace,
         traits::Workspace as _,

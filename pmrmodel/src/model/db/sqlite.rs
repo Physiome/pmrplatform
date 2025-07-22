@@ -60,3 +60,40 @@ mod default_impl {
 //         }
 //     }
 // }
+
+#[cfg(test)]
+pub(crate) mod testing {
+    use pmrcore::{
+        platform::MCPlatform,
+        workspace::Workspace,
+    };
+    use crate::backend::db::{
+        MigrationProfile,
+        SqliteBackend,
+    };
+
+    #[async_std::test]
+    async fn test_basic() -> anyhow::Result<()> {
+        let backend = SqliteBackend::from_url("sqlite::memory:")
+            .await?
+            .run_migration_profile(MigrationProfile::Pmrapp)
+            .await?;
+        let entry = backend.create_aliased_workspace(
+            "https://models.example.com".into(),
+            "".into(),
+            "".into(),
+        ).await?;
+        assert_eq!(entry.alias, "1");
+        let answer = Workspace {
+            id: 1,
+            url: "https://models.example.com".into(),
+            superceded_by_id: None,
+            created_ts: 1234567890,
+            description: Some("".into()),
+            long_description: Some("".into()),
+            exposures: None,
+        };
+        assert_eq!(entry.entity.into_inner(), answer);
+        Ok(())
+    }
+}
