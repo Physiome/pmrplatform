@@ -1,3 +1,6 @@
+use async_trait::async_trait;
+use std::error::Error;
+
 mod access_control;
 mod managed_content;
 mod task_management;
@@ -9,8 +12,9 @@ pub trait PlatformUrl {
     fn url(&self) -> &str;
 }
 
-pub enum MigrationProfile {
-    Pmrac,
-    Pmrapp,
-    Pmrtqs,
+#[async_trait]
+pub trait Connect {
+    async fn ac_platform(url: &str) -> Result<impl ACPlatform, Box<dyn Error>>;
+    async fn mc_platform(url: &str) -> Result<impl MCPlatform, Box<dyn Error>>;
+    async fn tm_platform(url: &str) -> Result<impl TMPlatform, Box<dyn Error>>;
 }
