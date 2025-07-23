@@ -8,3 +8,9 @@ pub use task_management::{DefaultTMPlatform, TMPlatform};
 pub trait PlatformUrl {
     fn url(&self) -> &str;
 }
+
+pub enum MigrationProfile {
+    Pmrac,
+    Pmrapp,
+    Pmrtqs,
+}
