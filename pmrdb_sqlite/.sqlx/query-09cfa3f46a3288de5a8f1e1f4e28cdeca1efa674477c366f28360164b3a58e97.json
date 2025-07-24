@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\nSELECT\n    id\nFROM\n    exposure_file_view\nWHERE\n    id = (\n        SELECT\n            exposure_file_view_id\n        FROM\n            exposure_file_view_task\n        WHERE\n            task_id = ?1\n    ) AND\n    exposure_file_view_task_id = (\n        SELECT\n            id\n        FROM\n            exposure_file_view_task\n        WHERE\n            task_id = ?1\n    )\n",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "09cfa3f46a3288de5a8f1e1f4e28cdeca1efa674477c366f28360164b3a58e97"
+}

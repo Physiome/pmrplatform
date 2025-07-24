@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "\nSELECT\n    id,\n    exposure_file_id,\n    view_task_template_id,\n    exposure_file_view_task_id,\n    view_key,\n    updated_ts\nFROM exposure_file_view\nWHERE exposure_file_id = ?1\n",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "exposure_file_id",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "view_task_template_id",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "exposure_file_view_task_id",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "view_key",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "updated_ts",
+        "ordinal": 5,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "9a71d621821bea979a4928c4e1f0ca2b6f394a613386c5bc1bc4f0447969c882"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nDELETE FROM\n    res_grant\nWHERE\n    res = ?1 AND\n    user_id = ?2 AND\n    role = ?3\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "36cf4cefe8495d520a7d71918ea88c448a26ad4ab7703187a15579dc67ed032f"
+}

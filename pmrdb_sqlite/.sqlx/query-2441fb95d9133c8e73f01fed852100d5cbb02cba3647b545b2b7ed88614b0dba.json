@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\nUPDATE task_template\nSET\n    final_task_template_arg_id = (\n        SELECT COALESCE(\n            (\n                SELECT\n                    final_task_template_arg_id\n                FROM task_template_arg\n                WHERE id = ?1\n            ),\n            MAX(id), 0\n        )\n        FROM task_template_arg\n        WHERE task_template_id = ?1\n    )\nWHERE id = ?1\nRETURNING final_task_template_arg_id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "final_task_template_arg_id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "2441fb95d9133c8e73f01fed852100d5cbb02cba3647b545b2b7ed88614b0dba"
+}

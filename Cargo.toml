@@ -5,6 +5,7 @@ members = [
     "pmrapp/e2e",
     "pmrctrl",
     "pmrcore",
+    "pmrdb_sqlite",
     "pmrmodel",
     "pmrrbac",
     "pmrrepo",
@@ -15,6 +16,7 @@ default-members = [
     "pmrac",
     "pmrctrl",
     "pmrcore",
+    "pmrdb_sqlite",
     "pmrmodel",
     "pmrrbac",
     "pmrrepo",
@@ -27,6 +29,7 @@ resolver = "2"
 pmrac = { path = "./pmrac", version = "0.0.1" }
 pmrapp = { path = "./pmrapp", version = "0.0.1" }
 pmrctrl = { path = "./pmrctrl", version = "0.0.1" }
+pmrdb_sqlite = { path = "./pmrdb_sqlite", version = "0.0.1" }
 pmrmodel = { path = "./pmrmodel", version = "0.0.1" }
 pmrcore = { path = "./pmrcore", version = "0.0.1" }
 pmrrbac = { path = "./pmrrbac", version = "0.0.1" }

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\nSELECT\n    password\nFROM\n    user_password\nWHERE\n    user_id = ?1\nORDER BY id DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "password",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d372384bfe40ed3453053bcb064964aaedf35a0689d38ab60e4cbc06a244b3d4"
+}

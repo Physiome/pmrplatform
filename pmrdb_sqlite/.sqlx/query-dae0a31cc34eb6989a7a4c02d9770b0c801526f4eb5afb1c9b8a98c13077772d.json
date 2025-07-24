@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nDELETE FROM\n    profile_views\nWHERE profile_id = ?1\n    AND view_task_template_id = ?2\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "dae0a31cc34eb6989a7a4c02d9770b0c801526f4eb5afb1c9b8a98c13077772d"
+}

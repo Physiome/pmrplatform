@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\nSELECT\n    res,\n    role\nFROM\n    res_grant\nWHERE\n    res_grant.user_id = ?1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "res",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "role",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "5c4745a7e6ad78f9c5d991755eb4f911c76f63dd34dfaf2e662cea7d8e2c9fa7"
+}

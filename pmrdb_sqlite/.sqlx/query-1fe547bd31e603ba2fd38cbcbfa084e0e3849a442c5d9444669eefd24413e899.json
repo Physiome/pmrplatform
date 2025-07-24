@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n    UPDATE workspace_sync\n    SET end = ?1, status = ?2\n    WHERE id = ?3\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "1fe547bd31e603ba2fd38cbcbfa084e0e3849a442c5d9444669eefd24413e899"
+}

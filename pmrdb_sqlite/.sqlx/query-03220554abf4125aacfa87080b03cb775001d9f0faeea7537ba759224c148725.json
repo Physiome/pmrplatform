@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nINSERT INTO task_arg (\n    task_id,\n    arg\n)\nVALUES ( ?1, ?2 )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "03220554abf4125aacfa87080b03cb775001d9f0faeea7537ba759224c148725"
+}

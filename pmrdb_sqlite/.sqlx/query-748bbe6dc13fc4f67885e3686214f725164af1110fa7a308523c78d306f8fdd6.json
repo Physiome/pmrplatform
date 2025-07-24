@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nUPDATE\n    view_task_template\nSET\n    view_key = ?2,\n    description = ?3,\n    task_template_id = ?4,\n    updated_ts = ?5\nWHERE\n    id = ?1\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "748bbe6dc13fc4f67885e3686214f725164af1110fa7a308523c78d306f8fdd6"
+}

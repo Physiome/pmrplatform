@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "\nSELECT\n    id,\n    bin_path,\n    version_id,\n    created_ts,\n    final_task_template_arg_id,\n    superceded_by_id\nFROM task_template\nWHERE id = ?1\n",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "bin_path",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "version_id",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_ts",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "final_task_template_arg_id",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "superceded_by_id",
+        "ordinal": 5,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "b38473c885d985812fdd0d63317b8233e75e007999b44d5948414e0e339dfd3f"
+}

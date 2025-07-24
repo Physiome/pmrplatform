@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "\nSELECT\n    id,\n    view_key,\n    description,\n    task_template_id,\n    updated_ts\nFROM view_task_template\nWHERE id = ?1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "view_key",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "description",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "task_template_id",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "updated_ts",
+        "ordinal": 4,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "57c9620062473a3cc58d71c219a2120c6826625e095c0430c452fddad40da4a1"
+}

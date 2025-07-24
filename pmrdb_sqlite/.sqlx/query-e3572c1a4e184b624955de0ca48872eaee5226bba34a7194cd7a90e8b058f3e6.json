@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT\n    'user'.name as user,\n    user_role.role AS role\nFROM\n    user_role\nJOIN\n    'user' ON user_role.user_id == 'user'.id\nWHERE\n    user_role.user_id = ?1\n",
+  "describe": {
+    "columns": [
+      {
+        "name": "user",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "role",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "e3572c1a4e184b624955de0ca48872eaee5226bba34a7194cd7a90e8b058f3e6"
+}

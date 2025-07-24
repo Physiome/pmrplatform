@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nINSERT INTO task_template (\n    bin_path,\n    version_id,\n    created_ts\n)\nVALUES ( ?1, ?2, ?3 )\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "a42f58be3929d01da7c6e56803df10adabb0ed9e6df6f7fa70ca8bc6f1ea4eec"
+}
