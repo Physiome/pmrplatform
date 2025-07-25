@@ -14,7 +14,7 @@ pub trait PlatformUrl {
 
 #[async_trait]
 pub trait PlatformBuilder {
-    async fn ac(url: &str) -> Result<impl ACPlatform, Box<dyn Error + Send + Sync + 'static>>;
-    async fn mc(url: &str) -> Result<impl MCPlatform, Box<dyn Error + Send + Sync + 'static>>;
-    async fn tm(url: &str) -> Result<impl TMPlatform, Box<dyn Error + Send + Sync + 'static>>;
+    async fn ac(url: impl ToString + Send) -> Result<impl ACPlatform, Box<dyn Error + Send + Sync + 'static>>;
+    async fn mc(url: impl ToString + Send) -> Result<impl MCPlatform, Box<dyn Error + Send + Sync + 'static>>;
+    async fn tm(url: impl ToString + Send) -> Result<impl TMPlatform, Box<dyn Error + Send + Sync + 'static>>;
 }

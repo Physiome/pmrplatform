@@ -13,11 +13,12 @@ impl PlatformUrl for SqliteBackend {
 }
 
 impl SqliteBackend {
-    pub async fn connect(url: &str) -> Result<SqliteBackend, sqlx::Error> {
-        let pool = SqlitePool::connect(url).await?;
+    pub async fn connect(url: impl ToString + Send) -> Result<SqliteBackend, sqlx::Error> {
+        let url = url.to_string();
+        let pool = SqlitePool::connect(&url).await?;
         Ok(SqliteBackend {
             pool: Arc::new(pool),
-            url: url.to_string(),
+            url: url,
         })
     }
 
@@ -39,8 +40,8 @@ impl SqliteBackend {
 
 #[async_trait]
 impl PlatformBuilder for SqliteBackend {
-    async fn ac(url: &str) -> Result<impl ACPlatform, Box<dyn std::error::Error + Send + Sync + 'static>> {
-        let backend = SqliteBackend::connect(url).await
+    async fn ac(url: impl ToString + Send) -> Result<impl ACPlatform, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let backend = SqliteBackend::connect(url.to_string()).await
             .map_err(Box::new)?
             .migrate_ac()
             .await
@@ -48,8 +49,8 @@ impl PlatformBuilder for SqliteBackend {
         Ok(backend)
     }
 
-    async fn mc(url: &str) -> Result<impl MCPlatform, Box<dyn std::error::Error + Send + Sync + 'static>> {
-        let backend = SqliteBackend::connect(url).await
+    async fn mc(url: impl ToString + Send) -> Result<impl MCPlatform, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let backend = SqliteBackend::connect(url.to_string()).await
             .map_err(Box::new)?
             .migrate_mc()
             .await
@@ -57,8 +58,8 @@ impl PlatformBuilder for SqliteBackend {
         Ok(backend)
     }
 
-    async fn tm(url: &str) -> Result<impl TMPlatform, Box<dyn std::error::Error + Send + Sync + 'static>> {
-        let backend = SqliteBackend::connect(url).await
+    async fn tm(url: impl ToString + Send) -> Result<impl TMPlatform, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let backend = SqliteBackend::connect(url.to_string()).await
             .map_err(Box::new)?
             .migrate_tm()
             .await

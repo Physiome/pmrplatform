@@ -1,0 +1,19 @@
+[package]
+name = "pmrdb"
+version = "0.0.1"
+authors = ["Tommy Yu <tommy.yu@auckland.ac.nz>"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+pmrcore = { workspace = true }
+pmrdb_sqlite = { workspace = true, optional = true }
+
+[dev-dependencies]
+async-std = { workspace = true, features = ["attributes"] }
+
+[features]
+sqlite = [
+    "dep:pmrdb_sqlite",
+]
