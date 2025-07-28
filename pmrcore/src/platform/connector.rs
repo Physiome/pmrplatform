@@ -5,7 +5,10 @@ use super::*;
 
 #[derive(Default)]
 pub struct ConnectorOption {
-    pub create_db: bool,
+    /// a flag to notify the underlying backend provider to automatically
+    /// its create database if not exist.
+    pub auto_create_db: bool,
+    /// the url to the backend.
     pub url: String,
 }
 
@@ -14,8 +17,8 @@ impl ConnectorOption {
         Self::default()
     }
 
-    pub fn create_db(mut self, create_db: bool) -> Self {
-        self.create_db = create_db;
+    pub fn auto_create_db(mut self, auto_create_db: bool) -> Self {
+        self.auto_create_db = auto_create_db;
         self
     }
 

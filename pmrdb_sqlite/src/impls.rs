@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use pmrcore::platform::{ACPlatform, ConnectorOption, MCPlatform, PlatformConnector, PlatformUrl, TMPlatform};
-use sqlx::SqlitePool;
+use sqlx::{migrate::MigrateDatabase, Sqlite, SqlitePool};
 use std::sync::Arc;
 
 use crate::SqliteBackend;
@@ -13,6 +13,11 @@ impl PlatformUrl for SqliteBackend {
 
 impl SqliteBackend {
     pub async fn connect(opts: ConnectorOption) -> Result<SqliteBackend, sqlx::Error> {
+        if opts.auto_create_db && !Sqlite::database_exists(&opts.url).await.unwrap_or(false) {
+            log::warn!("sqlite database {} does not exist; creating...", &opts.url);
+            Sqlite::create_database(&opts.url).await?
+        }
+
         let pool = SqlitePool::connect(&opts.url).await?;
         Ok(SqliteBackend {
             pool: Arc::new(pool),
