@@ -348,7 +348,7 @@ impl ExposureFileViewBackend for SqliteBackend {
 #[cfg(test)]
 pub(crate) mod testing {
     use pmrcore::{
-        platform::PlatformBuilder,
+        platform::PlatformConnector as _,
         exposure::{
             ExposureFileView,
             traits::ExposureFile as _,
@@ -392,7 +392,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_basic() -> anyhow::Result<()> {
-        let backend = SqliteBackend::mc("sqlite::memory:")
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         let efvb: &dyn ExposureFileViewBackend = &backend;
@@ -428,7 +428,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_updates() -> anyhow::Result<()> {
-        let backend = SqliteBackend::mc("sqlite::memory:")
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         let efvb: &dyn ExposureFileViewBackend = &backend;
@@ -486,7 +486,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_using_exposure_file_view() -> anyhow::Result<()> {
-        let backend = SqliteBackend::mc("sqlite::memory:")
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         let efvb: &dyn ExposureFileViewBackend = &backend;
@@ -538,7 +538,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_exposure_file_view_dupe_template() -> anyhow::Result<()> {
-        let backend = SqliteBackend::mc("sqlite::memory:")
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         let w1 = make_example_workspace(&backend).await?;
@@ -555,7 +555,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_exposure_file_vtt_required() -> anyhow::Result<()> {
-        let backend = SqliteBackend::mc("sqlite::memory:")
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         let w1 = make_example_workspace(&backend).await?;
@@ -573,7 +573,7 @@ pub(crate) mod testing {
     // done at the pmrctrl platform level.
     #[async_std::test]
     async fn test_exposure_file_task_none() -> anyhow::Result<()> {
-        let backend = SqliteBackend::mc("sqlite::memory:")
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         let w1 = make_example_workspace(&backend).await?;

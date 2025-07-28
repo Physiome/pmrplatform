@@ -269,7 +269,7 @@ impl WorkspaceBackend for SqliteBackend {
 #[cfg(test)]
 pub(crate) mod testing {
     use pmrcore::{
-        platform::PlatformBuilder,
+        platform::PlatformConnector as _,
         workspace::{
             Workspace,
             traits::WorkspaceBackend,
@@ -289,7 +289,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_basic() -> anyhow::Result<()> {
-        let backend = SqliteBackend::mc("sqlite::memory:")
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         let id = make_example_workspace(&backend)
@@ -311,7 +311,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_list_by_url() -> anyhow::Result<()> {
-        let backend = SqliteBackend::mc("sqlite::memory:")
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         // note this makes _two_ workspaces with the same url
@@ -326,7 +326,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_listing() -> anyhow::Result<()> {
-        let backend = SqliteBackend::mc("sqlite::memory:")
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         let wb: &dyn WorkspaceBackend = &backend;
@@ -349,7 +349,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_update() -> anyhow::Result<()> {
-        let backend = SqliteBackend::mc("sqlite::memory:")
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         let id = make_example_workspace(&backend)

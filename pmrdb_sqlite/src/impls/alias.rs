@@ -148,7 +148,7 @@ WHERE kind = "#);
 #[cfg(test)]
 pub(crate) mod testing {
     use pmrcore::{
-        platform::PlatformBuilder,
+        platform::PlatformConnector as _,
         alias::{
             Alias,
             traits::AliasBackend,
@@ -159,7 +159,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_basic() -> anyhow::Result<()> {
-        let backend = SqliteBackend::mc("sqlite::memory:")
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         backend.add_alias("workspace", 1, "test_workspace").await?;
@@ -194,7 +194,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_get_alias() -> anyhow::Result<()> {
-        let backend = SqliteBackend::mc("sqlite::memory:")
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         set_timestamp(987);

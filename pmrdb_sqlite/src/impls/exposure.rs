@@ -296,7 +296,7 @@ pub(crate) mod testing {
         },
         platform::{
             MCPlatform,
-            PlatformBuilder,
+            PlatformConnector as _,
         },
         workspace::traits::Workspace,
     };
@@ -319,7 +319,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_basic() -> anyhow::Result<()> {
-        let backend = SqliteBackend::mc("sqlite::memory:")
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
 
@@ -350,7 +350,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_get_exposure_workspace() -> anyhow::Result<()> {
-        let backend = SqliteBackend::mc("sqlite::memory:")
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
 

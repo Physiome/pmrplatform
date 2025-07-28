@@ -232,7 +232,7 @@ impl ResourceBackend for SqliteBackend {
 #[cfg(test)]
 pub(crate) mod testing {
     use pmrcore::{
-        platform::PlatformBuilder,
+        platform::PlatformConnector as _,
         ac::{
             agent::Agent,
             genpolicy::Policy,
@@ -249,7 +249,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn empty() -> anyhow::Result<()> {
-        let backend = SqliteBackend::ac("sqlite::memory:")
+        let backend = SqliteBackend::ac("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         let policy = ResourceBackend::generate_policy_for_agent_res(
@@ -285,7 +285,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn basic() -> anyhow::Result<()> {
-        let backend = SqliteBackend::ac("sqlite::memory:")
+        let backend = SqliteBackend::ac("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
 
@@ -355,7 +355,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn anonymous() -> anyhow::Result<()> {
-        let backend = SqliteBackend::ac("sqlite::memory:")
+        let backend = SqliteBackend::ac("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         // we only publish here, but no role_permits/users attached
@@ -378,7 +378,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn multiple() -> anyhow::Result<()> {
-        let backend = SqliteBackend::ac("sqlite::memory:")
+        let backend = SqliteBackend::ac("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
 

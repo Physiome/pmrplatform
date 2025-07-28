@@ -216,7 +216,7 @@ pub(crate) mod testing {
         },
         platform::{
             MCPlatform,
-            PlatformBuilder,
+            PlatformConnector as _,
         },
     };
     use crate::SqliteBackend;
@@ -239,7 +239,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_basic() -> anyhow::Result<()> {
-        let backend = SqliteBackend::mc("sqlite::memory:")
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
 
@@ -264,7 +264,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_using_exposure_files() -> anyhow::Result<()> {
-        let backend = SqliteBackend::mc("sqlite::memory:")
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         let efb: &dyn ExposureFileBackend = &backend;
@@ -300,7 +300,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_exposure_backend() -> anyhow::Result<()> {
-        let backend = SqliteBackend::mc("sqlite::memory:")
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         let w = make_example_workspace(&backend).await?;
@@ -332,7 +332,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_exposure_file_dupe() -> anyhow::Result<()> {
-        let backend = SqliteBackend::mc("sqlite::memory:")
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         let id = make_example_exposure(

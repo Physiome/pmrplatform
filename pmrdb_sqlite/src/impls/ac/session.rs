@@ -200,7 +200,7 @@ impl SessionBackend for SqliteBackend {
 #[cfg(test)]
 pub(crate) mod testing {
     use pmrcore::{
-        platform::PlatformBuilder,
+        platform::PlatformConnector as _,
         ac::{
             session::{
                 SessionFactory,
@@ -222,7 +222,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_basic() -> anyhow::Result<()> {
-        let backend = SqliteBackend::ac("sqlite::memory:")
+        let backend = SqliteBackend::ac("sqlite::memory:".into())
             .await
             .unwrap();
         let user_id = UserBackend::add_user(&backend, "test_user").await?;

@@ -239,7 +239,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_basic() -> anyhow::Result<()> {
-        let backend = SqliteBackend::from_url("sqlite::memory:")
+        let backend = SqliteBackend::from_url("sqlite::memory:".into())
             .await?
             .run_migration_profile(MigrationProfile::Pmrapp)
             .await?;
@@ -265,7 +265,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_using_exposure_files() -> anyhow::Result<()> {
-        let backend = SqliteBackend::from_url("sqlite::memory:")
+        let backend = SqliteBackend::from_url("sqlite::memory:".into())
             .await?
             .run_migration_profile(MigrationProfile::Pmrapp)
             .await?;
@@ -302,7 +302,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_exposure_backend() -> anyhow::Result<()> {
-        let backend = SqliteBackend::from_url("sqlite::memory:")
+        let backend = SqliteBackend::from_url("sqlite::memory:".into())
             .await?
             .run_migration_profile(MigrationProfile::Pmrapp)
             .await?;
@@ -335,7 +335,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_exposure_file_dupe() -> anyhow::Result<()> {
-        let backend = SqliteBackend::from_url("sqlite::memory:")
+        let backend = SqliteBackend::from_url("sqlite::memory:".into())
             .await?
             .run_migration_profile(MigrationProfile::Pmrapp)
             .await?;

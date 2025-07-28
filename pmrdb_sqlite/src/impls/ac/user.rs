@@ -220,7 +220,7 @@ impl UserBackend for SqliteBackend {
 #[cfg(test)]
 pub(crate) mod testing {
     use pmrcore::{
-        platform::PlatformBuilder,
+        platform::PlatformConnector as _,
         ac::{
             traits::UserBackend,
             user::User,
@@ -231,7 +231,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_basic() -> anyhow::Result<()> {
-        let backend = SqliteBackend::ac("sqlite::memory:")
+        let backend = SqliteBackend::ac("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         let user_id = UserBackend::add_user(&backend, "test_user").await?;

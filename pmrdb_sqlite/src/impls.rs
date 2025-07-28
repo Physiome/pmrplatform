@@ -1,6 +1,5 @@
 use async_trait::async_trait;
-// use pmrdb::{MigrationProfile, SqlxSource};
-use pmrcore::platform::{ACPlatform, MCPlatform,PlatformBuilder, PlatformUrl, TMPlatform};
+use pmrcore::platform::{ACPlatform, ConnectorOption, MCPlatform, PlatformConnector, PlatformUrl, TMPlatform};
 use sqlx::SqlitePool;
 use std::sync::Arc;
 
@@ -13,12 +12,11 @@ impl PlatformUrl for SqliteBackend {
 }
 
 impl SqliteBackend {
-    pub async fn connect(url: impl ToString + Send) -> Result<SqliteBackend, sqlx::Error> {
-        let url = url.to_string();
-        let pool = SqlitePool::connect(&url).await?;
+    pub async fn connect(opts: ConnectorOption) -> Result<SqliteBackend, sqlx::Error> {
+        let pool = SqlitePool::connect(&opts.url).await?;
         Ok(SqliteBackend {
             pool: Arc::new(pool),
-            url: url,
+            url: opts.url,
         })
     }
 
@@ -39,9 +37,9 @@ impl SqliteBackend {
 }
 
 #[async_trait]
-impl PlatformBuilder for SqliteBackend {
-    async fn ac(url: impl ToString + Send) -> Result<impl ACPlatform, Box<dyn std::error::Error + Send + Sync + 'static>> {
-        let backend = SqliteBackend::connect(url.to_string()).await
+impl PlatformConnector for SqliteBackend {
+    async fn ac(opts: ConnectorOption) -> Result<impl ACPlatform, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let backend = SqliteBackend::connect(opts).await
             .map_err(Box::new)?
             .migrate_ac()
             .await
@@ -49,8 +47,8 @@ impl PlatformBuilder for SqliteBackend {
         Ok(backend)
     }
 
-    async fn mc(url: impl ToString + Send) -> Result<impl MCPlatform, Box<dyn std::error::Error + Send + Sync + 'static>> {
-        let backend = SqliteBackend::connect(url.to_string()).await
+    async fn mc(opts: ConnectorOption) -> Result<impl MCPlatform, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let backend = SqliteBackend::connect(opts).await
             .map_err(Box::new)?
             .migrate_mc()
             .await
@@ -58,8 +56,8 @@ impl PlatformBuilder for SqliteBackend {
         Ok(backend)
     }
 
-    async fn tm(url: impl ToString + Send) -> Result<impl TMPlatform, Box<dyn std::error::Error + Send + Sync + 'static>> {
-        let backend = SqliteBackend::connect(url.to_string()).await
+    async fn tm(opts: ConnectorOption) -> Result<impl TMPlatform, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let backend = SqliteBackend::connect(opts).await
             .map_err(Box::new)?
             .migrate_tm()
             .await

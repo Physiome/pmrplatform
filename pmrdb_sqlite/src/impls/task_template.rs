@@ -543,7 +543,7 @@ impl TaskTemplateBackend for SqliteBackend {
 #[cfg(test)]
 mod tests {
     use pmrcore::{
-        platform::PlatformBuilder,
+        platform::PlatformConnector as _,
         task_template::{
             TaskTemplate,
             TaskTemplateArg,
@@ -555,7 +555,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_smoketest_no_args() -> anyhow::Result<()> {
-        let backend = SqliteBackend::tm("sqlite::memory:")
+        let backend = SqliteBackend::tm("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         let ttb: &dyn TaskTemplateBackend = &backend;
@@ -582,7 +582,7 @@ mod tests {
     // where the choice source was None
     #[async_std::test]
     async fn test_smoketest_with_choice_source_none() -> anyhow::Result<()> {
-        let backend = SqliteBackend::tm("sqlite::memory:")
+        let backend = SqliteBackend::tm("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
 
@@ -684,7 +684,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_smoketest_with_args() -> anyhow::Result<()> {
-        let backend = SqliteBackend::tm("sqlite::memory:")
+        let backend = SqliteBackend::tm("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
 
@@ -884,7 +884,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_add_manual_finalize() -> anyhow::Result<()> {
-        let backend = SqliteBackend::tm("sqlite::memory:")
+        let backend = SqliteBackend::tm("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
 
@@ -955,7 +955,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_add_rm() -> anyhow::Result<()> {
-        let backend = SqliteBackend::tm("sqlite::memory:")
+        let backend = SqliteBackend::tm("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
 
@@ -998,10 +998,10 @@ mod tests {
     #[async_std::test]
     async fn test_add_manual_finalize_nospill() -> anyhow::Result<()> {
         // normally this is done, but we need the inner type not the opaque impl
-        // let backend = SqliteBackend::tm("sqlite::memory:")
+        // let backend = SqliteBackend::tm("sqlite::memory:".into())
         //     .await
         //     .map_err(anyhow::Error::from_boxed)?;
-        let backend = SqliteBackend::connect("sqlite::memory:")
+        let backend = SqliteBackend::connect("sqlite::memory:".into())
             .await?
             .migrate_tm()
             .await?;
@@ -1087,7 +1087,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_adds() -> anyhow::Result<()> {
-        let backend = SqliteBackend::tm("sqlite::memory:")
+        let backend = SqliteBackend::tm("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         let ttb: &(dyn TaskTemplateBackend + Sync) = &backend;

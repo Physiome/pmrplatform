@@ -266,10 +266,10 @@ mod tests {
     #[async_std::test]
     async fn test_basic() -> anyhow::Result<()> {
         // normally this is done, but we need the inner type not the opaque impl
-        // let backend = SqliteBackend::mc("sqlite::memory:")
+        // let backend = SqliteBackend::mc("sqlite::memory:".into())
         //     .await
         //     .map_err(anyhow::Error::from_boxed)?;
-        let backend = SqliteBackend::connect("sqlite::memory:")
+        let backend = SqliteBackend::connect("sqlite::memory:".into())
             .await?
             .migrate_mc()
             .await?;
@@ -322,10 +322,10 @@ mod tests {
     #[async_std::test]
     async fn test_failure() -> anyhow::Result<()> {
         // normally this is done, but we need the inner type not the opaque impl
-        // let backend = SqliteBackend::mc("sqlite::memory:")
+        // let backend = SqliteBackend::mc("sqlite::memory:".into())
         //     .await
         //     .map_err(anyhow::Error::from_boxed)?;
-        let backend = SqliteBackend::connect("sqlite::memory:")
+        let backend = SqliteBackend::connect("sqlite::memory:".into())
             .await?
             .migrate_mc()
             .await?;

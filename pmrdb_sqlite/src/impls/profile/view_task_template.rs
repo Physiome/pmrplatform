@@ -141,7 +141,7 @@ impl ViewTaskTemplateBackend for SqliteBackend {
 #[cfg(test)]
 mod testing {
     use pmrcore::{
-        platform::PlatformBuilder,
+        platform::PlatformConnector as _,
         profile::{
             ViewTaskTemplate,
             traits::ViewTaskTemplateBackend,
@@ -153,7 +153,7 @@ mod testing {
 
     #[async_std::test]
     async fn test_basic() -> anyhow::Result<()> {
-        let backend = SqliteBackend::mc("sqlite::memory:")
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         let b: &dyn ViewTaskTemplateBackend = &backend;

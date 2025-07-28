@@ -172,7 +172,7 @@ impl ExposureFileProfileBackend for SqliteBackend {
 pub(crate) mod testing {
     use pmrcore::{
         exposure::profile::traits::ExposureFileProfileBackend,
-        platform::PlatformBuilder,
+        platform::PlatformConnector as _,
         profile::traits::{
             ProfileBackend,
             ProfileViewsBackend,
@@ -189,7 +189,7 @@ pub(crate) mod testing {
 
     #[async_std::test]
     async fn test_basic() -> anyhow::Result<()> {
-        let backend = SqliteBackend::mc("sqlite::memory:")
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
 

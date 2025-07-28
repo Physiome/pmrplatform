@@ -25,13 +25,13 @@ impl GenAliasBackend for SqliteBackend {
 pub(crate) mod testing {
     use pmrcore::{
         idgen::traits::GenAliasBackend,
-        platform::PlatformBuilder,
+        platform::PlatformConnector as _,
     };
     use crate::SqliteBackend;
 
     #[async_std::test]
     async fn test_basic() -> anyhow::Result<()> {
-        let backend = SqliteBackend::mc("sqlite::memory:")
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
 

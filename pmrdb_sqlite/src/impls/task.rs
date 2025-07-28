@@ -309,7 +309,7 @@ impl TaskBackend for SqliteBackend {
 #[cfg(test)]
 mod tests {
     use pmrcore::{
-        platform::PlatformBuilder,
+        platform::PlatformConnector as _,
         task_template::traits::TaskTemplateBackend,
         task::{
             Task,
@@ -321,7 +321,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_adds_task() -> anyhow::Result<()> {
-        let backend = SqliteBackend::tm("sqlite::memory:")
+        let backend = SqliteBackend::tm("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
 
@@ -386,7 +386,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_start_task() -> anyhow::Result<()> {
-        let backend = SqliteBackend::tm("sqlite::memory:")
+        let backend = SqliteBackend::tm("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         let (id, _) = TaskTemplateBackend::add_task_template(
@@ -462,7 +462,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_task_complete_flow() -> anyhow::Result<()> {
-        let backend = SqliteBackend::tm("sqlite::memory:")
+        let backend = SqliteBackend::tm("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
         let (id, _) = TaskTemplateBackend::add_task_template(

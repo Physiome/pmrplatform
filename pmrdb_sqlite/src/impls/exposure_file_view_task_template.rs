@@ -119,7 +119,7 @@ impl ExposureTaskTemplateBackend for SqliteBackend {
 mod tests {
     use super::*;
     use pmrcore::{
-        platform::PlatformBuilder,
+        platform::PlatformConnector as _,
         profile::traits::ViewTaskTemplateBackend,
     };
     use crate::SqliteBackend;
@@ -132,7 +132,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_basic() -> anyhow::Result<()> {
-        let backend = SqliteBackend::mc("sqlite::memory:")
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
 
