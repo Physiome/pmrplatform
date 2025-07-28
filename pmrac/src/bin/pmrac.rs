@@ -13,15 +13,8 @@ use pmrcore::ac::{
     workflow::State,
     traits::Enforcer,
 };
-use pmrmodel::backend::db::{
-    MigrationProfile,
-    SqliteBackend,
-};
+use pmrdb::{Backend, ConnectorOption};
 use pmrrbac::Builder as PmrRbacBuilder;
-use sqlx::{
-    Sqlite,
-    migrate::MigrateDatabase,
-};
 use std::time::Instant;
 
 #[derive(Debug, Parser)]
@@ -163,16 +156,14 @@ async fn main() -> anyhow::Result<()> {
         .init()
         .unwrap();
 
-    if !Sqlite::database_exists(&args.pmrac_db_url).await.unwrap_or(false) {
-        log::warn!("pmrac database {} does not exist; creating...", &args.pmrac_db_url);
-        Sqlite::create_database(&args.pmrac_db_url).await?
-    }
     let platform = PlatformBuilder::new()
-        .ac_platform(
-            SqliteBackend::from_url(&args.pmrac_db_url)
-                .await?
-                .run_migration_profile(MigrationProfile::Pmrac)
-                .await?
+        .boxed_ac_platform(
+            Backend::ac(
+                ConnectorOption::from(args.pmrac_db_url)
+                    .auto_create_db(true)
+            )
+                .await
+                .map_err(anyhow::Error::from_boxed)?
         )
         .pmrrbac_builder(
             PmrRbacBuilder::new()

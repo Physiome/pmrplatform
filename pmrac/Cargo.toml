@@ -15,6 +15,7 @@ clap = { workspace = true, features = ["derive", "env"], optional = true }
 dotenvy = { workspace = true, optional = true }
 log = { workspace = true }
 pmrcore = { workspace = true, features = [ "display", "server" ] }
+pmrdb = { workspace = true }
 pmrmodel = { workspace = true, optional = true }
 pmrrbac = { workspace = true }
 serde_json = { workspace = true, optional = true }

@@ -45,6 +45,11 @@ impl Builder {
         self
     }
 
+    pub fn boxed_ac_platform(mut self, val: Box<dyn ACPlatform>) -> Self {
+        self.ac_platform = Some(val);
+        self
+    }
+
     pub fn password_autopurge(mut self, val: bool) -> Self {
         self.password_autopurge = val;
         self
