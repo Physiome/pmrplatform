@@ -146,7 +146,7 @@ pub async fn create_workspace(
         .enforcer_and_policy_state("/workspace/", "create").await?;
     let platform = platform().await?;
     // First create the workspace
-    let ctrl = platform.create_workspace(
+    let entry = platform.mc_platform.create_aliased_workspace(
         &uri,
         &description,
         &long_description,
@@ -155,7 +155,7 @@ pub async fn create_workspace(
         .map_err(|_| AppError::InternalServerError)?;
 
     // then set the default workflow state to private
-    let id = ctrl.workspace().id();
+    let id = entry.entity.id();
     let resource = format!("/workspace/{id}/");
     platform
         .ac_platform
@@ -174,7 +174,7 @@ pub async fn create_workspace(
         }
     }
 
-    leptos_axum::redirect(format!("/workspace/{id}").as_ref());
+    leptos_axum::redirect(format!("/workspace/{}", entry.alias).as_ref());
     Ok(())
 }
 
