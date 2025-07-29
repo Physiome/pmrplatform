@@ -16,6 +16,7 @@ gix = { workspace = true }
 log = { workspace = true, features = ["std", "serde"] }
 paw = { workspace = true }
 pmrcore = { workspace = true, features = ["sqlx", "git"] }
+pmrdb = { workspace = true }
 pmrmodel = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

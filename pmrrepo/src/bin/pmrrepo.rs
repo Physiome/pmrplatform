@@ -10,9 +10,9 @@ use std::process;
 use std::sync::Arc;
 use structopt::StructOpt;
 
-use pmrmodel::backend::db::{
-    MigrationProfile,
-    SqliteBackend,
+use pmrdb::{
+    self,
+    ConnectorOption,
 };
 use pmrmodel::model::workspace::{
     stream_workspace_records_default,
@@ -145,16 +145,16 @@ async fn main(args: Args) -> anyhow::Result<()> {
     // TODO make this be sourced from a configuration file of sort...
     let git_root = PathBuf::from(fetch_envvar("PMR_REPO_ROOT")?);
     let db_url = fetch_envvar("PMRAPP_DB_URL")?;
-    if !Sqlite::database_exists(&db_url).await.unwrap_or(false) {
-        log::warn!("database {} does not exist; creating...", &db_url);
-        Sqlite::create_database(&db_url).await?
-    }
-    let platform = SqliteBackend::from_url(&db_url)
-        .await?
-        .run_migration_profile(MigrationProfile::Pmrapp)
-        .await?;
-
-    let backend = Backend::new(Arc::new(platform), git_root);
+    let backend = Backend::new(
+        pmrdb::Backend::mc(
+            ConnectorOption::from(db_url)
+                .auto_create_db(true)
+        )
+            .await
+            .map_err(anyhow::Error::from_boxed)?
+            .into(),
+        git_root,
+    );
     let platform = backend.platform();
 
     match args.cmd {

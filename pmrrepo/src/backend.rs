@@ -14,12 +14,12 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Backend {
-    pub db_platform: Arc<dyn MCPlatform + Send + Sync>,
+    pub db_platform: Arc<dyn MCPlatform>,
     pub(crate) repo_root: PathBuf,
 }
 
 impl Backend {
-    pub fn new(db_platform: Arc<dyn MCPlatform + Send + Sync>, repo_root: PathBuf) -> Self {
+    pub fn new(db_platform: Arc<dyn MCPlatform>, repo_root: PathBuf) -> Self {
         Self {
             db_platform,
             repo_root,
