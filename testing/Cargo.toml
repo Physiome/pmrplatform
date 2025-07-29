@@ -13,6 +13,7 @@ mockall = { workspace = true }
 pmrac = { workspace = true, optional = true }
 pmrcore = { workspace = true }
 pmrctrl = { workspace = true, optional = true }
+pmrdb = { workspace = true, features = ["sqlite"], optional = true }
 pmrmodel = { workspace = true, optional = true }
 pmrrepo = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
@@ -23,10 +24,11 @@ textwrap-macros = { workspace = true }
 async-std = { workspace = true }
 
 [features]
-ac = ["model", "dep:pmrac"]
+ac = ["model", "db", "dep:pmrac"]
 chrono = ["dep:chrono"]
 core = ["rand"]
+db = ["dep:pmrdb"]
 model = ["dep:pmrmodel", "chrono"]
 rand = ["dep:rand"]
 repo = ["dep:pmrrepo"]
-platform = ["ac", "model", "repo", "dep:pmrctrl"]
+platform = ["ac", "db", "model", "repo", "dep:pmrctrl"]

@@ -1,21 +1,18 @@
 use clap::Parser;
 use pmrac::platform::Builder as ACPlatformBuilder;
-use pmrcore::error::BackendError;
 use pmrctrl::{
-    error::PlatformError,
     executor::Executor,
     platform::Platform,
 };
-use pmrmodel::backend::db::{
-    MigrationProfile,
-    SqliteBackend,
+use pmrdb::{
+    Backend,
+    ConnectorOption,
 };
 use pmrtqs::runtime::Runtime;
-use sqlx::{
-    Sqlite,
-    migrate::MigrateDatabase,
+use std::{
+    error::Error,
+    fs,
 };
-use std::fs;
 use tokio;
 
 #[derive(Debug, Parser)]
@@ -37,7 +34,7 @@ struct Cli {
 }
 
 
-fn main() -> Result<(), PlatformError> {
+fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     dotenvy::dotenv().ok();
     let args = Cli::parse();
     stderrlog::new()
@@ -51,50 +48,32 @@ fn main() -> Result<(), PlatformError> {
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     let platform = rt.block_on(async {
-        if !Sqlite::database_exists(&args.pmrac_db_url).await.unwrap_or(false) {
-            log::warn!("pmrac database {} does not exist; creating...", &args.pmrac_db_url);
-            Sqlite::create_database(&args.pmrac_db_url).await
-                .map_err(BackendError::from)?
-        }
-
-        if !Sqlite::database_exists(&args.pmrapp_db_url).await.unwrap_or(false) {
-            log::warn!("pmrapp database {} does not exist; creating...", &args.pmrapp_db_url);
-            Sqlite::create_database(&args.pmrapp_db_url).await
-                .map_err(BackendError::from)?
-        }
-        if !Sqlite::database_exists(&args.pmrtqs_db_url).await.unwrap_or(false) {
-            log::warn!("pmrtqs database {} does not exist; creating...", &args.pmrtqs_db_url);
-            Sqlite::create_database(&args.pmrtqs_db_url).await
-                .map_err(BackendError::from)?
-        }
-        let ac = SqliteBackend::from_url(&args.pmrac_db_url)
-            .await
-            .map_err(BackendError::from)?
-            .run_migration_profile(MigrationProfile::Pmrac)
-            .await
-            .map_err(BackendError::from)?;
-        let mc = SqliteBackend::from_url(&args.pmrapp_db_url)
-            .await
-            .map_err(BackendError::from)?
-            .run_migration_profile(MigrationProfile::Pmrapp)
-            .await
-            .map_err(BackendError::from)?;
-        let tm = SqliteBackend::from_url(&args.pmrtqs_db_url)
-            .await
-            .map_err(BackendError::from)?
-            .run_migration_profile(MigrationProfile::Pmrtqs)
-            .await
-            .map_err(BackendError::from)?;
         let platform = Platform::new(
             ACPlatformBuilder::new()
-                .ac_platform(ac)
+                .boxed_ac_platform(
+                    Backend::ac(
+                        ConnectorOption::from(&args.pmrac_db_url)
+                            .auto_create_db(true)
+                    )
+                        .await?,
+                )
                 .build(),
-            mc,
-            tm,
-            fs::canonicalize(&args.pmr_data_root)?,
-            fs::canonicalize(&args.pmr_repo_root)?,
+            Backend::mc(
+                ConnectorOption::from(&args.pmrapp_db_url)
+                    .auto_create_db(true)
+            )
+                .await?
+                .into(),
+            Backend::tm(
+                ConnectorOption::from(&args.pmrtqs_db_url)
+                    .auto_create_db(true)
+            )
+                .await?
+                .into(),
+            fs::canonicalize(args.pmr_data_root)?,
+            fs::canonicalize(args.pmr_repo_root)?,
         );
-        Ok::<_, PlatformError>(platform)
+        Ok::<_, Box<dyn Error + Send + Sync + 'static>>(platform)
     })?;
     let executor = Executor::new(platform);
     let mut runtime = Runtime::new(executor, args.runners);

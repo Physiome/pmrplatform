@@ -17,13 +17,13 @@ use crate::platform::Platform;
 impl Platform {
     pub fn new(
         ac_platform: pmrac::Platform,
-        mc_platform: impl MCPlatform + 'static,
-        tm_platform: impl TMPlatform + 'static,
+        mc_platform: Arc<dyn MCPlatform>,
+        tm_platform: Arc<dyn TMPlatform>,
         data_root: PathBuf,
         repo_root: PathBuf,
     ) -> Self {
-        let mc_platform = Arc::new(mc_platform);
-        let tm_platform = Arc::new(tm_platform);
+        let mc_platform = mc_platform;
+        let tm_platform = tm_platform;
         let repo_backend = Backend::new(mc_platform.clone(), repo_root.clone());
         Self { ac_platform, mc_platform, tm_platform, data_root, repo_root, repo_backend }
     }

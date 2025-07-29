@@ -289,7 +289,7 @@ async fn casbin_policy_enforcement() -> anyhow::Result<()> {
     use pmrrbac::casbin::CasbinBuilder;
 
     let platform = Builder::new()
-        .ac_platform(create_sqlite_backend().await?)
+        .boxed_ac_platform(create_sqlite_backend().await?)
         .pmrrbac_builder(CasbinBuilder::new_limited().into())
         .build();
     platform.assign_policy_to_wf_state(State::Private, Role::Owner, "editor_view").await?;
@@ -411,7 +411,7 @@ async fn policy_enforcement_with_roles() -> anyhow::Result<()> {
     use pmrrbac::casbin::CasbinBuilder;
 
     let platform = Builder::new()
-        .ac_platform(create_sqlite_backend().await?)
+        .boxed_ac_platform(create_sqlite_backend().await?)
         .pmrrbac_builder(CasbinBuilder::new_limited().into())
         .build();
 
@@ -448,7 +448,7 @@ async fn policy_enforcement_with_roles() -> anyhow::Result<()> {
 #[async_std::test]
 async fn sessions() -> anyhow::Result<()> {
     let platform = Builder::new()
-        .ac_platform(create_sqlite_backend().await?)
+        .boxed_ac_platform(create_sqlite_backend().await?)
         .session_factory(
             SessionFactory::new()
                 .ts_source(|| Utc::now().timestamp())
@@ -493,7 +493,7 @@ async fn sessions() -> anyhow::Result<()> {
 #[async_std::test]
 async fn multiple_sessions() -> anyhow::Result<()> {
     let platform = Builder::new()
-        .ac_platform(create_sqlite_backend().await?)
+        .boxed_ac_platform(create_sqlite_backend().await?)
         .session_factory(
             SessionFactory::new()
                 .ts_source(|| Utc::now().timestamp())
@@ -542,7 +542,7 @@ async fn multiple_sessions() -> anyhow::Result<()> {
 #[async_std::test]
 async fn authenticate_credentials_into_session() -> anyhow::Result<()> {
     let platform = Builder::new()
-        .ac_platform(create_sqlite_backend().await?)
+        .boxed_ac_platform(create_sqlite_backend().await?)
         .build();
 
     let admin = platform.create_user("admin").await?;

@@ -20,7 +20,6 @@ pmrdb = { workspace = true }
 pmrmodel = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-sqlx = { workspace = true, features = ["sqlite"] }
 stderrlog = { workspace = true }
 structopt = { workspace = true, features = ["paw"] }
 thiserror = { workspace = true }
@@ -31,3 +30,8 @@ mockall = { workspace = true }
 tempfile = { workspace = true }
 textwrap-macros = { workspace = true }
 test-pmr = { path = "../testing", features = ["repo"] }
+
+[features]
+sqlite = [
+    "pmrdb/sqlite",
+]

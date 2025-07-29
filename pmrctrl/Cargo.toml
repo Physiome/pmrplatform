@@ -14,12 +14,12 @@ log = { workspace = true, features = ["std", "serde"] }
 parking_lot = { workspace = true }
 pmrac = { workspace = true }
 pmrcore = { workspace = true }
+pmrdb = { workspace = true }
 pmrmodel = { workspace = true }
 pmrrepo = { workspace = true }
 pmrtqs = { workspace = true }
 serde = { workspace = true, features = ["serde_derive"] }
 serde_json = { workspace = true }
-sqlx = { workspace = true, features = ["sqlite"] }
 stderrlog = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }
@@ -30,3 +30,8 @@ async-std = { workspace = true, features = ["attributes"] }
 tempfile = { workspace = true }
 test-binary = { workspace = true }
 test-pmr = { path = "../testing", features = ["platform"] }
+
+[features]
+sqlite = [
+    "pmrdb/sqlite",
+]

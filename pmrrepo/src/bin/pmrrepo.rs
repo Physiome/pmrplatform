@@ -1,13 +1,10 @@
-use sqlx::{
-    Sqlite,
-    migrate::MigrateDatabase,
+use std::{
+    env,
+    io::{self, Write},
+    ops::Deref,
+    path::PathBuf,
+    process,
 };
-use std::env;
-use std::io::{self, Write};
-use std::ops::Deref;
-use std::path::PathBuf;
-use std::process;
-use std::sync::Arc;
 use structopt::StructOpt;
 
 use pmrdb::{

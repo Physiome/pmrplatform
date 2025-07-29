@@ -19,7 +19,6 @@ pmrdb = { workspace = true }
 pmrmodel = { workspace = true, optional = true }
 pmrrbac = { workspace = true }
 serde_json = { workspace = true, optional = true }
-sqlx = { workspace = true, features = ["sqlite"], optional = true }
 stderrlog = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs", "io-util", "macros", "rt", "rt-multi-thread"] }
@@ -42,14 +41,17 @@ bin = [
     "dotenvy",
     "pmrcore/clap",
     "pmrcore/display",
+    "pmrdb/sqlite",
     "pmrmodel",
     "serde_json",
-    "sqlx",
     "stderrlog",
 ]
 casbin = [
     "dep:casbin",
     "pmrrbac/casbin",
+]
+sqlite = [
+    "pmrdb/sqlite",
 ]
 
 [lib]

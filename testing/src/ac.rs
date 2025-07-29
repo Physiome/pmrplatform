@@ -2,21 +2,18 @@ use pmrac::{
     Platform,
     platform::Builder,
 };
-use pmrmodel::backend::db::{
-    MigrationProfile,
-    SqliteBackend,
-};
+use pmrcore::platform::ACPlatform;
+use pmrdb::Backend;
 
-pub async fn create_sqlite_backend() -> anyhow::Result<SqliteBackend> {
-    Ok(SqliteBackend::from_url("sqlite::memory:")
-        .await?
-        .run_migration_profile(MigrationProfile::Pmrac)
-        .await?)
+pub async fn create_sqlite_backend() -> anyhow::Result<Box<dyn ACPlatform>> {
+    Ok(Backend::ac("sqlite::memory:".into())
+        .await
+        .map_err(anyhow::Error::from_boxed)?)
 }
 
 pub async fn create_sqlite_platform(purge: bool) -> anyhow::Result<Platform> {
     let platform = Builder::new()
-        .ac_platform(create_sqlite_backend().await?)
+        .boxed_ac_platform(create_sqlite_backend().await?)
         .password_autopurge(purge)
         .build();
     Ok(platform)

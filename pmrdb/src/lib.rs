@@ -1,4 +1,5 @@
-use pmrcore::platform::{ConnectorOption, PlatformConnector, ACPlatform, MCPlatform, TMPlatform};
+use pmrcore::platform::{ACPlatform, MCPlatform, TMPlatform};
+pub use pmrcore::platform::{ConnectorOption, PlatformConnector};
 #[cfg(feature = "sqlite")]
 use pmrdb_sqlite::SqliteBackend;
 
