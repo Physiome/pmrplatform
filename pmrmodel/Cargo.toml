@@ -8,15 +8,13 @@ edition = "2021"
 
 [dependencies]
 async-trait = { workspace = true }
-chrono = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }
 log = { workspace = true, features = ["std", "serde"] }
 parking_lot = { workspace = true }
-pmrcore = { workspace = true, features = ["sqlx", "display", "server"] }
+pmrcore = { workspace = true, features = ["display", "server"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
-sqlx = { workspace = true, features = ["runtime-async-std-native-tls", "sqlite"] }
 thiserror = { workspace = true }
 
 [dev-dependencies]
