@@ -105,3 +105,64 @@ mod default_impl {
     impl DefaultTMPlatform for SqliteBackend {}
 }
 
+// TODO eventually if we need to override certain implementation to better
+// optimize selection:
+//
+// mod specialized {
+//     use async_trait::async_trait;
+//     use pmrcore::{
+//         alias::AliasEntries,
+//         error::BackendError,
+//         platform::MCPlatform,
+//         workspace::WorkspaceRef,
+//     };
+//
+//     #[async_trait]
+//     impl MCPlatform for SqliteBackend {
+//         fn as_dyn(&self) -> &dyn MCPlatform {
+//             self
+//         }
+//         async fn list_aliased_workspaces<'a>(
+//             &'a self,
+//         ) -> Result<AliasEntries<WorkspaceRef<'a>>, BackendError> {
+//             todo!()
+//         }
+//     }
+// }
+
+// For testing unified usage/traits
+#[cfg(test)]
+pub(crate) mod tests {
+    use pmrcore::{
+        platform::{
+            MCPlatform,
+            PlatformConnector,
+        },
+        workspace::Workspace,
+    };
+    use crate::SqliteBackend;
+
+    #[async_std::test]
+    async fn create_aliased_workspace() -> anyhow::Result<()> {
+        let backend = SqliteBackend::mc("sqlite::memory:".into())
+            .await
+            .map_err(anyhow::Error::from_boxed)?;
+        let entry = backend.create_aliased_workspace(
+            "https://models.example.com".into(),
+            "".into(),
+            "".into(),
+        ).await?;
+        assert_eq!(entry.alias, "1");
+        let answer = Workspace {
+            id: 1,
+            url: "https://models.example.com".into(),
+            superceded_by_id: None,
+            created_ts: 1234567890,
+            description: Some("".into()),
+            long_description: Some("".into()),
+            exposures: None,
+        };
+        assert_eq!(entry.entity.into_inner(), answer);
+        Ok(())
+    }
+}
