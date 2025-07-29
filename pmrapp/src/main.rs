@@ -23,14 +23,13 @@ async fn main() -> anyhow::Result<()> {
         executor::Executor,
         platform::Platform,
     };
-    use pmrmodel::backend::db::{
-        MigrationProfile,
-        SqliteBackend,
+    use pmrdb::{
+        Backend,
+        ConnectorOption,
     };
     use pmrrbac::Builder as PmrRbacBuilder;
     use pmrtqs::runtime::Builder as RuntimeBuilder;
     use std::fs;
-    use sqlx::{migrate::MigrateDatabase, Sqlite};
     use time::Duration;
     use tower::ServiceBuilder;
     use tower_sessions::{Expiry, MemoryStore, SessionManagerLayer};
@@ -64,40 +63,35 @@ async fn main() -> anyhow::Result<()> {
     let routes = generate_route_list(App);
     log::trace!("{routes:?}");
 
-    if !Sqlite::database_exists(&args.pmrac_db_url).await.unwrap_or(false) {
-        log::warn!("pmrac database {} does not exist; creating...", &args.pmrac_db_url);
-        Sqlite::create_database(&args.pmrac_db_url).await?;
-    }
-    if !Sqlite::database_exists(&args.pmrapp_db_url).await.unwrap_or(false) {
-        log::warn!("pmrapp database {} does not exist; creating...", &args.pmrapp_db_url);
-        Sqlite::create_database(&args.pmrapp_db_url).await?;
-    }
-    if !Sqlite::database_exists(&args.pmrtqs_db_url).await.unwrap_or(false) {
-        log::warn!("pmrtqs database {} does not exist; creating...", &args.pmrtqs_db_url);
-        Sqlite::create_database(&args.pmrtqs_db_url).await?;
-    }
-    let ac = SqliteBackend::from_url(&args.pmrac_db_url)
-        .await?
-        .run_migration_profile(MigrationProfile::Pmrac)
-        .await?;
-    let mc = SqliteBackend::from_url(&args.pmrapp_db_url)
-        .await?
-        .run_migration_profile(MigrationProfile::Pmrapp)
-        .await?;
-    let tm = SqliteBackend::from_url(&args.pmrtqs_db_url)
-        .await?
-        .run_migration_profile(MigrationProfile::Pmrtqs)
-        .await?;
     let platform = Platform::new(
         ACPlatformBuilder::new()
-            .ac_platform(ac)
+            .boxed_ac_platform(
+                Backend::ac(
+                    ConnectorOption::from(&args.pmrac_db_url)
+                        .auto_create_db(true)
+                )
+                    .await
+                    .map_err(anyhow::Error::from_boxed)?,
+            )
             .pmrrbac_builder(
                 PmrRbacBuilder::new()
                     .anonymous_reader(true)
             )
             .build(),
-        mc,
-        tm,
+        Backend::mc(
+            ConnectorOption::from(&args.pmrapp_db_url)
+                .auto_create_db(true)
+        )
+            .await
+            .map_err(anyhow::Error::from_boxed)?
+            .into(),
+        Backend::tm(
+            ConnectorOption::from(&args.pmrtqs_db_url)
+                .auto_create_db(true)
+        )
+            .await
+            .map_err(anyhow::Error::from_boxed)?
+            .into(),
         fs::canonicalize(&args.pmr_data_root)?,
         fs::canonicalize(&args.pmr_repo_root)?,
     );

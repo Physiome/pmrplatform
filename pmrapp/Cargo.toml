@@ -29,6 +29,7 @@ log = { workspace = true, optional = true }
 pmrac = { workspace = true, optional = true, features = ["axum-login"] }
 pmrcore = { workspace = true }
 pmrctrl = { workspace = true, optional = true }
+pmrdb = { workspace = true, optional = true }
 pmrmodel = { workspace = true, optional = true }
 pmrrbac = { workspace = true }
 pmrrepo = { workspace = true, optional = true }
@@ -38,7 +39,6 @@ send_wrapper = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 serde_urlencoded = { workspace = true }
-sqlx = { workspace = true, features = ["sqlite"], optional = true }
 stderrlog = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["rt-multi-thread"], optional = true }
 tower = { workspace = true, optional = true }
@@ -68,10 +68,10 @@ ssr = [
     "dep:log",
     "dep:pmrac",
     "dep:pmrctrl",
+    "dep:pmrdb",
     "dep:pmrmodel",
     "dep:pmrrepo",
     "dep:pmrtqs",
-    "dep:sqlx",
     "dep:stderrlog",
     "dep:tokio",
     "dep:tower",
@@ -82,6 +82,8 @@ ssr = [
     "leptos_meta/ssr",
     "leptos_router/ssr",
     "leptos_sync_ssr/ssr",
+    # need a database, just enable this for now.
+    "pmrdb/sqlite",
     "dep:tracing",
 ]
 
