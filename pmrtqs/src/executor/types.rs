@@ -1,8 +1,12 @@
-use pmrcore::task::TaskRef;
+use pmrcore::{
+    platform::TMPlatform,
+    task::TaskRef,
+};
+use std::sync::Arc;
 
 #[derive(Clone)]
-pub struct TMPlatformExecutor<P: Clone + Send + Sync> {
-    pub(crate) platform: P,
+pub struct TMPlatformExecutor {
+    pub(crate) platform: Arc<dyn TMPlatform>,
 }
 
 pub struct TMPlatformExecutorInstance<'a> {

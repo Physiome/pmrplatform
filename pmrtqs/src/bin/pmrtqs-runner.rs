@@ -1,13 +1,14 @@
 use clap::Parser;
-use pmrmodel::backend::db::{
-    MigrationProfile,
-    SqliteBackend,
+use pmrcore::platform::TMPlatform;
+use pmrdb::{
+    Backend,
+    ConnectorOption,
 };
 use pmrtqs::{
-    error::RunnerError,
     executor::TMPlatformExecutor,
     runtime::Runtime,
 };
+use std::sync::Arc;
 use tokio;
 
 // the runner may become a separate sync function
@@ -35,7 +36,7 @@ struct Cli {
 }
 
 
-fn main() -> Result<(), RunnerError> {
+fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
     let args = Cli::parse();
     stderrlog::new()
@@ -48,16 +49,13 @@ fn main() -> Result<(), RunnerError> {
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     let backend = rt.block_on(async {
-        Ok::<_, RunnerError>(SqliteBackend::from_url(&args.pmrtqs_db_url)
+        Ok::<_, anyhow::Error>(Backend::tm(ConnectorOption::from(&args.pmrtqs_db_url).auto_create_db(true))
             .await
-            .map_err(pmrcore::error::BackendError::from)?
-            .run_migration_profile(MigrationProfile::Pmrtqs)
-            .await
-            .map_err(pmrcore::error::BackendError::from)?
+            .map_err(anyhow::Error::from_boxed)?
         )
     })?;
-    let executor = TMPlatformExecutor::new(backend.clone());
-    let mut runtime = Runtime::new(executor, args.runners);
+    let executor = TMPlatformExecutor::new(<Arc<dyn TMPlatform>>::from(backend));
+    let mut runtime = Runtime::new(executor.clone(), args.runners);
     runtime.start();
     log::info!("runner runtime starting");
     runtime.wait();

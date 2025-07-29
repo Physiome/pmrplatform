@@ -13,6 +13,7 @@ use std::{
         Command,
         Stdio,
     },
+    sync::Arc,
 };
 use tokio::sync::broadcast;
 
@@ -70,17 +71,14 @@ impl<'a> From<TMPlatformExecutorInstance<'a>> for TaskRef<'a> {
     }
 }
 
-impl<P: Clone + Send + Sync> TMPlatformExecutor<P> {
-    pub fn new(platform: P) -> Self {
+impl TMPlatformExecutor {
+    pub fn new(platform: Arc<dyn TMPlatform>) -> Self {
         Self { platform }
     }
 }
 
 #[async_trait]
-impl<P: Clone + Send + Sync> traits::Executor for TMPlatformExecutor<P>
-where
-    P: TMPlatform
-{
+impl traits::Executor for TMPlatformExecutor {
     type Error = RunnerError;
 
     async fn start_task(
@@ -96,7 +94,7 @@ where
         task: TaskDetached,
         _abort_receiver: broadcast::Receiver<()>,
     ) -> Result<(i32, bool), Self::Error> {
-        let mut executor: TMPlatformExecutorInstance = task.bind(&self.platform)?.into();
+        let mut executor: TMPlatformExecutorInstance = task.bind(self.platform.as_ref())?.into();
         // the abort token needs to be passed/run with the
         // executor so it knows if the abort is set.
         executor.execute().await

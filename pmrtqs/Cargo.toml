@@ -15,11 +15,11 @@ dotenvy = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true, features = ["std", "serde"] }
 pmrcore = { workspace = true, features = ["sqlx", "display"] }
+pmrdb = { workspace = true }
 pmrmodel = { workspace = true }
 pmrrepo = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-sqlx = { workspace = true, features = ["sqlite"] }
 stderrlog = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "signal", "sync", "time"] }
 tokio-stream = { workspace = true }
@@ -30,3 +30,16 @@ thiserror = { workspace = true }
 mockall = { workspace = true }
 tempfile = { workspace = true }
 textwrap-macros = { workspace = true }
+
+[features]
+sqlite = [
+    "pmrdb/sqlite",
+]
+bin = [
+    "pmrdb/sqlite",
+]
+
+[[bin]]
+name = "pmrtqs"
+path = "src/bin/pmrtqs.rs"
+required-features = ["bin"]

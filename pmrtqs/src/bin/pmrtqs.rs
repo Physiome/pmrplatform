@@ -3,20 +3,13 @@ use clap::{
     Parser,
     Subcommand,
 };
-use pmrmodel::backend::db::{
-    MigrationProfile,
-    SqliteBackend,
+use pmrdb::{
+    Backend,
+    ConnectorOption,
 };
-use pmrcore::{
-    platform::TMPlatform,
-    task_template::{
-        TaskTemplate,
-        traits::TaskTemplateBackend,
-    },
-};
-use sqlx::{
-    Sqlite,
-    migrate::MigrateDatabase,
+use pmrcore::task_template::{
+    TaskTemplate,
+    traits::TaskTemplateBackend,
 };
 use std::{
     fs::File,
@@ -139,37 +132,32 @@ async fn main() -> anyhow::Result<()> {
         .init()
         .unwrap();
 
-    if !Sqlite::database_exists(&args.db_url).await.unwrap_or(false) {
-        log::warn!("database {} does not exist; creating...", &args.db_url);
-        Sqlite::create_database(&args.db_url).await?
-    }
-    let backend = SqliteBackend::from_url(&args.db_url)
-        .await?
-        .run_migration_profile(MigrationProfile::Pmrtqs)
-        .await?;
+    let backend = Backend::tm(ConnectorOption::from(&args.db_url).auto_create_db(true))
+        .await
+        .map_err(anyhow::Error::from_boxed)?;
 
     match args.command {
         Commands::Register { program, version } => {
             println!("registering program '{}'...", &program);
             let (id, _) = TaskTemplateBackend::add_task_template(
-                &backend, &program, &version,
+                backend.as_ref(), &program, &version,
             ).await?;
             println!("program '{}' registered as id: {}", &program, id);
         }
         Commands::Finalize { id } => {
             println!("finalizing program id '{}'...", id);
             let finalid = TaskTemplateBackend::finalize_new_task_template(
-                &backend, id,
+                backend.as_ref(), id,
             ).await?;
             match finalid {
                 Some(finalid) => println!("finalize with argid {finalid}."),
                 None => println!("finalize failed"),
             };
-            let task_template = get_task_template_by_id(&backend, id).await?;
+            let task_template = get_task_template_by_id(backend.as_ref(), id).await?;
             println!("{}", task_template);
         }
         Commands::Show { json, id } => {
-            let task_template = get_task_template_by_id(&backend, id).await?;
+            let task_template = get_task_template_by_id(backend.as_ref(), id).await?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&task_template)?);
             } else {
@@ -177,14 +165,14 @@ async fn main() -> anyhow::Result<()> {
             }
         }
         Commands::Arg { arg } => {
-            parse_arg(arg, &backend).await?;
+            parse_arg(arg, backend.as_ref()).await?;
         }
         Commands::Choice { choice } => {
-            parse_choice(choice, &backend).await?
+            parse_choice(choice, backend.as_ref()).await?
         }
         Commands::Import { input } => {
             let result = TaskTemplateBackend::adds_task_template(
-                &backend,
+                backend.as_ref(),
                 match input {
                     Some(path) => serde_json::from_reader(BufReader::new(File::open(path)?))?,
                     None => serde_json::from_reader(BufReader::new(stdin()))?,
@@ -212,7 +200,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn get_task_template_by_id(
-    backend: &SqliteBackend,
+    backend: &dyn TaskTemplateBackend,
     id: i64,
 ) -> anyhow::Result<TaskTemplate> {
     match TaskTemplateBackend::get_task_template_by_id(
@@ -225,7 +213,7 @@ async fn get_task_template_by_id(
     }
 }
 
-async fn parse_arg(arg: Arg, backend: &SqliteBackend) -> anyhow::Result<()> {
+async fn parse_arg(arg: Arg, backend: &dyn TaskTemplateBackend) -> anyhow::Result<()> {
     match arg {
         Arg::Add {
             id,
@@ -303,7 +291,7 @@ async fn parse_arg(arg: Arg, backend: &SqliteBackend) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn parse_choice(choice: Choice, backend: &SqliteBackend) -> anyhow::Result<()> {
+async fn parse_choice(choice: Choice, backend: &dyn TaskTemplateBackend) -> anyhow::Result<()> {
     match choice {
         Choice::Add { argid, label, value } => {
             println!("Adding choice for arg:id {argid}");
