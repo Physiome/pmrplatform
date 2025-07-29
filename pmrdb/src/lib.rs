@@ -54,7 +54,7 @@ impl Backend {
             Ok(BackendKind::Sqlite) => Ok(Box::new(SqliteBackend::ac(opts).await?)),
             #[cfg(not(feature = "sqlite"))]
             Ok(s) => Err(Box::new(Error(format!(
-                "The feature {s:?} must be enabled for pmrdb in order to connect to {:?}", opts.url
+                r#"The feature "{s}" must be enabled for pmrdb in order to connect to {:?}"#, opts.url
             )))),
             Err(e) => Err(Box::new(e)),
         }

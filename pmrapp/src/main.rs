@@ -42,6 +42,7 @@ async fn main() -> anyhow::Result<()> {
         .module("pmrctrl")
         .module("pmrtqs")
         .module("pmrac")
+        .module("pmrdb")
         .module("pmrrbac")
         .module("pmrtqs")
         // .module("axum_login")

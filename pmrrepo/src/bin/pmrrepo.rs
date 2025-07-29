@@ -134,6 +134,7 @@ async fn main(args: Args) -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
     stderrlog::new()
         .module(module_path!())
+        .module("pmrdb")
         .verbosity(args.verbose + 1)
         .timestamp(stderrlog::Timestamp::Second)
         .init()

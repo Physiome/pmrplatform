@@ -39,6 +39,7 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let args = Cli::parse();
     stderrlog::new()
         .module(module_path!())
+        .module("pmrdb")
         .module("pmrctrl")
         .module("pmrtqs")
         .verbosity((args.verbose as usize) + 1)
