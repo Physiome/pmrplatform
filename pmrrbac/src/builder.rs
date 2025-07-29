@@ -53,7 +53,11 @@ impl Builder {
     }
 
     pub async fn build(&self) -> Result<Box<dyn Enforcer>, Error> {
-        log::trace!("building a {}Enforcer", self.kind);
+        if self.anonymous_reader {
+            log::trace!("building a {}Enforcer with anonymous reader access", self.kind);
+        } else {
+            log::trace!("building a {}Enforcer without anonymous reader access", self.kind);
+        }
         Ok(match &self.kind {
             Kind::Policy => {
                 let mut policy = self.policy
@@ -81,7 +85,11 @@ impl Builder {
         &self,
         mut policy: Policy,
     ) -> Result<Box<dyn GenpolEnforcer>, Error> {
-        log::trace!("building a {}Enforcer with {policy:?}", self.kind);
+        if self.anonymous_reader {
+            log::trace!("building a {}Enforcer with anonymous reader access with {policy:?}", self.kind);
+        } else {
+            log::trace!("building a {}Enforcer without anonymous reader access with {policy:?}", self.kind);
+        }
         Ok(match &self.kind {
             Kind::Policy => {
                 if self.anonymous_reader {
