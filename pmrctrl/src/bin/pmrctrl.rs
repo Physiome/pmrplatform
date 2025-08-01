@@ -248,6 +248,7 @@ async fn main() -> anyhow::Result<()> {
     stderrlog::new()
         .module(module_path!())
         .module("pmrdb")
+        .module("pmrtqs")
         .verbosity((args.verbose as usize) + 1)
         .timestamp(stderrlog::Timestamp::Second)
         .init()

@@ -32,7 +32,8 @@ impl<'a> TMPlatformExecutorInstance<'a> {
     }
 
     pub async fn execute(&mut self) -> Result<(i32, bool), RunnerError> {
-        let mut command: Command = (&self.task).try_into()?;
+        let mut command = Command::try_from(&self.task)?;
+        log::trace!("task id {} will run: {command:?}", self.task.id());
         let basedir = command.get_current_dir()
             .ok_or(ValueError::UninitializedAttribute("task missing basedir"))?;
 
