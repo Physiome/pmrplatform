@@ -1,4 +1,5 @@
 use leptos::logging;
+use leptos::context::Provider;
 use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::{
@@ -59,6 +60,7 @@ use crate::{
     },
     exposure::api::{
         list,
+        list_aliased,
         get_exposure_info,
         resolve_exposure_path,
         update_wizard_field,
@@ -72,15 +74,19 @@ use crate::{
         EFView,
         ExposureFileView,
     },
-    app::portlet::{
-        ContentActionCtx,
-        ContentActionItem,
-        ExposureSourceCtx,
-        ExposureSourceItem,
-        NavigationCtx,
-        NavigationItem,
-        ViewsAvailableCtx,
-        ViewsAvailableItem,
+    app::{
+        portlet::{
+            ContentActionCtx,
+            ContentActionItem,
+            ExposureSourceCtx,
+            ExposureSourceItem,
+            NavigationCtx,
+            NavigationItem,
+            ViewsAvailableCtx,
+            ViewsAvailableItem,
+        },
+        EntityRoot,
+        Root,
     },
 };
 
@@ -106,12 +112,27 @@ pub fn ExposureRoutes() -> impl MatchNestedRoutes + Clone {
         <ParentRoute path=StaticSegment("/exposure") view=ExposureRoot ssr>
             <Route path=StaticSegment("/") view=ExposureListing/>
             <Route path=StaticSegment("") view=RedirectTS/>
-            <ParentRoute path=ParamSegment("id") view=Exposure>
-                <Route path=StaticSegment("/") view=ExposureMain/>
-                <Route path=StaticSegment("") view=RedirectTS/>
-                <Route path=(StaticSegment(":"), StaticSegment("wizard")) view=Wizard/>
-                <Route path=WildcardSegment("path") view=ExposureFile/>
+            <ParentRoute path=StaticSegment(":") view=Outlet>
+                <ParentRoute path=StaticSegment("id") view=ExposureIdRoot>
+                    <Route path=StaticSegment("/") view=ExposureListing/>
+                    <ExposureViewRoutes/>
+                </ParentRoute>
             </ParentRoute>
+            <ExposureViewRoutes/>
+        </ParentRoute>
+    }
+    .into_inner()
+}
+
+#[component]
+pub fn ExposureViewRoutes() -> impl MatchNestedRoutes + Clone {
+    let ssr = SsrMode::Async;
+    view! {
+        <ParentRoute path=ParamSegment("id") view=Exposure ssr>
+            <Route path=StaticSegment("/") view=ExposureMain/>
+            <Route path=StaticSegment("") view=RedirectTS/>
+            <Route path=(StaticSegment(":"), StaticSegment("wizard")) view=Wizard/>
+            <Route path=WildcardSegment("path") view=ExposureFile/>
         </ParentRoute>
     }
     .into_inner()
@@ -127,13 +148,26 @@ pub fn ExposureRoot() -> impl IntoView {
 
     view! {
         <Title text="Exposure — Physiome Model Repository"/>
-        <Outlet/>
+        <Provider value=Root::Aliased("/exposure/")>
+            <Outlet/>
+        </Provider>
+    }
+}
+
+#[component]
+pub fn ExposureIdRoot() -> impl IntoView {
+    view! {
+        <Title text="Exposure — Physiome Model Repository"/>
+        <Provider value=Root::Id("/exposure/:/id/")>
+            <Outlet/>
+        </Provider>
     }
 }
 
 #[component]
 pub fn ExposureListing() -> impl IntoView {
     let account_ctx = expect_context::<AccountCtx>();
+    let root = expect_context::<Root>();
     #[cfg(not(feature = "ssr"))]
     on_cleanup({
         let account_ctx = account_ctx.clone();
@@ -151,9 +185,12 @@ pub fn ExposureListing() -> impl IntoView {
         move |_| {
             let set_ps = account_ctx.policy_state.write_only();
             async move {
-                let result = list().await;
                 // required by notify_into which will take it.
                 provide_context(set_ps);
+                let result = match root {
+                    Root::Id(_) => list().await,
+                    Root::Aliased(_) => list_aliased().await,
+                };
                 match result {
                     Ok(ref result) => logging::log!("{}", result.inner.len()),
                     Err(_) => logging::log!("error loading exposures"),
@@ -171,10 +208,10 @@ pub fn ExposureListing() -> impl IntoView {
             .into_iter()
             .map(move |exposure| view! {
                 <div>
-                    <div><a href=format!("/exposure/{}/", exposure.id)>
-                        "Exposure "{exposure.id}
+                    <div><a href=format!("{root}{}/", exposure.alias)>
+                        "Exposure "{exposure.entity.id}
                     </a></div>
-                    <div>{exposure.description}</div>
+                    <div>{exposure.entity.description}</div>
                 </div>
             })
             .collect_view()
@@ -197,7 +234,7 @@ pub fn ExposureListing() -> impl IntoView {
 
 #[derive(Params, PartialEq, Clone, Debug)]
 pub struct ExposureParams {
-    id: Option<i64>,
+    id: Option<String>,
 }
 
 #[component]
@@ -206,6 +243,7 @@ pub fn Exposure() -> impl IntoView {
     let navigation_ctx = NavigationCtx::expect();
     let content_action_ctx = ContentActionCtx::expect();
     let account_ctx = expect_context::<AccountCtx>();
+    let root = expect_context::<Root>();
 
     #[cfg(not(feature = "ssr"))]
     on_cleanup({
@@ -224,6 +262,16 @@ pub fn Exposure() -> impl IntoView {
     });
 
     let params = use_params::<ExposureParams>();
+
+    let entity_root: Memo<EntityRoot> = Memo::new(move |_| {
+        root.build_entity_root(params.get()
+            .expect("conversion to string must be infallible")
+            .id
+            .expect("this must be used inside a route with an id parameter")
+        )
+    });
+    provide_context(entity_root);
+
     provide_context(Resource::new_blocking(
         move || params.get().map(|p| p.id),
         move |p| {
@@ -231,10 +279,13 @@ pub fn Exposure() -> impl IntoView {
             async move {
                 let result = match p {
                     Err(_) => Err(AppError::InternalServerError),
-                    Ok(Some(id)) => get_exposure_info(id)
-                        .await
-                        .map(EnforcedOk::notify_into)
-                        .map_err(AppError::from),
+                    Ok(Some(id)) => {
+                        let id = root.build_id(id)?;
+                        get_exposure_info(id)
+                            .await
+                            .map(EnforcedOk::notify_into)
+                            .map_err(AppError::from)
+                    }
                     _ => Err(AppError::NotFound),
                 };
                 let _ = take_context::<SsrWriteSignal<Option<PolicyState>>>();
@@ -268,13 +319,14 @@ pub fn Exposure() -> impl IntoView {
             async move {
                 exposure_info.await.ok().map(|info| {
                     let exposure_id = info.exposure.id;
+                    let base_href = entity_root.get().to_string();
                     logging::log!("building NavigationCtx");
                     // TODO should derive from exposure.files when it contains title/description
                     info.files
                         .into_iter()
                         .filter_map(move |(file, flag)| {
                             flag.then(|| {
-                                let href = format!("/exposure/{exposure_id}/{file}/");
+                                let href = format!("{base_href}/{file}/");
                                 let text = file.clone();
                                 let title = None;
                                 NavigationItem { href, text, title }
@@ -291,7 +343,8 @@ pub fn Exposure() -> impl IntoView {
                 exposure_info.track();
                 async move {
                     exposure_info.await.ok().map(|info| {
-                        let resource = format!("/exposure/{}/", info.exposure.id);
+                        let base_href = entity_root.get().to_string();
+                        let resource = format!("{base_href}/");
                         vec![
                             ContentActionItem {
                                 href: resource.clone(),
@@ -322,16 +375,16 @@ pub fn Exposure() -> impl IntoView {
 }
 
 #[component]
-pub fn ExposureFileListing(id: i64, files: Vec<(String, bool)>) -> impl IntoView {
+pub fn ExposureFileListing(base_href: Arc<str>, files: Vec<(String, bool)>) -> impl IntoView {
     view! {
         <ul>{files.into_iter()
             .map(|(file, flag)| view! {
                 <li>
-                    <a href=format!("/exposure/{id}/{file}")>
+                    <a href=format!("{base_href}/{file}")>
                         {file.clone()}
                     </a>
                     " - "{flag.then(|| view! {
-                        <a href=format!("/exposure/{id}/{file}/")>
+                        <a href=format!("{base_href}/{file}/")>
                             {flag}
                         </a>
                     }.into_any()).unwrap_or("false".into_any())}
@@ -345,10 +398,12 @@ pub fn ExposureFileListing(id: i64, files: Vec<(String, bool)>) -> impl IntoView
 #[component]
 pub fn ExposureMain() -> impl IntoView {
     let exposure_info = expect_context::<Resource<Result<ExposureInfo, AppError>>>();
+    let entity_root = expect_context::<Memo<EntityRoot>>();
     let file_listing = move || Suspend::new(async move {
+        let base_href: Arc<str> = entity_root.get().to_string().into();
         exposure_info.await.map(|info| view! {
             <h1>"Viewing exposure "{info.exposure.id}</h1>
-            <ExposureFileListing id=info.exposure.id files=info.files/>
+            <ExposureFileListing base_href=base_href files=info.files/>
         })
     });
 
@@ -374,6 +429,7 @@ pub struct ViewPath(pub Option<String>);
 #[component]
 pub fn ExposureFile() -> impl IntoView {
     let views_available_ctx = ViewsAvailableCtx::expect();
+    let entity_root = expect_context::<Memo<EntityRoot>>();
 
     #[cfg(not(feature = "ssr"))]
     on_cleanup({
@@ -398,13 +454,16 @@ pub fn ExposureFile() -> impl IntoView {
 
     let view_key_entry = move |(ef, view_key): (&exposure::ExposureFile, String)| view! {
         <li>
-            <a href=format!("/exposure/{}/{}/{}", ef.exposure_id, ef.workspace_file_path, view_key)>
+            <a href=format!("{}/{}/{}", entity_root.get().to_string(), ef.workspace_file_path, view_key)>
                 {view_key.clone()}
             </a>
         </li>
     };
 
     let ep_view = move || Suspend::new(async move {
+        // XXX not sure why the track need to be here explicitly, when `file` should
+        // already track the params.
+        params.track();
         match file.await
             .map_err(|_| AppError::NotFound)
         {
@@ -453,6 +512,7 @@ pub fn ExposureFile() -> impl IntoView {
         {views_available_ctx.set_with(move || {
             #[cfg(not(feature = "ssr"))]
             file.track();
+            let base_href = entity_root.get().to_string();
             async move {
                 match file.await {
                     Ok(ResolvedExposurePath::Target(ef, _)) => {
@@ -464,7 +524,7 @@ pub fn ExposureFile() -> impl IntoView {
                                     .into_iter()
                                     .filter_map(|view| {
                                         view.view_key.map(|view_key| ViewsAvailableItem {
-                                            href: format!("/exposure/{exposure_id}/{file}/{view_key}"),
+                                            href: format!("{base_href}/{file}/{view_key}"),
                                             // TODO should derive from exposure.files when it contains
                                             // title/description
                                             text: view_key,
@@ -662,17 +722,21 @@ pub fn WizardField(
 pub fn Wizard() -> impl IntoView {
     let wizard_add_file = ServerAction::<WizardAddFile>::new();
     let wizard_build = ServerAction::<WizardBuild>::new();
+    let root = expect_context::<Root>();
 
     let params = use_params::<ExposureParams>();
     let wizard_res = Resource::new_blocking(
         move || params.get().map(|p| p.id),
-        |p| async move {
+        move |p| async move {
             match p {
                 Err(_) => Err(AppError::InternalServerError),
-                Ok(Some(id)) => wizard(id)
-                    .await
-                    .map(EnforcedOk::notify_into)
-                    .map_err(AppError::from),
+                Ok(Some(id)) => {
+                    let id = root.build_id(id)?;
+                    wizard(id)
+                        .await
+                        .map(EnforcedOk::notify_into)
+                        .map_err(AppError::from)
+                }
                 _ => Err(AppError::NotFound),
             }
         }

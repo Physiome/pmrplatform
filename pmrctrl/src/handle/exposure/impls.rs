@@ -13,6 +13,7 @@ use pmrcore::{
         ExposureRef,
         ExposureFileRef,
     },
+    idgen::traits::GenAliasBackend,
 };
 use pmrmodel::model::profile::UserPromptGroupRefs;
 use pmrrepo::handle::GitHandle;
@@ -60,6 +61,12 @@ impl<'p> ExposureCtrl<'p> {
             exposure_file_ctrls: Arc::new(Mutex::new(HashMap::new())),
             efvttcs: OnceLock::new(),
         }))
+    }
+
+    pub async fn allocate_alias(&self) -> Result<String, PlatformError> {
+        let alias = GenAliasBackend::next(self.0.platform.mc_platform.as_ref()).await?.to_string();
+        self.0.platform.mc_platform.add_alias("exposure", self.0.exposure.id(), &alias).await?;
+        Ok(alias)
     }
 
     /// Create a file under the specified path.  This path must exist at

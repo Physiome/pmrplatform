@@ -6,7 +6,6 @@ use pmrcore::{
     alias::AliasEntry,
     exposure::{
         Exposure,
-        Exposures,
         profile::ExposureFileProfile,
     },
     profile::{
@@ -17,6 +16,7 @@ use pmrcore::{
 };
 use serde::{Serialize, Deserialize};
 use crate::{
+    app::id::Id,
     enforcement::EnforcedOk,
     error::AppError,
 };
@@ -56,14 +56,24 @@ mod ssr {
 #[cfg(feature = "ssr")]
 use self::ssr::*;
 
+pub type Exposures = Vec<AliasEntry<Exposure>>;
+
 #[server]
 pub async fn list() -> Result<EnforcedOk<Exposures>, AppError> {
     let policy_state = session().await?
         .enforcer_and_policy_state("/exposure/", "").await?;
     let platform = platform().await?;
-    Ok(policy_state.to_enforced_ok(ExposureBackend::list(platform.mc_platform.as_ref())
-        .await
-        .map_err(|_| AppError::InternalServerError)?))
+    Ok(policy_state.to_enforced_ok(
+        ExposureBackend::list(platform.mc_platform.as_ref())
+            .await
+            .map_err(|_| AppError::InternalServerError)?
+            .into_iter()
+            .map(|exposure| AliasEntry {
+                alias: exposure.id.to_string(),
+                entity: exposure,
+            })
+            .collect()
+    ))
 }
 
 #[server]
@@ -80,6 +90,20 @@ pub async fn list_aliased() -> Result<EnforcedOk<Vec<AliasEntry<Exposure>>>, App
     Ok(policy_state.to_enforced_ok(exposures))
 }
 
+#[cfg(feature = "ssr")]
+async fn resolve_id(id: Id) -> Result<i64, AppError> {
+    Ok(match id {
+        Id::Number(s) => s.parse().map_err(|_| AppError::NotFound)?,
+        Id::Aliased(s) => platform()
+            .await?
+            .mc_platform
+            .resolve_alias("exposure", &s)
+            .await
+            .map_err(|_| AppError::InternalServerError)?
+            .ok_or(AppError::NotFound)?,
+    })
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ExposureInfo {
     pub exposure: Exposure,
@@ -88,7 +112,8 @@ pub struct ExposureInfo {
 }
 
 #[server]
-pub async fn get_exposure_info(id: i64) -> Result<EnforcedOk<ExposureInfo>, AppError> {
+pub async fn get_exposure_info(id: Id) -> Result<EnforcedOk<ExposureInfo>, AppError> {
+    let id = resolve_id(id).await?;
     let policy_state = session().await?
         .enforcer_and_policy_state(format!("/exposure/{id}/"), "").await?;
     let platform = platform().await?;
@@ -103,21 +128,6 @@ pub async fn get_exposure_info(id: i64) -> Result<EnforcedOk<ExposureInfo>, AppE
         .map_err(|_| AppError::InternalServerError)?
         .into_inner();
     Ok(policy_state.to_enforced_ok(ExposureInfo { exposure, files, workspace }))
-}
-
-#[server]
-pub async fn get_exposure_info_by_alias(alias: String) -> Result<EnforcedOk<ExposureInfo>, AppError> {
-    // This simply leverages the existing function above, and not the one provided by
-    // the platform.
-    Ok(get_exposure_info(
-        platform()
-            .await?
-            .mc_platform
-            .resolve_alias("exposure", &alias)
-            .await
-            .map_err(|_| AppError::InternalServerError)?
-            .ok_or(AppError::NotFound)?
-    ).await?)
 }
 
 #[server]
@@ -246,15 +256,19 @@ pub async fn read_safe_index_html(
 
 #[server]
 pub async fn create_exposure(
-    id: i64,
+    workspace_id: i64,
     commit_id: String,
 ) -> Result<(), AppError> {
     let policy_state = session().await?
         .enforcer_and_policy_state("/exposure/", "create").await?;
+    // also validate workspace read permissions, as having the ability to create
+    // exposures in general does not imply read permission on that workspace.
+    session().await?
+        .enforcer(format!("/workspace/{workspace_id}/"), "").await?;
     let platform = platform().await?;
     // First create the workspace
     let ctrl = platform.create_exposure(
-        id,
+        workspace_id,
         &commit_id,
     )
         .await
@@ -280,7 +294,10 @@ pub async fn create_exposure(
         }
     }
 
-    leptos_axum::redirect(format!("/exposure/{id}").as_ref());
+    let alias = ctrl.allocate_alias().await
+        .map_err(|_| AppError::InternalServerError)?;
+
+    leptos_axum::redirect(format!("/exposure/{alias}").as_ref());
     Ok(())
 }
 
@@ -293,8 +310,9 @@ pub struct WizardInfo {
 
 #[server]
 pub async fn wizard(
-    id: i64,
+    id: Id,
 ) -> Result<EnforcedOk<WizardInfo>, AppError> {
+    let id = resolve_id(id).await?;
     let policy_state = session().await?
         .enforcer_and_policy_state(format!("/exposure/{id}/"), "edit").await?;
     let platform = platform().await?;

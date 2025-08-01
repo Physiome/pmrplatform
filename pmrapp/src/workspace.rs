@@ -820,7 +820,7 @@ fn WorkspaceCreateExposure() -> impl IntoView {
             view! {
                 <h1>"Creating Exposure for "{desc}" at commit "{commit_id.clone()}</h1>
                 <ActionForm attr:class="standard" action=action>
-                    <input type="hidden" name="id" value=info.workspace.id/>
+                    <input type="hidden" name="workspace_id" value=info.workspace.id/>
                     <input type="hidden" name="commit_id" value=commit_id/>
                     <button type="submit">"Create Exposure"</button>
                 </ActionForm>
