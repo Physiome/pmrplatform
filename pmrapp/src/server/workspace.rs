@@ -25,6 +25,24 @@ use crate::{
     server::ac::Session,
 };
 
+pub async fn raw_aliased_workspace_download(
+    platform: Extension<Platform>,
+    session: Extension<AuthSession<ACPlatform>>,
+    Path((workspace_alias, commit_id, filepath)): Path<(String, String, String)>,
+) -> Result<Response, AppError> {
+    let workspace_id = platform
+        .mc_platform
+        .resolve_alias("workspace", &workspace_alias)
+        .await
+        .map_err(|_| AppError::InternalServerError)?
+        .ok_or(AppError::NotFound)?;
+    raw_workspace_download(
+        platform,
+        session,
+        Path((workspace_id, commit_id, filepath)),
+    ).await
+}
+
 pub async fn raw_workspace_download(
     platform: Extension<Platform>,
     session: Extension<AuthSession<ACPlatform>>,
@@ -42,8 +60,9 @@ pub async fn raw_workspace_download(
     ) {
         Ok(result) => {
             let mut buffer = <Vec<u8>>::new();
-            // The following is a !Send Future (async) so....
-            // handle.stream_result_blob(&mut blob, &result).await?;
+            // This doesn't quite handle remote mimetype, perhaps upstream need to
+            // provide a better method.
+            // handle.stream_blob(&mut blob, &result).await?;
             // Ok(blob)
 
             match &result.target() {

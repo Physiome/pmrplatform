@@ -17,7 +17,10 @@ async fn main() -> anyhow::Result<()> {
     use pmrapp::app::*;
     use pmrapp::conf::Cli;
     use pmrapp::exposure::api::WIZARD_FIELD_ROUTE;
-    use pmrapp::server::workspace::raw_workspace_download;
+    use pmrapp::server::workspace::{
+        raw_aliased_workspace_download,
+        raw_workspace_download,
+    };
     use pmrapp::server::exposure::wizard_field_update;
     use pmrctrl::{
         executor::Executor,
@@ -113,7 +116,8 @@ async fn main() -> anyhow::Result<()> {
     // build our application with a route
     let app = Router::new()
         .without_v07_checks()
-        .route("/workspace/{workspace_id}/rawfile/{commit_id}/{*path}", get(raw_workspace_download))
+        .route("/workspace/{workspace_alias}/rawfile/{commit_id}/{*path}", get(raw_aliased_workspace_download))
+        .route("/workspace/:/id/{workspace_id}/rawfile/{commit_id}/{*path}", get(raw_workspace_download))
         .route(WIZARD_FIELD_ROUTE, post(wizard_field_update))
         .leptos_routes(
             &leptos_options,
