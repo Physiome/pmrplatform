@@ -1,0 +1,14 @@
+[package]
+name = "collection_json"
+version = "0.0.1"
+
+authors = ["Tommy Yu <tommy.yu@auckland.ac.nz>"]
+edition = "2021"
+
+[dependencies]
+serde = { workspace = true, features = ["serde_derive"] }
+serde_json = { workspace = true }
+url = { workspace = true, features = ["serde"] }
+
+[dev-dependencies]
+anyhow = { workspace = true }

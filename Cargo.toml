@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "collection_json",
     "pmrac",
     "pmrapp",
     "pmrapp/e2e",
@@ -14,6 +15,7 @@ members = [
     "testing",
 ]
 default-members = [
+    "collection_json",
     "pmrac",
     "pmrctrl",
     "pmrcore",
@@ -28,6 +30,7 @@ default-members = [
 resolver = "2"
 
 [workspace.dependencies]
+collection_json = { path = "./collection_json", version = "0.0.1" }
 pmrac = { path = "./pmrac", version = "0.0.1" }
 pmrapp = { path = "./pmrapp", version = "0.0.1" }
 pmrctrl = { path = "./pmrctrl", version = "0.0.1" }
@@ -95,6 +98,7 @@ tower = "0.4"
 tower-http = "0.5"
 tower-sessions = "0.13.0"
 tracing = "0.1"
+url = "2.5.4"
 wasm-bindgen = "0.2.95"
 web-sys = "0.3.69"
 
