@@ -84,7 +84,7 @@ impl From<Collection> for Container {
 /// Represents the Collection+JSON top-level document property as outlined in
 /// section 2.1 collection.
 // TODO probably include some example code for this.
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, PartialEq, Deserialize, Serialize)]
 #[serde(from = "Container")]
 #[serde(into = "Container")]
 pub struct Collection {
@@ -208,14 +208,30 @@ impl Collection {
 }
 
 mod fmt {
-    use std::fmt::{Display, Formatter, Result};
+    use std::fmt::{Debug, Display, Error, Formatter, Result};
     use super::Collection;
+
+    impl Debug for Collection {
+        fn fmt(&self, f: &mut Formatter) -> Result {
+            Display::fmt(
+                &serde_json::to_string_pretty(&self)
+                    // types inside the Collection shouldn't fail to serialize, but
+                    // if it does return a `std::fmt::Error` instead of panic.
+                    .map_err(|_| Error)?,
+                f,
+            )
+        }
+    }
 
     impl Display for Collection {
         fn fmt(&self, f: &mut Formatter) -> Result {
-            serde_json::to_string_pretty(&self)
-                .expect("types inside Collection shouldn't fail to Serialize")
-                .fmt(f)
+            Display::fmt(
+                &serde_json::to_string(&self)
+                    // types inside the Collection shouldn't fail to serialize, but
+                    // if it does return a `std::fmt::Error` instead of panic.
+                    .map_err(|_| Error)?,
+                f,
+            )
         }
     }
 }

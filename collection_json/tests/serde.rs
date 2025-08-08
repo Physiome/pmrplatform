@@ -1,7 +1,8 @@
 use std::str::FromStr;
 use collection_json::Collection;
 
-static BASIC: &'static str = r#"{
+static BASIC: &'static str = r#"{"collection":{"version":"1.0","href":"http://example.com/"}}"#;
+static BASIC_PRETTY: &'static str = r#"{
   "collection": {
     "version": "1.0",
     "href": "http://example.com/"
@@ -11,9 +12,11 @@ static BASIC: &'static str = r#"{
 #[test]
 fn basic() -> anyhow::Result<()> {
     let collection = Collection::new("http://example.com")?;
-    let s = collection.to_string();
-    assert_eq!(s, BASIC);
+    let pretty = format!("{collection:?}");
+    assert_eq!(collection.to_string(), BASIC);
+    assert_eq!(pretty, BASIC_PRETTY);
     assert_eq!(Collection::from_str(BASIC)?, collection);
+    assert_eq!(Collection::from_str(BASIC_PRETTY)?, collection);
     Ok(())
 }
 
@@ -157,5 +160,7 @@ fn parse_example1() -> anyhow::Result<()> {
     assert_eq!(collection, collection2);
     let s2 = collection2.to_string();
     assert_eq!(s1, s2);
+    let collection3 = Collection::from_str(&format!("{collection:?}"))?;
+    assert_eq!(collection, collection3);
     Ok(())
 }
