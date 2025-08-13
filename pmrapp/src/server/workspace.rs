@@ -1,5 +1,6 @@
 use axum::{
     Extension,
+    Json,
     extract::Path,
     response::{
         IntoResponse,
@@ -7,7 +8,12 @@ use axum::{
         Response,
     },
 };
+use axum_extra::extract::Host;
 use axum_login::AuthSession;
+use collection_json::{
+    builder::LinkBuilder,
+    Collection,
+};
 use http::header;
 use pmrac::Platform as ACPlatform;
 use pmrcore::{
@@ -15,6 +21,7 @@ use pmrcore::{
         PathObjectInfo,
         RemoteInfo,
     },
+    workspace::traits::WorkspaceBackend,
 };
 use pmrctrl::platform::Platform;
 use pmrrepo::handle::GitResultTarget;
@@ -24,6 +31,36 @@ use crate::{
     error::AppError,
     server::ac::Session,
 };
+
+pub async fn collection_json_workspace(
+    platform: Extension<Platform>,
+    session: Extension<AuthSession<ACPlatform>>,
+    Host(hostname): Host,
+) -> Result<Json<Collection>, AppError> {
+    // TODO figure out how or whether to derive this
+    let proto = "http";
+    Session::from(session)
+        .enforcer("/workspace/", "").await?;
+    let collection = Collection::new(&format!("{proto}://{hostname}/workspace/"))
+        .map_err(|_| AppError::InternalServerError)?;
+    let links = platform.mc_platform
+        .list_aliased_workspaces()
+        .await
+        .map_err(|_| AppError::InternalServerError)?
+        .into_iter()
+        .filter_map(|entry| {
+            let workspace = entry.entity.into_inner();
+            // TODO log entries that don't `.build_with()` correctly?
+            LinkBuilder::new(entry.alias, "bookmark".to_string())
+                .prompt(workspace.description
+                    .unwrap_or(format!("Workspace {}", workspace.id))
+                )
+                .build_with(&collection)
+                .ok()
+        })
+        .collect();
+    Ok(Json(collection.links(links)))
+}
 
 pub async fn raw_aliased_workspace_download(
     platform: Extension<Platform>,

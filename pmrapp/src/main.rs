@@ -18,6 +18,7 @@ async fn main() -> anyhow::Result<()> {
     use pmrapp::conf::Cli;
     use pmrapp::exposure::api::WIZARD_FIELD_ROUTE;
     use pmrapp::server::workspace::{
+        collection_json_workspace,
         raw_aliased_workspace_download,
         raw_workspace_download,
     };
