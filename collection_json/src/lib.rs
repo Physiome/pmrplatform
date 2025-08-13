@@ -12,6 +12,8 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use url::Url;
 pub use url::ParseError;
 
+pub mod builder;
+
 // using this intermediate need to include as the key "collection"
 #[derive(Deserialize, Serialize)]
 enum Container {
@@ -205,6 +207,20 @@ impl Collection {
 
     // TODO maybe provide some sort of builder pattern to allow easy building of
     // a Collection+JSON document.
+
+    pub fn push_link(&mut self, link: Link) {
+        if self.links.is_none() {
+            self.links = Some(Vec::new());
+        }
+        self.links.as_mut().map(|links| {
+            links.push(link)
+        });
+    }
+
+    pub fn links(mut self, links: Vec<Link>) -> Self {
+        self.links = Some(links);
+        self
+    }
 }
 
 mod fmt {
