@@ -3,7 +3,16 @@
 async fn main() -> anyhow::Result<()> {
     use axum::{
         Router,
-        extract::Extension,
+        ServiceExt,
+        extract::{
+            Extension,
+            Request,
+        },
+        http::{
+            Uri,
+            header::HeaderValue,
+            uri::PathAndQuery,
+        },
         routing::{
             get,
             post,
@@ -35,7 +44,11 @@ async fn main() -> anyhow::Result<()> {
     use pmrtqs::runtime::Builder as RuntimeBuilder;
     use std::fs;
     use time::Duration;
-    use tower::ServiceBuilder;
+    use tower::{
+        Layer,
+        ServiceBuilder,
+        util::MapRequestLayer,
+    };
     use tower_sessions::{Expiry, MemoryStore, SessionManagerLayer};
 
     dotenvy::dotenv().ok();
@@ -117,6 +130,9 @@ async fn main() -> anyhow::Result<()> {
     // build our application with a route
     let app = Router::new()
         .without_v07_checks()
+        // TODO the path should be constructed from a known list, so that rewriting only happens
+        // to this route only if it exists.
+        .route("/collection_json/workspace/", get(collection_json_workspace))
         .route("/workspace/{workspace_alias}/rawfile/{commit_id}/{*path}", get(raw_aliased_workspace_download))
         .route("/workspace/:/id/{workspace_id}/rawfile/{commit_id}/{*path}", get(raw_workspace_download))
         .route(WIZARD_FIELD_ROUTE, post(wizard_field_update))
@@ -134,6 +150,23 @@ async fn main() -> anyhow::Result<()> {
         .layer(Extension(platform.clone()))
         .layer(auth_service)
         .with_state(leptos_options);
+
+    fn reroute_collection_json<B: std::fmt::Debug>(mut req: Request<B>) -> Request<B> {
+        // naively resolve our header
+        if req.headers().get("accept") == Some(&HeaderValue::from_static("application/vnd.physiome.pmr2.json.1")) {
+            // TODO this should be defined as a constant for use with building the router
+            let prefix = "/collection_json";
+            let mut parts = req.uri().clone().into_parts();
+            parts.path_and_query = parts.path_and_query
+                .map(|v| PathAndQuery::try_from(format!("{prefix}{v}")).expect("original parsed fine"));
+            *req.uri_mut() = Uri::from_parts(parts).expect("original parts should be valid");
+        }
+        req
+    }
+
+    let middleware = MapRequestLayer::new(reroute_collection_json);
+
+    let app = middleware.layer(app);
 
     let runtime = (args.with_runners > 0).then(|| {
         let executor = Executor::new(platform.clone());
