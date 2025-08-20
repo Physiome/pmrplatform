@@ -180,9 +180,8 @@ pub async fn create_workspace(
 
 #[server]
 pub async fn synchronize(
-    id: Id,
+    id: i64,
 ) -> Result<(), AppError> {
-    let id = resolve_id(id).await?;
     session().await?
         .enforcer(format!("/workspace/{id}/"), "protocol_write").await?;
     let platform = platform().await?;
