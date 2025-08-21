@@ -95,7 +95,7 @@ impl<'p> ExposureFileViewCtrl<'p> {
     }
 
     pub async fn read_blob(&self, path: &str) -> Result<Box<[u8]>, CtrlError> {
-        let mut target = self.data_root()?;
+        let mut target = self.working_dir()?;
         Path::new(path).components()
             .for_each(|p| if let Component::Normal(s) = p {
                 target.push(<&str>::try_from(s)
@@ -131,5 +131,11 @@ impl<'p> ExposureFileViewCtrl<'p> {
                 target
             })
             .ok_or(CtrlError::EFVCIncomplete)
+    }
+
+    pub fn working_dir(&self) -> Result<PathBuf, CtrlError> {
+        let mut result = self.data_root()?;
+        result.push("work");
+        Ok(result)
     }
 }

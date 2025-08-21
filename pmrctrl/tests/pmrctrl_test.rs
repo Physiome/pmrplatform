@@ -1417,8 +1417,13 @@ async fn test_hidden_registries() -> anyhow::Result<()> {
     let workspace_filepath = exposure_basedir.join("files").join(target)
         .display()
         .to_string();
+    let base_dir = exposure_file_basedir
+        .join("default_hidden")
+        .display()
+        .to_string();
     let working_dir = exposure_file_basedir
         .join("default_hidden")
+        .join("work")
         .display()
         .to_string();
 
@@ -1458,7 +1463,7 @@ async fn test_hidden_registries() -> anyhow::Result<()> {
             "start_ts": null,
             "stop_ts": null,
             "exit_status": null,
-            "basedir": "{working_dir}",
+            "basedir": "{base_dir}",
             "args": [
                 {{
                     "id": 0,
@@ -1681,6 +1686,7 @@ async fn test_resolve_exposure_file_view_read_blob() -> anyhow::Result<()> {
         .join(exposure.exposure().id().to_string())
         .join(efc.exposure_file().id().to_string())
         .join("iorw")
+        .join("work")
         .join("size");
     assert!(target.exists());
 

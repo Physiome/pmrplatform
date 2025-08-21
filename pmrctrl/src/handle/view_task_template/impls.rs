@@ -120,6 +120,7 @@ impl<'p> EFViewTaskTemplatesCtrl<'p> {
                         self.exposure_file_ctrl
                             .data_root()
                             .join(efvtt.view_key.clone())
+                            .join("work")
                             .as_path()
                             .display()
                             .to_string()

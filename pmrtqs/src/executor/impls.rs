@@ -37,13 +37,17 @@ impl<'a> TMPlatformExecutorInstance<'a> {
         let basedir = command.get_current_dir()
             .ok_or(ValueError::UninitializedAttribute("task missing basedir"))?;
 
+        // the base conversion to command does NOT include a workdir, we add it here.
+        let work_path = basedir.join("work");
         let temp_path = basedir.join("temp");
 
+        std::fs::create_dir_all(&work_path)?;
         std::fs::create_dir_all(&temp_path)?;
         let stdout_file = File::create(temp_path.join("stdout"))?;
         let stderr_file = File::create(temp_path.join("stderr"))?;
 
         command
+            .current_dir(work_path)
             .stdout(Stdio::from(stdout_file))
             .stderr(Stdio::from(stderr_file));
 

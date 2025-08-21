@@ -469,8 +469,8 @@ pub fn ExposureFile() -> impl IntoView {
         {
             // TODO figure out how to redirect to the workspace.
             Ok(ResolvedExposurePath::Target(ef, Ok((efv, view_path)))) => {
-                let view_key = efv.view_key.clone();
-                let view_key = EFView::from_str(&view_key
+                let view_key = EFView::from_str(efv.view_key
+                    .as_ref()
                     .expect("API failed to produce a fully formed ExposureFileView")
                 )?;
                 provide_context(ef);
