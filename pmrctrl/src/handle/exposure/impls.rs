@@ -288,6 +288,12 @@ impl<'p> ExposureCtrl<'p> {
         Ok(result)
     }
 
+    pub fn data_root(&self) -> PathBuf {
+        let mut result = self.0.platform.data_root.join("exposure");
+        result.push(self.0.exposure.id().to_string());
+        result
+    }
+
     /// This ensures there is filesystem level access to the underlying
     /// files for this exposure (backed by the relevant workspace at the
     /// specified commit_id).

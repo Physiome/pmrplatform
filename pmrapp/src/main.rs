@@ -31,7 +31,10 @@ async fn main() -> anyhow::Result<()> {
         raw_aliased_workspace_download,
         raw_workspace_download,
     };
-    use pmrapp::server::exposure::wizard_field_update;
+    use pmrapp::server::exposure::{
+        exposure_file_data,
+        wizard_field_update,
+    };
     use pmrctrl::{
         executor::Executor,
         platform::Platform,
@@ -133,6 +136,7 @@ async fn main() -> anyhow::Result<()> {
         // TODO the path should be constructed from a known list, so that rewriting only happens
         // to this route only if it exists.
         .route("/collection_json/workspace/", get(collection_json_workspace))
+        .route("/data/exposure/{e_id}/{ef_id}/{view_key}/{*path}", get(exposure_file_data))
         .route("/workspace/{workspace_alias}/rawfile/{commit_id}/{*path}", get(raw_aliased_workspace_download))
         .route("/workspace/:/id/{workspace_id}/rawfile/{commit_id}/{*path}", get(raw_workspace_download))
         .route(WIZARD_FIELD_ROUTE, post(wizard_field_update))
