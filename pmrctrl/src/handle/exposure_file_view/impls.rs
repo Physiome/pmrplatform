@@ -14,11 +14,7 @@ use pmrcore::{
 };
 use std::{
     fmt,
-    path::{
-        Component,
-        Path,
-        PathBuf,
-    },
+    path::PathBuf,
 };
 
 use super::ExposureFileViewCtrl;
@@ -94,16 +90,11 @@ impl<'p> ExposureFileViewCtrl<'p> {
         Ok((efv_id, task.id))
     }
 
-    pub async fn read_blob(&self, path: &str) -> Result<Box<[u8]>, CtrlError> {
-        let mut target = self.working_dir()?;
-        Path::new(path).components()
-            .for_each(|p| if let Component::Normal(s) = p {
-                target.push(<&str>::try_from(s)
-                    .expect("this started as a valid str"))
-            });
-        tokio::fs::read(target).await
-            .map(Vec::into_boxed_slice)
-            .map_err(|_| CtrlError::EFVCBlobNotFound(path.to_string()))
+    pub async fn read_blob(&self, path: &str) -> Result<Vec<u8>, CtrlError> {
+        let view_key = self.exposure_file_view
+            .view_key()
+            .ok_or(CtrlError::EFVCIncomplete)?;
+        self.exposure_file.read_blob(view_key, path).await
     }
 
     pub fn exposure_file_ctrl(&self) -> &ExposureFileCtrl<'p> {

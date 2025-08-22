@@ -211,7 +211,7 @@ pub async fn read_blob(
     path: String,
     efvid: i64,
     key: String,
-) -> Result<Box<[u8]>, AppError> {
+) -> Result<Vec<u8>, AppError> {
     session().await?
         .enforcer(format!("/exposure/{id}/"), "").await?;
     let platform = platform().await?;
@@ -245,8 +245,7 @@ pub async fn read_safe_index_html(
 
     let blob = read_blob(id, path.clone(), efvid, "index.html".to_string())
         .await
-        .map_err(|_| AppError::InternalServerError)?
-        .into_vec();
+        .map_err(|_| AppError::InternalServerError)?;
     Ok(Builder::new()
         .url_relative(UrlRelative::Custom(Box::new(evaluate)))
         .clean(&String::from_utf8_lossy(&blob))

@@ -53,6 +53,7 @@ impl<'p> Platform {
                     false
                 }
                 None => {
+                    // TODO we've somehow triggered this with sqlite.
                     log::warn!("Task:{task_id} ran but it failed to produce results?");
                     false
                 }

@@ -263,4 +263,8 @@ impl<'p> ExposureFileCtrl<'p> {
         data_root.push(self.0.exposure_file.id().to_string());
         data_root
     }
+
+    pub async fn read_blob(&self, view_key: &str, path: &str) -> Result<Vec<u8>, CtrlError> {
+        self.0.exposure.read_blob(self.0.exposure_file.id(), view_key, path).await
+    }
 }

@@ -60,7 +60,7 @@ pub fn CellMLCodegen() -> impl IntoView {
                     }.to_string();
                     match code.await {
                         Some(Ok(code)) => {
-                            let code = String::from_utf8(code.into_vec())
+                            let code = String::from_utf8(code)
                                 .map_err(|_| AppError::InternalServerError)?;
                             Ok(view! {
                                 <div><a href="../cellml_codegen">Back</a></div>

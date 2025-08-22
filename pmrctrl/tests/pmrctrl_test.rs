@@ -1690,11 +1690,22 @@ async fn test_resolve_exposure_file_view_read_blob() -> anyhow::Result<()> {
         .join("size");
     assert!(target.exists());
 
+    // TODO should check against `/` in view_key
+    let err = exposure.read_blob(1, "..", "1/iorw/data/size").await;
+    assert_eq!(err, Err(CtrlError::InvalidViewKey("..".to_string())));
+    assert_eq!(
+        exposure.read_blob(1, "iorw", "../work/size").await,
+        Err(CtrlError::EFVCBlobNotFound("../work/size".to_string())),
+    );
+
+    let e_size = exposure.read_blob(1, "iorw", "size").await?;
+    assert_eq!(e_size, "13".as_bytes().to_vec());
+
     let size = efvc.read_blob("size").await?;
-    assert_eq!(size, "13".as_bytes().into());
+    assert_eq!(size, "13".as_bytes().to_vec());
     // pardir tokens and absolute paths should all be ignored
-    assert_eq!(efvc.read_blob("../../size").await?, "13".as_bytes().into());
-    assert_eq!(efvc.read_blob("/../../size").await?, "13".as_bytes().into());
+    assert_eq!(efvc.read_blob("../../size").await?, "13".as_bytes().to_vec());
+    assert_eq!(efvc.read_blob("/../../size").await?, "13".as_bytes().to_vec());
 
     assert_eq!(
         efvc.read_blob("../1/size").await,

@@ -113,25 +113,11 @@ pub async fn exposure_file_data(
     session: Extension<AuthSession<ACPlatform>>,
     Path((e_id, ef_id, view_key, path)): Path<(i64, i64, String, String)>,
 ) -> Result<Vec<u8>, AppError> {
-    use std::path::{Component, Path};
-
     Session::from(session)
         .enforcer(format!("/exposure/{e_id}/"), "").await?;
     let ec = platform.get_exposure(e_id).await
         .map_err(|_| AppError::InternalServerError)?;
-    // TODO should really have the ExposureCtrl offer the base function
-    // of providing the blob to bypass the more work involving getting
-    // the other Ctrl types instantiated.
-    let mut target = ec.data_root();
-    target.push(ef_id.to_string());
-    target.push(view_key);
-    target.push("work");
-    Path::new(&path).components()
-	.for_each(|p| if let Component::Normal(s) = p {
-	    target.push(s)
-	});
-
-    Ok(tokio::fs::read(target).await
-        .map_err(|_| AppError::InternalServerError)?)
+    ec.read_blob(ef_id, &view_key, &path).await
+        .map_err(|_| AppError::NotFound)
 
 }

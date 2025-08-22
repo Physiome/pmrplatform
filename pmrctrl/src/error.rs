@@ -41,6 +41,9 @@ pub enum CtrlError {
     /// Path that isn't known under the associated resource
     #[error("unknown path: {0}")]
     UnknownPath(String),
+    /// Path that isn't known under the associated resource
+    #[error("invalid view_key: {0}")]
+    InvalidViewKey(String),
     /// Path is valid, but is not associated with a ExposureFileCtrl
     #[error("exposure file not found: {0}")]
     EFCNotFound(String),

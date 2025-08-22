@@ -20,7 +20,11 @@ use pmrrepo::handle::GitHandle;
 use std::{
     collections::HashMap,
     ops::Deref,
-    path::PathBuf,
+    path::{
+        Component,
+        Path,
+        PathBuf,
+    },
     sync::{
         Arc,
         OnceLock,
@@ -292,6 +296,24 @@ impl<'p> ExposureCtrl<'p> {
         let mut result = self.0.platform.data_root.join("exposure");
         result.push(self.0.exposure.id().to_string());
         result
+    }
+
+    pub async fn read_blob(&self, file_id: i64, view_key: &str, path: &str) -> Result<Vec<u8>, CtrlError> {
+        let mut target = self.data_root();
+        target.push(file_id.to_string());
+        // FIXME should check against `/` in view_key
+        if view_key == "." || view_key == ".." {
+            return Err(CtrlError::InvalidViewKey(view_key.to_string()))
+        }
+        target.push(view_key);
+        target.push("work");
+        Path::new(path).components()
+            .for_each(|p| if let Component::Normal(s) = p {
+                target.push(<&str>::try_from(s)
+                    .expect("this started as a valid str"))
+            });
+        tokio::fs::read(target).await
+            .map_err(|_| CtrlError::EFVCBlobNotFound(path.to_string()))
     }
 
     /// This ensures there is filesystem level access to the underlying
