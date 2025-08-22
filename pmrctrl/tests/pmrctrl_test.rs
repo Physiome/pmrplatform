@@ -60,7 +60,7 @@ use test_pmr::{
     ctrl::create_sqlite_platform,
 };
 
-#[async_std::test]
+#[tokio::test]
 async fn test_platform_create_exposure_list_files() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let exposure = platform.create_exposure(
@@ -86,7 +86,7 @@ async fn test_platform_create_exposure_list_files() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_exposurectrl_ensure_fs() -> anyhow::Result<()> {
     let (reporoot, platform) = create_sqlite_platform().await?;
     let exposure = platform.create_exposure(
@@ -120,7 +120,7 @@ async fn test_exposurectrl_ensure_fs() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_platform_create_exposure_map_files_fs() -> anyhow::Result<()> {
     let (reporoot, platform) = create_sqlite_platform().await?;
     let exposure = platform.create_exposure(
@@ -160,7 +160,7 @@ async fn test_platform_create_exposure_map_files_fs() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_platform_exposure_ctrl_attach_file() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let exposure = platform.create_exposure(
@@ -187,7 +187,7 @@ async fn test_platform_exposure_ctrl_attach_file() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_platform_exposure_ctrl_resolve_file() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let exposure = platform.create_exposure(
@@ -250,7 +250,7 @@ async fn test_platform_exposure_ctrl_resolve_file() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_platform_exposure_ctrl_resolve_view() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let vtts = make_example_view_task_templates(&platform).await?;
@@ -318,7 +318,7 @@ async fn test_platform_exposure_ctrl_resolve_view() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_platform_create_exposure_bad_commit() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let exposure = platform.create_exposure(
@@ -329,7 +329,7 @@ async fn test_platform_create_exposure_bad_commit() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_platform_create_exposure_file_missing() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let exposure = platform.create_exposure(
@@ -341,7 +341,7 @@ async fn test_platform_create_exposure_file_missing() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_platform_create_exposure_file_view_task() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let view_task_template = serde_json::from_str(r#"
@@ -666,7 +666,7 @@ async fn make_example_runnable_task_templates<'p>(
     Ok(result)
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let vtts = make_example_view_task_templates(&platform).await?;
@@ -746,7 +746,7 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
     Ok(())
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let mut exposure_basedir = PathBuf::new();
@@ -935,7 +935,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_platform_vtt_profile() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let vtts = make_example_view_task_templates(&platform).await?;
@@ -1189,7 +1189,7 @@ async fn test_platform_vtt_profile() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_exposure_file_view_task_sync() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let vtts = make_example_view_task_templates(&platform).await?;
@@ -1237,7 +1237,7 @@ async fn test_exposure_file_view_task_sync() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_exposure_file_view_task_run_view_key_success() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let vtts = make_example_view_task_templates(&platform).await?;
@@ -1285,7 +1285,7 @@ async fn test_exposure_file_view_task_run_view_key_success() -> anyhow::Result<(
     Ok(())
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_exposure_file_view_task_run_task_fail() -> anyhow::Result<()> {
     // TODO find out why there may be spurious FOREIGN KEY constraint
     // failure in this test - probably due to certain hard-coded ids.
@@ -1336,7 +1336,7 @@ async fn test_exposure_file_view_task_run_task_fail() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_exposure_file_view_task_run_task_stale() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let vtts = make_example_view_task_templates(&platform).await?;
@@ -1405,7 +1405,7 @@ async fn test_exposure_file_view_task_run_task_stale() -> anyhow::Result<()> {
 // this tests usage of registries that reference values secured against
 // end user access, such as the working_dir and actual location of the
 // underlying workspace.
-#[async_std::test]
+#[tokio::test]
 async fn test_hidden_registries() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let mut exposure_basedir = PathBuf::new();
@@ -1485,7 +1485,7 @@ async fn test_hidden_registries() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_task_executor_ctrl() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let vtts = make_example_runnable_task_templates(&platform).await?;
@@ -1528,7 +1528,7 @@ async fn test_task_executor_ctrl() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_task_executor_ctrl_queued_extra() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let vtts = make_example_runnable_task_templates(&platform).await?;
@@ -1577,7 +1577,7 @@ async fn test_task_executor_ctrl_queued_extra() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_task_executor_ctrl_task_failure_then_success() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let vtts = make_example_runnable_task_templates(&platform).await?;
@@ -1639,7 +1639,7 @@ async fn test_task_executor_ctrl_task_failure_then_success() -> anyhow::Result<(
     Ok(())
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_resolve_exposure_file_view_read_blob() -> anyhow::Result<()> {
     let (root, platform) = create_sqlite_platform().await?;
     let vtts = make_example_runnable_task_templates(&platform).await?;
@@ -1708,7 +1708,7 @@ async fn test_resolve_exposure_file_view_read_blob() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_multiple_exposure_files() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let exposure = platform.create_exposure(
@@ -1724,7 +1724,7 @@ async fn test_multiple_exposure_files() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_exposure_file_registry() -> anyhow::Result<()> {
     let (_reporoot, platform) = create_sqlite_platform().await?;
     let exposure = platform.create_exposure(

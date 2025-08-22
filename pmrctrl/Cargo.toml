@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 anyhow = { workspace = true }
-async-std = { workspace = true, features = ["attributes"] }
 async-trait = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 dotenvy = { workspace = true }
@@ -22,11 +21,10 @@ serde = { workspace = true, features = ["serde_derive"] }
 serde_json = { workspace = true }
 stderrlog = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["sync"] }
+tokio = { workspace = true, features = ["sync", "fs"] }
 
 [dev-dependencies]
 anyhow = { workspace = true }
-async-std = { workspace = true, features = ["attributes"] }
 tempfile = { workspace = true }
 test-binary = { workspace = true }
 test-pmr = { path = "../testing", features = ["platform"] }

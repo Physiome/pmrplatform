@@ -56,7 +56,7 @@ impl Platform {
 mod testing {
     use test_pmr::ctrl::create_blank_sqlite_platform;
 
-    #[async_std::test]
+    #[tokio::test]
     async fn test_smoke() -> anyhow::Result<()> {
         let (_, platform) = create_blank_sqlite_platform().await?;
         let view_task_template = serde_json::from_str(r#"

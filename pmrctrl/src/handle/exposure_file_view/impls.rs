@@ -101,7 +101,7 @@ impl<'p> ExposureFileViewCtrl<'p> {
                 target.push(<&str>::try_from(s)
                     .expect("this started as a valid str"))
             });
-        async_std::fs::read(target).await
+        tokio::fs::read(target).await
             .map(Vec::into_boxed_slice)
             .map_err(|_| CtrlError::EFVCBlobNotFound(path.to_string()))
     }
