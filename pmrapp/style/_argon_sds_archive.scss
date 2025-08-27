@@ -1,0 +1,9 @@
+div#ArgonSdsArchive {
+    height: 80vh;
+}
+
+div#ArgonSdsArchive > div {
+    height: 100%;
+    z-index: 1000;
+    position: relative;
+}

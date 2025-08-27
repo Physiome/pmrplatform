@@ -5,6 +5,7 @@ use std::str::FromStr;
 
 use crate::error::AppError;
 
+use argon_sds_archive::ArgonSdsArchive;
 use crate::view::cellml_codegen::CellMLCodegen;
 use crate::view::cellml_math::CellMLMath;
 use crate::view::cellml_metadata::CellMLMetadata;
@@ -13,6 +14,7 @@ use crate::view::view::View;
 
 #[derive(Debug, PartialEq)]
 pub enum EFView {
+    ArgonSdsArchive,
     CellMLCodegen,
     CellMLMath,
     CellMLMetadata,
@@ -25,6 +27,7 @@ impl FromStr for EFView {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
+            "argon_sds_archive" => Ok(EFView::ArgonSdsArchive),
             "cellml_codegen" => Ok(EFView::CellMLCodegen),
             "cellml_math" => Ok(EFView::CellMLMath),
             "cellml_metadata" => Ok(EFView::CellMLMetadata),
@@ -44,6 +47,7 @@ impl std::fmt::Display for EFView {
 #[component]
 pub fn ExposureFileView(view_key: EFView) -> impl IntoView {
     match view_key {
+        EFView::ArgonSdsArchive => view! { <ArgonSdsArchive/> }.into_any(),
         EFView::CellMLCodegen => view! { <CellMLCodegen/> }.into_any(),
         EFView::CellMLMath => view! { <CellMLMath/> }.into_any(),
         EFView::CellMLMetadata => view! { <CellMLMetadata/> }.into_any(),
@@ -52,6 +56,7 @@ pub fn ExposureFileView(view_key: EFView) -> impl IntoView {
     }
 }
 
+mod argon_sds_archive;
 mod cellml_codegen;
 mod cellml_math;
 mod cellml_metadata;
