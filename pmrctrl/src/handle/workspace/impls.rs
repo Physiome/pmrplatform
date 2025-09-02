@@ -5,7 +5,10 @@ use pmrcore::workspace::{
 use pmrrepo::handle::GitHandle;
 use std::fmt;
 
-use crate::platform::Platform;
+use crate::{
+    error::PlatformError,
+    platform::Platform,
+};
 
 use super::WorkspaceCtrl;
 
@@ -32,5 +35,12 @@ impl<'p> WorkspaceCtrl<'p> {
 
     pub fn workspace(&self) -> &WorkspaceRef<'p> {
         &self.workspace
+    }
+
+    pub async fn alias(&self) -> Result<Option<String>, PlatformError> {
+        Ok(self.platform.mc_platform.get_alias(
+            "workspace",
+            self.workspace.id(),
+        ).await?)
     }
 }

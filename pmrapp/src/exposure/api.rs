@@ -164,12 +164,23 @@ pub async fn resolve_exposure_path(
             // since the request path has a direct hit on file, doesn't
             // matter if ExposureFileCtrl found or not.
             let exposure = ec.exposure();
-            let path = format!(
-                "/workspace/{}/rawfile/{}/{}",
-                exposure.workspace_id(),
-                exposure.commit_id(),
-                path,
-            );
+            let path = platform.get_workspace(exposure.workspace_id()).await
+                .map_err(|_| AppError::InternalServerError)?
+                .alias()
+                .await
+                .map_err(|_| AppError::InternalServerError)?
+                .map_or_else(
+                    || format!(
+                        "/workspace/:/id/{}/rawfile/{}/{path}",
+                        exposure.workspace_id(),
+                        exposure.commit_id(),
+                    ),
+                    |alias| format!(
+                        "/workspace/{alias}/rawfile/{}/{path}",
+                        exposure.commit_id(),
+                    ),
+                );
+
             // Not using this built-in axum integration.
             // leptos_axum::redirect(path.as_str());
             //
