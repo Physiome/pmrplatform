@@ -28,7 +28,7 @@ pub fn ArgonSdsArchive() -> impl IntoView {
     );
 
     view! {
-        <Script id="scaffoldvuer" src="https://unpkg.com/vue@2.6.10"/>
+        <Script id="vue" src="https://unpkg.com/vue@2.6.10"/>
         // <Script id="scaffoldvuer" src="/pkg/scaffoldvuer-wc.umd.min.js"/>
         <Script id="scaffoldvuer" type_="module" src="https://unpkg.com/@abi-software/scaffoldvuer@1.6.2-wc/dist/scaffoldvuer-wc.js"/>
         <Link id="scaffoldvuer_stylesheet" href="https://unpkg.com/@abi-software/scaffoldvuer@1.6.2-wc/dist/style.css" rel="stylesheet"/>
