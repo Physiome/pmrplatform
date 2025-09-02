@@ -73,6 +73,13 @@ impl<'p> ExposureCtrl<'p> {
         Ok(alias)
     }
 
+    pub async fn alias(&self) -> Result<Option<String>, PlatformError> {
+        Ok(self.0.platform.mc_platform.get_alias(
+            "exposure",
+            self.0.exposure.id(),
+        ).await?)
+    }
+
     /// Create a file under the specified path.  This path must exist at
     /// the underlying Git repository.
     pub async fn create_file(

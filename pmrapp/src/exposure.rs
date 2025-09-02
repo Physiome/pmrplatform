@@ -305,6 +305,7 @@ pub fn Exposure() -> impl IntoView {
                 exposure_info.await.ok().map(|info| {
                     ExposureSourceItem {
                         commit_id: info.exposure.commit_id.clone(),
+                        workspace_alias: info.workspace_alias.clone(),
                         workspace_id: info.exposure.workspace_id.to_string(),
                         // TODO put in the workspace title.
                         workspace_title: info.workspace.description.clone().unwrap_or(

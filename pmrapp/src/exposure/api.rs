@@ -107,8 +107,10 @@ async fn resolve_id(id: Id) -> Result<i64, AppError> {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ExposureInfo {
     pub exposure: Exposure,
+    pub exposure_alias: Option<String>,
     pub files: Vec<(String, bool)>,
     pub workspace: Workspace,
+    pub workspace_alias: Option<String>,
 }
 
 #[server]
@@ -127,7 +129,18 @@ pub async fn get_exposure_info(id: Id) -> Result<EnforcedOk<ExposureInfo>, AppEr
         .await
         .map_err(|_| AppError::InternalServerError)?
         .into_inner();
-    Ok(policy_state.to_enforced_ok(ExposureInfo { exposure, files, workspace }))
+    let exposure_alias = ctrl.alias().await
+        .map_err(|_| AppError::InternalServerError)?;
+    let workspace_alias = platform.mc_platform.get_alias("workspace", exposure.workspace_id)
+        .await
+        .map_err(|_| AppError::InternalServerError)?;
+    Ok(policy_state.to_enforced_ok(ExposureInfo {
+        exposure,
+        files,
+        workspace,
+        exposure_alias,
+        workspace_alias,
+    }))
 }
 
 #[server]
