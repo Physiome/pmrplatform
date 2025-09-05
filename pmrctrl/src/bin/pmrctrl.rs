@@ -2,7 +2,6 @@ use clap::{
     Parser,
     Subcommand,
 };
-use pmrac::platform::Builder as ACPlatformBuilder;
 use pmrcore::{
     exposure::{
         traits::{
@@ -23,10 +22,9 @@ use pmrcore::{
         UserInputMap,
     },
 };
-use pmrctrl::platform::Platform;
-use pmrdb::{
-    Backend,
-    ConnectorOption,
+use pmrctrl::platform::{
+    Builder as PlatformBuilder,
+    Platform,
 };
 use pmrmodel::{
     model::{
@@ -53,16 +51,8 @@ use std::{
 struct Cli {
     #[command(subcommand)]
     command: Commands,
-    #[clap(long, value_name = "PMR_DATA_ROOT", env = "PMR_DATA_ROOT")]
-    pmr_data_root: String,
-    #[clap(long, value_name = "PMR_REPO_ROOT", env = "PMR_REPO_ROOT")]
-    pmr_repo_root: String,
-    #[clap(long, value_name = "PMRAC_DB_URL", env = "PMRAC_DB_URL")]
-    pmrac_db_url: String,
-    #[clap(long, value_name = "PMRAPP_DB_URL", env = "PMRAPP_DB_URL")]
-    pmrapp_db_url: String,
-    #[clap(long, value_name = "PMRTQS_DB_URL", env = "PMRTQS_DB_URL")]
-    pmrtqs_db_url: String,
+    #[clap(flatten)]
+    platform_builder: PlatformBuilder,
     #[clap(short = 'v', long = "verbose", action = clap::ArgAction::Count)]
     verbose: u8,
 }
@@ -254,34 +244,10 @@ async fn main() -> anyhow::Result<()> {
         .init()
         .unwrap();
 
-    let platform = Platform::new(
-        ACPlatformBuilder::new()
-            .boxed_ac_platform(
-                Backend::ac(
-                    ConnectorOption::from(&args.pmrac_db_url)
-                        .auto_create_db(true)
-                )
-                    .await
-                    .map_err(anyhow::Error::from_boxed)?,
-            )
-            .build(),
-        Backend::mc(
-            ConnectorOption::from(&args.pmrapp_db_url)
-                .auto_create_db(true)
-        )
-            .await
-            .map_err(anyhow::Error::from_boxed)?
-            .into(),
-        Backend::tm(
-            ConnectorOption::from(&args.pmrtqs_db_url)
-                .auto_create_db(true)
-        )
-            .await
-            .map_err(anyhow::Error::from_boxed)?
-            .into(),
-        fs::canonicalize(args.pmr_data_root)?,
-        fs::canonicalize(args.pmr_repo_root)?,
-    );
+    let platform = args.platform_builder
+        .build()
+        .await
+        .map_err(anyhow::Error::from_boxed)?;
 
     match args.command {
         Commands::Alias { cmd } => {

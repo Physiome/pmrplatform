@@ -84,38 +84,8 @@ async fn main() -> anyhow::Result<()> {
     let routes = generate_route_list(App);
     log::trace!("{routes:?}");
 
-    let platform = Platform::new(
-        ACPlatformBuilder::new()
-            .boxed_ac_platform(
-                Backend::ac(
-                    ConnectorOption::from(&args.pmrac_db_url)
-                        .auto_create_db(true)
-                )
-                    .await
-                    .map_err(anyhow::Error::from_boxed)?,
-            )
-            .pmrrbac_builder(
-                PmrRbacBuilder::new()
-                    .anonymous_reader(true)
-            )
-            .build(),
-        Backend::mc(
-            ConnectorOption::from(&args.pmrapp_db_url)
-                .auto_create_db(true)
-        )
-            .await
-            .map_err(anyhow::Error::from_boxed)?
-            .into(),
-        Backend::tm(
-            ConnectorOption::from(&args.pmrtqs_db_url)
-                .auto_create_db(true)
-        )
-            .await
-            .map_err(anyhow::Error::from_boxed)?
-            .into(),
-        fs::canonicalize(&args.pmr_data_root)?,
-        fs::canonicalize(&args.pmr_repo_root)?,
-    );
+    let platform = args.platform_builder.build().await
+        .map_err(anyhow::Error::from_boxed)?;
 
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store)

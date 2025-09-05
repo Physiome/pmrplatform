@@ -23,12 +23,6 @@ use tokio;
 struct Cli {
     #[clap(short = 'r', long = "runners", default_value = "8")]
     runners: usize,
-    #[clap(long, value_name = "PMR_DATA_ROOT", env = "PMR_DATA_ROOT")]
-    pmr_data_root: String,
-    #[clap(long, value_name = "PMR_REPO_ROOT", env = "PMR_REPO_ROOT")]
-    pmr_repo_root: String,
-    #[clap(long, value_name = "PMRAPP_DB_URL", env = "PMRAPP_DB_URL")]
-    pmrapp_db_url: String,
     #[clap(long, value_name = "PMRTQS_DB_URL", env = "PMRTQS_DB_URL")]
     pmrtqs_db_url: String,
     #[clap(short = 'v', long = "verbose", action = clap::ArgAction::Count)]
