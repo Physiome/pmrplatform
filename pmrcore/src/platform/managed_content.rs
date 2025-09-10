@@ -81,8 +81,8 @@ pub trait MCPlatform: WorkspaceBackend
     async fn create_aliased_workspace<'a>(
         &'a self,
         url: &str,
-        description: &str,
-        long_description: &str,
+        description: Option<&str>,
+        long_description: Option<&str>,
     ) -> Result<AliasEntry<WorkspaceRef<'a>>, BackendError> {
         let id = WorkspaceBackend::add_workspace(self, url, description, long_description).await?;
         let alias = GenAliasBackend::next(self).await?.to_string();

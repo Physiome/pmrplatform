@@ -82,6 +82,23 @@ use pmrcore::{
 
 mock! {
     pub Platform {
+        pub async fn workspace_add_workspace<'a>(
+            &'a self,
+            url: &'a str,
+            description: Option<&'a str>,
+            long_description: Option<&'a str>,
+        ) -> Result<i64, BackendError>;
+        pub async fn workspace_update_workspace<'a>(
+            &'a self,
+            id: i64,
+            description: Option<&'a str>,
+            long_description: Option<&'a str>,
+        ) -> Result<bool, BackendError>;
+        pub async fn workspace_list_workspaces(&self) -> Result<Workspaces, BackendError>;
+        pub async fn workspace_get_workspace_by_id(&self, id: i64) -> Result<Workspace, BackendError>;
+        pub async fn workspace_list_workspace_by_url(&self, url: &str) -> Result<Workspaces, BackendError>;
+        pub async fn workspace_list_workspace_by_ids(&self, ids: &[i64]) -> Result<Workspaces, BackendError>;
+
         pub async fn exposure_insert<'a>(
             &self,
             description: Option<&'a str>,
@@ -207,20 +224,6 @@ mock! {
     impl WorkspaceTagBackend for Platform {
         async fn index_workspace_tag(&self, workspace_id: i64, name: &str, commit_id: &str) -> Result<i64, BackendError>;
         async fn get_workspace_tags(&self, workspace_id: i64) -> Result<Vec<WorkspaceTag>, BackendError>;
-    }
-
-    #[async_trait]
-    impl WorkspaceBackend for Platform {
-        async fn add_workspace(
-            &self, url: &str, description: &str, long_description: &str
-        ) -> Result<i64, BackendError>;
-        async fn update_workspace(
-            &self, id: i64, description: &str, long_description: &str
-        ) -> Result<bool, BackendError>;
-        async fn list_workspaces(&self) -> Result<Workspaces, BackendError>;
-        async fn get_workspace_by_id(&self, id: i64) -> Result<Workspace, BackendError>;
-        async fn list_workspace_by_url(&self, url: &str) -> Result<Workspaces, BackendError>;
-        async fn list_workspace_by_ids(&self, ids: &[i64]) -> Result<Workspaces, BackendError>;
     }
 
     #[async_trait]
@@ -370,6 +373,32 @@ mock! {
 
     impl DefaultMCPlatform for Platform {}
     impl DefaultTMPlatform for Platform {}
+}
+
+#[async_trait]
+impl WorkspaceBackend for MockPlatform {
+    async fn add_workspace(
+        &self, url: &str, description: Option<&str>, long_description: Option<&str>,
+    ) -> Result<i64, BackendError> {
+        self.workspace_add_workspace(url, description, long_description).await
+    }
+    async fn update_workspace(
+        &self, id: i64, description: Option<&str>, long_description: Option<&str>,
+    ) -> Result<bool, BackendError> {
+        self.workspace_update_workspace(id, description, long_description).await
+    }
+    async fn list_workspaces(&self) -> Result<Workspaces, BackendError> {
+        self.workspace_list_workspaces().await
+    }
+    async fn get_workspace_by_id(&self, id: i64) -> Result<Workspace, BackendError> {
+        self.workspace_get_workspace_by_id(id).await
+    }
+    async fn list_workspace_by_url(&self, url: &str) -> Result<Workspaces, BackendError> {
+        self.workspace_list_workspace_by_url(url).await
+    }
+    async fn list_workspace_by_ids(&self, ids: &[i64]) -> Result<Workspaces, BackendError> {
+        self.workspace_list_workspace_by_ids(ids).await
+    }
 }
 
 #[async_trait]

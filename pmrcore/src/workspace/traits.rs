@@ -32,14 +32,14 @@ mod backend {
         async fn add_workspace(
             &self,
             url: &str,
-            description: &str,
-            long_description: &str,
+            description: Option<&str>,
+            long_description: Option<&str>,
         ) -> Result<i64, BackendError>;
         async fn update_workspace(
             &self,
             id: i64,
-            description: &str,
-            long_description: &str,
+            description: Option<&str>,
+            long_description: Option<&str>,
         ) -> Result<bool, BackendError>;
         async fn get_workspace_by_id(
             &self,

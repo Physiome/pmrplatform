@@ -104,7 +104,7 @@ mod testing {
     async fn smoke_sqlite() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // simple round-trip testing
         let mcp = Backend::mc("sqlite::memory:".into()).await?;
-        let workspace_id = mcp.add_workspace("title", "description", "").await?;
+        let workspace_id = mcp.add_workspace("title", Some("description"), None).await?;
         assert_eq!(mcp.get_workspace(workspace_id).await?.into_inner().id, workspace_id);
         Ok(())
     }

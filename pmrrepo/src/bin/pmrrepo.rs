@@ -44,15 +44,15 @@ struct Args {
 enum Command {
     Register {
         url: String,
-        description: String,
-        #[structopt(short = "l", long = "longdesc", default_value = "")]
-        long_description: String,
+        description: Option<String>,
+        #[structopt(short = "l", long = "longdesc")]
+        long_description: Option<String>,
     },
     Update {
         workspace_id: i64,
-        description: String,
-        #[structopt(short = "l", long = "longdesc", default_value = "")]
-        long_description: String,
+        description: Option<String>,
+        #[structopt(short = "l", long = "longdesc")]
+        long_description: Option<String>,
     },
     Sync {
         workspace_id: i64,
@@ -161,8 +161,8 @@ async fn main(args: Args) -> anyhow::Result<()> {
             let workspace_id = WorkspaceBackend::add_workspace(
                 platform,
                 &url,
-                &description,
-                &long_description,
+                description.as_deref(),
+                long_description.as_deref(),
             ).await?;
             println!("Registered workspace with id {}", workspace_id);
         }
@@ -171,8 +171,8 @@ async fn main(args: Args) -> anyhow::Result<()> {
             if WorkspaceBackend::update_workspace(
                 platform,
                 workspace_id,
-                &description,
-                &long_description,
+                description.as_deref(),
+                long_description.as_deref(),
             ).await? {
                 println!("Updated workspace id {}", workspace_id);
             }

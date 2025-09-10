@@ -24,7 +24,7 @@ async fn list_aliased_workspaces() -> anyhow::Result<()> {
             ("test_workspace_2".to_string(), 402),
             ("test_workspace_3".to_string(), 909),
         ]));
-    platform.expect_list_workspace_by_ids()
+    platform.expect_workspace_list_workspace_by_ids()
         .times(1)
         .withf(|ids| ids == &[201, 402, 909])
         .returning(move |_| Ok(serde_json::from_str::<Vec<Workspace>>(r#"[{

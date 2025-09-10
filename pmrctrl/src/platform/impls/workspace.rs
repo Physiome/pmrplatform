@@ -10,8 +10,8 @@ impl<'p> Platform {
     pub async fn create_workspace(
         &'p self,
         url: &str,
-        description: &str,
-        long_description: &str,
+        description: Option<&str>,
+        long_description: Option<&str>,
     ) -> Result<WorkspaceCtrl<'p>, PlatformError> {
         self.get_workspace(
             self.mc_platform.add_workspace(

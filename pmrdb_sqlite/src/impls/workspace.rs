@@ -18,8 +18,8 @@ use crate::{
 async fn add_workspace_sqlite(
     backend: &SqliteBackend,
     url: &str,
-    description: &str,
-    long_description: &str,
+    description: Option<&str>,
+    long_description: Option<&str>,
 ) -> Result<i64, BackendError> {
     let ts = Utc::now().timestamp();
     let id = sqlx::query!(
@@ -49,8 +49,8 @@ VALUES ( ?1, ?2, ?3, ?4, ?5 )
 async fn update_workspace_sqlite(
     backend: &SqliteBackend,
     id: i64,
-    description: &str,
-    long_description: &str,
+    description: Option<&str>,
+    long_description: Option<&str>,
 ) -> Result<bool, BackendError> {
     let rows_affected = sqlx::query!(r#"
 UPDATE
@@ -213,8 +213,8 @@ impl WorkspaceBackend for SqliteBackend {
     async fn add_workspace(
         &self,
         url: &str,
-        description: &str,
-        long_description: &str,
+        description: Option<&str>,
+        long_description: Option<&str>,
     ) -> Result<i64, BackendError> {
         add_workspace_sqlite(
             &self,
@@ -227,8 +227,8 @@ impl WorkspaceBackend for SqliteBackend {
     async fn update_workspace(
         &self,
         id: i64,
-        description: &str,
-        long_description: &str,
+        description: Option<&str>,
+        long_description: Option<&str>,
     ) -> Result<bool, BackendError> {
         update_workspace_sqlite(
             &self,
@@ -282,8 +282,8 @@ pub(crate) mod testing {
     ) -> anyhow::Result<i64> {
         Ok(backend.add_workspace(
             "https://models.example.com".into(),
-            "".into(),
-            "".into(),
+            Some("".into()),
+            Some("".into()),
         ).await?)
     }
 
@@ -355,7 +355,7 @@ pub(crate) mod testing {
         let id = make_example_workspace(&backend)
             .await?;
         let wb: &dyn WorkspaceBackend = &backend;
-        assert!(wb.update_workspace(id, "title", "description").await?);
+        assert!(wb.update_workspace(id, Some("title"), Some("description")).await?);
 
         let workspace = wb.get_workspace_by_id(id).await?;
         assert_eq!(workspace, Workspace {

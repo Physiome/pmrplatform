@@ -93,7 +93,7 @@ mod tests {
         url: &(impl std::fmt::Display + Sync + ?Sized),
     ) {
         let url = url.to_string();
-        platform.expect_get_workspace_by_id()
+        platform.expect_workspace_get_workspace_by_id()
             .times(1)
             .with(eq(id))
             .returning(move |_| Ok(Workspace {
@@ -325,7 +325,7 @@ mod tests {
         ) = test_pmr::repo::create_repodata();
 
         let mut platform = MockPlatform::new();
-        platform.expect_list_workspace_by_url()
+        platform.expect_workspace_list_workspace_by_url()
             .times(1)
             .with(eq("http://models.example.com/w/import2"))
             .returning(|_| Ok([Workspace {

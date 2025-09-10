@@ -139,8 +139,8 @@ pub async fn get_log_info(
 #[server]
 pub async fn create_workspace(
     uri: String,
-    description: String,
-    long_description: String,
+    description: Option<String>,
+    long_description: Option<String>,
 ) -> Result<(), AppError> {
     let policy_state = session().await?
         .enforcer_and_policy_state("/workspace/", "create").await?;
@@ -148,8 +148,8 @@ pub async fn create_workspace(
     // First create the workspace
     let entry = platform.mc_platform.create_aliased_workspace(
         &uri,
-        &description,
-        &long_description,
+        description.as_deref(),
+        long_description.as_deref(),
     )
         .await
         .map_err(|_| AppError::InternalServerError)?;
