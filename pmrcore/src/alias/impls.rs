@@ -161,3 +161,17 @@ impl<T> AliasEntry<T> {
         }
     }
 }
+
+impl<T: PartialEq> PartialOrd for AliasEntry<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.alias.partial_cmp(&other.alias)
+    }
+}
+
+impl<T: PartialEq> Ord for AliasEntry<T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.alias.cmp(&other.alias)
+    }
+}
+
+impl<T: PartialEq> Eq for AliasEntry<T> {}

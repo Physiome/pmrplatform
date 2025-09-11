@@ -52,6 +52,7 @@ use crate::{
         workspace_root_policy_state,
         CreateWorkspace,
         Synchronize,
+        Workspaces,
     },
     app::{
         portlet::{
@@ -109,27 +110,72 @@ fn WorkspaceViewRoutes() -> impl MatchNestedRoutes + Clone {
 
 #[component]
 pub fn WorkspaceRoot() -> impl IntoView {
+    let account_ctx = expect_context::<AccountCtx>();
     #[cfg(not(feature = "ssr"))]
     {
-        let account_ctx = expect_context::<AccountCtx>();
-        on_cleanup({
-            move || account_ctx.cleanup_policy_state()
-        });
+        let account_ctx = account_ctx.clone();
+        on_cleanup(move || account_ctx.cleanup_policy_state());
     }
+
+    let workspaces: Resource<Result<Workspaces, AppError>> = Resource::new(
+        move || (),
+        move |_| {
+            let set_ps = account_ctx.policy_state.write_only();
+            async move {
+                // The main workspace root will provide the aliased workspaces
+                // as a resource, with the notify version done.
+                provide_context(set_ps);
+                let result = list_aliased_workspaces()
+                    .await
+                    .map(EnforcedOk::notify_into_inner);
+                // ensure the `SsrWriteSignal` is dropped...
+                let _ = take_context::<SsrWriteSignal<Option<PolicyState>>>();
+                // ... before returning via `?`.
+                let mut result = result?;
+                result.sort_unstable_by(|a, b| a.entity.description
+                    .as_deref()
+                    .map(str::to_lowercase)
+                    .cmp(&b.entity.description.as_deref().map(str::to_lowercase)));
+                Ok(result)
+            }
+        },
+    );
 
     view! {
         <Title text="Workspace — Physiome Model Repository"/>
         <Provider value=Root::Aliased("/workspace/")>
-            <Outlet/>
+            <Provider value=workspaces>
+                <Outlet/>
+            </Provider>
         </Provider>
     }
 }
 
 #[component]
 pub fn WorkspaceIdRoot() -> impl IntoView {
+    let account_ctx = expect_context::<AccountCtx>();
+    // TODO this should be able to reuse the aliased one to convert into
+    // standard to potentially save on an additional call, but this isn't
+    // typically used so the small bit of bandwidth inefficiency will have
+    // to be tolerated for now.
+    let workspaces: Resource<Result<Workspaces, AppError>> = Resource::new(
+        move || (),
+        move |_| {
+            async move {
+                // The id workspace root will provide the standard list of
+                // workspaces as a resource, without the notify version done.
+                list_workspaces()
+                    .await
+                    .map(EnforcedOk::into_inner)
+            }
+        },
+    );
+
     view! {
         <Provider value=Root::Id("/workspace/:/id/")>
-            <Outlet/>
+            <Provider value=workspaces>
+                <Outlet/>
+            </Provider>
         </Provider>
     }
 }
@@ -179,34 +225,8 @@ fn workspace_root_page_ctx() -> impl IntoView {
 
 #[component]
 pub fn WorkspaceListing() -> impl IntoView {
-    let account_ctx = expect_context::<AccountCtx>();
     let root = expect_context::<Root>();
-
-    // TODO when appropriate, consider moving this to the root as a context,
-    // so that the policy_state may potentially be shared, but this can also
-    // cause a conflict given the design is that there's really only one
-    // policy active at a time.  That also require the policy to be scoped
-    // or named much like content actions.
-    let workspaces = Resource::new(
-        move || (),
-        move |_| {
-            let set_ps = account_ctx.policy_state.write_only();
-            async move {
-                provide_context(set_ps);
-                let result = match root {
-                    Root::Id(_) => list_workspaces().await,
-                    Root::Aliased(_) => list_aliased_workspaces().await,
-                };
-                match result {
-                    Ok(ref result) => logging::log!("loaded {} workspace entries", result.inner.len()),
-                    Err(_) => logging::log!("error loading workspaces"),
-                };
-                let result = result.map(EnforcedOk::notify_into_inner);
-                let _ = take_context::<SsrWriteSignal<Option<PolicyState>>>();
-                result
-            }
-        },
-    );
+    let workspaces = expect_context::<Resource<Result<Workspaces, AppError>>>();
 
     let workspace_listing = move || {
         Suspend::new(async move {
