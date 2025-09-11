@@ -55,6 +55,10 @@ impl<T> EnforcedOk<T> {
         }
         self.inner
     }
+
+    pub fn into_inner(self) -> T {
+        self.inner
+    }
 }
 
 impl<T> From<T> for EnforcedOk<T> {
