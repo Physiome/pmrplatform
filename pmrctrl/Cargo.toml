@@ -15,6 +15,7 @@ pmrac = { workspace = true }
 pmrcore = { workspace = true }
 pmrdb = { workspace = true }
 pmrmodel = { workspace = true }
+pmrrbac = { workspace = true }
 pmrrepo = { workspace = true }
 pmrtqs = { workspace = true }
 serde = { workspace = true, features = ["serde_derive"] }
