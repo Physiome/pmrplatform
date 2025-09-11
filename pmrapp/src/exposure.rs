@@ -185,7 +185,7 @@ pub fn ExposureListing() -> impl IntoView {
         move |_| {
             let set_ps = account_ctx.policy_state.write_only();
             async move {
-                // required by notify_into which will take it.
+                // required by notify_into_inner which will take it.
                 provide_context(set_ps);
                 let result = match root {
                     Root::Id(_) => list().await,
@@ -195,7 +195,7 @@ pub fn ExposureListing() -> impl IntoView {
                     Ok(ref result) => logging::log!("{}", result.inner.len()),
                     Err(_) => logging::log!("error loading exposures"),
                 };
-                let result = result.map(EnforcedOk::notify_into);
+                let result = result.map(EnforcedOk::notify_into_inner);
                 // this ensures if not taken, this will take it and effect the
                 // drop to release the lock.
                 let _ = take_context::<SsrWriteSignal<Option<PolicyState>>>();
@@ -283,7 +283,7 @@ pub fn Exposure() -> impl IntoView {
                         let id = root.build_id(id)?;
                         get_exposure_info(id)
                             .await
-                            .map(EnforcedOk::notify_into)
+                            .map(EnforcedOk::notify_into_inner)
                             .map_err(AppError::from)
                     }
                     _ => Err(AppError::NotFound),
@@ -446,7 +446,7 @@ pub fn ExposureFile() -> impl IntoView {
             match (exposure_info.await, p) {
                 (Ok(info), Ok(Some(path))) => resolve_exposure_path(info.exposure.id, path.clone())
                     .await
-                    .map(EnforcedOk::notify_into)
+                    .map(EnforcedOk::notify_into_inner)
                     .map_err(|_| AppError::NotFound),
                 _ => Err(AppError::InternalServerError),
             }
@@ -735,7 +735,7 @@ pub fn Wizard() -> impl IntoView {
                     let id = root.build_id(id)?;
                     wizard(id)
                         .await
-                        .map(EnforcedOk::notify_into)
+                        .map(EnforcedOk::notify_into_inner)
                         .map_err(AppError::from)
                 }
                 _ => Err(AppError::NotFound),

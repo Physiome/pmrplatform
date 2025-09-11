@@ -101,7 +101,7 @@ impl Session {
             let ps = PolicyState::new(Some(policy), state);
             // This should be redundant now as handling of `EnforcedOk` should deal with this.
             // if let Some(ctx) = use_context::<AccountCtx>() {
-            //     // leptos::logging::log!("sfn EnforcedOk::notify_into calling set_ps with {ps:?}");
+            //     // leptos::logging::log!("sfn EnforcedOk::notify_into_inner calling set_ps with {ps:?}");
             //     ctx.set_ps.set(ps.clone());
             // }
             Ok(ps)

@@ -201,7 +201,7 @@ pub fn WorkspaceListing() -> impl IntoView {
                     Ok(ref result) => logging::log!("loaded {} workspace entries", result.inner.len()),
                     Err(_) => logging::log!("error loading workspaces"),
                 };
-                let result = result.map(EnforcedOk::notify_into);
+                let result = result.map(EnforcedOk::notify_into_inner);
                 let _ = take_context::<SsrWriteSignal<Option<PolicyState>>>();
                 result
             }
@@ -326,7 +326,7 @@ pub fn Workspace() -> impl IntoView {
                         let id = root.build_id(id)?;
                         get_workspace_info(id, None, None)
                             .await
-                            .map(EnforcedOk::notify_into)
+                            .map(EnforcedOk::notify_into_inner)
                             .map_err(AppError::from)
                     }
                 };
@@ -665,7 +665,7 @@ pub fn WorkspaceCommitPath() -> impl IntoView {
                 (Ok(Some(id)), Ok((commit, path))) => {
                     let id = root.build_id(id)?;
                     get_workspace_info(id, commit, path).await
-                        .map(EnforcedOk::notify_into)
+                        .map(EnforcedOk::notify_into_inner)
                         .map_err(AppError::from)
                 }
                 _ => Err(AppError::InternalServerError),
@@ -716,7 +716,7 @@ pub fn WorkspaceLog() -> impl IntoView {
                     let id = root.build_id(id)?;
                     get_log_info(id)
                         .await
-                        .map(EnforcedOk::notify_into)
+                        .map(EnforcedOk::notify_into_inner)
                         .map_err(AppError::from)
                 }
             }
@@ -798,7 +798,7 @@ fn WorkspaceCreateExposure() -> impl IntoView {
                 (Ok(Some(id)), Ok(commit)) => {
                     let id = root.build_id(id)?;
                     get_workspace_info(id, commit, None).await
-                        .map(EnforcedOk::notify_into)
+                        .map(EnforcedOk::notify_into_inner)
                         .map_err(AppError::from)
                 }
                 _ => Err(AppError::InternalServerError),

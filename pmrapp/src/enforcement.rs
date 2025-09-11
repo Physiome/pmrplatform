@@ -46,9 +46,9 @@ impl<T> EnforcedOk<T> {
         Self { inner, ps }
     }
 
-    pub fn notify_into(self) -> T {
+    pub fn notify_into_inner(self) -> T {
         if let Some(ctx) = take_context::<SsrWriteSignal<Option<PolicyState>>>() {
-            leptos::logging::warn!("EnforcedOk::notify_into calling set_ps with {:?}", &self.ps);
+            leptos::logging::warn!("EnforcedOk::notify_into_inner calling set_ps with {:?}", &self.ps);
             ctx.set(Some(self.ps));
         } else {
             leptos::logging::warn!("SsrWriteSignal<Option<PolicyState>> not provided as a context to be taken");
