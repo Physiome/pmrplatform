@@ -1,6 +1,7 @@
 use clap::{
     Parser,
     Subcommand,
+    ValueEnum,
 };
 use pmrcore::{
     exposure::{
@@ -43,9 +44,61 @@ use std::{
         stdin,
         BufReader,
     },
+    sync::OnceLock,
 };
 
+#[derive(Clone, Debug, ValueEnum)]
+pub enum SerdeKind {
+    Json,
+    Toml,
+}
 
+mod display {
+    use std::fmt::{Display, Formatter, Result};
+    use super::SerdeKind;
+
+    impl Display for SerdeKind {
+        fn fmt(&self, f: &mut Formatter) -> Result {
+            match self {
+                Self::Json => "json".fmt(f),
+                Self::Toml => "toml".fmt(f),
+            }
+        }
+    }
+}
+
+impl SerdeKind {
+    pub fn to_string<T>(&self, item: &T) -> Result<String, anyhow::Error>
+    where
+        T: serde::Serialize,
+    {
+        Ok(match self {
+            Self::Json => serde_json::to_string_pretty(item)?,
+            Self::Toml => toml::to_string(item)?,
+        })
+    }
+
+    pub fn from_reader<R, T>(&self, rdr: R) -> Result<T, anyhow::Error>
+    where
+        R: std::io::Read,
+        T: serde::de::DeserializeOwned,
+    {
+        Ok(match self {
+            Self::Json => serde_json::from_reader(rdr)?,
+            Self::Toml => toml::from_slice(&rdr.bytes().collect::<Result<Vec<_>, _>>()?)?,
+        })
+    }
+}
+
+#[derive(Debug, Parser)]
+struct Config {
+    #[clap(short = 'o', long = "format", default_value_t = SerdeKind::Json)]
+    serde_kind: SerdeKind,
+    #[clap(short = 'v', long = "verbose", action = clap::ArgAction::Count)]
+    verbose: u8,
+}
+
+static CONF: OnceLock<Config> = OnceLock::new();
 
 #[derive(Debug, Parser)]
 struct Cli {
@@ -53,8 +106,8 @@ struct Cli {
     command: Commands,
     #[clap(flatten)]
     platform_builder: PlatformBuilder,
-    #[clap(short = 'v', long = "verbose", action = clap::ArgAction::Count)]
-    verbose: u8,
+    #[clap(flatten)]
+    config: Config,
 }
 
 
@@ -239,7 +292,7 @@ async fn main() -> anyhow::Result<()> {
         .module(module_path!())
         .module("pmrdb")
         .module("pmrtqs")
-        .verbosity((args.verbose as usize) + 1)
+        .verbosity((args.config.verbose as usize) + 1)
         .timestamp(stderrlog::Timestamp::Second)
         .init()
         .unwrap();
@@ -248,6 +301,8 @@ async fn main() -> anyhow::Result<()> {
         .build()
         .await
         .map_err(anyhow::Error::from_boxed)?;
+
+    let _ = CONF.set(args.config);
 
     match args.command {
         Commands::Alias { cmd } => {
@@ -353,6 +408,7 @@ async fn parse_profile<'p>(
     platform: &'p Platform,
     arg: ProfileCmd,
 ) -> anyhow::Result<()> {
+    let conf = CONF.get().expect("config is set by main");
     match arg {
         ProfileCmd::Create { title, description } => {
             let id = ProfileBackend::insert_profile(
@@ -378,9 +434,9 @@ async fn parse_profile<'p>(
                 let cache = ChoiceRegistryCache::from(
                     &registry as &dyn ChoiceRegistry<_>);
                 let uvpr: UserViewProfileRef = (&result, &cache).into();
-                serde_json::to_string_pretty(&uvpr)?
+                conf.serde_kind.to_string(&uvpr)?
             } else {
-                serde_json::to_string_pretty(&result)?
+                conf.serde_kind.to_string(&result)?
             };
             println!("{output}");
         },
@@ -431,12 +487,13 @@ async fn parse_vtt<'p>(
     platform: &'p Platform,
     arg: VttCmd,
 ) -> anyhow::Result<()> {
+    let conf = CONF.get().expect("config is set by main");
     match arg {
         VttCmd::Import { input } => {
             let id = platform.adds_view_task_template(
                 match input {
-                    Some(path) => serde_json::from_reader(BufReader::new(fs::File::open(path)?))?,
-                    None => serde_json::from_reader(BufReader::new(stdin()))?,
+                    Some(path) => conf.serde_kind.from_reader(BufReader::new(fs::File::open(path)?))?,
+                    None => conf.serde_kind.from_reader(BufReader::new(stdin()))?,
                 }
             ).await?;
             println!("imported ViewTaskTemplate {id}");
@@ -455,7 +512,7 @@ async fn parse_vtt<'p>(
         }
         VttCmd::Export { id } => {
             let result = platform.get_view_task_template(id).await?;
-            let output = serde_json::to_string_pretty(&result)?;
+            let output = conf.serde_kind.to_string(&result)?;
             println!("{output}");
         }
     }
@@ -496,6 +553,7 @@ async fn parse_exposure_path<'p>(
 ) -> anyhow::Result<()> {
     let ec = platform.get_exposure(exposure_id).await?;
     let efc = ec.ctrl_path(path).await?;
+    let conf = CONF.get().expect("config is set by main");
     match arg {
         ExposurePathCmd::Assign { profile_id } => {
             let exposure_file_id = efc.exposure_file().id();
@@ -506,7 +564,7 @@ async fn parse_exposure_path<'p>(
         ExposurePathCmd::Prompts => {
             let efvttsc = efc.build_vttc().await?;
             let upgr = efvttsc.create_user_prompt_groups()?;
-            let output = serde_json::to_string_pretty(&upgr)?;
+            let output = conf.serde_kind.to_string(&upgr)?;
             println!("{output}");
         },
         ExposurePathCmd::Answer { arg_id, answer } => {
@@ -583,7 +641,7 @@ async fn parse_exposure_path<'p>(
                 efc.process_vttc_tasks(vttc_tasks).await?;
                 println!("{len} task(s) queued");
             } else {
-                let output = serde_json::to_string_pretty(&vttc_tasks)?;
+                let output = conf.serde_kind.to_string(&vttc_tasks)?;
                 println!("The generated VTTCTasks:");
                 println!("{output}");
             };
