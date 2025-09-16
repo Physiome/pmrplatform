@@ -214,9 +214,12 @@ enum ProfileCmd {
         title: String,
         description: String,
     },
+    Import {
+        input: Option<std::path::PathBuf>,
+    },
     #[command(arg_required_else_help = true)]
-    View {
-        #[clap(long, short='p', action)]
+    Export {
+        #[clap(long, short='x', action)]
         as_prompts: bool,
         profile_id: i64,
     },
@@ -427,7 +430,16 @@ async fn parse_profile<'p>(
             ).await?;
             println!("updated profile {id}");
         },
-        ProfileCmd::View { as_prompts, profile_id } => {
+        ProfileCmd::Import { input } => {
+            let id = platform.add_view_task_template_profile(
+                match input {
+                    Some(path) => conf.serde_kind.from_reader(BufReader::new(fs::File::open(path)?))?,
+                    None => conf.serde_kind.from_reader(BufReader::new(stdin()))?,
+                }
+            ).await?;
+            println!("imported ViewTaskTemplateProfile {id}");
+        },
+        ProfileCmd::Export { as_prompts, profile_id } => {
             let result = platform.get_view_task_template_profile(profile_id).await?;
             let output = if as_prompts {
                 let registry = PreparedChoiceRegistry::new();

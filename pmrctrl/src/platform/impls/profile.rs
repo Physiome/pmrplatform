@@ -5,6 +5,7 @@ use pmrcore::{
         ViewTaskTemplateProfile,
         traits::{
             ProfileBackend,
+            ProfileViewsBackend,
             ViewTaskTemplateProfileBackend,
         },
     },
@@ -24,10 +25,24 @@ impl Platform {
         ).await?)
     }
 
-    pub async fn create_view_profile(
+    pub async fn add_view_task_template_profile(
         &self,
-    ) -> Result<(), PlatformError> {
-        todo!()
+        vttp: ViewTaskTemplateProfile,
+    ) -> Result<i64, PlatformError> {
+        let profile_id = ProfileBackend::insert_profile(
+            self.mc_platform.as_ref(),
+            &vttp.profile.title,
+            &vttp.profile.description,
+        ).await?;
+        for view_task_template in vttp.view_task_templates.into_iter() {
+            let vtt_id = self.adds_view_task_template(view_task_template).await?;
+            ProfileViewsBackend::insert_profile_views(
+                self.mc_platform.as_ref(),
+                profile_id,
+                vtt_id,
+            ).await?;
+        }
+        Ok(profile_id)
     }
 
     pub async fn get_view_task_template_profile(

@@ -38,6 +38,15 @@ impl DerefMut for ViewTaskTemplates {
     }
 }
 
+impl IntoIterator for ViewTaskTemplates {
+    type Item = ViewTaskTemplate;
+    type IntoIter = std::vec::IntoIter<ViewTaskTemplate>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 impl From<Vec<UserPromptGroup>> for UserPromptGroups {
     fn from(args: Vec<UserPromptGroup>) -> Self {
         Self(args)
