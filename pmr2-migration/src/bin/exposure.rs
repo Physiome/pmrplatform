@@ -5,7 +5,10 @@ use std::{
     path::PathBuf,
 };
 use clap::{Parser, Subcommand};
-use pmrcore::ac::workflow::state::State;
+use pmrcore::{
+    ac::workflow::state::State,
+    exposure::traits::Exposure,
+};
 use pmrctrl::platform::{Builder, Platform};
 use serde::{Deserialize, Serialize};
 
@@ -156,10 +159,10 @@ async fn process_wizard_export(
     platform: &Platform,
     exposure_path: String,
     wizard_export: WizardExport,
-    state: State,
+    workflow_state: State,
 ) -> anyhow::Result<()> {
     let mut top = None::<Top>;
-    let mut files = Vec::<File>::new();
+    let mut files = Vec::<(String, File)>::new();
 
     for EntryRow(target, record) in wizard_export.0.into_iter() {
         match record {
@@ -167,7 +170,7 @@ async fn process_wizard_export(
                 top.replace(t);
             }
             Record::File(ef) => {
-                files.push(ef);
+                files.push((target, ef));
             }
             Record::Folder(_) => (),
         }
@@ -190,16 +193,27 @@ async fn process_wizard_export(
     let workspace_id = platform.mc_platform
         .resolve_alias("workspace", &alias)
         .await?
-        .ok_or(ErrorMsg(format!("workspace alias {alias} not found ({workspace:?} not imported?)")))?;
+        .ok_or(ErrorMsg(format!("workspace under alias {alias} not found ({workspace:?} not imported?)")))?;
 
-    // let ctrl = platform.create_exposure(
-    //     workspace_id,
-    //     &commit_id,
-    // ).await?;
+    let ec = platform.create_exposure(
+        workspace_id,
+        &commit_id,
+    ).await?;
+    let exposure_id = ec.exposure().id();
+    platform.ac_platform.set_wf_state_for_res(
+        &format!("/exposure/{exposure_id}/"),
+        workflow_state,
+    ).await?;
+
+    for (path, file) in files.into_iter() {
+        let efc = ec.create_file(&path).await?;
+        // let vtt_profile = platform.get_view_task_template_profile(profile_id).await?;
+        // efc.set_vttprofile(vtt_profile).await?
+    }
+
 
     // TODO create the files and views
     // TODO alias for the exposure itself
-    // TODO set workflow state
 
     Ok(())
 }

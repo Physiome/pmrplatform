@@ -84,7 +84,7 @@ impl<'p> ExposureCtrl<'p> {
     /// the underlying Git repository.
     pub async fn create_file(
         &'p self,
-        workspace_file_path: &'p str,
+        workspace_file_path: &str,
     ) -> Result<
         ExposureFileCtrl<'p>,
         PlatformError
