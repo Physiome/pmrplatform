@@ -446,7 +446,7 @@ pub fn ExposureFile() -> impl IntoView {
             match (exposure_info.await, p) {
                 (Ok(info), Ok(Some(path))) => resolve_exposure_path(info.exposure.id, path.clone())
                     .await
-                    .map(EnforcedOk::notify_into_inner)
+                    .map(EnforcedOk::into_inner)
                     .map_err(|_| AppError::NotFound),
                 _ => Err(AppError::InternalServerError),
             }
@@ -735,7 +735,7 @@ pub fn Wizard() -> impl IntoView {
                     let id = root.build_id(id)?;
                     wizard(id)
                         .await
-                        .map(EnforcedOk::notify_into_inner)
+                        .map(EnforcedOk::into_inner)
                         .map_err(AppError::from)
                 }
                 _ => Err(AppError::NotFound),
