@@ -455,10 +455,15 @@ impl<'p> ExposureCtrl<'p> {
         let mut result = Vec::new();
         for (path, value) in efvttsc.iter() {
             let item = if let Some(efvttsc) = value {
-                Some((
-                    efvttsc.exposure_file_ctrl().profile().await?,
-                    efvttsc.create_user_prompt_groups()?,
-                ))
+                if let Some(profile) = efvttsc.exposure_file_ctrl().profile().await? {
+                    Some((
+                        profile,
+                        efvttsc.create_user_prompt_groups()?,
+                    ))
+                } else {
+                    // lack of profile implies lack of prompts.
+                    None
+                }
             } else {
                 None
             };

@@ -242,7 +242,7 @@ impl<'p> ExposureFileCtrl<'p> {
         Ok(results)
     }
 
-    pub async fn profile(&self) -> Result<ExposureFileProfile, PlatformError> {
+    pub async fn profile(&self) -> Result<Option<ExposureFileProfile>, PlatformError> {
         Ok(ExposureFileProfileBackend::get_ef_profile(
             self.0.platform.mc_platform.as_ref(),
             self.0.exposure_file.id(),

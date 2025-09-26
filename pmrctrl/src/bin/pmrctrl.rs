@@ -611,52 +611,60 @@ async fn parse_exposure_path<'p>(
             let efvttsc = efc.build_vttc().await?;
             let uargs = UserArgs::from(&efvttsc.create_user_arg_refs()?);
 
-            let profile = ExposureFileProfileBackend::get_ef_profile(
+            if let Some(profile) = ExposureFileProfileBackend::get_ef_profile(
                 platform.mc_platform.as_ref(),
                 id,
-            ).await?;
-            let cache = efvttsc.get_registry_cache()?;
+            ).await? {
+                let cache = efvttsc.get_registry_cache()?;
 
-            for user_arg in uargs.iter() {
-                let arg = efvttsc.get_arg(&user_arg.id)
-                    .expect("the arg that formed this user_arg be present");
-                let prompt = &user_arg.prompt;
-                let answer = profile.user_input.get(&user_arg.id);
-                let builder = TaskArgBuilder::try_from((
-                    answer.map(|s| s.as_ref()),
-                    arg,
-                    cache,
-                ));
+                for user_arg in uargs.iter() {
+                    let arg = efvttsc.get_arg(&user_arg.id)
+                        .expect("the arg that formed this user_arg be present");
+                    let prompt = &user_arg.prompt;
+                    let answer = profile.user_input.get(&user_arg.id);
+                    let builder = TaskArgBuilder::try_from((
+                        answer.map(|s| s.as_ref()),
+                        arg,
+                        cache,
+                    ));
 
-                println!("Q: {prompt}");
-                println!("A: {answer:?}");
+                    println!("Q: {prompt}");
+                    println!("A: {answer:?}");
 
-                if let Some(error) = builder.map_err(|e| e.to_string()).err() {
-                    println!("Error: {error}");
+                    if let Some(error) = builder.map_err(|e| e.to_string()).err() {
+                        println!("Error: {error}");
+                    }
+
+                    println!("");
                 }
-
-                println!("");
+            } else {
+                let path = efc.exposure_file().workspace_file_path();
+                println!("no profile assigned for exposure {exposure_id} file {path}");
             }
         },
         ExposurePathCmd::Task { submit } => {
             let id = efc.exposure_file().id();
             let efvttsc = efc.build_vttc().await?;
-            let profile = ExposureFileProfileBackend::get_ef_profile(
+            if let Some(profile) = ExposureFileProfileBackend::get_ef_profile(
                 platform.mc_platform.as_ref(),
                 id,
-            ).await?;
-            let vttc_tasks = efvttsc.create_tasks_from_input(
-                &profile.user_input
-            )?;
-            if submit {
-                let len = vttc_tasks.len();
-                efc.process_vttc_tasks(vttc_tasks).await?;
-                println!("{len} task(s) queued");
+            ).await? {
+                let vttc_tasks = efvttsc.create_tasks_from_input(
+                    &profile.user_input
+                )?;
+                if submit {
+                    let len = vttc_tasks.len();
+                    efc.process_vttc_tasks(vttc_tasks).await?;
+                    println!("{len} task(s) queued");
+                } else {
+                    let output = conf.serde_kind.to_string(&vttc_tasks)?;
+                    println!("The generated VTTCTasks:");
+                    println!("{output}");
+                };
             } else {
-                let output = conf.serde_kind.to_string(&vttc_tasks)?;
-                println!("The generated VTTCTasks:");
-                println!("{output}");
-            };
+                let path = efc.exposure_file().workspace_file_path();
+                println!("no profile assigned for exposure {exposure_id} file {path}");
+            }
         },
         ExposurePathCmd::Views => {
             let ef = efc.exposure_file();

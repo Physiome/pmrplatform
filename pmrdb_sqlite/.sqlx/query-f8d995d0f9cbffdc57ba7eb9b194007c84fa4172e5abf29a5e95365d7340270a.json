@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nINSERT INTO exposure_file_profile_input (\n    exposure_file_profile_id,\n    arg_id,\n    input\n)\nVALUES (?1, ?2, ?3)\nON CONFLICT(exposure_file_profile_id, arg_id)\nDO UPDATE SET\n    arg_id = ?2,\n    input = ?3\n    ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "f8d995d0f9cbffdc57ba7eb9b194007c84fa4172e5abf29a5e95365d7340270a"
+}

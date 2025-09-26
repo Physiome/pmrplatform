@@ -212,7 +212,7 @@ mock! {
         async fn get_ef_profile(
             &self,
             exposure_file_id: i64,
-        ) -> Result<ExposureFileProfile, BackendError>;
+        ) -> Result<Option<ExposureFileProfile>, BackendError>;
         async fn update_ef_user_input(
             &self,
             exposure_file_id: i64,

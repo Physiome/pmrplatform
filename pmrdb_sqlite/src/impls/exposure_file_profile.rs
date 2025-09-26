@@ -38,7 +38,7 @@ DO UPDATE SET
 async fn get_ef_profile_core_sqlite(
     sqlite: &SqliteBackend,
     exposure_file_id: i64,
-) -> Result<ExposureFileProfile, BackendError> {
+) -> Result<Option<ExposureFileProfile>, BackendError> {
     Ok(sqlx::query!(r#"
 SELECT
     id,
@@ -54,7 +54,7 @@ WHERE exposure_file_id = ?1
             row.exposure_file_id,
             row.profile_id,
         ))
-        .fetch_one(&*sqlite.pool)
+        .fetch_optional(&*sqlite.pool)
         .await?
     )
 }
@@ -62,32 +62,35 @@ WHERE exposure_file_id = ?1
 async fn get_ef_profile_sqlite(
     sqlite: &SqliteBackend,
     exposure_file_id: i64,
-) -> Result<ExposureFileProfile, BackendError> {
-    let mut rec = get_ef_profile_core_sqlite(
+) -> Result<Option<ExposureFileProfile>, BackendError> {
+    let rec = get_ef_profile_core_sqlite(
         sqlite,
         exposure_file_id,
     ).await?;
 
-    rec.user_input = sqlx::query!(r#"
+    if let Some(mut rec) = rec {
+        rec.user_input = sqlx::query!(r#"
 SELECT
     arg_id,
     input
 FROM exposure_file_profile_input
 WHERE
     exposure_file_profile_id = ?1
-"#,
-        rec.id,
-    )
-        .map(|row| (
-            row.arg_id,
-            row.input,
-        ))
-        .fetch_all(&*sqlite.pool)
-        .await?
-        .into_iter()
-        .collect();
-
-    Ok(rec)
+    "#,
+            rec.id,
+        )
+            .map(|row| (
+                row.arg_id,
+                row.input,
+            ))
+            .fetch_all(&*sqlite.pool)
+            .await?
+            .into_iter()
+            .collect();
+        Ok(Some(rec))
+    } else {
+        Ok(None)
+    }
 }
 
 async fn update_ef_user_input_sqlite(
@@ -95,18 +98,13 @@ async fn update_ef_user_input_sqlite(
     exposure_file_id: i64,
     user_input: &UserInputMap,
 ) -> Result<(), BackendError> {
-    let rec = get_ef_profile_core_sqlite(
-        sqlite,
-        exposure_file_id,
-    ).await?;
-
-    let exposure_file_profile_id = rec.id;
-
-    future::try_join_all(
-        user_input.iter()
-            .map(|(arg_id, input)| async move {
-                sqlx::query!(
-                    r#"
+    if let Some(rec) = get_ef_profile_core_sqlite(sqlite, exposure_file_id).await? {
+        let exposure_file_profile_id = rec.id;
+        future::try_join_all(
+            user_input.iter()
+                .map(|(arg_id, input)| async move {
+                    sqlx::query!(
+                        r#"
 INSERT INTO exposure_file_profile_input (
     exposure_file_profile_id,
     arg_id,
@@ -117,17 +115,18 @@ ON CONFLICT(exposure_file_profile_id, arg_id)
 DO UPDATE SET
     arg_id = ?2,
     input = ?3
-"#,
-                    exposure_file_profile_id,
-                    arg_id,
-                    input,
-                )
-                    .execute(&*sqlite.pool)
-                    .await?;
-                Ok::<(), BackendError>(())
-            })
-    )
-        .await?;
+    "#,
+                        exposure_file_profile_id,
+                        arg_id,
+                        input,
+                    )
+                        .execute(&*sqlite.pool)
+                        .await?;
+                    Ok::<(), BackendError>(())
+                })
+        )
+            .await?;
+    }
     Ok(())
 }
 
@@ -148,7 +147,7 @@ impl ExposureFileProfileBackend for SqliteBackend {
     async fn get_ef_profile(
         &self,
         exposure_file_id: i64,
-    ) -> Result<ExposureFileProfile, BackendError> {
+    ) -> Result<Option<ExposureFileProfile>, BackendError> {
         get_ef_profile_sqlite(
             &self,
             exposure_file_id,
@@ -215,13 +214,16 @@ pub(crate) mod testing {
         pvb.insert_profile_views(profile_id, v2).await?;
 
         let efpb: &dyn ExposureFileProfileBackend = &backend;
+        assert!(efpb.get_ef_profile(exposure_file_id)
+            .await?
+            .is_none());
         efpb.set_ef_profile(
             exposure_file_id,
             profile_id,
         ).await?;
-        let ef_profile = efpb.get_ef_profile(
-            exposure_file_id,
-        ).await?;
+        let ef_profile = efpb.get_ef_profile(exposure_file_id)
+            .await?
+            .expect("profile should have been assigned here");
 
         assert_eq!(ef_profile.exposure_file_id, exposure_file_id);
         assert_eq!(ef_profile.profile_id, profile_id);
@@ -233,18 +235,18 @@ pub(crate) mod testing {
         ]);
         efpb.update_ef_user_input(exposure_file_id, &user_input).await?;
 
-        let ef_profile = efpb.get_ef_profile(
-            exposure_file_id,
-        ).await?;
+        let ef_profile = efpb.get_ef_profile(exposure_file_id)
+            .await?
+            .expect("profile should have been assigned here");
         assert_eq!(ef_profile.user_input, user_input);
 
         efpb.set_ef_profile(
             exposure_file_id,
             empty_profile_id,
         ).await?;
-        let empty_ef_profile = efpb.get_ef_profile(
-            exposure_file_id,
-        ).await?;
+        let empty_ef_profile = efpb.get_ef_profile(exposure_file_id)
+            .await?
+            .expect("profile should have been assigned here");
 
         assert_eq!(empty_ef_profile.exposure_file_id, exposure_file_id);
         assert_eq!(empty_ef_profile.profile_id, empty_profile_id);
@@ -259,9 +261,9 @@ pub(crate) mod testing {
                 (3, "Third".to_string()),
             ])
         ).await?;
-        let final_ef_profile = efpb.get_ef_profile(
-            exposure_file_id,
-        ).await?;
+        let final_ef_profile = efpb.get_ef_profile(exposure_file_id)
+            .await?
+            .expect("profile should have been assigned here");
         assert_eq!(final_ef_profile.user_input, UserInputMap::from([
             (1, "First".to_string()),
             (2, "Second".to_string()),

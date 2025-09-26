@@ -473,13 +473,15 @@ pub async fn wizard_build(
     }
 
     for (efvttc, profile) in args.iter() {
-        let vttc_tasks = efvttc.create_tasks_from_input(&profile.user_input)
-            .map_err(|_| AppError::InternalServerError)?;
-        result += efvttc
-            .exposure_file_ctrl()
-            .process_vttc_tasks(vttc_tasks).await
-            .map_err(|_| AppError::InternalServerError)?
-            .len();
+        if let Some(profile) = profile {
+            let vttc_tasks = efvttc.create_tasks_from_input(&profile.user_input)
+                .map_err(|_| AppError::InternalServerError)?;
+            result += efvttc
+                .exposure_file_ctrl()
+                .process_vttc_tasks(vttc_tasks).await
+                .map_err(|_| AppError::InternalServerError)?
+                .len();
+        }
     }
     Ok(result)
 }

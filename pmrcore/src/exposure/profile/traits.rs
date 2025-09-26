@@ -16,7 +16,7 @@ pub trait ExposureFileProfileBackend {
     async fn get_ef_profile(
         &self,
         exposure_file_id: i64,
-    ) -> Result<ExposureFileProfile, BackendError>;
+    ) -> Result<Option<ExposureFileProfile>, BackendError>;
     // this accepts a `UserInputMap` simply to ensure that the provided
     // keys are unique.
     async fn update_ef_user_input(
