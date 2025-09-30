@@ -70,9 +70,9 @@ impl UserPromptGroupRefs<'_> {
 
 impl<'a, T> From<(
     &'a ViewTaskTemplate,
-    &'a ChoiceRegistryCache<'a, T>,
+    ChoiceRegistryCache<'a, T>,
 )> for UserPromptGroupRef<'a> {
-    fn from((view_task_template, choice_registry): (&'a ViewTaskTemplate, &'a ChoiceRegistryCache<'a, T>)) -> Self {
+    fn from((view_task_template, choice_registry): (&'a ViewTaskTemplate, ChoiceRegistryCache<'a, T>)) -> Self {
         Self {
             id: view_task_template.id,
             description: view_task_template.description.as_ref(),
@@ -88,11 +88,11 @@ impl<'a, T> From<(
 
 impl<'a, T> From<(
     &'a ViewTaskTemplates,
-    &'a ChoiceRegistryCache<'a, T>,
+    ChoiceRegistryCache<'a, T>,
 )> for UserPromptGroupRefs<'a> {
-    fn from((view_task_templates, choice_registry): (&'a ViewTaskTemplates, &'a ChoiceRegistryCache<'a, T>)) -> Self {
+    fn from((view_task_templates, choice_registry): (&'a ViewTaskTemplates, ChoiceRegistryCache<'a, T>)) -> Self {
         view_task_templates.iter()
-            .map(|vtt| (vtt, choice_registry).into())
+            .map(|vtt| (vtt, choice_registry.clone()).into())
             .collect::<Vec<_>>()
             .into()
     }
@@ -100,16 +100,16 @@ impl<'a, T> From<(
 
 impl<'a, T> From<(
     &'a ViewTaskTemplateProfile,
-    &'a ChoiceRegistryCache<'a, T>,
+    ChoiceRegistryCache<'a, T>,
 )> for UserViewProfileRef<'a> {
-    fn from((vttp, choice_registry): (&'a ViewTaskTemplateProfile, &'a ChoiceRegistryCache<'a, T>)) -> Self {
+    fn from((vttp, choice_registry): (&'a ViewTaskTemplateProfile, ChoiceRegistryCache<'a, T>)) -> Self {
         Self {
             id: vttp.profile.id,
             title: vttp.profile.title.as_ref(),
             description: vttp.profile.description.as_ref(),
             user_prompt_groups: vttp.view_task_templates
                 .iter()
-                .map(|vtt| (vtt, choice_registry).into())
+                .map(|vtt| (vtt, choice_registry.clone()).into())
                 .collect::<Vec<_>>()
                 .into(),
         }

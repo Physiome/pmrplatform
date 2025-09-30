@@ -404,7 +404,7 @@ async fn test_platform_create_exposure_file_view_task() -> anyhow::Result<()> {
         .expect("should have a valid template here");
     let user_arg_refs = UserArgBuilder::from((
         task_template,
-        &cache,
+        cache.clone(),
     )).collect::<Vec<_>>();
     let up_str = serde_json::to_string(&user_arg_refs)?;
 
@@ -440,7 +440,7 @@ async fn test_platform_create_exposure_file_view_task() -> anyhow::Result<()> {
             TaskBuilder::try_from((
                 &user_input,
                 task_template,
-                &cache,
+                cache.clone(),
             ))?
         )
     ).await?;
@@ -736,7 +736,7 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
     let cache = ChoiceRegistryCache::from(&registry as &dyn ChoiceRegistry<_>);
     let user_arg_refs = UserArgBuilder::from((
         vtt.as_slice(),
-        &cache,
+        cache,
     )).collect::<Vec<_>>();
     assert_eq!(user_arg_refs.len(), 1);
     let user_args: Vec<UserArg> = serde_json::from_str(
@@ -1012,7 +1012,7 @@ async fn test_platform_vtt_profile() -> anyhow::Result<()> {
     let cache = ChoiceRegistryCache::from(
         &registry as &dyn ChoiceRegistry<_>);
 
-    let uvpr: UserViewProfileRef = (&vttp, &cache).into();
+    let uvpr: UserViewProfileRef = (&vttp, cache).into();
     // emulate trip from API to end user JSON read
     let uvp: UserViewProfile = serde_json::from_str(&serde_json::to_string(&uvpr)?)?;
     let result: UserViewProfile = serde_json::from_str(r#"

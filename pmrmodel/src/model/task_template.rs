@@ -92,7 +92,7 @@ impl<'a> Deref for UserArgRefs<'a> {
 
 pub struct UserArgBuilder<'a, I, T> {
     args: I,
-    choice_registry_cache: &'a ChoiceRegistryCache<'a, T>,
+    choice_registry_cache: ChoiceRegistryCache<'a, T>,
 }
 
 impl<'a> TaskArgBuilder<'a> {
@@ -122,7 +122,7 @@ impl<'a> TaskBuilder<'a> {
 impl<'a, I, T> UserArgBuilder<'a, I, T> {
     fn new(
         args: I,
-        choice_registry_cache: &'a ChoiceRegistryCache<'a, T>,
+        choice_registry_cache: ChoiceRegistryCache<'a, T>,
     ) -> Self {
         Self {
             args,
@@ -146,9 +146,9 @@ impl<'a> From<(ArgChunk<'a>, &'a TaskTemplateArg)> for TaskArgBuilder<'a> {
 // TODO need to adapt this for the profile case, where grouping applies
 impl<'a, T> From<(
     &'a TaskTemplate,
-    &'a ChoiceRegistryCache<'a, T>,
+    ChoiceRegistryCache<'a, T>,
 )> for UserArgBuilder<'a, Iter<'a, TaskTemplateArg>, T> {
-    fn from(item: (&'a TaskTemplate, &'a ChoiceRegistryCache<'a, T>)) -> Self {
+    fn from(item: (&'a TaskTemplate, ChoiceRegistryCache<'a, T>)) -> Self {
         UserArgBuilder::new(
             (&item.0.args.as_ref())
                 .expect("args must have been provided with the template")
@@ -160,9 +160,9 @@ impl<'a, T> From<(
 
 impl<'a, T> From<(
     &'a TaskTemplate,
-    &'a ChoiceRegistryCache<'a, T>,
+    ChoiceRegistryCache<'a, T>,
 )> for UserArgRefs<'a> {
-    fn from((task_template, cache): (&'a TaskTemplate, &'a ChoiceRegistryCache<'a, T>)) -> Self {
+    fn from((task_template, cache): (&'a TaskTemplate, ChoiceRegistryCache<'a, T>)) -> Self {
         UserArgBuilder::from((task_template, cache))
             .collect::<Vec<_>>()
             .into()
@@ -180,7 +180,7 @@ fn vtt_helper(vtt: &ViewTaskTemplate) -> Iter<TaskTemplateArg> {
 
 impl<'a, T> From<(
     &'a [ViewTaskTemplate],
-    &'a ChoiceRegistryCache<'a, T>,
+    ChoiceRegistryCache<'a, T>,
 )> for UserArgBuilder<
     'a,
     FlatMap<
@@ -191,7 +191,7 @@ impl<'a, T> From<(
     T
 > {
     fn from(
-        item: (&'a [ViewTaskTemplate], &'a ChoiceRegistryCache<'a, T>)
+        item: (&'a [ViewTaskTemplate], ChoiceRegistryCache<'a, T>)
     ) -> Self {
         Self {
             args: (&item.0)
@@ -288,7 +288,7 @@ impl<'a, I: Iterator<Item=&'a TaskTemplateArg>, T> Iterator for UserArgBuilder<'
 fn arg_build_arg_chunk<'a, T>(
     user_input: Option<&'a str>,
     task_template_arg: &'a TaskTemplateArg,
-    choice_registry_cache: &'a ChoiceRegistryCache<'a, T>,
+    choice_registry_cache: ChoiceRegistryCache<'a, T>,
 ) -> Result<TaskArgBuilder<'a>, BuildArgError> {
     Ok(TaskArgBuilder::from((
         value_to_argtuple(
@@ -309,7 +309,7 @@ fn arg_build_arg_chunk<'a, T>(
 type InputArgLookup<'a, T> = (
     Option<&'a str>,
     &'a TaskTemplateArg,
-    &'a ChoiceRegistryCache<'a, T>,
+    ChoiceRegistryCache<'a, T>,
 );
 
 impl<'a, T> TryFrom<InputArgLookup<'a, T>> for TaskArgBuilder<'a> {
@@ -363,7 +363,7 @@ impl UserArgRef<'_> {
 fn task_build_arg_chunk<'a, T>(
     user_input: &'a UserInputMap,
     task_template: &'a TaskTemplate,
-    choice_registry_cache: &'a ChoiceRegistryCache<'a, T>,
+    choice_registry_cache: ChoiceRegistryCache<'a, T>,
 ) -> Result<TaskArgBuilders<'a>, BuildArgErrors> {
     Ok(TaskArgBuilders((match task_template.args {
         Some(ref args) => {
@@ -372,7 +372,7 @@ fn task_build_arg_chunk<'a, T>(
                     arg_build_arg_chunk(
                         user_input.get(&arg.id).map(|x| x.as_str()),
                         &arg,
-                        choice_registry_cache,
+                        choice_registry_cache.clone(),
                     )
                 })
                 .partition_map(|r| {
@@ -394,7 +394,7 @@ fn task_build_arg_chunk<'a, T>(
 type InputTaskLookup<'a, T> = (
     &'a UserInputMap,
     &'a TaskTemplate,
-    &'a ChoiceRegistryCache<'a, T>,
+    ChoiceRegistryCache<'a, T>,
 );
 
 impl<'a, T> TryFrom<InputTaskLookup<'a, T>> for TaskArgBuilders<'a> {
@@ -1284,7 +1284,7 @@ mod test {
         let chunk_iter = TaskArgBuilder::try_from((
             user_input,
             &task_template_arg,
-            &cache,
+            cache.clone(),
         ));
         let result = chunk_iter.unwrap().into_iter().collect::<Vec<_>>();
         assert_eq!(result, vec![
@@ -1294,7 +1294,7 @@ mod test {
         let chunk_iter = TaskArgBuilder::try_from((
             Some("owned_2"),
             &task_template_arg,
-            &cache,
+            cache.clone(),
         ));
         let result = chunk_iter.unwrap().into_iter().collect::<Vec<_>>();
         assert_eq!(result, vec![
@@ -1329,7 +1329,7 @@ mod test {
         let chunk_iter = TaskArgBuilder::try_from((
             Some("empty string"),
             &task_template_arg,
-            &cache,
+            cache.clone(),
         ));
         let result = chunk_iter.unwrap().into_iter().collect::<Vec<_>>();
         assert_eq!(result, vec![
@@ -1342,7 +1342,7 @@ mod test {
         let chunk_iter = TaskArgBuilder::try_from((
             Some("omit"),
             &task_template_arg,
-            &cache,
+            cache.clone(),
         ));
         let result = chunk_iter.unwrap().into_iter().collect::<Vec<_>>();
         assert_eq!(result, vec![
@@ -1378,7 +1378,7 @@ mod test {
         let chunk_iter = TaskArgBuilder::try_from((
             Some("empty string"),
             &task_template_arg,
-            &cache,
+            cache.clone(),
         ));
         let result = chunk_iter.unwrap().into_iter().collect::<Vec<_>>();
         assert_eq!(result, vec![
@@ -1387,7 +1387,7 @@ mod test {
         let chunk_iter = TaskArgBuilder::try_from((
             Some("omit"),
             &task_template_arg,
-            &cache,
+            cache.clone(),
         ));
         let result = chunk_iter.unwrap().into_iter().collect::<Vec<_>>();
         assert_eq!(result, vec![]);
@@ -1407,7 +1407,7 @@ mod test {
         let chunk_iter = TaskArgBuilder::try_from((
             Some("some value"),
             &task_template_arg,
-            &cache,
+            cache.clone(),
         ));
         let result = chunk_iter.unwrap().into_iter().collect::<Vec<_>>();
         assert_eq!(result, vec![
@@ -1432,7 +1432,7 @@ mod test {
         let chunk_iter = TaskArgBuilder::try_from((
             None,
             &task_template_arg,
-            &cache,
+            cache.clone(),
         ));
         let result = chunk_iter.unwrap().into_iter().collect::<Vec<_>>();
         assert_eq!(result, vec![
@@ -1463,7 +1463,7 @@ mod test {
         let chunk_iter = TaskArgBuilder::try_from((
             None,
             &task_template_arg,
-            &cache,
+            cache.clone(),
         ));
         let result = chunk_iter.unwrap().into_iter().collect::<Vec<_>>();
         assert_eq!(result, vec![]);
@@ -1492,7 +1492,7 @@ mod test {
         let chunk_iter = TaskArgBuilder::try_from((
             None,
             &task_template_arg,
-            &cache,
+            cache.clone(),
         ));
         assert_eq!(
             chunk_iter,
@@ -1526,7 +1526,7 @@ mod test {
         let chunk_iter = TaskArgBuilder::try_from((
             Some("value"),
             &arg_ext_choices,
-            &cache,
+            cache.clone(),
         ));
         assert_eq!(
             chunk_iter,
@@ -1538,7 +1538,7 @@ mod test {
         let chunk_iter = TaskArgBuilder::try_from((
             Some("invalid"),
             &arg_with_choices,
-            &cache,
+            cache.clone(),
         ));
         assert_eq!(
             chunk_iter,
@@ -1573,7 +1573,7 @@ mod test {
 
         let user_prompts = UserArgBuilder::from((
             &task_template,
-            &cache,
+            cache.clone(),
         )).collect::<Vec<_>>();
         assert_eq!(user_prompts.len(), 0);
     }
@@ -1603,7 +1603,7 @@ mod test {
 
         let user_prompts = UserArgBuilder::from((
             &task_template,
-            &cache,
+            cache.clone(),
         )).collect::<Vec<_>>();
         assert_eq!(user_prompts.len(), 0);
     }
@@ -1722,11 +1722,11 @@ mod test {
 
         let user_prompts = UserArgBuilder::from((
             &task_template,
-            &cache,
+            cache.clone(),
         )).collect::<Vec<_>>();
         assert_eq!(user_prompts.len(), 5);
 
-        let user_arg_refs: UserArgRefs = (&task_template, &cache).into();
+        let user_arg_refs: UserArgRefs = (&task_template, cache.clone()).into();
         assert_eq!(user_arg_refs.len(), 5);
 
         let json_str = serde_json::to_string(&user_prompts)?;
@@ -1836,11 +1836,11 @@ mod test {
 
         let user_prompts = UserArgBuilder::from((
             &task_template,
-            &cache,
+            cache.clone(),
         )).collect::<Vec<_>>();
         assert_eq!(user_prompts.len(), 2);
 
-        let user_arg_refs: UserArgRefs = (&task_template, &cache).into();
+        let user_arg_refs: UserArgRefs = (&task_template, cache.clone()).into();
         assert_eq!(user_arg_refs.len(), 2);
 
         let json_str = serde_json::to_string(&user_prompts)?;
@@ -1909,11 +1909,11 @@ mod test {
 
         let user_prompts = UserArgBuilder::from((
             &task_template,
-            &cache,
+            cache.clone(),
         )).collect::<Vec<_>>();
         assert_eq!(user_prompts.len(), 2);
 
-        let user_arg_refs: UserArgRefs = (&task_template, &cache).into();
+        let user_arg_refs: UserArgRefs = (&task_template, cache.clone()).into();
         assert_eq!(user_arg_refs.len(), 2);
 
         let json_str = serde_json::to_string(&user_prompts)?;
@@ -2056,7 +2056,7 @@ mod test {
         let processed = TaskArgBuilders::try_from((
             &user_input,
             &task_template,
-            &cache,
+            cache.clone(),
         )).unwrap();
         let args: Vec<String> = processed
             .map(|a| a.arg.clone())
@@ -2074,7 +2074,7 @@ mod test {
         let task = Task::from(TaskBuilder::try_from((
             &user_input,
             &task_template,
-            &cache,
+            cache.clone(),
         )).unwrap());
 
         assert_eq!(6, task.args.unwrap().len());
@@ -2164,7 +2164,7 @@ mod test {
         let processed = TaskArgBuilders::try_from((
             &user_input,
             &task_template,
-            &cache,
+            cache.clone(),
         ));
 
         assert_eq!(processed.unwrap_err().0.as_slice(), &[
@@ -2225,14 +2225,14 @@ mod test {
                 &registry as &dyn ChoiceRegistry<_>);
             let user_prompts = UserArgBuilder::from((
                 &task_template,
-                &cache,
+                cache.clone(),
             )).collect::<Vec<_>>();
             assert_eq!(user_prompts.len(), 0);
 
             let args: Vec<String> = TaskArgBuilders::try_from((
                     &user_input,
                     &task_template,
-                    &cache,
+                    cache.clone(),
                 ))?
                 .map(|a| a.arg.clone())
                 .collect();
@@ -2255,7 +2255,7 @@ mod test {
             let processed = TaskArgBuilders::try_from((
                 &user_input,
                 &task_template,
-                &cache,
+                cache.clone(),
             ));
             assert_eq!(processed.unwrap_err().0.as_slice(), &[
                 BuildArgError::ArgumentError(
@@ -2289,7 +2289,7 @@ mod test {
             let processed = TaskArgBuilders::try_from((
                 &user_input,
                 &task_template,
-                &cache,
+                cache.clone(),
             ));
             assert_eq!(processed.unwrap_err().0.as_slice(), &[
                 BuildArgError::ArgumentError(
@@ -2349,14 +2349,14 @@ mod test {
                 &registry as &dyn ChoiceRegistry<_>);
             let user_prompts = UserArgBuilder::from((
                 &task_template,
-                &cache,
+                cache.clone(),
             )).collect::<Vec<_>>();
             assert_eq!(user_prompts.len(), 0);
 
             let args: Vec<String> = TaskArgBuilders::try_from((
                     &user_input,
                     &task_template,
-                    &cache,
+                    cache.clone(),
                 ))?
                 .map(|a| a.arg.clone())
                 .collect();
@@ -2379,7 +2379,7 @@ mod test {
             let processed = TaskArgBuilders::try_from((
                 &user_input,
                 &task_template,
-                &cache,
+                cache.clone(),
             ));
             assert_eq!(processed.unwrap_err().0.as_slice(), &[
                 BuildArgError::ArgumentError(
@@ -2413,7 +2413,7 @@ mod test {
             let processed = TaskArgBuilders::try_from((
                 &user_input,
                 &task_template,
-                &cache,
+                cache.clone(),
             ));
             assert_eq!(processed.unwrap_err().0.as_slice(), &[
                 BuildArgError::ArgumentError(

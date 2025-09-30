@@ -15,7 +15,7 @@ use std::{
 use crate::error::LookupError;
 use crate::registry::ChoiceRegistry;
 
-pub struct ChoiceRegistryCache<'a, T> {
+struct ChoiceRegistryCacheInner<'a, T> {
     registries: Vec<&'a dyn ChoiceRegistry<T>>,
     // punting the cache for the arg to the task_template_arg's unique id.
     arg_list: Arc<Mutex<HashMap<i64, Option<Vec<&'a str>>>>>,
@@ -26,9 +26,17 @@ pub struct ChoiceRegistryCache<'a, T> {
     none_map: Arc<Mutex<Option<MapToArgRef<'a>>>>,
 }
 
+pub struct ChoiceRegistryCache<'a, T>(Arc<ChoiceRegistryCacheInner<'a, T>>);
+
+impl<T> Clone for ChoiceRegistryCache<'_, T> {
+    fn clone(&self) -> Self {
+        Self(Arc::clone(&self.0))
+    }
+}
+
 impl<'a, T> ChoiceRegistryCache<'a, T> {
     fn new(registries: Vec<&'a dyn ChoiceRegistry<T>>) -> Self {
-        Self {
+        Self(Arc::new(ChoiceRegistryCacheInner {
             registries: registries,
             arg_list: Arc::new(Mutex::new(HashMap::new())),
             arg_map: Arc::new(Mutex::new(HashMap::new())),
@@ -36,7 +44,7 @@ impl<'a, T> ChoiceRegistryCache<'a, T> {
             name_map: Arc::new(Mutex::new(HashMap::new())),
             none_list: Arc::new(Mutex::new(None)),
             none_map: Arc::new(Mutex::new(None)),
-        }
+        }))
     }
 }
 
@@ -62,7 +70,7 @@ impl<'a, T> From<Vec<&ChoiceRegistryCache<'a, T>>> for ChoiceRegistryCache<'a, T
     fn from(item: Vec<&ChoiceRegistryCache<'a, T>>) -> Self {
         Self::new(
             item.into_iter()
-                .flat_map(|cache| cache.registries.clone().into_iter())
+                .flat_map(|cache| cache.0.registries.clone().into_iter())
                 .collect::<Vec<_>>()
         )
     }
@@ -72,15 +80,15 @@ impl<'a, T, const N: usize> From<&[&ChoiceRegistryCache<'a, T>; N]> for ChoiceRe
     fn from(item: &[&ChoiceRegistryCache<'a, T>; N]) -> Self {
         Self::new(
             item.into_iter()
-                .flat_map(|cache| cache.registries.clone().into_iter())
+                .flat_map(|cache| cache.0.registries.clone().into_iter())
                 .collect::<Vec<_>>()
         )
     }
 }
 
-impl<'a, T> ChoiceRegistryCache<'a, T> {
+impl<'a, T> ChoiceRegistryCacheInner<'a, T> {
     // generate a list of user choices for the provided arg
-    pub fn list(
+    fn list(
         &'a self,
         tta: &'a TaskTemplateArg,
     ) -> Result<
@@ -127,11 +135,11 @@ impl<'a, T> ChoiceRegistryCache<'a, T> {
     }
 
     // lookup the mapping to resolve the choices for the provided arg
-    pub fn lookup(
-        &'a self,
+    fn lookup(
+        &self,
         tta: &'a TaskTemplateArg,
     ) -> Result<
-        impl Deref<Target = Option<MapToArgRef<'a>>> + 'a,
+        impl Deref<Target = Option<MapToArgRef<'a>>> + '_,
         LookupError,
     > {
         match &tta.choice_source.as_deref() {
@@ -167,5 +175,27 @@ impl<'a, T> ChoiceRegistryCache<'a, T> {
                 }
             }
         }
+    }
+}
+
+impl<'a, T> ChoiceRegistryCache<'a, T> {
+    pub fn list(
+        &'a self,
+        tta: &'a TaskTemplateArg,
+    ) -> Result<
+        impl Deref<Target = Option<Vec<&'a str>>>,
+        LookupError,
+    > {
+        self.0.list(tta)
+    }
+
+    pub fn lookup(
+        &self,
+        tta: &'a TaskTemplateArg,
+    ) -> Result<
+        impl Deref<Target = Option<MapToArgRef<'a>>> + '_,
+        LookupError,
+    > {
+        self.0.lookup(tta)
     }
 }

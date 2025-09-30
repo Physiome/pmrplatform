@@ -28,7 +28,7 @@ pub struct EFViewTaskTemplatesCtrl<'p> {
     exposure_file_ctrl: ExposureFileCtrl<'p>,
     view_task_templates: ViewTaskTemplates,
     choice_registry: OnceLock<Arc<PreparedChoiceRegistry>>,
-    choice_registry_cache: OnceLock<Arc<PreparedChoiceRegistryCache<'p>>>,
+    choice_registry_cache: OnceLock<PreparedChoiceRegistryCache<'p>>,
     efvttcs: OnceLock<Vec<EFViewTaskTemplateCtrl<'p>>>,
     task_template_args: OnceLock<HashMap<i64, &'p TaskTemplateArg>>,
 }

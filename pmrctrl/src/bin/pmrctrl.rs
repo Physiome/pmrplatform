@@ -445,7 +445,7 @@ async fn parse_profile<'p>(
                 let registry = PreparedChoiceRegistry::new();
                 let cache = ChoiceRegistryCache::from(
                     &registry as &dyn ChoiceRegistry<_>);
-                let uvpr: UserViewProfileRef = (&result, &cache).into();
+                let uvpr: UserViewProfileRef = (&result, cache).into();
                 conf.serde_kind.to_string(&uvpr)?
             } else {
                 conf.serde_kind.to_string(&result)?
@@ -625,7 +625,7 @@ async fn parse_exposure_path<'p>(
                     let builder = TaskArgBuilder::try_from((
                         answer.map(|s| s.as_ref()),
                         arg,
-                        cache,
+                        cache.clone(),
                     ));
 
                     println!("Q: {prompt}");

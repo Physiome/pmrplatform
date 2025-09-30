@@ -83,21 +83,21 @@ impl<'p> EFViewTaskTemplatesCtrl<'p> {
 
     pub fn get_registry_cache(
         &'p self
-    ) -> Result<&'p PreparedChoiceRegistryCache<'p>, PlatformError> {
+    ) -> Result<PreparedChoiceRegistryCache<'p>, PlatformError> {
         Ok(match self.choice_registry_cache.get() {
             Some(registry_cache) => Ok::<_, PlatformError>(registry_cache),
             None => {
                 let registry = self.get_registry()?;
-                self.choice_registry_cache.set(Arc::new(
+                self.choice_registry_cache.set(
                     (registry as &dyn ChoiceRegistry<_>).into()
-                )).unwrap_or_else(|_| log::warn!(
+                ).unwrap_or_else(|_| log::warn!(
                     "concurrent call to the same \
                     ViewTaskTemplateCtrls.choice_registry_cache()"
                 ));
                 Ok(self.choice_registry_cache.get()
                     .expect("choice_registry_cache just been set!"))
             }
-        }?)
+        }?.clone())
     }
 
     fn get_efvttcs(
@@ -266,9 +266,9 @@ impl<'p> EFViewTaskTemplateCtrl<'p> {
 
     fn get_registry_cache(
         &'p self
-    ) -> &'p PreparedChoiceRegistryCache<'p> {
+    ) -> PreparedChoiceRegistryCache<'p> {
         match self.choice_registry_cache.get() {
-            Some(registry_cache) => registry_cache,
+            Some(registry_cache) => registry_cache.clone(),
             None => {
                 self.choice_registry_cache.set(
                     self.choice_registry
@@ -283,6 +283,7 @@ impl<'p> EFViewTaskTemplateCtrl<'p> {
                 ));
                 self.choice_registry_cache.get()
                     .expect("choice_registry_cache just been set!")
+                    .clone()
             }
         }
     }
