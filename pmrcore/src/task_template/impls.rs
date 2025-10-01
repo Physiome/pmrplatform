@@ -85,6 +85,15 @@ impl DerefMut for UserArgs {
     }
 }
 
+impl IntoIterator for UserArgs {
+    type Item = UserArg;
+    type IntoIter = std::vec::IntoIter<UserArg>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 impl From<&str> for UserChoice {
     fn from(arg: &str) -> Self {
         Self(arg.to_string(), false)

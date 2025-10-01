@@ -345,6 +345,15 @@ impl From<&UserArgRefs<'_>> for UserArgs {
     }
 }
 
+impl From<UserArgRefs<'_>> for UserArgs {
+    fn from(item: UserArgRefs<'_>) -> Self {
+        item.iter()
+            .map(UserArg::from)
+            .collect::<Vec<_>>()
+            .into()
+    }
+}
+
 // can't quite do this yet because we didn't fully define how borrowing works, but for now
 // the following will do
 // impl ToOwned for UserArgRefs<'_> {

@@ -8,6 +8,7 @@ use pmrcore::{
     task_template::{
         TaskTemplateArg,
         UserInputMap,
+        UserArgs,
     }
 };
 use pmrmodel::{
@@ -247,6 +248,27 @@ impl<'p> EFViewTaskTemplatesCtrl<'p> {
 
     pub fn exposure_file_ctrl(&'p self) -> ExposureFileCtrl<'p> {
         self.exposure_file_ctrl.clone()
+    }
+}
+
+impl EFViewTaskTemplatesCtrl<'_> {
+    /// This provides a flat list of user args
+    ///
+    /// Due to issues with lifetime associated with caches, this does not
+    /// use the internal cache.
+    pub fn create_user_args(
+        &self,
+    ) -> Result<UserArgs, PlatformError> {
+        let cache = PreparedChoiceRegistryCache::from(
+            self.get_registry()? as &dyn ChoiceRegistry<_>
+        );
+        let results: UserArgRefs = UserArgBuilder::from((
+            self.view_task_templates.as_slice(),
+            cache,
+        ))
+            .collect::<Vec<_>>()
+            .into();
+        Ok(results.into())
     }
 }
 
