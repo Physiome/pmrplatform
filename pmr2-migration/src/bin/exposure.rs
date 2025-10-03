@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::HashMap,
     fs,
     io::{BufReader, stdin},
     path::PathBuf,
@@ -9,7 +9,7 @@ use clap::{Parser, Subcommand};
 use pmrcore::{
     ac::workflow::state::State,
     exposure::traits::{Exposure, ExposureFile},
-    task_template::{UserArgs, UserInputMap},
+    task_template::UserInputMap,
 };
 use pmrctrl::platform::{Builder, Platform};
 use serde::{Deserialize, Serialize};
@@ -328,7 +328,7 @@ async fn process_wizard_export(
     ))?;
     eprintln!("Processing: {exposure_path}; file count: {}", files.len());
 
-    let alias = workspace
+    let workspace_alias = workspace
         .replace("/pmr/", "")
         // this should maintain the id for default case
         .replace("workspace/", "")
@@ -337,26 +337,46 @@ async fn process_wizard_export(
         .replace("/", "-");
 
     let workspace_id = platform.mc_platform
-        .resolve_alias("workspace", &alias)
+        .resolve_alias("workspace", &workspace_alias)
         .await?
-        .ok_or(ErrorMsg(format!("workspace under alias {alias} not found ({workspace:?} not imported?)")))?;
+        .ok_or(ErrorMsg(format!(
+            "workspace under alias {workspace_alias} not found ({workspace:?} not imported?)"
+        )))?;
+
+    let alias = exposure_path
+        .replace("/pmr/", "")
+        // this effectively unifies the original long ids
+        .replace("exposure/", "")
+        .replace("e/", "")
+        // deal with random paths as is; though this case shouldn't exist in production
+        .replace("/", "-");
 
     let ec = platform.create_exposure(
         workspace_id,
         &commit_id,
     ).await?;
+    platform.mc_platform.add_alias(
+        "exposure",
+        ec.exposure().id(),
+        &alias,
+    // ).await?;
+    ).await.ok();
     let exposure_id = ec.exposure().id();
     platform.ac_platform.set_wf_state_for_res(
         &format!("/exposure/{exposure_id}/"),
         workflow_state,
     ).await?;
 
+    // needed to deal with lifetime issues associated with the `EFViewTemplatesCtrl`
+    let mut cache = Vec::new();
+
     for (path, file) in files.into_iter() {
         let efc = ec.create_file(&path).await?;
         let profile_id = site.file_type_to_profile_id(file.file_type.as_deref());
         let vtt_profile = platform.get_view_task_template_profile(profile_id).await?;
         efc.set_vttprofile(vtt_profile).await?;
-        let efvttsc = efc.clone().try_into_vttc().await?;
+        let id = efc.exposure_file().id();
+        let efvttsc = efc.try_into_vttc().await?;
         let user_args = efvttsc.create_user_args()?
             .into_iter()
             .map(|uar| (uar.id, uar.prompt))
@@ -374,16 +394,26 @@ async fn process_wizard_export(
             })
             .collect::<UserInputMap>();
 
-        let id = efc.exposure_file().id();
         // store the inputs for now
         platform.mc_platform.update_ef_user_input(id, &user_input).await?;
-        // FIXME lifetime issues here
+
+        // lifetime issues here
         // let vttc_tasks = efvttsc.create_tasks_from_input(&user_input)?;
-        // efc.process_vttc_tasks(vttc_tasks).await?;
+        // efvttsc.exposure_file_ctrl()
+        //     .process_vttc_tasks(vttc_tasks).await?;
+
+        cache.push((efvttsc, user_input));
     }
 
-    // TODO create the files and views
-    // TODO alias for the exposure itself
+    for (efvttsc, user_input) in cache.iter() {
+        match efvttsc.create_tasks_from_input(user_input) {
+            Ok(vttc_tasks) => {
+                let tasks = efvttsc.exposure_file_ctrl().process_vttc_tasks(vttc_tasks).await?;
+                eprintln!("Successfully created {} tasks", tasks.len());
+            }
+            Err(e) => eprintln!("{e}"),
+        }
+    }
 
     Ok(())
 }
