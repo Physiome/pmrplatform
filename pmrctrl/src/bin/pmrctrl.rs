@@ -203,6 +203,7 @@ enum FileCmd {
 
 #[derive(Debug, Subcommand)]
 enum ProfileCmd {
+    List,
     #[command(arg_required_else_help = true)]
     Create {
         title: String,
@@ -413,6 +414,13 @@ async fn parse_profile<'p>(
 ) -> anyhow::Result<()> {
     let conf = CONF.get().expect("config is set by main");
     match arg {
+        ProfileCmd::List => {
+            let profiles = ProfileBackend::list_profiles(platform.mc_platform.as_ref()).await?;
+            println!("id - title");
+            for profile in profiles.into_iter() {
+                println!("{} - {}", profile.id, profile.title);
+            }
+        }
         ProfileCmd::Create { title, description } => {
             let id = ProfileBackend::insert_profile(
                 platform.mc_platform.as_ref(),
