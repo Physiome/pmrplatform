@@ -3,8 +3,13 @@ use gix::{
     Object,
     Repository,
     actor::SignatureRef,
+    config::{
+        File,
+        Source,
+    },
     object::Kind,
     objs::tree::EntryKind,
+    remote::find::existing::Error::NotFound,
     traverse::tree::Recorder,
 };
 use std::path::Path;
@@ -166,10 +171,36 @@ pub(crate) fn get_submodule_target(
     }.into())
 }
 
+// A simple helper to assist with repositories copied into place that
+// lack an existing remote.
+fn check_set_remote(repo_dir: &Path, remote_url: &str) -> Result<(), GixError> {
+    if let Ok(repo) = gix::open::Options::isolated()
+        .open_path_as_is(true)
+        .open(repo_dir)
+        .map(|repo| repo.to_thread_local())
+    {
+        if let Err(NotFound { .. }) = repo.find_remote("origin") {
+            let mut remote = repo.remote_at(remote_url)?;
+            let mut config = File::from_path_no_includes(
+                repo_dir.join("config"),
+                Source::Local,
+            )?;
+            remote.save_as_to("origin", &mut config)?;
+            // ignore write errors.
+            if let Ok(mut fd) = std::fs::File::create(repo_dir.join("config")) {
+                config.write_to(&mut fd).ok();
+            }
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn fetch_or_clone(
     repo_dir: &Path,
     remote_url: &str,
 ) -> Result<(), FetchClone> {
+    // ignoring any error that happened in the check method done via gix
+    check_set_remote(repo_dir, remote_url).ok();
     // using libgit2 as mature protocol support is desired.
     info!("Syncing local {repo_dir:?} with remote <{remote_url}>...");
     let repo_check = git2::Repository::open_bare(&repo_dir);

@@ -25,6 +25,8 @@ pub enum PmrRepoError {
 #[derive(Debug, Error)]
 pub enum GixError {
     #[error(transparent)]
+    ConfigFileInitFromPath(#[from] gix::config::file::init::from_paths::Error),
+    #[error(transparent)]
     HashDecode(#[from] gix::hash::decode::Error),
     #[error(transparent)]
     IndexFileInit(#[from] gix::index::file::init::Error),
@@ -42,6 +44,10 @@ pub enum GixError {
     ReferenceIter(#[from] gix::reference::iter::Error),
     #[error(transparent)]
     ReferenceIterInit(#[from] gix::reference::iter::init::Error),
+    #[error(transparent)]
+    RemoteInit(#[from] gix::remote::init::Error),
+    #[error(transparent)]
+    RemoteSaveAs(#[from] gix::remote::save::AsError),
     #[error(transparent)]
     RevisionSpecParseSingle(#[from] gix::revision::spec::parse::single::Error),
     #[error(transparent)]
