@@ -351,10 +351,18 @@ async fn process_wizard_export(
         // deal with random paths as is; though this case shouldn't exist in production
         .replace("/", "-");
 
-    let ec = platform.create_exposure(
+    let ec = match platform.create_exposure(
         workspace_id,
         &commit_id,
-    ).await?;
+    ).await {
+        Ok(ec) => ec,
+        Err(_) => {
+            eprintln!("The commit {commit_id} might be missing, resyncing from upstream");
+            platform.repo_backend()
+                .sync_workspace(workspace_id).await?;
+            platform.create_exposure(workspace_id, &commit_id).await?
+        }
+    };
     platform.mc_platform.add_alias(
         "exposure",
         ec.exposure().id(),
