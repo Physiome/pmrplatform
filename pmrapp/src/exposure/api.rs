@@ -90,6 +90,26 @@ pub async fn list_aliased() -> Result<EnforcedOk<Vec<AliasEntry<Exposure>>>, App
     Ok(policy_state.to_enforced_ok(exposures))
 }
 
+#[server]
+pub async fn list_aliased_for_workspace(
+    workspace_id: Id,
+) -> Result<Vec<AliasEntry<Exposure>>, AppError> {
+    let id = crate::workspace::api::resolve_id(workspace_id).await?;
+    session().await?
+        .enforcer(format!("/workspace/{id}/"), "").await?;
+    session().await?
+        .enforcer(format!("/exposure/"), "").await?;
+    let platform = platform().await?;
+    let exposures = platform.mc_platform
+        .list_aliased_exposures_for_workspace(id)
+        .await
+        .map_err(|_| AppError::InternalServerError)?
+        .into_iter()
+        .map(|exposure| exposure.map(|entity| entity.into_inner()))
+        .collect();
+    Ok(exposures)
+}
+
 #[cfg(feature = "ssr")]
 async fn resolve_id(id: Id) -> Result<i64, AppError> {
     Ok(match id {

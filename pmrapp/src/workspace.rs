@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{
+    collections::HashMap,
+    sync::Arc,
+};
 use chrono::{
     TimeZone,
     Utc,
@@ -32,7 +35,7 @@ use pmrcore::repo::{
     TreeInfo,
 };
 
-mod api;
+pub(crate) mod api;
 
 use crate::{
     ac::AccountCtx,
@@ -43,7 +46,10 @@ use crate::{
     },
     error::AppError,
     error_template::ErrorTemplate,
-    exposure::api::CreateExposure,
+    exposure::api::{
+        CreateExposure,
+        list_aliased_for_workspace,
+    },
     workspace::api::{
         list_workspaces,
         list_aliased_workspaces,
@@ -743,8 +749,32 @@ pub fn WorkspaceLog() -> impl IntoView {
         }
     );
 
+    let exposure_map = Resource::new_blocking(
+        move || workspace_params.get().map(|p| p.id),
+        move |id| async move {
+            match id {
+                Err(_) => Err(AppError::InternalServerError),
+                Ok(None) => Err(AppError::NotFound),
+                Ok(Some(id)) => {
+                    let id = root.build_id(id)?;
+                    let mut result = HashMap::new();
+                    for entry in list_aliased_for_workspace(id).await?.into_iter() {
+                        result.entry(entry.entity.commit_id)
+                            .or_insert_with(Vec::new)
+                            .push((
+                                format!("/exposure/{}/", entry.alias),
+                                entry.entity.description.unwrap_or(format!("<Exposure {}>", entry.entity.id)),
+                            ))
+                    }
+                    Ok(result)
+                }
+            }
+        }
+    );
+
     let view = move || Suspend::new(async move {
         let log_info = log_info.await?;
+        let mut exposure_map = exposure_map.await?;
         repo_result.await.map(|info| {
             let href = entity_root.read();
             view! {
@@ -781,7 +811,16 @@ pub fn WorkspaceLog() -> impl IntoView {
                                         <a href=format!("{href}/file/{commit_id}/")>"[files]"</a>
                                         <a href=format!("{href}/create_exposure/{commit_id}/")>"[create_exposure]"</a>
                                     </td>
-                                    <td></td>
+                                    <td>{
+                                        exposure_map.remove(&commit_id).map(|entries| {
+                                            entries.into_iter()
+                                                .map(|(href, description)| view! {
+                                                    // FIXME <div> tags are placeholder wrapper
+                                                    <div><a href=href>{description}</a></div>
+                                                })
+                                                .collect_view()
+                                        })
+                                    }</td>
                                 </tr>
                             })
                             .collect_view()

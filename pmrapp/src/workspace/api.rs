@@ -76,8 +76,9 @@ pub async fn list_aliased_workspaces() -> Result<EnforcedOk<Workspaces>, AppErro
     Ok(policy_state.to_enforced_ok(workspaces))
 }
 
+// TODO move this to server::workspace instead?
 #[cfg(feature = "ssr")]
-async fn resolve_id(id: Id) -> Result<i64, AppError> {
+pub(crate) async fn resolve_id(id: Id) -> Result<i64, AppError> {
     Ok(match id {
         Id::Number(s) => s.parse().map_err(|_| AppError::NotFound)?,
         Id::Aliased(s) => platform()
