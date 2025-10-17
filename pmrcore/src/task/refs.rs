@@ -66,6 +66,10 @@ impl TaskRef<'_> {
         self.inner.pid
     }
 
+    pub fn basedir(&self) -> &str {
+        &self.inner.basedir
+    }
+
     pub fn exit_status(&self) -> Option<i64> {
         self.inner.exit_status
     }

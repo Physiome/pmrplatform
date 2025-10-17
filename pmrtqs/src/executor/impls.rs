@@ -9,6 +9,7 @@ use pmrcore::{
 };
 use std::{
     fs::File,
+    path::PathBuf,
     process::{
         Command,
         Stdio,
@@ -32,22 +33,26 @@ impl<'a> TMPlatformExecutorInstance<'a> {
     }
 
     pub async fn execute(&mut self) -> Result<(i32, bool), RunnerError> {
+        // the base conversion to command does not handle the creation of directories, but will
+        // also join work to the base dir.
+        // so, create the temp_path
+        let temp_path = PathBuf::from(self.task.basedir()).join("temp");
+
+        // convert the command
         let mut command = Command::try_from(&self.task)?;
         log::trace!("task id {} will run: {command:?}", self.task.id());
-        let basedir = command.get_current_dir()
+
+        // also create the work path
+        let work_path = command.get_current_dir()
             .ok_or(ValueError::UninitializedAttribute("task missing basedir"))?;
-
-        // the base conversion to command does NOT include a workdir, we add it here.
-        let work_path = basedir.join("work");
-        let temp_path = basedir.join("temp");
-
         std::fs::create_dir_all(&work_path)?;
         std::fs::create_dir_all(&temp_path)?;
+
+        // and redirect the stdout and stderr to files in temp_path
         let stdout_file = File::create(temp_path.join("stdout"))?;
         let stderr_file = File::create(temp_path.join("stderr"))?;
 
         command
-            .current_dir(work_path)
             .stdout(Stdio::from(stdout_file))
             .stderr(Stdio::from(stderr_file));
 

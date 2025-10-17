@@ -1,5 +1,6 @@
 use std::{
     ops::Deref,
+    path::PathBuf,
     process,
 };
 use crate::{
@@ -53,7 +54,7 @@ impl TryFrom<&Task> for process::Command {
                     .ok_or(ValueError::Uninitialized)?
                     .into()
             )
-            .current_dir::<&str>(task.basedir.as_ref());
+            .current_dir(PathBuf::from(&task.basedir).join("work"));
         Ok(cmd)
     }
 }
@@ -85,6 +86,8 @@ pub(crate) mod test {
         build_test_binary_once!(sentinel, "../testing");
         let bin_path = path_to_sentinel().into_string().expect("valid string");
         let tempdir = TempDir::new()?;
+        let workdir = tempdir.path().join("work");
+        std::fs::create_dir_all(&workdir)?;
         let task = Task {
             bin_path: bin_path.clone(),
             args: Some(vec!["hello".into(), "world".into()].into()),
@@ -95,7 +98,7 @@ pub(crate) mod test {
         let output = String::from_utf8(cmd.output()?.stdout)?;
         let result: Sentinel = serde_json::from_str(&output)?;
         assert_eq!(result.args.as_slice(), &[bin_path.as_ref(), "hello", "world"]);
-        assert_eq!(result.cwd, tempdir.path().to_str().expect("valid utf-8").to_string());
+        assert_eq!(result.cwd, tempdir.path().join("work").to_str().expect("valid utf-8").to_string());
         Ok(())
     }
 }
@@ -117,7 +120,7 @@ mod tokio_impls {
                         .ok_or(ValueError::Uninitialized)?
                         .into()
                 )
-                .current_dir::<&str>(task.basedir.as_ref());
+                .current_dir(PathBuf::from(&task.basedir).join("work"));
             Ok(cmd)
         }
     }
@@ -146,6 +149,8 @@ mod tokio_impls {
             build_test_binary_once!(sentinel, "../testing");
             let bin_path = path_to_sentinel().into_string().expect("valid string");
             let tempdir = TempDir::new()?;
+            let workdir = tempdir.path().join("work");
+            std::fs::create_dir_all(&workdir)?;
             let task = Task {
                 bin_path: bin_path.clone(),
                 args: Some(vec!["hello".into(), "world".into()].into()),
@@ -156,7 +161,7 @@ mod tokio_impls {
             let output = String::from_utf8(cmd.output().await?.stdout)?;
             let result: Sentinel = serde_json::from_str(&output)?;
             assert_eq!(result.args.as_slice(), &[bin_path.as_ref(), "hello", "world"]);
-            assert_eq!(result.cwd, tempdir.path().to_str().expect("valid utf-8").to_string());
+            assert_eq!(result.cwd, tempdir.path().join("work").to_str().expect("valid utf-8").to_string());
             Ok(())
         }
     }

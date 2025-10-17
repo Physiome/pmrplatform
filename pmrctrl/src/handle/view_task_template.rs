@@ -28,6 +28,8 @@ pub struct EFViewTaskTemplatesCtrl<'p> {
     exposure_file_ctrl: ExposureFileCtrl<'p>,
     view_task_templates: ViewTaskTemplates,
     choice_registry: OnceLock<Arc<PreparedChoiceRegistry>>,
+    // TODO this Cache<'p> bind is seriously killing ergonomics, it probably
+    // will benefit greatly from using Arc and/or Weak references.
     choice_registry_cache: OnceLock<PreparedChoiceRegistryCache<'p>>,
     efvttcs: OnceLock<Vec<EFViewTaskTemplateCtrl<'p>>>,
     task_template_args: OnceLock<HashMap<i64, &'p TaskTemplateArg>>,

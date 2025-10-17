@@ -7,9 +7,12 @@ use pmrdb::{
     Backend,
     ConnectorOption,
 };
-use pmrcore::task_template::{
-    TaskTemplate,
-    traits::TaskTemplateBackend,
+use pmrcore::{
+    task::traits::TaskBackend,
+    task_template::{
+        TaskTemplate,
+        traits::TaskTemplateBackend,
+    },
 };
 use std::{
     fs::File,
@@ -17,6 +20,7 @@ use std::{
         stdin,
         BufReader,
     },
+    process::Command,
 };
 
 use pmrtqs::executor::TMPlatformExecutorInstance;
@@ -66,6 +70,10 @@ enum Commands {
         input: Option<std::path::PathBuf>,
     },
     ExecOneShot,
+    Query {
+        #[command(subcommand)]
+        cmd: QueryCmd,
+    }
 }
 
 #[derive(Debug, Subcommand)]
@@ -117,6 +125,15 @@ enum Choice {
     Show {
         #[arg(long, value_name = "ARG_ID")]
         argid: i64,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum QueryCmd {
+    #[command(arg_required_else_help = true)]
+    /// Show information about the task
+    Task {
+        task_id: i64,
     },
 }
 
@@ -194,6 +211,9 @@ async fn main() -> anyhow::Result<()> {
                     println!("no outstanding jobs");
                 }
             };
+        }
+        Commands::Query { cmd } => {
+            parse_query(cmd, backend.as_ref()).await?
         }
     }
 
@@ -335,5 +355,22 @@ async fn parse_choice(choice: Choice, backend: &dyn TaskTemplateBackend) -> anyh
             };
         }
     };
+    Ok(())
+}
+
+async fn parse_query(cmd: QueryCmd, backend: &dyn TaskBackend) -> anyhow::Result<()> {
+    match cmd {
+        QueryCmd::Task { task_id } => {
+            let task = backend.gets_task(task_id).await?;
+            match task.exit_status {
+                Some(status) => println!("task id {} has exit status {status}", task.id),
+                None => println!("task id {} has no exit status", task.id),
+            }
+            match Command::try_from(&task) {
+                Ok(command) => println!("it will run the following:\n{command:?}"),
+                Err(_) => println!("could not convert the task into an executable command"),
+            }
+        }
+    }
     Ok(())
 }
