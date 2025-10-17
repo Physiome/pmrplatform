@@ -127,7 +127,7 @@ SELECT alias, kind_id
 FROM alias
 WHERE kind = "#);
         query_builder.push_bind(kind);
-        query_builder.push("AND id IN (");
+        query_builder.push("AND kind_id IN (");
 
         let mut separated = query_builder.separated(", ");
         for id in ids.iter() {
@@ -188,6 +188,13 @@ pub(crate) mod testing {
         assert_eq!(results.len(), 2);
         assert_eq!(results[0], ("alternate_exposure".to_string(), 2));
         assert_eq!(results[1], ("main_exposure".to_string(), 1));
+
+        let mut results = backend.aliases_by_kind_ids("exposure", &[1]).await?;
+        assert_eq!(results[0], ("main_exposure".to_string(), 1));
+
+        let mut results = backend.aliases_by_kind_ids("exposure", &[1, 2]).await?;
+        assert_eq!(results[0], ("main_exposure".to_string(), 1));
+        assert_eq!(results[1], ("alternate_exposure".to_string(), 2));
 
         Ok(())
     }
