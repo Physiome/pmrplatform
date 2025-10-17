@@ -65,6 +65,7 @@ use crate::{
         resolve_exposure_path,
         update_wizard_field,
         wizard,
+        Exposures,
         ExposureInfo,
         WizardAddFile,
         WizardBuild,
@@ -143,23 +144,66 @@ pub fn ExposureRoot() -> impl IntoView {
     let account_ctx = expect_context::<AccountCtx>();
     #[cfg(not(feature = "ssr"))]
     on_cleanup({
+        let account_ctx = account_ctx.clone();
         move || account_ctx.cleanup_policy_state()
     });
+
+    let exposures = Resource::new_blocking(
+        move || (),
+        move |_| {
+            let set_ps = account_ctx.policy_state.write_only();
+            async move {
+                // required by notify_into_inner which will take it.
+                provide_context(set_ps);
+                // main exposure root provides alias listing
+                let result = list_aliased()
+                    .await
+                    .map(EnforcedOk::notify_into_inner);
+                // this ensures if not taken, this will take it and effect the
+                // drop to release the lock.
+                let _ = take_context::<SsrWriteSignal<Option<PolicyState>>>();
+                result
+            }
+        },
+    );
 
     view! {
         <Title text="Exposure — Physiome Model Repository"/>
         <Provider value=Root::Aliased("/exposure/")>
-            <Outlet/>
+            <Provider value=exposures>
+                <Outlet/>
+            </Provider>
         </Provider>
     }
 }
 
 #[component]
 pub fn ExposureIdRoot() -> impl IntoView {
+    let account_ctx = expect_context::<AccountCtx>();
+    let exposures = Resource::new_blocking(
+        move || (),
+        move |_| {
+            let set_ps = account_ctx.policy_state.write_only();
+            async move {
+                // required by notify_into_inner which will take it.
+                provide_context(set_ps);
+                // id root uses id.
+                let result = list()
+                    .await
+                    .map(EnforcedOk::notify_into_inner);
+                // this ensures if not taken, this will take it and effect the
+                // drop to release the lock.
+                let _ = take_context::<SsrWriteSignal<Option<PolicyState>>>();
+                result
+            }
+        },
+    );
     view! {
         <Title text="Exposure — Physiome Model Repository"/>
         <Provider value=Root::Id("/exposure/:/id/")>
-            <Outlet/>
+            <Provider value=exposures>
+                <Outlet/>
+            </Provider>
         </Provider>
     }
 }
@@ -170,7 +214,7 @@ pub fn ExposureListing() -> impl IntoView {
     let root = expect_context::<Root>();
     #[cfg(not(feature = "ssr"))]
     on_cleanup({
-        let account_ctx = account_ctx.clone();
+        // let account_ctx = account_ctx.clone();
         move || account_ctx.cleanup_policy_state()
     });
 
@@ -179,30 +223,8 @@ pub fn ExposureListing() -> impl IntoView {
     //     let policy_state = account_ctx.policy_state.inner_write_signal();
     //     move || policy_state.set(PolicyState::default())
     // });
+    let exposures = expect_context::<Resource<Result<Exposures, AppError>>>();
 
-    let exposures = Resource::new_blocking(
-        move || (),
-        move |_| {
-            let set_ps = account_ctx.policy_state.write_only();
-            async move {
-                // required by notify_into_inner which will take it.
-                provide_context(set_ps);
-                let result = match root {
-                    Root::Id(_) => list().await,
-                    Root::Aliased(_) => list_aliased().await,
-                };
-                match result {
-                    Ok(ref result) => logging::log!("{}", result.inner.len()),
-                    Err(_) => logging::log!("error loading exposures"),
-                };
-                let result = result.map(EnforcedOk::notify_into_inner);
-                // this ensures if not taken, this will take it and effect the
-                // drop to release the lock.
-                let _ = take_context::<SsrWriteSignal<Option<PolicyState>>>();
-                result
-            }
-        },
-    );
     let exposure_listing = move || Suspend::new(async move {
         exposures.await.map(|exposures| exposures
             .into_iter()
