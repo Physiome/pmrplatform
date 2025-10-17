@@ -246,19 +246,19 @@ pub trait MCPlatform: WorkspaceBackend
     }
 
     /// get the `ExposureRefs`
-    async fn list_exposures<'a>(
-        &'a self,
-    ) -> Result<exposure::ExposureRefs<'a>, BackendError> {
+    async fn list_exposures(
+        &self,
+    ) -> Result<exposure::ExposureRefs<'_>, BackendError> {
         ExposureBackend::list(self)
             .await
             .map(|v| v.bind(self.as_dyn()).into())
     }
 
     /// get `ExposureRefs` for the workspace by the `workspace_id`
-    async fn list_exposures_for_workspace<'a>(
-        &'a self,
+    async fn list_exposures_for_workspace(
+        &self,
         workspace_id: i64,
-    ) -> Result<exposure::ExposureRefs<'a>, BackendError> {
+    ) -> Result<exposure::ExposureRefs<'_>, BackendError> {
         ExposureBackend::list_for_workspace(self, workspace_id)
             .await
             .map(|v| v.bind(self.as_dyn()).into())
@@ -267,9 +267,9 @@ pub trait MCPlatform: WorkspaceBackend
     /// list exposures by their aliases.
     ///
     /// This is provided as a generic implementation
-    async fn list_aliased_exposures<'a>(
-        &'a self,
-    ) -> Result<AliasEntries<exposure::ExposureRef<'a>>, BackendError> {
+    async fn list_aliased_exposures(
+        &self,
+    ) -> Result<AliasEntries<exposure::ExposureRef<'_>>, BackendError> {
         let this = self.as_dyn();
         let aliases = self.aliases_by_kind("exposure").await?;
         let mut id_map = aliases.into_iter()
@@ -294,10 +294,10 @@ pub trait MCPlatform: WorkspaceBackend
     /// list `ExposureRefs` for the workspace by the `workspace_id` with their alias
     ///
     /// This is provided as a generic implementation.
-    async fn list_aliased_exposures_for_workspace<'a>(
-        &'a self,
+    async fn list_aliased_exposures_for_workspace(
+        &self,
         workspace_id: i64,
-    ) -> Result<AliasEntries<exposure::ExposureRef<'a>>, BackendError> {
+    ) -> Result<AliasEntries<exposure::ExposureRef<'_>>, BackendError> {
         let this = self.as_dyn();
         let exposures = ExposureBackend::list_for_workspace(self, workspace_id)
             .await?;

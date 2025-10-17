@@ -18,9 +18,9 @@ impl SessionTokenFactory {
                 .as_ref()
                 .map(|m| m.lock()
                     .expect("not poisoned")
-                    .gen()
+                    .r#gen()
                 )
-                .unwrap_or_else(|| rand::thread_rng().gen())
+                .unwrap_or_else(|| rand::thread_rng().r#gen())
         )
     }
 }
