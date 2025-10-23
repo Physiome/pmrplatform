@@ -41,5 +41,6 @@ where
 pub trait PlatformConnector {
     async fn ac(opts: ConnectorOption) -> Result<impl ACPlatform, Box<dyn Error + Send + Sync + 'static>>;
     async fn mc(opts: ConnectorOption) -> Result<impl MCPlatform, Box<dyn Error + Send + Sync + 'static>>;
+    async fn pc(opts: ConnectorOption) -> Result<impl PCPlatform, Box<dyn Error + Send + Sync + 'static>>;
     async fn tm(opts: ConnectorOption) -> Result<impl TMPlatform, Box<dyn Error + Send + Sync + 'static>>;
 }

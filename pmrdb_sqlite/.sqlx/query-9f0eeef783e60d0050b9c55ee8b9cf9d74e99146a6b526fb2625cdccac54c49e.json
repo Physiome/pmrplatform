@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nINSERT INTO citation_link (\n    citation_id,\n    resource_path\n)\nVALUES ( ?1, ?2 )\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "9f0eeef783e60d0050b9c55ee8b9cf9d74e99146a6b526fb2625cdccac54c49e"
+}

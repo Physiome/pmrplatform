@@ -1,5 +1,7 @@
 use async_trait::async_trait;
-use pmrcore::platform::{ACPlatform, ConnectorOption, MCPlatform, PlatformConnector, PlatformUrl, TMPlatform};
+use pmrcore::platform::{
+    ACPlatform, ConnectorOption, MCPlatform, PCPlatform, PlatformConnector, PlatformUrl, TMPlatform,
+};
 use sqlx::{migrate::MigrateDatabase, Sqlite, SqlitePool};
 use std::sync::Arc;
 
@@ -35,6 +37,11 @@ impl SqliteBackend {
         Ok(self)
     }
 
+    pub async fn migrate_pc(self) -> Result<Self, sqlx::Error> {
+        sqlx::migrate!("migrations/pmrmeta").run(&*self.pool).await?;
+        Ok(self)
+    }
+
     pub async fn migrate_tm(self) -> Result<Self, sqlx::Error> {
         sqlx::migrate!("migrations/pmrtqs").run(&*self.pool).await?;
         Ok(self)
@@ -61,6 +68,15 @@ impl PlatformConnector for SqliteBackend {
         Ok(backend)
     }
 
+    async fn pc(opts: ConnectorOption) -> Result<impl PCPlatform, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let backend = SqliteBackend::connect(opts).await
+            .map_err(Box::new)?
+            .migrate_pc()
+            .await
+            .map_err(Box::new)?;
+        Ok(backend)
+    }
+
     async fn tm(opts: ConnectorOption) -> Result<impl TMPlatform, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let backend = SqliteBackend::connect(opts).await
             .map_err(Box::new)?
@@ -73,6 +89,8 @@ impl PlatformConnector for SqliteBackend {
 
 mod ac;
 mod alias;
+
+mod citation;
 
 mod exposure;
 mod exposure_file;
@@ -96,12 +114,14 @@ mod default_impl {
     use pmrcore::platform::{
         DefaultACPlatform,
         DefaultMCPlatform,
+        DefaultPCPlatform,
         DefaultTMPlatform,
     };
     use crate::SqliteBackend;
 
     impl DefaultACPlatform for SqliteBackend {}
     impl DefaultMCPlatform for SqliteBackend {}
+    impl DefaultPCPlatform for SqliteBackend {}
     impl DefaultTMPlatform for SqliteBackend {}
 }
 
