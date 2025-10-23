@@ -1,5 +1,6 @@
 pub mod ac;
 pub mod alias;
+pub mod citation;
 pub mod error;
 pub mod exposure;
 #[cfg(feature = "git")]

@@ -5,6 +5,10 @@ use pmrcore::{
         Alias,
         traits::AliasBackend,
     },
+    citation::{
+        Citation,
+        traits::CitationBackend,
+    },
     error::{
         BackendError,
         Error,
@@ -40,6 +44,7 @@ use pmrcore::{
     },
     platform::{
         DefaultMCPlatform,
+        DefaultPCPlatform,
         DefaultTMPlatform,
         PlatformUrl,
     },
@@ -367,11 +372,32 @@ mock! {
         ) -> Result<bool, BackendError>;
     }
 
+    #[async_trait]
+    impl CitationBackend for Platform {
+        async fn add_citation(
+            &self,
+            identifier: &str,
+        ) -> Result<i64, BackendError>;
+        async fn add_citation_link(
+            &self,
+            citation_id: i64,
+            resource_path: &str,
+        ) -> Result<(), BackendError>;
+        async fn list_citations(
+            &self,
+        ) -> Result<Vec<Citation>, BackendError>;
+        async fn list_citation_resources(
+            &self,
+            identifier: &str,
+        ) -> Result<Vec<String>, BackendError>;
+    }
+
     impl PlatformUrl for Platform {
         fn url(&self) -> &str;
     }
 
     impl DefaultMCPlatform for Platform {}
+    impl DefaultPCPlatform for Platform {}
     impl DefaultTMPlatform for Platform {}
 }
 
