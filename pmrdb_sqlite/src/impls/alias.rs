@@ -189,10 +189,10 @@ pub(crate) mod testing {
         assert_eq!(results[0], ("alternate_exposure".to_string(), 2));
         assert_eq!(results[1], ("main_exposure".to_string(), 1));
 
-        let mut results = backend.aliases_by_kind_ids("exposure", &[1]).await?;
+        let results = backend.aliases_by_kind_ids("exposure", &[1]).await?;
         assert_eq!(results[0], ("main_exposure".to_string(), 1));
 
-        let mut results = backend.aliases_by_kind_ids("exposure", &[1, 2]).await?;
+        let results = backend.aliases_by_kind_ids("exposure", &[1, 2]).await?;
         assert_eq!(results[0], ("main_exposure".to_string(), 1));
         assert_eq!(results[1], ("alternate_exposure".to_string(), 2));
 
