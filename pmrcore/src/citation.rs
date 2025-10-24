@@ -14,7 +14,7 @@ pub struct CitationLink {
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct CitationResourceSet {
-    pub citation_id: i64,
+    pub citation: Citation,
     pub resource_paths: Vec<String>,
 }
 

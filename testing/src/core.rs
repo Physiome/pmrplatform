@@ -378,14 +378,18 @@ mock! {
             &self,
             identifier: &str,
         ) -> Result<i64, BackendError>;
+        async fn get_citation_by_identifier(
+            &self,
+            identifier: &str,
+        ) -> Result<Option<Citation>, BackendError>;
+        async fn list_citations(
+            &self,
+        ) -> Result<Vec<Citation>, BackendError>;
         async fn add_citation_link(
             &self,
             citation_id: i64,
             resource_path: &str,
         ) -> Result<(), BackendError>;
-        async fn list_citations(
-            &self,
-        ) -> Result<Vec<Citation>, BackendError>;
         async fn list_citation_resources(
             &self,
             identifier: &str,

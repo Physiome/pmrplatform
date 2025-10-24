@@ -51,6 +51,32 @@ VALUES ( ?1, ?2 )
     Ok(())
 }
 
+async fn get_citation_by_identifier_sqlite(
+    backend: &SqliteBackend,
+    identifier: &str,
+) -> Result<Option<Citation>, BackendError> {
+    let recs = sqlx::query!(
+        r#"
+SELECT
+    id,
+    identifier
+FROM
+    citation
+WHERE
+    identifier = ?1
+        "#,
+        identifier,
+    )
+    .map(|row| Citation {
+        id: row.id,
+        identifier: row.identifier,
+    })
+    .fetch_optional(&*backend.pool)
+    .await?;
+
+    Ok(recs)
+}
+
 async fn list_citations_sqlite(
     backend: &SqliteBackend,
 ) -> Result<Vec<Citation>, BackendError> {
@@ -115,6 +141,19 @@ impl CitationBackend for SqliteBackend {
         ).await
     }
 
+    async fn get_citation_by_identifier(
+        &self,
+        identifier: &str,
+    ) -> Result<Option<Citation>, BackendError> {
+        get_citation_by_identifier_sqlite(&self, identifier).await
+    }
+
+    async fn list_citations(
+        &self,
+    ) -> Result<Vec<Citation>, BackendError> {
+        list_citations_sqlite(&self).await
+    }
+
     async fn add_citation_link(
         &self,
         citation_id: i64,
@@ -125,12 +164,6 @@ impl CitationBackend for SqliteBackend {
             citation_id,
             resource_path,
         ).await
-    }
-
-    async fn list_citations(
-        &self,
-    ) -> Result<Vec<Citation>, BackendError> {
-        list_citations_sqlite(&self).await
     }
 
     /// returns the resource string identifiers for the given citation identifier
@@ -153,6 +186,7 @@ pub(crate) mod testing {
         citation::traits::CitationBackend,
     };
     use crate::SqliteBackend;
+    use super::*;
 
     #[async_std::test]
     async fn test_basic() -> anyhow::Result<()> {
@@ -172,10 +206,26 @@ pub(crate) mod testing {
         backend.add_citation_link(id2, "http://example.com/model/2e").await?;
 
         assert_eq!(backend.list_citations().await?.len(), 3);
+
+        assert!(backend.get_citation_by_identifier("no_such_resource").await?.is_none());
         assert_eq!(backend.list_citation_resources("no_such_resource").await?.len(), 0);
+
+        assert_eq!(
+            backend.get_citation_by_identifier("urn:example:citation:unused").await?.unwrap(),
+            Citation {
+                id: 1,
+                identifier: "urn:example:citation:unused".to_string(),
+            }
+        );
         assert_eq!(backend.list_citation_resources("urn:example:citation:unused").await?.len(), 0);
+
         assert_eq!(backend.list_citation_resources("urn:example:citation1").await?.len(), 2);
         assert_eq!(backend.list_citation_resources("urn:example:citation2").await?.len(), 3);
+
+        let result = backend.get_citation_resource_set("urn:example:citation2").await?
+            .expect("has a result");
+        assert_eq!(result.citation.id, 3);
+        assert_eq!(result.resource_paths.len(), 3);
 
         Ok(())
     }
