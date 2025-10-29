@@ -1,4 +1,4 @@
-use pmrcore::platform::{ACPlatform, MCPlatform, TMPlatform};
+use pmrcore::platform::{ACPlatform, MCPlatform, PCPlatform, TMPlatform};
 pub use pmrcore::platform::{ConnectorOption, PlatformConnector};
 #[cfg(feature = "sqlite")]
 use pmrdb_sqlite::SqliteBackend;
@@ -66,6 +66,20 @@ impl Backend {
         match BackendKind::try_from(opts.url.as_str()) {
             #[cfg(feature = "sqlite")]
             Ok(BackendKind::Sqlite) => Ok(Box::new(SqliteBackend::mc(opts).await?)),
+            #[cfg(not(feature = "sqlite"))]
+            Ok(s) => Err(Box::new(Error(format!(
+                "The feature {s:?} must be enabled for pmrdb in order to connect to {:?}", opts.url
+            )))),
+            Err(e) => Err(Box::new(e)),
+        }
+    }
+
+    pub async fn pc(
+        opts: ConnectorOption
+    ) -> Result<Box<dyn PCPlatform>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        match BackendKind::try_from(opts.url.as_str()) {
+            #[cfg(feature = "sqlite")]
+            Ok(BackendKind::Sqlite) => Ok(Box::new(SqliteBackend::pc(opts).await?)),
             #[cfg(not(feature = "sqlite"))]
             Ok(s) => Err(Box::new(Error(format!(
                 "The feature {s:?} must be enabled for pmrdb in order to connect to {:?}", opts.url

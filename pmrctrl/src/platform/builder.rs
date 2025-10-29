@@ -40,6 +40,8 @@ pub struct Builder {
     pub pmrac_db_url: String,
     #[clap(long, value_name = "PMRAPP_DB_URL", env = "PMRAPP_DB_URL")]
     pub pmrapp_db_url: String,
+    #[clap(long, value_name = "PMRPC_DB_URL", env = "PMRPC_DB_URL")]
+    pub pmrpc_db_url: String,
     #[clap(long, value_name = "PMRTQS_DB_URL", env = "PMRTQS_DB_URL")]
     pub pmrtqs_db_url: String,
 }
@@ -79,6 +81,11 @@ impl Builder {
         self
     }
 
+    pub fn pmrpc_db_url(mut self, value: String) -> Self {
+        self.pmrpc_db_url = value;
+        self
+    }
+
     pub fn pmrtqs_db_url(mut self, value: String) -> Self {
         self.pmrtqs_db_url = value;
         self
@@ -101,6 +108,12 @@ impl Builder {
                 .build(),
             Backend::mc(
                 ConnectorOption::from(&self.pmrapp_db_url)
+                    .auto_create_db(self.pmr_auto_create_db)
+            )
+                .await?
+                .into(),
+            Backend::pc(
+                ConnectorOption::from(&self.pmrpc_db_url)
                     .auto_create_db(self.pmr_auto_create_db)
             )
                 .await?

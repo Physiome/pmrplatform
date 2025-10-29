@@ -32,6 +32,9 @@ async fn create_blank_platform(url: &str) -> anyhow::Result<(
         Backend::mc(url.into()).await
             .map_err(anyhow::Error::from_boxed)?
             .into(),
+        Backend::pc(url.into()).await
+            .map_err(anyhow::Error::from_boxed)?
+            .into(),
         Backend::tm(url.into()).await
             .map_err(anyhow::Error::from_boxed)?
             .into(),
