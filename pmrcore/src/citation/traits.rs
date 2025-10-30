@@ -4,7 +4,11 @@ use crate::{
         Citation,
         CitationResourceSet,
     },
-    error::BackendError,
+    error::{
+        BackendError,
+        Error,
+        ValueError,
+    },
 };
 
 #[async_trait]
@@ -36,6 +40,17 @@ pub trait CitationBackend {
         &self,
         identifier: &str,
     ) -> Result<Vec<String>, BackendError>;
+
+    async fn link_citation(
+        &self,
+        identifier: &str,
+        resource_path: &str,
+    ) -> Result<(), Error> {
+        let citation = self.get_citation_by_identifier(identifier)
+            .await?
+            .ok_or_else(|| ValueError::EntityMissing(identifier.to_string()))?;
+        Ok(self.add_citation_link(citation.id, resource_path).await?)
+    }
 
     async fn get_citation_resource_set(
         &self,

@@ -92,11 +92,11 @@ async fn main() -> anyhow::Result<()> {
     let _ = CONF.set(args.config);
 
     match args.command {
-        Commands::Add { .. } => {
-            todo!()
+        Commands::Add { identifier } => {
+            platform.pc_platform.add_citation(&identifier).await?;
         },
-        Commands::Link { .. } => {
-            todo!()
+        Commands::Link { identifier, resource_path } => {
+            platform.pc_platform.link_citation(&identifier, &resource_path).await?;
         },
         Commands::Rdfxml { cmd } => {
             parse_rdfxml_cmd(&platform, cmd).await?;
