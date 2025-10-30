@@ -6,9 +6,12 @@ CREATE TABLE IF NOT EXISTS citation (
 );
 
 CREATE INDEX IF NOT EXISTS citation__citation_id ON citation(id);
+CREATE UNIQUE INDEX IF NOT EXISTS citation__identifier ON citation(identifier);
 
 CREATE TABLE IF NOT EXISTS citation_link (
     citation_id INTEGER NOT NULL,
     resource_path TEXT NOT NULL,
     FOREIGN KEY(citation_id) REFERENCES citation(id)
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS citation_link__citation_id_resource_path ON citation_link(citation_id, resource_path);

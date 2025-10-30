@@ -195,11 +195,14 @@ pub(crate) mod testing {
             .map_err(anyhow::Error::from_boxed)?;
 
         backend.add_citation("urn:example:citation:unused").await?;
+        assert!(backend.add_citation("urn:example:citation:unused").await.is_err());
         let id1 = backend.add_citation("urn:example:citation1").await?;
         let id2 = backend.add_citation("urn:example:citation2").await?;
 
         backend.add_citation_link(id1, "http://example.com/model/1a").await?;
         backend.add_citation_link(id1, "http://example.com/model/1b").await?;
+
+        assert!(backend.add_citation_link(id1, "http://example.com/model/1b").await.is_err());
 
         backend.add_citation_link(id2, "http://example.com/model/2c").await?;
         backend.add_citation_link(id2, "http://example.com/model/2d").await?;
