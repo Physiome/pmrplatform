@@ -1,6 +1,7 @@
 use std::io::Read;
 use oxigraph::{
     io::{RdfFormat, RdfParser},
+    model::Term,
     sparql::{QueryResults, SparqlEvaluator},
     store::Store,
 };
@@ -51,12 +52,36 @@ where
     Ok(store)
 }
 
-pub fn index<R>(mut reader: R) -> Result<(), RdfIndexerError>
+pub fn index<R>(reader: R) -> Result<Option<String>, RdfIndexerError>
 where
     R: Read
 {
-    let store = xml_to_store(reader);
+    let store = xml_to_store(reader)?;
 
-    let _ = SparqlEvaluator::new();
-    Ok(())
+    if let QueryResults::Solutions(mut solutions) = SparqlEvaluator::new()
+        .parse_query(r#"
+            PREFIX bqs: <http://www.cellml.org/bqs/1.0#>
+
+            SELECT ?ref ?pmid
+            WHERE {
+                ?node bqs:reference ?ref .
+                ?ref bqs:JournalArticle ?article .
+                OPTIONAL { ?ref bqs:Pubmed_id ?pmid } .
+            }
+        "#)?
+        .on_store(&store)
+        .execute()?
+    {
+        // for solution in solutions {
+        //     if let Ok(solution) = solution {
+        //         println!("{:?}", solution.get("pmid"));
+        //     }
+        // }
+        if let Some(Ok(solution)) = solutions.next() {
+            if let Some(Term::Literal(literal)) = solution.get("pmid") {
+                return Ok(Some(literal.to_string()));
+            }
+        }
+    }
+    Ok(None)
 }

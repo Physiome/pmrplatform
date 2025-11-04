@@ -2,6 +2,7 @@ use thiserror::Error;
 use oxigraph::{
     io::RdfParseError,
     model::IriParseError,
+    sparql::{QueryEvaluationError, SparqlSyntaxError},
     store::StorageError,
 };
 
@@ -14,9 +15,13 @@ pub enum RdfIndexerError {
     #[error(transparent)]
     IriParseError(#[from] IriParseError),
     #[error(transparent)]
+    QueryEvaluationError(#[from] QueryEvaluationError),
+    #[error(transparent)]
     RdfParseError(#[from] RdfParseError),
     #[error(transparent)]
     RdfStorageError(#[from] StorageError),
+    #[error(transparent)]
+    SparqlSyntaxError(#[from] SparqlSyntaxError),
     #[error(transparent)]
     XeeDocumentsError(#[from] xee_xpath::error::DocumentsError),
     #[error(transparent)]

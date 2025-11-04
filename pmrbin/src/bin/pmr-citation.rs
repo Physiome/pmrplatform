@@ -95,7 +95,7 @@ async fn parse_rdfxml_cmd<'p>(
     match arg {
         RdfxmlCmd::Index { path } => {
             let reader = BufReader::new(fs::File::open(path)?);
-            index(reader)?;
+            println!("pmid = {:?}", index(reader)?);
         }
     }
     Ok(())
