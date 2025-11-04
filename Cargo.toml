@@ -81,6 +81,7 @@ log = "0.4"
 mime_guess = "2.0.4"
 mockall = "0.10.2"
 num_enum = "0.6.1"
+oxigraph = { version = "0.5.2", default-features = false }
 parking_lot = "0.12"
 paw = "1.0"
 rand = "0.8.5"
@@ -108,6 +109,7 @@ tracing = "0.1"
 url = "2.5.4"
 wasm-bindgen = "0.2.104"
 web-sys = "0.3.69"
+xee-xpath = "0.1.5"
 
 # Defines a size-optimized profile for the WASM bundle in release mode
 [profile.wasm-release]

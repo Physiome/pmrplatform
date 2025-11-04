@@ -1,30 +1,12 @@
 use clap::{Parser, Subcommand};
-use pmrcore::{
-    exposure::{
-        traits::{
-            Exposure as _,
-            ExposureFile as _,
-            ExposureFileView as _,
-        },
-        profile::traits::ExposureFileProfileBackend,
-    },
-};
+use pmrbin::citation::index;
 use pmrctrl::platform::{
     Builder as PlatformBuilder,
     Platform,
 };
-use pmrmodel::{
-    model::{
-        profile::UserViewProfileRef,
-        task_template::TaskArgBuilder,
-    },
-};
 use std::{
     fs,
-    io::{
-        stdin,
-        BufReader,
-    },
+    io::BufReader,
     sync::OnceLock,
 };
 
@@ -111,8 +93,9 @@ async fn parse_rdfxml_cmd<'p>(
     arg: RdfxmlCmd,
 ) -> anyhow::Result<()> {
     match arg {
-        RdfxmlCmd::Index { .. } => {
-            todo!()
+        RdfxmlCmd::Index { path } => {
+            let reader = BufReader::new(fs::File::open(path)?);
+            index(reader)?;
         }
     }
     Ok(())
