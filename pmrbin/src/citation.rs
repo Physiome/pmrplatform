@@ -52,13 +52,9 @@ where
     Ok(store)
 }
 
-pub fn index<R>(reader: R) -> Result<Option<String>, RdfIndexerError>
-where
-    R: Read
-{
-    let store = xml_to_store(reader)?;
-
-    if let QueryResults::Solutions(mut solutions) = SparqlEvaluator::new()
+fn index_pubmed_id(store: &Store) -> Result<Vec<String>, RdfIndexerError> {
+    let mut result = Vec::new();
+    if let QueryResults::Solutions(solutions) = SparqlEvaluator::new()
         .parse_query(r#"
             PREFIX bqs: <http://www.cellml.org/bqs/1.0#>
 
@@ -72,16 +68,21 @@ where
         .on_store(&store)
         .execute()?
     {
-        // for solution in solutions {
-        //     if let Ok(solution) = solution {
-        //         println!("{:?}", solution.get("pmid"));
-        //     }
-        // }
-        if let Some(Ok(solution)) = solutions.next() {
-            if let Some(Term::Literal(literal)) = solution.get("pmid") {
-                return Ok(Some(literal.to_string()));
+        for solution in solutions {
+            if let Ok(solution) = solution {
+                if let Some(Term::Literal(literal)) = solution.get("pmid") {
+                    result.push(format!("pmid:{literal}"));
+                }
             }
         }
     }
-    Ok(None)
+    Ok(result)
+}
+
+pub fn index<R>(reader: R) -> Result<Vec<String>, RdfIndexerError>
+where
+    R: Read
+{
+    let store = xml_to_store(reader)?;
+    index_pubmed_id(&store)
 }
