@@ -1764,6 +1764,32 @@ async fn test_exposure_file_registry() -> anyhow::Result<()> {
         UserChoiceRef("if1", true),
     ]);
 
+    let reg_exposure_id = registry.lookup("exposure_id").expect("has exposure_id registry");
+    assert_eq!(reg_exposure_id.get("exposure_id"), Some(&Some("1")));
+    let user_choices = UserChoiceRefs::from(reg_exposure_id);
+    assert_eq!(user_choices.as_slice(), &[
+        UserChoiceRef("exposure_id", false),
+    ]);
+
+    let exposure2 = platform.create_exposure(
+        1,
+        "42845247d1a2af1bf5a0f09c85e254ba78992c2f",
+    ).await?;
+    let efc2 = exposure2.create_file("if1").await?;
+    let registry2 = PreparedChoiceRegistry::try_from(&efc2)?;
+    assert_eq!(
+        registry2.lookup("exposure_id")
+            .expect("has exposure_id registry")
+            .get("exposure_id"),
+        Some(&Some("2")),
+    );
+    assert_eq!(
+        registry2.lookup("exposure_file")
+            .expect("has exposure_file registry")
+            .get("exposure_file"),
+        Some(&Some("if1")),
+    );
+
     Ok(())
 }
 
