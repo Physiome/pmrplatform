@@ -1,0 +1,52 @@
+[profile]
+title = "Citation Index"
+description = "For documentation only"
+
+[[view_task_templates]]
+view_key = "citation"
+description = "Citation"
+
+[view_task_templates.task_template]
+bin_path = "${PMRPLATFORM_DIR}/target/release/pmr-citation"
+version_id = "0.0.1"
+
+[[view_task_templates.task_template.args]]
+flag = "rdfxml"
+flag_joined = false
+flag_omit_when_null = false
+choice_fixed = false
+
+[[view_task_templates.task_template.args]]
+flag = "index"
+flag_joined = false
+flag_omit_when_null = false
+choice_fixed = false
+
+[[view_task_templates.task_template.args]]
+flag_joined = false
+flag_omit_when_null = false
+prompt = ""
+default = "workspace_file_path"
+choice_fixed = true
+choice_source = "workspace_file_path"
+choices = []
+#
+# [[view_task_templates.task_template.args]]
+# flag = "--exposure_id="
+# flag_joined = false
+# flag_omit_when_null = false
+# prompt = ""
+# default = "exposure_id"
+# choice_fixed = true
+# choice_source = "exposure_id"
+# choices = []
+#
+# [[view_task_templates.task_template.args]]
+# flag = "--exposure_path="
+# flag_joined = false
+# flag_omit_when_null = false
+# prompt = ""
+# default = "exposure_path"
+# choice_fixed = true
+# choice_source = "exposure_path"
+# choices = []

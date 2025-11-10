@@ -1,0 +1,35 @@
+[profile]
+title = "Argon SDS Archive"
+description = "Argon SDS Archive"
+
+[[view_task_templates]]
+view_key = "argon_sds_archive"
+description = "SPARC Dataset Archive (Argon)"
+
+[view_task_templates.task_template]
+bin_path = "${CMLIBS_VENV_DIR}/bin/create-scaffold-dataset"
+version_id = "0.2.1"
+
+[[view_task_templates.task_template.args]]
+flag_joined = false
+flag_omit_when_null = false
+prompt = ""
+default = "working_dir"
+choice_fixed = true
+choice_source = "working_dir"
+choices = []
+
+[[view_task_templates.task_template.args]]
+flag = "${PMR2_BUILDOUT_DIR}/eggs/fieldml.pmr2-0.12.1-py2.7.egg/fieldml/pmr2/mesh_generator-settings.json"
+flag_joined = false
+flag_omit_when_null = false
+choice_fixed = false
+
+[[view_task_templates.task_template.args]]
+flag_joined = false
+flag_omit_when_null = false
+prompt = "Argon document"
+choice_fixed = true
+choice_source = "files"
+choices = []
+

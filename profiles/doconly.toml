@@ -1,0 +1,56 @@
+[profile]
+title = "Documentation Only"
+description = "For documentation only"
+
+[[view_task_templates]]
+view_key = "view"
+description = "Documentation"
+
+[view_task_templates.task_template]
+bin_path = "${PMR2_BUILDOUT_DIR}/bin/cellml.pmr2"
+version_id = "0.10.7"
+
+[[view_task_templates.task_template.args]]
+flag = "docgen"
+flag_joined = false
+flag_omit_when_null = false
+choice_fixed = false
+
+[[view_task_templates.task_template.args]]
+flag = "--input-path="
+flag_joined = true
+flag_omit_when_null = false
+prompt = "Documentation source"
+choice_fixed = true
+choice_source = "files"
+choices = []
+
+[[view_task_templates.task_template.args]]
+flag = "--output-dir="
+flag_joined = true
+flag_omit_when_null = false
+prompt = ""
+default = "working_dir"
+choice_fixed = true
+choice_source = "working_dir"
+choices = []
+
+[[view_task_templates.task_template.args]]
+flag = "--doctype="
+flag_joined = true
+flag_omit_when_null = false
+prompt = "Documentation type"
+choice_fixed = true
+choice_source = ""
+
+[[view_task_templates.task_template.args.choices]]
+to_arg = "htmldoc"
+label = "HTML document"
+
+[[view_task_templates.task_template.args.choices]]
+to_arg = "tmpdoc"
+label = "Legacy CellML-tmpdoc"
+
+[[view_task_templates.task_template.args.choices]]
+to_arg = "rst"
+label = "ReStructuredText"

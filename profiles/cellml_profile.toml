@@ -1,0 +1,221 @@
+[profile]
+title = "CellML Model"
+description = "For use with CellML models files."
+
+[[view_task_templates]]
+view_key = "view"
+description = "Documentation"
+
+[view_task_templates.task_template]
+bin_path = "${PMR2_BUILDOUT_DIR}/bin/cellml.pmr2"
+version_id = "0.10.7"
+
+[[view_task_templates.task_template.args]]
+flag = "docgen"
+flag_joined = false
+flag_omit_when_null = false
+choice_fixed = false
+
+[[view_task_templates.task_template.args]]
+flag = "--input-path="
+flag_joined = true
+flag_omit_when_null = false
+prompt = "Documentation source"
+choice_fixed = true
+choice_source = "files"
+choices = []
+
+[[view_task_templates.task_template.args]]
+flag = "--output-dir="
+flag_joined = true
+flag_omit_when_null = false
+prompt = ""
+default = "working_dir"
+choice_fixed = true
+choice_source = "working_dir"
+choices = []
+
+[[view_task_templates.task_template.args]]
+flag = "--doctype="
+flag_joined = true
+flag_omit_when_null = false
+prompt = "Documentation type"
+choice_fixed = true
+choice_source = ""
+
+[[view_task_templates.task_template.args.choices]]
+to_arg = "htmldoc"
+label = "HTML document"
+
+[[view_task_templates.task_template.args.choices]]
+to_arg = "tmpdoc"
+label = "Legacy CellML-tmpdoc"
+
+[[view_task_templates.task_template.args.choices]]
+to_arg = "rst"
+label = "ReStructuredText"
+
+[[view_task_templates]]
+view_key = "cellml_codegen"
+description = "CellML code generation"
+
+[view_task_templates.task_template]
+bin_path = "${PMR2_BUILDOUT_DIR}/bin/cellml.pmr2"
+version_id = "0.10.7"
+
+[[view_task_templates.task_template.args]]
+flag = "codegen"
+flag_joined = false
+flag_omit_when_null = false
+choice_fixed = false
+
+[[view_task_templates.task_template.args]]
+flag = "--input-path="
+flag_joined = true
+flag_omit_when_null = false
+prompt = ""
+default = "workspace_file_path"
+choice_fixed = true
+choice_source = "workspace_file_path"
+choices = []
+
+[[view_task_templates.task_template.args]]
+flag = "--output-dir="
+flag_joined = true
+flag_omit_when_null = false
+prompt = ""
+default = "working_dir"
+choice_fixed = true
+choice_source = "working_dir"
+choices = []
+
+[[view_task_templates]]
+view_key = "cellml_math"
+description = "CellML Mathematics"
+
+[view_task_templates.task_template]
+bin_path = "${PMR2_BUILDOUT_DIR}/bin/cellml.pmr2"
+version_id = "0.10.7"
+final_task_template_arg_id = 45
+
+[[view_task_templates.task_template.args]]
+flag = "maths"
+flag_joined = false
+flag_omit_when_null = false
+choice_fixed = false
+
+[[view_task_templates.task_template.args]]
+flag = "--input-path="
+flag_joined = true
+flag_omit_when_null = false
+prompt = ""
+default = "workspace_file_path"
+choice_fixed = true
+choice_source = "workspace_file_path"
+choices = []
+
+[[view_task_templates.task_template.args]]
+flag = "--output-dir="
+flag_joined = true
+flag_omit_when_null = false
+prompt = ""
+default = "working_dir"
+choice_fixed = true
+choice_source = "working_dir"
+choices = []
+
+[[view_task_templates]]
+view_key = "cellml_metadata"
+description = "Model Metadata"
+
+[view_task_templates.task_template]
+bin_path = "${PMR2_BUILDOUT_DIR}/bin/pmr2.compat"
+version_id = "0.10.7"
+
+[[view_task_templates.task_template.args]]
+flag = "cmeta"
+flag_joined = false
+flag_omit_when_null = false
+choice_fixed = false
+
+[[view_task_templates.task_template.args]]
+flag = "--input-path="
+flag_joined = true
+flag_omit_when_null = false
+prompt = ""
+default = "workspace_file_path"
+choice_fixed = true
+choice_source = "workspace_file_path"
+choices = []
+
+[[view_task_templates.task_template.args]]
+flag = "--output-dir="
+flag_joined = true
+flag_omit_when_null = false
+prompt = ""
+default = "working_dir"
+choice_fixed = true
+choice_source = "working_dir"
+choices = []
+
+[[view_task_templates]]
+view_key = "license_citation"
+description = "Cite this model"
+
+[view_task_templates.task_template]
+bin_path = "${PMR2_BUILDOUT_DIR}/bin/pmr2.compat"
+version_id = "0.10.7"
+
+[[view_task_templates.task_template.args]]
+flag = "citation"
+flag_joined = false
+flag_omit_when_null = false
+choice_fixed = false
+
+[[view_task_templates.task_template.args]]
+flag = "--file-format="
+flag_joined = true
+flag_omit_when_null = false
+prompt = "Citation file format"
+choice_fixed = true
+choice_source = ""
+
+[[view_task_templates.task_template.args.choices]]
+label = "(None; manually pick license)"
+
+[[view_task_templates.task_template.args.choices]]
+to_arg = "cellml"
+label = "CellML RDF Metadata"
+
+[[view_task_templates.task_template.args]]
+flag = "--license-uri="
+flag_joined = true
+flag_omit_when_null = false
+prompt = "License"
+choice_fixed = false
+choice_source = ""
+
+[[view_task_templates.task_template.args.choices]]
+to_arg = "https://creativecommons.org/licenses/by/3.0/"
+label = "Creative Commons - Attributions 3.0 Unported"
+
+[[view_task_templates.task_template.args]]
+flag = "--input-path="
+flag_joined = true
+flag_omit_when_null = false
+prompt = ""
+default = "workspace_file_path"
+choice_fixed = true
+choice_source = "workspace_file_path"
+choices = []
+
+[[view_task_templates.task_template.args]]
+flag = "--output-dir="
+flag_joined = true
+flag_omit_when_null = false
+prompt = ""
+default = "working_dir"
+choice_fixed = true
+choice_source = "working_dir"
+choices = []
+
