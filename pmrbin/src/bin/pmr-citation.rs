@@ -39,6 +39,9 @@ enum Commands {
         identifier: String,
         resource_path: String,
     },
+    List {
+        identifier: Option<String>,
+    },
     #[command(arg_required_else_help = true)]
     Rdfxml {
         #[command(subcommand)]
@@ -50,7 +53,12 @@ enum Commands {
 enum RdfxmlCmd {
     #[command(arg_required_else_help = true)]
     Index {
-        path: String,
+        #[clap(long)]
+        input_path: String,
+        #[clap(long)]
+        exposure_id: i64,
+        #[clap(long)]
+        exposure_path: String,
     },
 }
 
@@ -80,6 +88,21 @@ async fn main() -> anyhow::Result<()> {
         Commands::Link { identifier, resource_path } => {
             platform.pc_platform.link_citation(&identifier, &resource_path).await?;
         },
+        Commands::List { identifier } => {
+            if let Some(identifier) = identifier {
+                let resources = platform.pc_platform.list_citation_resources(&identifier).await?;
+                println!("Listing of resources associated with citation {identifier}");
+                for resources in resources.into_iter() {
+                    println!("{resources}");
+                }
+            } else {
+                let citations = platform.pc_platform.list_citations().await?;
+                println!("Listing of citation identifiers recorded");
+                for citation in citations.into_iter() {
+                    println!("{}", citation.identifier);
+                }
+            }
+        },
         Commands::Rdfxml { cmd } => {
             parse_rdfxml_cmd(&platform, cmd).await?;
         },
@@ -93,9 +116,14 @@ async fn parse_rdfxml_cmd<'p>(
     arg: RdfxmlCmd,
 ) -> anyhow::Result<()> {
     match arg {
-        RdfxmlCmd::Index { path } => {
-            let reader = BufReader::new(fs::File::open(path)?);
-            println!("pmid = {:?}", index(reader)?);
+        RdfxmlCmd::Index { input_path, exposure_id, exposure_path } => {
+            let reader = BufReader::new(fs::File::open(input_path)?);
+            let resource_path = format!("/exposure/{exposure_id}/{exposure_path}");
+            let citations = index(reader)?;
+            for citation in citations.iter() {
+                platform.pc_platform.add_citation(&citation).await.ok();
+                platform.pc_platform.link_citation(&citation, &resource_path).await.ok();
+            }
         }
     }
     Ok(())

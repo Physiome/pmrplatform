@@ -71,7 +71,7 @@ fn index_pubmed_id(store: &Store) -> Result<Vec<String>, RdfIndexerError> {
         for solution in solutions {
             if let Ok(solution) = solution {
                 if let Some(Term::Literal(literal)) = solution.get("pmid") {
-                    result.push(format!("pmid:{literal}"));
+                    result.push(format!("pmid:{}", literal.value()));
                 }
             }
         }

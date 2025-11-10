@@ -6,3 +6,5 @@
 *.db-wal
 /repo
 /data
+/dist
+/site
