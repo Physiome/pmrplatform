@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 # Ensure the release is built
 
 if [ ! -f ./target/release/pmrac ]; then
-    cargo build --release
+    cargo build --release --all-features
 fi
 
 # Ensure the data/repo directories exist
