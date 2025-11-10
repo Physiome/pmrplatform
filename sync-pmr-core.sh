@@ -2,9 +2,14 @@
 set -e
 cd "$(dirname "$0")"
 
-if [ ! -f ./target/release/pmrrepo ]; then
+# Ensure the release is built
+
+if [ ! -f ./target/release/pmrac ]; then
     cargo build --release
 fi
+
+# Ensure the data/repo directories exist
+mkdir -p data repo
 
 # Grant all permissions to manager role
 ./target/release/pmrac policy assign private manager '*'
