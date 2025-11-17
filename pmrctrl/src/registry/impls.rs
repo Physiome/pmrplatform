@@ -72,7 +72,8 @@ impl<'p> TryFrom<&ExposureFileCtrl<'p>> for PreparedChoiceRegistry {
             ("exposure_id".to_string(), handle.exposure_file().exposure_id().to_string())
         ]).into());
 
-        // `exposure_file` is the path to the current exposure file.
+        // `exposure_file` is the current exposure file; equivalent to the workspace_file_path that
+        // underlies the `exposure_file`.
         registry.register("exposure_file", HashMap::from([
             ("exposure_file".to_string(), handle.exposure_file().workspace_file_path().to_string()),
         ]).into());

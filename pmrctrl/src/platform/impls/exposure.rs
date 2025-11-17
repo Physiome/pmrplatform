@@ -72,5 +72,37 @@ impl<'p> Platform {
     // Note that there is NO impls for returning an ExposureFileCtrl
     // directly as it tracks a GitHandleResult which requires GitHandle
     // held somewhere, which currently is typically from the Exposure.
+}
+
+// FIXME the following methods are here to workaround lifetime issues.
+// I really should rewrite the entire backend to be backed by a common arena.
+impl Platform {
+    /// With the user input applied to all files within this exposure, process them
+    /// all at once.  This is analogous to the exposure build step.
+    ///
+    /// Returns the number of tasks queued.
+    pub async fn process_vttc_tasks_for_exposure(&self, id: i64) -> Result<usize, PlatformError> {
+        let exposure = self.get_exposure(id).await?;
+        let mut args = Vec::new();
+        for efvttc in exposure.list_files_efvttcs().await? {
+            let profile = efvttc
+                .exposure_file_ctrl()
+                .profile()
+                .await?;
+            args.push((efvttc, profile));
+        }
+
+        let mut result = 0;
+        for (efvttc, profile) in args.iter() {
+            if let Some(profile) = profile {
+                let vttc_tasks = efvttc.create_tasks_from_input(&profile.user_input)?;
+                result += efvttc
+                    .exposure_file_ctrl()
+                    .process_vttc_tasks(vttc_tasks).await?
+                    .len();
+            }
+        }
+        Ok(result)
+    }
 
 }

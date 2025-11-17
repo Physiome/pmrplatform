@@ -183,6 +183,10 @@ enum ExposureCmd {
         #[command(subcommand)]
         cmd: ExposurePathCmd,
     },
+    #[command(arg_required_else_help = true)]
+    SubmitTasks {
+        exposure_id: i64,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -379,6 +383,10 @@ async fn parse_exposure<'p>(
         }
         ExposureCmd::Path { exposure_id, path, cmd } => {
             parse_exposure_path(&platform, exposure_id, path.as_ref(), cmd).await?;
+        }
+        ExposureCmd::SubmitTasks { exposure_id } => {
+            let count = platform.process_vttc_tasks_for_exposure(exposure_id).await?;
+            println!("Queued {count} tasks.");
         }
     }
     Ok(())
