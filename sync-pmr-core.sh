@@ -69,4 +69,5 @@ mkdir -p data repo
 
 for id in $(seq 1 17); do
     ./target/release/pmrrepo sync ${id}
+    ./target/release/pmrac resource "/workspace/${id}/" state published
 done
