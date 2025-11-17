@@ -18,7 +18,7 @@ fi
 source "${PROFILES_ROOT}/env"
 
 run_pmrctrl () {
-    ./target/release/pmrctrl --format=toml profile import "${FILE}" 2> /dev/null || return $?
+    cat "${FILE}" | envsubst | ./target/release/pmrctrl --format=toml profile import 2> /dev/null || return $?
 }
 
 for FILE in ${PROFILES_ROOT}/*.toml; do
