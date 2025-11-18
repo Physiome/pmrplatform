@@ -2,7 +2,6 @@ use leptos::prelude::*;
 use leptos_router::{
     components::{A, ParentRoute, Route},
     nested_router::Outlet,
-    MatchNestedRoutes,
     SsrMode,
     StaticSegment,
 };

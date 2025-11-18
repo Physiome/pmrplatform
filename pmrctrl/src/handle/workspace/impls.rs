@@ -2,7 +2,6 @@ use pmrcore::workspace::{
     traits::Workspace as _,
     WorkspaceRef,
 };
-use pmrrepo::handle::GitHandle;
 use std::fmt;
 
 use crate::{
@@ -29,7 +28,6 @@ impl<'p> WorkspaceCtrl<'p> {
         Self {
             platform,
             workspace,
-            handle: Default::default(),
         }
     }
 

@@ -16,12 +16,9 @@ use collection_json::{
 };
 use http::header;
 use pmrac::Platform as ACPlatform;
-use pmrcore::{
-    repo::{
-        PathObjectInfo,
-        RemoteInfo,
-    },
-    workspace::traits::WorkspaceBackend,
+use pmrcore::repo::{
+    PathObjectInfo,
+    RemoteInfo,
 };
 use pmrctrl::platform::Platform;
 use pmrrepo::handle::GitResultTarget;

@@ -475,7 +475,6 @@ pub async fn wizard_build(
 ) -> Result<usize, AppError> {
     session().await?
         .enforcer(format!("/exposure/{exposure_id}/"), "edit").await?;
-    let mut result = 0;
     let platform = platform().await?;
     let result = platform.process_vttc_tasks_for_exposure(exposure_id).await
         .map_err(|_| AppError::InternalServerError)?;

@@ -3,10 +3,6 @@ use axum_login::{
     AuthSession,
     Error as AxumLoginError,
 };
-use leptos::{
-    prelude::Set,
-    context::use_context,
-};
 use pmrac::{
     error::Error as ACError,
     axum_login::{
@@ -20,7 +16,6 @@ use pmrcore::ac::{
     user::User,
 };
 use crate::{
-    ac::AccountCtx,
     enforcement::PolicyState,
     error::{
         AppError,
@@ -99,11 +94,6 @@ impl Session {
                 .await
                 .map_err(|_| AppError::InternalServerError)?;
             let ps = PolicyState::new(Some(policy), state);
-            // This should be redundant now as handling of `EnforcedOk` should deal with this.
-            // if let Some(ctx) = use_context::<AccountCtx>() {
-            //     // leptos::logging::log!("sfn EnforcedOk::notify_into_inner calling set_ps with {ps:?}");
-            //     ctx.set_ps.set(ps.clone());
-            // }
             Ok(ps)
         } else {
             Err(AppError::Forbidden)

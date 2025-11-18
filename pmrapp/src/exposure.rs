@@ -11,7 +11,6 @@ use leptos_router::{
     hooks::use_params,
     nested_router::Outlet,
     params::Params,
-    MatchNestedRoutes,
     ParamSegment,
     SsrMode,
     StaticSegment,
@@ -210,13 +209,15 @@ pub fn ExposureIdRoot() -> impl IntoView {
 
 #[component]
 pub fn ExposureListing() -> impl IntoView {
-    let account_ctx = expect_context::<AccountCtx>();
     let root = expect_context::<Root>();
     #[cfg(not(feature = "ssr"))]
-    on_cleanup({
-        // let account_ctx = account_ctx.clone();
-        move || account_ctx.cleanup_policy_state()
-    });
+    {
+        let account_ctx = expect_context::<AccountCtx>();
+        on_cleanup({
+            // let account_ctx = account_ctx.clone();
+            move || account_ctx.cleanup_policy_state()
+        });
+    }
 
     // #[cfg(not(feature = "ssr"))]
     // on_cleanup({
@@ -341,7 +342,6 @@ pub fn Exposure() -> impl IntoView {
             exposure_info.track();
             async move {
                 exposure_info.await.ok().map(|info| {
-                    let exposure_id = info.exposure.id;
                     let base_href = entity_root.get().to_string();
                     logging::log!("building NavigationCtx");
                     // TODO should derive from exposure.files when it contains title/description
@@ -365,7 +365,7 @@ pub fn Exposure() -> impl IntoView {
                 #[cfg(not(feature = "ssr"))]
                 exposure_info.track();
                 async move {
-                    exposure_info.await.ok().map(|info| {
+                    exposure_info.await.ok().map(|_| {
                         let base_href = entity_root.get().to_string();
                         let resource = format!("{base_href}/");
                         vec![
@@ -539,7 +539,6 @@ pub fn ExposureFile() -> impl IntoView {
             async move {
                 match file.await {
                     Ok(ResolvedExposurePath::Target(ef, _)) => {
-                        let exposure_id = ef.exposure_id;
                         let file = ef.workspace_file_path.clone();
                         ef.views
                             .map(|views| {

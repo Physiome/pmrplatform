@@ -14,6 +14,8 @@ use crate::{
     },
 };
 
+// TODO FIXME determine whether this will ever get used.
+#[allow(dead_code)]
 impl Alias {
     pub(crate) fn bind<'a, T>(
         self,

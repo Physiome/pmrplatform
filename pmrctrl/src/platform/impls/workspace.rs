@@ -1,5 +1,3 @@
-use pmrrepo::handle::GitHandle;
-
 use crate::{
     error::PlatformError,
     handle::WorkspaceCtrl,

@@ -21,7 +21,6 @@ use crate::{
             ExposureFileBackend,
             ExposureFileViewBackend,
         },
-        Exposure,
     },
     idgen::traits::GenAliasBackend,
     platform::PlatformUrl,

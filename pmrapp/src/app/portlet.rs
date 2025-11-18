@@ -1,6 +1,3 @@
-use leptos::prelude::*;
-use serde::{Serialize, Deserialize};
-
 pub(super) mod content_action;
 pub(super) mod exposure_source;
 pub(super) mod navigation;

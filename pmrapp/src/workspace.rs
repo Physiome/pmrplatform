@@ -21,7 +21,6 @@ use leptos_router::{
         Params,
         ParamsError,
     },
-    MatchNestedRoutes,
     ParamSegment,
     SsrMode,
     StaticSegment,
@@ -65,7 +64,6 @@ use crate::{
             ContentActionCtx,
             ContentActionItem,
         },
-        id::Id,
         EntityRoot,
         Root,
     },
@@ -159,7 +157,6 @@ pub fn WorkspaceRoot() -> impl IntoView {
 
 #[component]
 pub fn WorkspaceIdRoot() -> impl IntoView {
-    let account_ctx = expect_context::<AccountCtx>();
     // TODO this should be able to reuse the aliased one to convert into
     // standard to potentially save on an additional call, but this isn't
     // typically used so the small bit of bandwidth inefficiency will have
@@ -423,7 +420,6 @@ pub fn Workspace() -> impl IntoView {
 #[component]
 pub fn WorkspaceMain() -> impl IntoView {
     let resource = expect_context::<Resource<Result<RepoResult, AppError>>>();
-    let workspace_params = expect_context::<Memo<Result<WorkspaceParams, ParamsError>>>();
     let entity_root = expect_context::<Memo<EntityRoot>>();
 
     let workspace_view = move || Suspend::new(async move {
@@ -775,7 +771,7 @@ pub fn WorkspaceLog() -> impl IntoView {
     let view = move || Suspend::new(async move {
         let log_info = log_info.await?;
         let mut exposure_map = exposure_map.await?;
-        repo_result.await.map(|info| {
+        repo_result.await.map(|_| {
             let href = entity_root.read();
             view! {
                 <table class="log-listing">

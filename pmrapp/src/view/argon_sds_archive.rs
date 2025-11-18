@@ -1,8 +1,4 @@
 use pmrcore::exposure::{ExposureFile, ExposureFileView};
-use crate::exposure::{
-    api::read_safe_index_html,
-    ViewPath,
-};
 use leptos::prelude::*;
 use leptos_meta::{Link, Script};
 
@@ -17,7 +13,6 @@ use leptos_meta::{Link, Script};
 pub fn ArgonSdsArchive() -> impl IntoView {
     let ef = expect_context::<ExposureFile>();
     let efv = expect_context::<ExposureFileView>();
-    let view_path = expect_context::<ViewPath>();
 
     let url = format!(
         "/data/exposure/{}/{}/{}/{}",

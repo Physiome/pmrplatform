@@ -5,10 +5,7 @@ use pmrcore::{
         LogInfo,
         RepoResult,
     },
-    workspace::{
-        self,
-        Workspace,
-    },
+    workspace::Workspace,
 };
 use crate::{
     app::id::Id,
