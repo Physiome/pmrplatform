@@ -24,6 +24,7 @@ use crate::ac::{
 use crate::error::AppError;
 use crate::error_template::ErrorTemplate;
 use crate::exposure::ExposureRoutes;
+use crate::listing::ListingRoutes;
 use crate::workspace::WorkspaceRoutes;
 
 pub mod id;
@@ -102,6 +103,7 @@ pub fn App() -> impl IntoView {
                                 <Route path=StaticSegment("") view=HomePage/>
                                 <WorkspaceRoutes/>
                                 <ExposureRoutes/>
+                                <ListingRoutes/>
                                 <ACRoutes/>
                             </Routes>
                         </article>
