@@ -1,0 +1,1193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  05/12/2003 - AAC - changed model name to facilitate loading of repository
+-->
+<model xmlns="http://www.cellml.org/cellml/1.0#" xmlns:cmeta="http://www.cellml.org/metadata/1.0#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:bqs="http://www.cellml.org/bqs/1.0#" xmlns:cellml="http://www.cellml.org/cellml/1.0#" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:vCard="http://www.w3.org/2001/vcard-rdf/3.0#" cmeta:id="Adrian_Chandler_Hodgkin_Frog_Sartorius_1970" name="adrian_model_1970">
+
+<documentation xmlns="http://cellml.org/tmp-documentation">
+<article>
+  <articleinfo>
+  <title>Voltage Clamp Experiments in Striated Muscle Fibres</title>
+  <author>
+    <firstname>Catherine</firstname>
+          <surname>Lloyd</surname>
+    <affiliation>
+      <shortaffil>Bioengineering Institute, University of Auckland</shortaffil>
+    </affiliation>
+  </author>
+</articleinfo>
+  <section id="sec_status">
+    <title>Model Status</title>
+    <para>
+            This is the original unchecked version of the model imported from the previous
+            CellML model repository, 24-Jan-2006.
+          </para>
+  </section>
+  <sect1 id="sec_structure">
+<title>Model Structure</title>
+
+<para>
+In this 1970 publication, Adrian, Chandler and Hodgkin developed a mathematical model of an action potential in frog striated muscle.  Their model was based on data from voltage-clamp experiments, and they include descriptions of three currents:
+</para>
+<itemizedlist>
+  <listitem>
+            <para>
+              <emphasis>I<subscript>Na</subscript>
+              </emphasis>, a fast inward sodium current</para>
+          </listitem>;
+  <listitem>
+            <para>
+              <emphasis>I<subscript>K</subscript>
+              </emphasis>, a slow outward potassium current</para>
+          </listitem>; and
+  <listitem>
+            <para>
+              <emphasis>I<subscript>L</subscript>
+              </emphasis>, a leak current</para>
+          </listitem>.
+</itemizedlist>
+<para>
+The style of the model equations is based on the <ulink url="${HTML_EXMPL_HHSA_INTRO}">The Hodgkin-Huxley Squid Axon Model, 1952</ulink>.  However, the authors acknowledge that the situation in striated muscle is complicated by tubular resistance and capacity.  The transverse tubular system which exists in striated myocytes is represented in the model by a linear resistance and capacity in series.
+</para>
+
+<para>
+The model has been described here in CellML (the raw CellML description of the Adrian <emphasis>et al.</emphasis> 1970 model can be downloaded in various formats as described in <xref linkend="sec_download_this_model"/>).
+</para>
+
+<para>
+As the paper was published in 1970, there is no online version.  However, the complete reference is cited below:
+</para>
+
+<para>
+Voltage Clamp Experiments in Striated Muscle Fibres.  R. H. Adrian, W. K. Chandler, and A. L. Hodgkin.  <emphasis>Journal of Physiology</emphasis>, (1970), 208, pp 607-644.  <ulink url="http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&amp;db=PubMed&amp;list_uids=5499787&amp;dopt=Abstract">PubMed ID: 5499787</ulink>
+</para>
+
+<para>
+In order to complete the model and run simulations, some parameters were also taken from the following paper:
+</para>
+
+<para>
+Reconstruction of the Action Potential of Frog Sartorius Muscle.  R. H. Adrian and L. D. Peachey. <emphasis>Journal of Physiology</emphasis>, (1973), 235, pp 103-131.  <ulink url="http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&amp;db=PubMed&amp;list_uids=4778131&amp;dopt=Abstract">PubMed ID: 4778131</ulink>
+</para>
+
+
+</sect1>
+</article>
+</documentation>
+
+  <!-- Model description -->
+
+
+
+<!-- ======================================================== -->
+
+  <!-- Global units -->
+  <units name="mV">
+    <unit units="volt" prefix="milli"/>
+  </units>
+  <units name="uApmmsq">
+    <unit units="ampere" prefix="micro"/>
+    <unit units="metre" prefix="milli" exponent="-2"/>
+  </units>
+  <units name="uApmmcu">
+    <unit units="ampere" prefix="micro"/>
+    <unit units="metre" prefix="milli" exponent="-3"/>
+  </units>
+  <units name="uFpmmsq">
+    <unit units="farad" prefix="micro"/>
+    <unit units="metre" prefix="milli" exponent="-1"/>
+  </units>
+  <units name="mSpmmsq">
+    <unit units="siemens" prefix="milli"/>
+    <unit units="metre" prefix="milli" exponent="-2"/>
+  </units>
+  <units name="mmsqpmS">
+    <unit units="metre" prefix="milli" exponent="2"/>
+    <unit units="siemens" prefix="milli" exponent="-1"/>
+  </units>
+  <units name="ms">
+    <unit units="second" prefix="milli"/>
+  </units>
+  <units name="pms">
+    <unit units="ms" exponent="-1"/>
+  </units>
+  <units name="pmm">
+    <unit units="metre" prefix="milli" exponent="-1"/>
+  </units>
+
+<!-- ======================================================== -->
+
+  <component name="interface" cmeta:id="interface">
+
+
+    <!-- Variables to be set externally -->
+    <variable units="ms" private_interface="out" name="t"/>
+    <variable units="uFpmmsq" private_interface="out" name="Cm" initial_value="0.009"/>
+    <variable units="pmm" private_interface="out" name="Am" initial_value="200.0"/>
+    <variable units="uApmmcu" private_interface="out" name="Istim"/>
+
+    <!-- ODE variables available externally -->
+    <variable units="mV" public_interface="out" private_interface="in" name="Vm"/>
+    <variable units="mV" public_interface="out" private_interface="in" name="Vt"/>
+    <variable units="dimensionless" public_interface="out" private_interface="in" name="m"/>
+    <variable units="dimensionless" public_interface="out" private_interface="in" name="h"/>
+    <variable units="dimensionless" public_interface="out" private_interface="in" name="n"/>
+
+    <!-- Derived variables available externally -->
+    <variable units="uApmmsq" public_interface="out" private_interface="in" name="INa"/>
+    <variable units="uApmmsq" public_interface="out" private_interface="in" name="IK"/>
+    <variable units="uApmmsq" public_interface="out" private_interface="in" name="IL"/>
+    <variable units="uApmmsq" public_interface="out" private_interface="in" name="IT"/>
+
+    <!-- Stimulus variable available externally -->
+    <variable units="uApmmcu" public_interface="out" name="IStimC"/>
+    <variable units="pmm" public_interface="out" name="AmC"/>
+
+    <!-- Maths -->
+    <math xmlns="http://www.w3.org/1998/Math/MathML" cmeta:id="IStim_external_eq">
+      <!-- Stimulus variable -->
+      <apply id="IStim_external_eq">
+        <eq/>
+        <ci>IStimC</ci>
+        <ci>Istim</ci>
+      </apply>
+    </math>
+    <math xmlns="http://www.w3.org/1998/Math/MathML" cmeta:id="Am_external_eq">
+      <!-- Am variable -->
+      <apply id="Am_external_eq">
+        <eq/>
+        <ci>AmC</ci>
+        <ci>Am</ci>
+      </apply>
+    </math>
+  </component>
+  <!-- interface -->
+
+<!-- ======================================================== -->
+
+  <component name="membrane" cmeta:id="membrane">
+
+
+    <!-- Inputs -->
+    <variable units="ms" public_interface="in" private_interface="out" name="t"/>
+    <variable units="uFpmmsq" public_interface="in" private_interface="out" name="Cm"/>
+    <variable units="pmm" public_interface="in" private_interface="out" name="Am"/>
+    <variable units="uApmmcu" public_interface="in" private_interface="out" name="Istim"/>
+
+    <!-- Outputs -->
+    <variable units="mV" public_interface="out" private_interface="out" name="Vm" initial_value="-95.0"/>
+
+    <!-- Encapsulated outputs -->
+    <variable units="dimensionless" public_interface="out" private_interface="in" name="m"/>
+    <variable units="dimensionless" public_interface="out" private_interface="in" name="h"/>
+    <variable units="dimensionless" public_interface="out" private_interface="in" name="n"/>
+    <variable units="uApmmsq" public_interface="out" private_interface="in" name="INa"/>
+    <variable units="uApmmsq" public_interface="out" private_interface="in" name="IK"/>
+    <variable units="uApmmsq" public_interface="out" private_interface="in" name="IL"/>
+    <variable units="uApmmsq" public_interface="out" private_interface="in" name="IT"/>
+    <variable units="mV" public_interface="out" private_interface="in" name="Vt"/>
+
+    <!-- Maths -->
+    <math xmlns="http://www.w3.org/1998/Math/MathML" cmeta:id="dV_dt_eq">
+      <!-- dVm/dt calculation -->
+      <apply id="dV_dt_eq">
+        <eq/>
+        <apply>
+          <diff/>
+          <bvar>
+            <ci>t</ci>
+          </bvar>
+          <ci>Vm</ci>
+        </apply>
+        <apply>
+          <divide/>
+          <apply>
+            <minus/>
+            <ci>Istim</ci>
+            <apply>
+              <plus/>
+              <ci>INa</ci>
+              <ci>IK</ci>
+              <ci>IL</ci>
+              <ci>IT</ci>
+            </apply>
+          </apply>
+          <ci>Cm</ci>
+        </apply>
+      </apply>
+    </math>
+  </component>
+  <!-- membrane -->
+
+<!-- ======================================================== -->
+
+  <component name="sodium_current" cmeta:id="sodium_current">
+
+
+    <!-- Inputs -->
+    <variable units="ms" public_interface="in" private_interface="out" name="t"/>
+    <variable units="mV" public_interface="in" private_interface="out" name="Vm"/>
+
+    <!-- Outputs -->
+    <variable units="uApmmsq" public_interface="out" name="INa"/>
+
+    <!-- Encapsulated outputs -->
+    <variable units="dimensionless" public_interface="out" private_interface="in" name="m"/>
+    <variable units="dimensionless" public_interface="out" private_interface="in" name="h"/>
+
+    <!-- Local constants -->
+    <variable units="mSpmmsq" name="gNa_max" initial_value="1.8"/>
+    <variable units="mV" name="ENa" initial_value="50.0"/>
+
+    <!-- Maths -->
+    <math xmlns="http://www.w3.org/1998/Math/MathML" cmeta:id="INa_eq">
+      <!-- INa calculation -->
+      <apply id="INa_eq">
+        <eq/>
+        <ci>INa</ci>
+        <apply>
+          <times/>
+          <ci>gNa_max</ci>
+          <ci>m</ci>
+          <ci>m</ci>
+          <ci>m</ci>
+          <ci>h</ci>
+          <apply>
+            <minus/>
+            <ci>Vm</ci>
+            <ci>ENa</ci>
+          </apply>
+        </apply>
+      </apply>
+    </math>
+  </component>
+  <!-- sodium_current -->
+
+<!-- ======================================================== -->
+
+  <component name="sodium_current_m_gate" cmeta:id="sodium_current_m_gate">
+
+
+    <!-- Inputs -->
+    <variable units="ms" public_interface="in" private_interface="out" name="t"/>
+    <variable units="mV" public_interface="in" private_interface="out" name="Vm"/>
+
+    <!-- Outputs -->
+    <variable units="dimensionless" public_interface="out" name="m" initial_value="0.0"/>
+
+    <!-- Local variables -->
+    <variable units="pms" name="alpha_m"/>
+    <variable units="pms" name="beta_m"/>
+
+    <!-- Local constants -->
+    <variable units="pms" name="alpha_m_max" initial_value="0.208"/>
+    <variable units="pms" name="beta_m_max" initial_value="2.081"/>
+    <variable units="mV" name="Em" initial_value="-42.0"/>
+    <variable units="dimensionless" name="v_alpha_m" initial_value="10.0"/>
+    <variable units="mV" name="v_beta_m" initial_value="18.0"/>
+
+    <!-- Maths -->
+    <math xmlns="http://www.w3.org/1998/Math/MathML" cmeta:id="dm_dt_eq">
+      <!-- alpha_m calculation -->
+      <apply id="alpha_m_calculation">
+        <eq/>
+        <ci>alpha_m</ci>
+        <apply>
+          <divide/>
+          <apply>
+            <times/>
+            <ci>alpha_m_max</ci>
+            <apply>
+              <minus/>
+              <ci>Vm</ci>
+              <ci>Em</ci>
+            </apply>
+          </apply>
+          <apply>
+            <minus/>
+            <cn cellml:units="mV">1.0</cn>
+            <apply>
+              <exp/>
+              <apply>
+                <divide/>
+                <apply>
+                  <minus/>
+                  <ci>Em</ci>
+                  <ci>Vm</ci>
+                </apply>
+                <ci>v_alpha_m</ci>
+              </apply>
+            </apply>
+          </apply>
+        </apply>
+      </apply>
+
+      <!-- beta_m calculation -->
+      <apply id="beta_m_calculation">
+        <eq/>
+        <ci>beta_m</ci>
+        <apply>
+          <times/>
+          <ci>beta_m_max</ci>
+          <apply>
+            <exp/>
+            <apply>
+              <divide/>
+              <apply>
+                <minus/>
+                <ci>Em</ci>
+                <ci>Vm</ci>
+              </apply>
+              <ci>v_beta_m</ci>
+            </apply>
+          </apply>
+        </apply>
+      </apply>
+
+      <!-- dm/dt calculation -->
+      <apply id="dm_dt_eq">
+        <eq/>
+        <apply>
+          <diff/>
+          <bvar>
+            <ci>t</ci>
+          </bvar>
+          <ci>m</ci>
+        </apply>
+        <apply>
+          <minus/>
+          <apply>
+            <times/>
+            <ci>alpha_m</ci>
+            <apply>
+              <minus/>
+              <cn cellml:units="dimensionless">1.0</cn>
+              <ci>m</ci>
+            </apply>
+          </apply>
+          <apply>
+            <times/>
+            <ci>beta_m</ci>
+            <ci>m</ci>
+          </apply>
+        </apply>
+      </apply>
+    </math>
+  </component>
+  <!-- sodium_current_m_gate -->
+
+<!-- ======================================================== -->
+
+  <component name="sodium_current_h_gate" cmeta:id="sodium_current_h_gate">
+
+
+    <!-- Inputs -->
+    <variable units="ms" public_interface="in" private_interface="out" name="t"/>
+    <variable units="mV" public_interface="in" private_interface="out" name="Vm"/>
+
+    <!-- Outputs -->
+    <variable units="dimensionless" public_interface="out" name="h" initial_value="1.0"/>
+
+    <!-- Local variables -->
+    <variable units="pms" name="alpha_h"/>
+    <variable units="pms" name="beta_h"/>
+
+    <!-- Local constants -->
+    <variable units="pms" name="alpha_h_max" initial_value="0.0156"/>
+    <variable units="pms" name="beta_h_max" initial_value="3.382"/>
+    <variable units="mV" name="Eh" initial_value="-41.0"/>
+    <variable units="mV" name="v_alpha_h" initial_value="14.7"/>
+    <variable units="mV" name="v_beta_h" initial_value="7.6"/>
+
+    <!-- Maths -->
+    <math xmlns="http://www.w3.org/1998/Math/MathML" cmeta:id="dh_dt_eq">
+      <!-- alpha_h calculation -->
+      <apply id="alpha_h_calculation">
+        <eq/>
+        <ci>alpha_h</ci>
+        <apply>
+          <times/>
+          <ci>alpha_h_max</ci>
+          <apply>
+            <exp/>
+            <apply>
+              <divide/>
+              <apply>
+                <minus/>
+                <ci>Eh</ci>
+                <ci>Vm</ci>
+              </apply>
+              <ci>v_alpha_h</ci>
+            </apply>
+          </apply>
+        </apply>
+      </apply>
+
+      <!-- beta_h calculation -->
+      <apply id="beta_h_calculation">
+        <eq/>
+        <ci>beta_h</ci>
+        <apply>
+          <divide/>
+          <ci>beta_h_max</ci>
+          <apply>
+            <plus/>
+            <cn cellml:units="dimensionless">1.0</cn>
+            <apply>
+              <exp/>
+              <apply>
+                <divide/>
+                <apply>
+                  <minus/>
+                  <ci>Eh</ci>
+                  <ci>Vm</ci>
+                </apply>
+                <ci>v_beta_h</ci>
+              </apply>
+            </apply>
+          </apply>
+        </apply>
+      </apply>
+
+      <!-- dh/dt calculation -->
+      <apply id="dh_dt_eq">
+        <eq/>
+        <apply>
+          <diff/>
+          <bvar>
+            <ci>t</ci>
+          </bvar>
+          <ci>h</ci>
+        </apply>
+        <apply>
+          <minus/>
+          <apply>
+            <times/>
+            <ci>alpha_h</ci>
+            <apply>
+              <minus/>
+              <cn cellml:units="dimensionless">1.0</cn>
+              <ci>h</ci>
+            </apply>
+          </apply>
+          <apply>
+            <times/>
+            <ci>beta_h</ci>
+            <ci>h</ci>
+          </apply>
+        </apply>
+      </apply>
+    </math>
+  </component>
+  <!-- sodium_current_h_gate -->
+
+<!-- ======================================================== -->
+
+  <component name="potassium_current" cmeta:id="potassium_current">
+
+
+    <!-- Inputs -->
+    <variable units="ms" public_interface="in" private_interface="out" name="t"/>
+    <variable units="mV" public_interface="in" private_interface="out" name="Vm"/>
+
+    <!-- Outputs -->
+    <variable units="uApmmsq" public_interface="out" name="IK"/>
+
+    <!-- Encapsulated outputs -->
+    <variable units="dimensionless" public_interface="out" private_interface="in" name="n"/>
+
+    <!-- Local constants -->
+    <variable units="mSpmmsq" name="gK_max" initial_value="0.415"/>
+    <variable units="mV" name="EK" initial_value="-70.0"/>
+
+    <!-- Maths -->
+    <math xmlns="http://www.w3.org/1998/Math/MathML" cmeta:id="IK_eq">
+      <!-- IK calculation -->
+      <apply id="IK_eq">
+        <eq/>
+        <ci>IK</ci>
+        <apply>
+          <times/>
+          <ci>gK_max</ci>
+          <ci>n</ci>
+          <ci>n</ci>
+          <ci>n</ci>
+          <ci>n</ci>
+          <apply>
+            <minus/>
+            <ci>Vm</ci>
+            <ci>EK</ci>
+          </apply>
+        </apply>
+      </apply>
+    </math>
+  </component>
+  <!-- potassium_current -->
+
+<!-- ======================================================== -->
+
+  <component name="potassium_current_n_gate" cmeta:id="potassium_current_n_gate">
+
+
+    <!-- Inputs -->
+    <variable units="ms" public_interface="in" private_interface="out" name="t"/>
+    <variable units="mV" public_interface="in" private_interface="out" name="Vm"/>
+
+    <!-- Outputs -->
+    <variable units="dimensionless" public_interface="out" name="n" initial_value="0.0"/>
+
+    <!-- Local variables -->
+    <variable units="pms" name="alpha_n"/>
+    <variable units="pms" name="beta_n"/>
+
+    <!-- Local constants -->
+    <variable units="pms" name="alpha_n_max" initial_value="0.0229"/>
+    <variable units="pms" name="beta_n_max" initial_value="0.09616"/>
+    <variable units="mV" name="En" initial_value="-40.0"/>
+    <variable units="dimensionless" name="v_alpha_n" initial_value="7.0"/>
+    <variable units="mV" name="v_beta_n" initial_value="40.0"/>
+
+    <!-- Maths -->
+    <math xmlns="http://www.w3.org/1998/Math/MathML" cmeta:id="dn_dt_eq">
+      <!-- alpha_n calculation -->
+      <apply id="alpha_n_calculation">
+        <eq/>
+        <ci>alpha_n</ci>
+        <apply>
+          <divide/>
+          <apply>
+            <times/>
+            <ci>alpha_n_max</ci>
+            <apply>
+              <minus/>
+              <ci>Vm</ci>
+              <ci>En</ci>
+            </apply>
+          </apply>
+          <apply>
+            <minus/>
+            <cn cellml:units="dimensionless">1.0</cn>
+            <apply>
+              <exp/>
+              <apply>
+                <divide/>
+                <apply>
+                  <minus/>
+                  <ci>En</ci>
+                  <ci>Vm</ci>
+                </apply>
+                <ci>v_alpha_n</ci>
+              </apply>
+            </apply>
+          </apply>
+        </apply>
+      </apply>
+
+      <!-- beta_n calculation -->
+      <apply id="beta_n_calculation">
+        <eq/>
+        <ci>beta_n</ci>
+        <apply>
+          <times/>
+          <ci>beta_n_max</ci>
+          <apply>
+            <exp/>
+            <apply>
+              <divide/>
+              <apply>
+                <minus/>
+                <ci>En</ci>
+                <ci>Vm</ci>
+              </apply>
+              <ci>v_beta_n</ci>
+            </apply>
+          </apply>
+        </apply>
+      </apply>
+
+      <!-- dn/dt calculation -->
+      <apply id="dn_dt_eq">
+        <eq/>
+        <apply>
+          <diff/>
+          <bvar>
+            <ci>t</ci>
+          </bvar>
+          <ci>n</ci>
+        </apply>
+        <apply>
+          <minus/>
+          <apply>
+            <times/>
+            <ci>alpha_n</ci>
+            <apply>
+              <minus/>
+              <cn cellml:units="dimensionless">1.0</cn>
+              <ci>n</ci>
+            </apply>
+          </apply>
+          <apply>
+            <times/>
+            <ci>beta_n</ci>
+            <ci>n</ci>
+          </apply>
+        </apply>
+      </apply>
+    </math>
+  </component>
+  <!-- potassium_current_n_gate -->
+
+<!-- ======================================================== -->
+
+  <component name="leak_current" cmeta:id="leak_current">
+
+
+    <!-- Inputs -->
+    <variable units="mV" public_interface="in" private_interface="out" name="Vm"/>
+
+    <!-- Outputs -->
+    <variable units="uApmmsq" public_interface="out" name="IL"/>
+
+    <!-- Local constants -->
+    <variable units="mV" name="EL" initial_value="-95.0"/>
+    <variable units="mSpmmsq" name="gL_max" initial_value="0.0024"/>
+
+    <!-- Maths -->
+    <math xmlns="http://www.w3.org/1998/Math/MathML" cmeta:id="IL_eq">
+      <!-- IL calculation -->
+      <apply id="IL_eq">
+        <eq/>
+        <ci>IL</ci>
+        <apply>
+          <times/>
+          <ci>gL_max</ci>
+          <apply>
+            <minus/>
+            <ci>Vm</ci>
+            <ci>EL</ci>
+          </apply>
+        </apply>
+      </apply>
+    </math>
+  </component>
+  <!-- leak_current -->
+
+<!-- ======================================================== -->
+
+  <component name="Ttubular_current" cmeta:id="Ttubular_current">
+
+
+    <!-- Inputs -->
+    <variable units="ms" public_interface="in" private_interface="out" name="t"/>
+    <variable units="mV" public_interface="in" private_interface="out" name="Vm"/>
+
+    <!-- Outputs -->
+    <variable units="uApmmsq" public_interface="out" name="IT"/>
+
+    <!-- Encapsulated outputs -->
+    <variable units="mV" public_interface="out" private_interface="in" name="Vt"/>
+
+    <!-- Local constants -->
+    <variable units="mmsqpmS" private_interface="out" name="Rs" initial_value="15.0"/>
+
+    <!-- Maths -->
+    <math xmlns="http://www.w3.org/1998/Math/MathML" cmeta:id="IT_eq">
+      <!-- IT calculation -->
+      <apply id="IT_eq">
+        <eq/>
+        <ci>IT</ci>
+        <apply>
+          <divide/>
+          <apply>
+            <minus/>
+            <ci>Vm</ci>
+            <ci>Vt</ci>
+          </apply>
+          <ci>Rs</ci>
+        </apply>
+      </apply>
+    </math>
+  </component>
+  <!-- TTubular current -->
+
+<!-- ======================================================== -->
+
+  <component name="Ttubular_current_Vt_var">
+
+
+    <!-- Inputs -->
+    <variable units="ms" public_interface="in" private_interface="out" name="t"/>
+    <variable units="mV" public_interface="in" private_interface="out" name="Vm"/>
+    <variable units="mmsqpmS" public_interface="in" private_interface="out" name="Rs"/>
+
+    <!-- Outputs -->
+    <variable units="mV" public_interface="out" name="Vt" initial_value="-95.0"/>
+
+    <!-- Local constants -->
+    <variable units="uFpmmsq" name="Ct" initial_value="0.04"/>
+
+    <!-- Maths -->
+    <math xmlns="http://www.w3.org/1998/Math/MathML" cmeta:id="dVt_dt_eq">
+      <!-- dVt/dt calculation -->
+      <apply id="dVt_dt_eq">
+        <eq/>
+        <apply>
+          <diff/>
+          <bvar>
+            <ci>t</ci>
+          </bvar>
+          <ci>Vt</ci>
+        </apply>
+        <apply>
+          <divide/>
+          <apply>
+            <minus/>
+            <ci>Vm</ci>
+            <ci>Vt</ci>
+          </apply>
+          <apply>
+            <times/>
+            <ci>Rs</ci>
+            <ci>Ct</ci>
+          </apply>
+        </apply>
+      </apply>
+    </math>
+  </component>
+  <!-- TTubular current Vt var -->
+
+<!-- ======================================================== -->
+
+  <connection>
+    <map_components component_2="membrane" component_1="interface"/>
+    <map_variables variable_2="t" variable_1="t"/>
+    <map_variables variable_2="Cm" variable_1="Cm"/>
+    <map_variables variable_2="Am" variable_1="Am"/>
+    <map_variables variable_2="Istim" variable_1="Istim"/>
+    <map_variables variable_2="Vm" variable_1="Vm"/>
+    <map_variables variable_2="Vt" variable_1="Vt"/>
+    <map_variables variable_2="m" variable_1="m"/>
+    <map_variables variable_2="h" variable_1="h"/>
+    <map_variables variable_2="n" variable_1="n"/>
+    <map_variables variable_2="INa" variable_1="INa"/>
+    <map_variables variable_2="IK" variable_1="IK"/>
+    <map_variables variable_2="IL" variable_1="IL"/>
+    <map_variables variable_2="IT" variable_1="IT"/>
+  </connection>
+
+  <connection>
+    <map_components component_2="sodium_current" component_1="membrane"/>
+    <map_variables variable_2="t" variable_1="t"/>
+    <map_variables variable_2="Vm" variable_1="Vm"/>
+    <map_variables variable_2="m" variable_1="m"/>
+    <map_variables variable_2="h" variable_1="h"/>
+    <map_variables variable_2="INa" variable_1="INa"/>
+  </connection>
+
+  <connection>
+    <map_components component_2="sodium_current_m_gate" component_1="sodium_current"/>
+    <map_variables variable_2="t" variable_1="t"/>
+    <map_variables variable_2="Vm" variable_1="Vm"/>
+    <map_variables variable_2="m" variable_1="m"/>
+  </connection>
+
+  <connection>
+    <map_components component_2="sodium_current_h_gate" component_1="sodium_current"/>
+    <map_variables variable_2="t" variable_1="t"/>
+    <map_variables variable_2="Vm" variable_1="Vm"/>
+    <map_variables variable_2="h" variable_1="h"/>
+  </connection>
+
+  <connection>
+    <map_components component_2="potassium_current" component_1="membrane"/>
+    <map_variables variable_2="t" variable_1="t"/>
+    <map_variables variable_2="Vm" variable_1="Vm"/>
+    <map_variables variable_2="n" variable_1="n"/>
+    <map_variables variable_2="IK" variable_1="IK"/>
+  </connection>
+
+  <connection>
+    <map_components component_2="potassium_current_n_gate" component_1="potassium_current"/>
+    <map_variables variable_2="t" variable_1="t"/>
+    <map_variables variable_2="Vm" variable_1="Vm"/>
+    <map_variables variable_2="n" variable_1="n"/>
+  </connection>
+
+  <connection>
+    <map_components component_2="leak_current" component_1="membrane"/>
+    <map_variables variable_2="Vm" variable_1="Vm"/>
+    <map_variables variable_2="IL" variable_1="IL"/>
+  </connection>
+
+  <connection>
+    <map_components component_2="Ttubular_current" component_1="membrane"/>
+    <map_variables variable_2="t" variable_1="t"/>
+    <map_variables variable_2="Vm" variable_1="Vm"/>
+    <map_variables variable_2="Vt" variable_1="Vt"/>
+    <map_variables variable_2="IT" variable_1="IT"/>
+  </connection>
+
+  <connection>
+    <map_components component_2="Ttubular_current_Vt_var" component_1="Ttubular_current"/>
+    <map_variables variable_2="t" variable_1="t"/>
+    <map_variables variable_2="Vm" variable_1="Vm"/>
+    <map_variables variable_2="Vt" variable_1="Vt"/>
+    <map_variables variable_2="Rs" variable_1="Rs"/>
+  </connection>
+
+<!-- ======================================================== -->
+
+  <group>
+    <relationship_ref relationship="encapsulation"/>
+    <component_ref component="interface">
+      <component_ref component="membrane">
+        <component_ref component="sodium_current">
+          <component_ref component="sodium_current_m_gate"/>
+          <component_ref component="sodium_current_h_gate"/>
+        </component_ref>
+        <component_ref component="potassium_current">
+          <component_ref component="potassium_current_n_gate"/>
+        </component_ref>
+        <component_ref component="leak_current"/>
+        <component_ref component="Ttubular_current">
+          <component_ref component="Ttubular_current_Vt_var"/>
+        </component_ref>
+      </component_ref>
+    </component_ref>
+  </group>
+
+  <group>
+    <relationship_ref relationship="containment"/>
+    <component_ref component="membrane">
+      <component_ref component="sodium_current">
+        <component_ref component="sodium_current_m_gate"/>
+        <component_ref component="sodium_current_h_gate"/>
+      </component_ref>
+      <component_ref component="potassium_current">
+        <component_ref component="potassium_current_n_gate"/>
+      </component_ref>
+      <component_ref component="leak_current"/>
+      <component_ref component="Ttubular_current">
+        <component_ref component="Ttubular_current_Vt_var"/>
+      </component_ref>
+    </component_ref>
+  </group>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<rdf:RDF>
+  <rdf:Bag rdf:about="rdf:#7369d2a7-512a-4e5c-b6f0-da233f7fa516">
+    <rdf:li>skeletal muscle</rdf:li>
+    <rdf:li>electrophysiology</rdf:li>
+  </rdf:Bag>
+  <rdf:Seq rdf:about="rdf:#cd07d2c8-7b66-466b-9b09-f4f3b73cbf3a">
+    <rdf:li rdf:resource="rdf:#b14b3f7b-c9e5-4a08-b789-7b054e0aaaea"/>
+    <rdf:li rdf:resource="rdf:#75d919a5-8291-406f-b328-a5d32ffa3b7d"/>
+    <rdf:li rdf:resource="rdf:#19e9822d-e577-4717-af6b-56878b9a92ae"/>
+  </rdf:Seq>
+  <rdf:Seq rdf:about="rdf:#628139cb-aa22-4d72-aaf0-092c72497eb1">
+    <rdf:li rdf:resource="rdf:#350ed10a-a94f-4c87-ac71-c54fddc3c50e"/>
+    <rdf:li rdf:resource="rdf:#1704d68a-7a25-49fa-9a25-afb21e220478"/>
+  </rdf:Seq>
+  <rdf:Description rdf:about="#413fe2f1-6922-4ca2-93e8-3a35a45252d4">
+    <rdf:value>
+            The leak current component contains the differential equations
+            governing the time independent current leakage from the cell.
+          </rdf:value>
+  </rdf:Description>
+  <rdf:Description rdf:about="#Ttubular_current">
+    <cmeta:comment rdf:resource="#7b34d745-9c10-4007-8c0a-1db6723cf0da"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="">
+    <dc:publisher>Bioengineering Institute, The University of Auckland</dc:publisher>
+    <cmeta:comment rdf:resource="rdf:#e4ed2775-d6c4-4664-8b7a-0c51c3e7e8db"/>
+    <dcterms:created rdf:resource="rdf:#ca50c61c-a73f-4dd1-94f2-54afef248057"/>
+    <dc:creator rdf:resource="rdf:#7311dbd9-55c5-4cd4-aa90-e0c33f578f39"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="#9548c1bf-3275-4ed5-ab23-4bbaaa56f98a">
+    <rdf:value>
+            The voltage-dependent inactivation gate for the sodium channel (the
+            h gate).
+          </rdf:value>
+  </rdf:Description>
+  <rdf:Description rdf:about="#sodium_current_h_gate">
+    <cmeta:comment rdf:resource="#9548c1bf-3275-4ed5-ab23-4bbaaa56f98a"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#1704d68a-7a25-49fa-9a25-afb21e220478">
+    <rdf:type rdf:resource="http://www.cellml.org/bqs/1.0#Person"/>
+    <vCard:N rdf:resource="rdf:#32998e73-799a-4de5-a14b-d08b46a02970"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="#sodium_current">
+    <cmeta:comment rdf:resource="#d3c7399a-42fb-4aeb-ba4d-dc9cddbad238"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="#7b34d745-9c10-4007-8c0a-1db6723cf0da">
+    <rdf:value>
+            The T-tubular current component contains the differential equations
+            governing the current that occurs as the result of a potential difference
+            between the cell membrane and the T-tubular system.
+          </rdf:value>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#e6832fea-96b1-4866-9f30-0521ce0b8d22">
+    <vCard:Given>Martin</vCard:Given>
+    <vCard:Family>Buist</vCard:Family>
+    <vCard:Other>L</vCard:Other>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#1608d5dc-753b-4e6a-a9aa-754883b4288e">
+    <dc:creator rdf:resource="rdf:#628139cb-aa22-4d72-aaf0-092c72497eb1"/>
+    <dc:title>Reconstruction of the Action Potential of Frog Sartorius Muscle</dc:title>
+    <bqs:volume>235</bqs:volume>
+    <bqs:first_page>103</bqs:first_page>
+    <bqs:Journal rdf:resource="rdf:#f94b781b-90f3-475c-9a73-f8f0094751e6"/>
+    <dcterms:issued rdf:resource="rdf:#df260094-f659-438d-a686-5d9f6769ecad"/>
+    <bqs:last_page>131</bqs:last_page>
+  </rdf:Description>
+  <rdf:Description rdf:about="#89046a78-d8a8-4266-9739-963844931e84">
+    <vCard:FN>Martin Buist</vCard:FN>
+  </rdf:Description>
+  <rdf:Description rdf:about="#interface">
+    <cmeta:comment rdf:resource="#0d76c6e4-4f2b-4064-a20c-d50660dbaac2"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="#Ttubular_current_Vt_var">
+    <cmeta:comment rdf:resource="#a64c8cf8-c627-46cc-9e04-df3a92f86cce"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#7311dbd9-55c5-4cd4-aa90-e0c33f578f39">
+    <vCard:ORG rdf:resource="rdf:#9b93e9d0-3703-44a0-836c-38c670f3aacd"/>
+    <vCard:EMAIL rdf:resource="rdf:#cc1b4fe7-f9a4-4885-b14a-524f75a54a4f"/>
+    <vCard:N rdf:resource="rdf:#e6832fea-96b1-4866-9f30-0521ce0b8d22"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#75d919a5-8291-406f-b328-a5d32ffa3b7d">
+    <rdf:type rdf:resource="http://www.cellml.org/bqs/1.0#Person"/>
+    <vCard:N rdf:resource="rdf:#8bb83b1c-3154-4ecf-814f-51966afda02d"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="#f4b40f92-5926-4df9-8dee-37bc9e9e6626">
+    <dc:subject rdf:resource="#6ce87069-d6de-40aa-8390-c48484246677"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="#leak_current">
+    <cmeta:comment rdf:resource="#413fe2f1-6922-4ca2-93e8-3a35a45252d4"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="#e34ccd88-92d4-4274-8862-48698c9054ff">
+    <rdf:value>
+          This is the CellML description of Adrian, Chandler and Hodgkin's
+          mathematical model of membrane action potentials of mammalian
+          striated skeletal muscle. It describes four ionic currents and uses
+          Hodgkin-Huxley type equations.
+        </rdf:value>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#cc1b4fe7-f9a4-4885-b14a-524f75a54a4f">
+    <rdf:type rdf:resource="http://imc.org/vCard/3.0#internet"/>
+    <rdf:value>m.buist@auckland.ac.nz</rdf:value>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#e9251cfd-847b-4a2b-9c05-896538e40e17">
+    <vCard:Given>A</vCard:Given>
+    <vCard:Family>Hodgkin</vCard:Family>
+    <vCard:Other>L</vCard:Other>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#32998e73-799a-4de5-a14b-d08b46a02970">
+    <vCard:Given>L</vCard:Given>
+    <vCard:Family>Peachey</vCard:Family>
+    <vCard:Other>D</vCard:Other>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#836e1473-9f4a-4945-991a-ac94e61d27d1">
+    <vCard:FN/>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#9b93e9d0-3703-44a0-836c-38c670f3aacd">
+    <vCard:Orgname>The University of Auckland</vCard:Orgname>
+    <vCard:Orgunit>Bioengineering Institute</vCard:Orgunit>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#19e9822d-e577-4717-af6b-56878b9a92ae">
+    <rdf:type rdf:resource="http://www.cellml.org/bqs/1.0#Person"/>
+    <vCard:N rdf:resource="rdf:#e9251cfd-847b-4a2b-9c05-896538e40e17"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="#a64c8cf8-c627-46cc-9e04-df3a92f86cce">
+    <rdf:value>
+            The T-tubular Vt component calculates the voltage in the membrane
+            of the T-tubular system.
+          </rdf:value>
+  </rdf:Description>
+  <rdf:Description rdf:about="#d3c7399a-42fb-4aeb-ba4d-dc9cddbad238">
+    <rdf:value>
+            The sodium current component contains the differential equations
+            governing the influx of sodium ions through the cell surface
+            membrane into the cell.
+          </rdf:value>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#b14b3f7b-c9e5-4a08-b789-7b054e0aaaea">
+    <rdf:type rdf:resource="http://www.cellml.org/bqs/1.0#Person"/>
+    <vCard:N rdf:resource="rdf:#3ff16dda-00c0-4d74-b4c9-4a0f535d8994"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#df260094-f659-438d-a686-5d9f6769ecad">
+    <dcterms:W3CDTF>1973-01-01</dcterms:W3CDTF>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#ca50c61c-a73f-4dd1-94f2-54afef248057">
+    <dcterms:W3CDTF>2003-10-29</dcterms:W3CDTF>
+  </rdf:Description>
+  <rdf:Description rdf:about="#f179f849-ba4b-45df-b1d9-27cad5e7ee36">
+    <rdf:value>
+            The potassium current component contains the differential equations
+            governing this voltage and time dependent outward current.
+          </rdf:value>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#c5eecba3-05ec-46ea-af69-f55e0e698c2a">
+    <bqs:Pubmed_id>4778131</bqs:Pubmed_id>
+    <bqs:JournalArticle rdf:resource="rdf:#1608d5dc-753b-4e6a-a9aa-754883b4288e"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#e2761bb1-473f-4f5f-9f26-1662fd7ba12c">
+    <dc:creator rdf:resource="rdf:#cd07d2c8-7b66-466b-9b09-f4f3b73cbf3a"/>
+    <dc:title>Voltage Clamp Experiments in Striated Muscle Fibres</dc:title>
+    <bqs:volume>208</bqs:volume>
+    <bqs:first_page>607</bqs:first_page>
+    <bqs:Journal rdf:resource="rdf:#a8be817b-a908-4668-b759-54045a17b37d"/>
+    <dcterms:issued rdf:resource="rdf:#c903b49d-1b15-4ebb-889a-81044dffe847"/>
+    <bqs:last_page>644</bqs:last_page>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#a8be817b-a908-4668-b759-54045a17b37d">
+    <dc:title>Journal of Physiology</dc:title>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#f94b781b-90f3-475c-9a73-f8f0094751e6">
+    <dc:title>Journal of Physiology</dc:title>
+  </rdf:Description>
+  <rdf:Description rdf:about="#0d76c6e4-4f2b-4064-a20c-d50660dbaac2">
+    <rdf:value>
+            This component defines the variables that are externally set and
+            passed into the model along with the variables within the model that
+            are to be available externally.
+          </rdf:value>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#c903b49d-1b15-4ebb-889a-81044dffe847">
+    <dcterms:W3CDTF>1970-01-01</dcterms:W3CDTF>
+  </rdf:Description>
+  <rdf:Description rdf:about="#Adrian_Chandler_Hodgkin_Frog_Sartorius_1970">
+    <dc:title>
+        The Adrian-Chandler-Hodgkin Model of the Skeletal Myocyte Action
+        Potential, 1970
+      </dc:title>
+    <cmeta:bio_entity>Skeletal Myocyte</cmeta:bio_entity>
+    <cmeta:comment rdf:resource="rdf:#77530d9e-9c1a-47bb-be67-d5ae99c0a67b"/>
+    <bqs:reference rdf:resource="#f4b40f92-5926-4df9-8dee-37bc9e9e6626"/>
+    <bqs:reference rdf:resource="rdf:#5cf2fe05-a20a-4194-ac40-5a6a11be92fa"/>
+    <bqs:reference rdf:resource="rdf:#c5eecba3-05ec-46ea-af69-f55e0e698c2a"/>
+    <cmeta:species>Mammalia</cmeta:species>
+  </rdf:Description>
+  <rdf:Description rdf:about="#membrane">
+    <cmeta:comment rdf:resource="#80ddaec7-7e36-4cfd-bbfa-2ad738d0e6a7"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#5cf2fe05-a20a-4194-ac40-5a6a11be92fa">
+    <bqs:Pubmed_id>5499787</bqs:Pubmed_id>
+    <bqs:JournalArticle rdf:resource="rdf:#e2761bb1-473f-4f5f-9f26-1662fd7ba12c"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="#potassium_current">
+    <cmeta:comment rdf:resource="#f179f849-ba4b-45df-b1d9-27cad5e7ee36"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="#80ddaec7-7e36-4cfd-bbfa-2ad738d0e6a7">
+    <rdf:value>
+            This component defines the calculation of dV/dt, the ordinary differential
+            equation for the transmembrane potential.
+          </rdf:value>
+  </rdf:Description>
+  <rdf:Description rdf:about="#potassium_current_n_gate">
+    <cmeta:comment rdf:resource="#716b1ac6-70c1-451e-83a4-349b19683d0a"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#350ed10a-a94f-4c87-ac71-c54fddc3c50e">
+    <rdf:type rdf:resource="http://www.cellml.org/bqs/1.0#Person"/>
+    <vCard:N rdf:resource="rdf:#753722c4-66d5-4687-935e-856814bd33ab"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="#17e0015b-a095-47e9-98ff-a0d8ba7decb1">
+    <rdf:value>
+            The definition of the voltage-dependent activation gating
+            kinetics for the sodium ion channel (the m gate).
+          </rdf:value>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#3ff16dda-00c0-4d74-b4c9-4a0f535d8994">
+    <vCard:Given>R</vCard:Given>
+    <vCard:Family>Adrian</vCard:Family>
+    <vCard:Other>H</vCard:Other>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#753722c4-66d5-4687-935e-856814bd33ab">
+    <vCard:Given>R</vCard:Given>
+    <vCard:Family>Adrian</vCard:Family>
+    <vCard:Other>H</vCard:Other>
+  </rdf:Description>
+  <rdf:Description rdf:about="#716b1ac6-70c1-451e-83a4-349b19683d0a">
+    <rdf:value>
+            This component contains the differential equations
+            governing the time dependence of the n gate of the potassium channel.
+          </rdf:value>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#abfd746a-6626-47ac-a551-f086a8a897e4">
+    <vCard:FN>Martin Buist</vCard:FN>
+  </rdf:Description>
+  <rdf:Description rdf:about="#6ce87069-d6de-40aa-8390-c48484246677">
+    <bqs:subject_type>keyword</bqs:subject_type>
+    <rdf:value rdf:resource="rdf:#7369d2a7-512a-4e5c-b6f0-da233f7fa516"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#e4ed2775-d6c4-4664-8b7a-0c51c3e7e8db">
+    <dc:creator rdf:resource="rdf:#836e1473-9f4a-4945-991a-ac94e61d27d1"/>
+    <rdf:value/>
+  </rdf:Description>
+  <rdf:Description rdf:about="#sodium_current_m_gate">
+    <cmeta:comment rdf:resource="#17e0015b-a095-47e9-98ff-a0d8ba7decb1"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#8bb83b1c-3154-4ecf-814f-51966afda02d">
+    <vCard:Given>W</vCard:Given>
+    <vCard:Family>Chandler</vCard:Family>
+    <vCard:Other>K</vCard:Other>
+  </rdf:Description>
+  <rdf:Description rdf:about="rdf:#77530d9e-9c1a-47bb-be67-d5ae99c0a67b">
+    <dc:creator rdf:resource="rdf:#abfd746a-6626-47ac-a551-f086a8a897e4"/>
+    <rdf:value>This is the CellML description of Adrian, Chandler and Hodgkin's&#13;
+          mathematical model of membrane action potentials of mammalian&#13;
+          striated skeletal muscle. It describes four ionic currents and uses&#13;
+          Hodgkin-Huxley type equations.</rdf:value>
+  </rdf:Description>
+</rdf:RDF>
+</model>
+
