@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\nSELECT\n    term\nFROM\n    idx_entry\nWHERE\n    idx_kind_id = ?1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "term",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "daca6b07be490af42a82912746cb0bf6474df6bae39fe9186ce945933a4d2a3d"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nDELETE FROM idx_entry_link\nWHERE\n    resource_path = ?1\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "0cbdae62fe5dff3841bf249c572a2d78a0d823c194ed69f043364e5c1de37d17"
+}

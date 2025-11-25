@@ -719,7 +719,7 @@ impl IndexBackend for MockPlatform {
     async fn list_terms(
         &self,
         _kind: &str,
-    ) -> Result<IndexTerms, BackendError> {
+    ) -> Result<Option<IndexTerms>, BackendError> {
         unimplemented!()
     }
 
@@ -727,7 +727,7 @@ impl IndexBackend for MockPlatform {
         &self,
         _kind: &str,
         _term: &str,
-    ) -> Result<IndexResourceSet, BackendError> {
+    ) -> Result<Option<IndexResourceSet>, BackendError> {
         unimplemented!()
     }
 }

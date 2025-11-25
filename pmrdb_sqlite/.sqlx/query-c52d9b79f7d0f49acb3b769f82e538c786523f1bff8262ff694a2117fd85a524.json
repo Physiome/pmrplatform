@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nINSERT INTO idx_entry_link (\n    idx_entry_id,\n    resource_path\n)\nVALUES ( ?1, ?2 )\nON CONFLICT(idx_entry_id, resource_path) DO NOTHING\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "c52d9b79f7d0f49acb3b769f82e538c786523f1bff8262ff694a2117fd85a524"
+}

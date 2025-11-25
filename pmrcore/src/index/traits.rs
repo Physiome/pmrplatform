@@ -37,18 +37,23 @@ pub trait IndexBackend {
     async fn list_terms(
         &self,
         kind: &str,
-    ) -> Result<IndexTerms, BackendError>;
+    ) -> Result<Option<IndexTerms>, BackendError>;
     /// List the resources available under the kind
     async fn list_resources(
         &self,
         kind: &str,
         term: &str,
-    ) -> Result<IndexResourceSet, BackendError>;
+    ) -> Result<Option<IndexResourceSet>, BackendError>;
+
+    // TODO there also needs to be an inverse of the above, list terms associated
+    // with the resource.
 
     async fn index_resource(
         &self,
         kind: &str,
         resource_path: &str,
+        // TODO have this be a concrete local iterator that can be constructed
+        // from any iterator to keep this trait object safe.
         terms: &[&str],
     ) -> Result<(), BackendError> {
         let idx_kind_id = self.resolve_kind(kind).await?;

@@ -100,6 +100,7 @@ mod exposure_file_view_task;
 mod exposure_file_view_task_template;
 
 mod idgen;
+mod index;
 
 mod profile;
 

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nDELETE FROM idx_entry_link\nWHERE\n    resource_path = ?1 AND idx_entry_id IN (\n        SELECT\n            id\n        FROM\n            idx_entry\n        WHERE\n            idx_kind_id = ?2\n    )\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "12bb4719588c2a7620abbd092e1b2789501c07bef42ed43a9e65f213f37d69dc"
+}

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\nSELECT\n    resource_path\nFROM\n    idx_entry_link\nWHERE\n    idx_entry_id = ?1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "resource_path",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "618a0a36fcdb55f7fb615e24d5003334ecf6deb3bc792fa72e31c76c6c7d8a8b"
+}

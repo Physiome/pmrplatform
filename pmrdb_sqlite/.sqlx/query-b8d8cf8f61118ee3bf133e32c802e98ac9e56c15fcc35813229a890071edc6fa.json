@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\nINSERT INTO idx_kind (\n    description\n)\nVALUES ( ?1 )\nON CONFLICT(description) DO UPDATE SET\n    description = description\nRETURNING id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b8d8cf8f61118ee3bf133e32c802e98ac9e56c15fcc35813229a890071edc6fa"
+}

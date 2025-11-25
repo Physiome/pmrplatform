@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\nSELECT\n    id\nFROM\n    idx_entry\nWHERE\n    idx_kind_id = ?1\nAND\n    term = ?2\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "8131034dba7c3ce4972c6790beac5e7cec95a4f278983d3939d962568b94db4e"
+}
