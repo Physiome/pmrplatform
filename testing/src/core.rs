@@ -42,6 +42,11 @@ use pmrcore::{
         traits::GenAliasBackend,
         HexId,
     },
+    index::{
+        traits::IndexBackend,
+        IndexTerms,
+        IndexResourceSet,
+    },
     platform::{
         DefaultMCPlatform,
         DefaultPCPlatform,
@@ -670,6 +675,59 @@ impl TaskTemplateBackend for MockPlatform {
         &self,
         _id: i64,
     ) -> Result<TaskTemplate, BackendError> {
+        unimplemented!()
+    }
+}
+
+#[async_trait]
+impl IndexBackend for MockPlatform {
+    async fn resolve_kind(
+        &self,
+        _kind: &str,
+    ) -> Result<i64, BackendError> {
+        unimplemented!()
+    }
+
+    async fn resolve_idx_entry(
+        &self,
+        _idx_kind_id: i64,
+        _term: &str,
+    ) -> Result<i64, BackendError> {
+        unimplemented!()
+    }
+
+    async fn add_idx_entry_link(
+        &self,
+        _idx_entry_id: i64,
+        _resource_path: &str,
+    ) -> Result<(), BackendError> {
+        unimplemented!()
+    }
+
+    async fn forget_resource_path(
+        &self,
+        _kind: Option<&str>,
+        _resource_path: &str,
+    ) -> Result<(), BackendError> {
+        unimplemented!()
+    }
+
+    async fn list_kinds(&self) -> Result<Vec<String>, BackendError> {
+        unimplemented!()
+    }
+
+    async fn list_terms(
+        &self,
+        _kind: &str,
+    ) -> Result<IndexTerms, BackendError> {
+        unimplemented!()
+    }
+
+    async fn list_resources(
+        &self,
+        _kind: &str,
+        _term: &str,
+    ) -> Result<IndexResourceSet, BackendError> {
         unimplemented!()
     }
 }

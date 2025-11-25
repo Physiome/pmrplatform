@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use crate::{
     citation::traits::CitationBackend,
     // error::BackendError,
+    index::traits::IndexBackend,
     platform::PlatformUrl,
 };
 
@@ -17,6 +18,7 @@ use crate::{
 #[async_trait]
 pub trait PCPlatform: PlatformUrl
     + CitationBackend
+    + IndexBackend
     // TODO need to determine how this will apply
     // - Goal is to have a better way of doing generic indexes
     // - This is required to facilitate searching/display of summary
@@ -34,6 +36,7 @@ pub trait DefaultPCPlatform: PCPlatform {}
 
 impl<P: PlatformUrl
     + CitationBackend
+    + IndexBackend
 
     + DefaultPCPlatform
 
