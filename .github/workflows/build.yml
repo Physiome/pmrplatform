@@ -18,6 +18,30 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - name: Purge unneeded files for disk space
+      run: |
+        echo "Before:"
+        df -h
+        sudo rm -rf /usr/lib/jvm
+        sudo rm -rf /usr/share/swift
+        sudo rm -rf /usr/local/.ghcup
+        sudo rm -rf /usr/local/julia*
+        sudo rm -rf /opt/hostedtoolcache/CodeQL
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /usr/local/share/boost
+        sudo rm -rf /opt/az
+        sudo rm -rf /usr/local/share/powershell
+        sudo rm -rf /opt/hostedtoolcache
+
+        # docker system prune -af
+        # docker builder prune -f
+        # docker image prune -af
+        # docker volume prune -f
+        echo "After:"
+        df -h
+
     - name: Add wasm32-unknown-unknown
       run: rustup target add wasm32-unknown-unknown
 
