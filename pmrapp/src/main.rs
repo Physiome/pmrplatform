@@ -20,6 +20,7 @@ async fn main() -> anyhow::Result<()> {
     };
     use axum_login::AuthManagerLayerBuilder;
     use clap::Parser;
+    use http::Method;
     use leptos::prelude::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
     use pmrapp::app::*;
@@ -42,6 +43,7 @@ async fn main() -> anyhow::Result<()> {
         ServiceBuilder,
         util::MapRequestLayer,
     };
+    use tower_http::cors::CorsLayer;
     use tower_sessions::{Expiry, MemoryStore, SessionManagerLayer};
     #[cfg(feature = "utoipa")]
     use utoipa::OpenApi;
@@ -92,6 +94,16 @@ async fn main() -> anyhow::Result<()> {
             ).build()
         );
 
+    let cors = CorsLayer::new()
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_origin(
+            args.cors_allow_origins
+                .iter()
+                .map(String::as_ref)
+                .map(str::parse::<HeaderValue>)
+                .collect::<Result<Vec<_>, _>>()?
+        );
+
     // build our application with a route
     let app = Router::new()
         .without_v07_checks()
@@ -122,6 +134,7 @@ async fn main() -> anyhow::Result<()> {
     // for status code 3xx to optimize output.
     let app = app.layer(Extension(platform.clone()))
         .layer(auth_service)
+        .layer(cors)
         .with_state(leptos_options);
 
     fn reroute_collection_json<B: std::fmt::Debug>(mut req: Request<B>) -> Request<B> {
