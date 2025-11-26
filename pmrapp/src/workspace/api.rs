@@ -66,7 +66,16 @@ pub async fn list_workspaces() -> Result<EnforcedOk<Workspaces>, AppError> {
     ))
 }
 
-#[server]
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    post,
+    path = "/api/list_aliased_workspaces",
+    responses((
+        status = 200,
+        description = "List of workspaces with their alias within an EnforcedOk",
+        body = EnforcedOk<Workspaces>,
+    )),
+))]
+#[server(endpoint = "list_aliased_workspaces")]
 pub async fn list_aliased_workspaces() -> Result<EnforcedOk<Workspaces>, AppError> {
     let policy_state = session().await?
         .enforcer_and_policy_state("/workspace/", "").await?;
