@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Exposure {
     pub id: i64,
@@ -14,9 +15,11 @@ pub struct Exposure {
     pub files: Option<ExposureFiles>,
 }
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Exposures(Vec<Exposure>);
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ExposureFile {
     pub id: i64,
@@ -28,9 +31,11 @@ pub struct ExposureFile {
     pub views: Option<ExposureFileViews>,
 }
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ExposureFiles(Vec<ExposureFile>);
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ExposureFileView {
     pub id: i64,
@@ -41,6 +46,7 @@ pub struct ExposureFileView {
     pub updated_ts: i64,
 }
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ExposureFileViews(Vec<ExposureFileView>);
 

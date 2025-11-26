@@ -7,6 +7,7 @@ use sqlx::{
 };
 use std::collections::HashMap;
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct TaskTemplate {
     // providing this as a default on deserialize, should serialize omit to hide for API?
@@ -36,9 +37,11 @@ impl<'c> FromRow<'c, SqliteRow> for TaskTemplate {
     }
 }
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct TaskTemplates(Vec<TaskTemplate>);
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
 pub struct TaskTemplateArg {
     #[serde(default)]
@@ -60,6 +63,7 @@ pub struct TaskTemplateArg {
     // now but it has been nerfed for now.
 }
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct TaskTemplateArgs(Vec<TaskTemplateArg>);
 
@@ -68,6 +72,7 @@ Choice can be null to _allow_ the above argument to be null to allow a
 null argument, likewise for empty-string for the disambiguation.
 */
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct TaskTemplateArgChoice {
     #[serde(default)]
@@ -80,12 +85,14 @@ pub struct TaskTemplateArgChoice {
     pub label: String,
 }
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct TaskTemplateArgChoices(Vec<TaskTemplateArgChoice>);
 
 // UserArg is the user facing version of the TemplateArg - it only
 // provides fields that are critical to the end-user while hiding the
 // other details that are implementation specific for the server.
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct UserArg {
     pub id: i64,
@@ -95,6 +102,7 @@ pub struct UserArg {
     pub choices: Option<UserChoices>,
 }
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct UserArgs(Vec<UserArg>);
 
@@ -102,9 +110,11 @@ pub struct UserArgs(Vec<UserArg>);
 // selected: bool,
 // The selected value is derived from the underlying registry, typically
 // denotes a value selected by default.
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize, Serialize)]
 pub struct UserChoice(pub String, pub bool);
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct UserChoices(Vec<UserChoice>);
 

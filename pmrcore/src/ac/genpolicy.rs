@@ -10,6 +10,7 @@ use crate::ac::role::Role;
 
 /// Grants, roles and permissions associated with the given resource
 /// to be passed into the security enforcer as a complete policy.
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
 pub struct Policy {
     pub agent: Agent,
@@ -21,6 +22,7 @@ pub struct Policy {
 
 /// A resource grant - the agent will have the stated role at the given
 /// resource.
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize, Serialize)]
 pub struct ResGrant {
     // this may feel redundant later, but this line signifies the exact
@@ -31,6 +33,7 @@ pub struct ResGrant {
 }
 
 /// This represents the action the role is given the permit for.
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize, Serialize)]
 pub struct RolePermit {
     pub role: Role,
@@ -40,6 +43,7 @@ pub struct RolePermit {
 /// Represents the role granted to the agent for the system.  Roles
 /// granted this way is only applicable for resources when it is at the
 /// appropriate state.
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct AgentRole {
     pub agent: Option<String>,

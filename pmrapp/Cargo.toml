@@ -52,6 +52,8 @@ thiserror = { workspace = true }
 time = { workspace = true }
 tracing = { workspace = true, optional = true }
 http = { workspace = true }
+utoipa = { workspace = true, optional = true }
+utoipa-swagger-ui = { workspace = true, optional = true, features = ["axum"] }
 
 [features]
 hydrate = [
@@ -89,6 +91,11 @@ ssr = [
     # need a database, just enable this for now.
     "pmrdb/sqlite",
     "dep:tracing",
+    "utoipa",
+]
+utoipa = [
+    "dep:utoipa",
+    "dep:utoipa-swagger-ui",
 ]
 
 [package.metadata.leptos]

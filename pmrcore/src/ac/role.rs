@@ -2,6 +2,7 @@ use enumset::{EnumSet, EnumSetType};
 use serde::{Deserialize, Serialize};
 
 #[non_exhaustive]
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Debug, Default, EnumSetType, Ord, PartialOrd, Deserialize, Serialize)]
 pub enum Role {
     // catch-all for whenever infallable conversion is needed

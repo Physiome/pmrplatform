@@ -16,12 +16,14 @@ use serde::{
 
 use crate::error::AppError;
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
 pub struct PolicyState {
     pub policy: Option<Policy>,
     pub state: State,
 }
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct EnforcedOk<T> {
     pub inner: T,

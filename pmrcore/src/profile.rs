@@ -8,6 +8,7 @@ use crate::task_template::{
 // profile module contains miscellaneous structs that are parts that
 // may form into a profiles that encapsulate defaults.
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Profile {
     #[serde(default)]
@@ -23,6 +24,7 @@ pub struct Profile {
 // TODO see if the individual structs be better organized if grouped
 // into individual modules.
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ViewTaskTemplate {
     #[serde(default)]
@@ -38,11 +40,13 @@ pub struct ViewTaskTemplate {
     pub task_template: Option<TaskTemplate>,
 }
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ViewTaskTemplates(Vec<ViewTaskTemplate>);
 
 // The underlying binding record for the relationship
 // TODO determine whether this is ultimately necessary
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ProfileView {
     #[serde(default)]
@@ -55,6 +59,7 @@ pub struct ProfileView {
 // typically directly stored in this form in the underlying db, and this
 // is currently the only example of the associated type between Profile
 // and another.
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ViewTaskTemplateProfile {
     pub profile: Profile,
@@ -66,6 +71,7 @@ pub struct ViewTaskTemplateProfile {
 // the UserArgs and the UserViewProfile group the different sets of
 // view prompts which will map to a resulting view.
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct UserPromptGroup {
     pub id: i64,
@@ -73,9 +79,11 @@ pub struct UserPromptGroup {
     pub user_args: UserArgs,
 }
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct UserPromptGroups(Vec<UserPromptGroup>);
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct UserViewProfile {
     pub id: i64,

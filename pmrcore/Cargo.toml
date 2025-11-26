@@ -21,6 +21,7 @@ serde_json = { workspace = true }
 sqlx = { workspace = true, features = ["sqlite"], optional = true }
 tokio = { workspace = true, features = ["macros", "process"], optional = true }
 thiserror = { workspace = true }
+utoipa = { workspace = true, optional = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
@@ -33,14 +34,15 @@ test-pmr = { path = "../testing", features = [ "core" ] }
 [features]
 bytemuck = ["dep:bytemuck"]
 clap = ["dep:clap"]
-git = ["dep:gix", "dep:mime_guess"]
 chrono = ["dep:chrono", "test-pmr/chrono"]
 display = ["chrono"]
+git = ["dep:gix", "dep:mime_guess"]
 # group all server-only dependencies to this feature.
-server = ["bytemuck", "session", "chrono"]
+server = ["bytemuck", "session", "chrono", "utoipa"]
 session = ["dep:rand"]
 sqlx = ["dep:sqlx"]
 tokio = ["dep:tokio"]
 testing = ["tokio/rt"]
+utoipa = ["dep:utoipa"]
 
 [lib]

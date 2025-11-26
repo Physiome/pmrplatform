@@ -38,11 +38,11 @@ pmr2-migration = { path = "./pmr2-migration", version = "0.0.1" }
 pmrac = { path = "./pmrac", version = "0.0.1" }
 pmrapp = { path = "./pmrapp", version = "0.0.1" }
 pmrbin = { path = "./pmrbin", version = "0.0.1" }
+pmrcore = { path = "./pmrcore", version = "0.0.1" }
 pmrctrl = { path = "./pmrctrl", version = "0.0.1" }
 pmrdb = { path = "./pmrdb", version = "0.0.1" }
 pmrdb_sqlite = { path = "./pmrdb_sqlite", version = "0.0.1" }
 pmrmodel = { path = "./pmrmodel", version = "0.0.1" }
-pmrcore = { path = "./pmrcore", version = "0.0.1" }
 pmrrbac = { path = "./pmrrbac", version = "0.0.1" }
 pmrrepo = { path = "./pmrrepo", version = "0.0.1" }
 pmrtqs = { path = "./pmrtqs", version = "0.0.1" }
@@ -107,6 +107,8 @@ tower-http = "0.5"
 tower-sessions = "0.13.0"
 tracing = "0.1"
 url = "2.5.4"
+utoipa = "5.4.0"
+utoipa-swagger-ui = "9.0"
 wasm-bindgen = "0.2.105"
 web-sys = "0.3.69"
 xee-xpath = "0.1.5"

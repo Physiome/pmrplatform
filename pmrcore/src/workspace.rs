@@ -2,6 +2,7 @@ use num_enum::FromPrimitive;
 use serde::{Deserialize, Serialize};
 use crate::exposure::Exposures;
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Workspace {
     pub id: i64,
@@ -14,9 +15,11 @@ pub struct Workspace {
     pub exposures: Option<Exposures>,
 }
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Workspaces(Vec<Workspace>);
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Debug, PartialEq, FromPrimitive)]
 #[repr(i64)]
 pub enum WorkspaceSyncStatus {
@@ -27,6 +30,7 @@ pub enum WorkspaceSyncStatus {
     Unknown = -1,
 }
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct WorkspaceSync {
     pub id: i64,
@@ -36,6 +40,7 @@ pub struct WorkspaceSync {
     pub status: i64,
 }
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct WorkspaceTag {
     pub id: i64,

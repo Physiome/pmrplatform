@@ -36,13 +36,20 @@ use self::ssr::*;
 
 pub type Workspaces = Vec<AliasEntry<Workspace>>;
 
-#[server]
+#[server(endpoint = "workspace_root_policy_state")]
 pub async fn workspace_root_policy_state() -> Result<PolicyState, AppError> {
     Ok(session().await?
         .enforcer_and_policy_state("/workspace/", "").await?)
 }
 
-#[server]
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    post,
+    path = "/api/list_workspaces",
+    responses(
+        (status = 200, description = "List of workspaces within an EnforcedOk", body = EnforcedOk<Workspaces>),
+    ),
+))]
+#[server(endpoint = "list_workspaces")]
 pub async fn list_workspaces() -> Result<EnforcedOk<Workspaces>, AppError> {
     let policy_state = session().await?
         .enforcer_and_policy_state("/workspace/", "").await?;

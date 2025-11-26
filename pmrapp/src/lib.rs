@@ -10,6 +10,8 @@ pub mod error;
 pub mod error_template;
 pub mod exposure;
 pub mod listing;
+#[cfg(feature = "utoipa")]
+pub mod openapi;
 #[cfg(feature = "ssr")]
 pub mod server;
 pub mod view;

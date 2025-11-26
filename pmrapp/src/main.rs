@@ -43,6 +43,8 @@ async fn main() -> anyhow::Result<()> {
         util::MapRequestLayer,
     };
     use tower_sessions::{Expiry, MemoryStore, SessionManagerLayer};
+    #[cfg(feature = "utoipa")]
+    use utoipa::OpenApi;
 
     dotenvy::dotenv().ok();
     let args = Cli::parse();
@@ -108,10 +110,17 @@ async fn main() -> anyhow::Result<()> {
                 move || shell(leptos_options.clone())
             },
         )
-        .fallback(leptos_axum::file_and_error_handler(shell))
-        // TODO add an additional handler that will filter out the body
-        // for status code 3xx to optimize output.
-        .layer(Extension(platform.clone()))
+        .fallback(leptos_axum::file_and_error_handler(shell));
+
+    #[cfg(feature = "utoipa")]
+    let app = app.merge(
+        utoipa_swagger_ui::SwaggerUi::new("/swagger-ui")
+            .url("/api-docs/openapi.json", pmrapp::openapi::ApiDoc::openapi())
+    );
+
+    // TODO add an additional handler that will filter out the body
+    // for status code 3xx to optimize output.
+    let app = app.layer(Extension(platform.clone()))
         .layer(auth_service)
         .with_state(leptos_options);
 
