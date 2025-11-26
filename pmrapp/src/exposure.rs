@@ -106,7 +106,7 @@ mod types {
 pub use types::ResolvedExposurePath;
 
 #[component]
-pub fn ExposureRoutes() -> impl MatchNestedRoutes + Clone {
+pub fn ExposureRoutes() -> impl leptos_router::MatchNestedRoutes + Clone {
     let ssr = SsrMode::Async;
     view! {
         <ParentRoute path=StaticSegment("/exposure") view=ExposureRoot ssr>
@@ -125,7 +125,7 @@ pub fn ExposureRoutes() -> impl MatchNestedRoutes + Clone {
 }
 
 #[component]
-pub fn ExposureViewRoutes() -> impl MatchNestedRoutes + Clone {
+pub fn ExposureViewRoutes() -> impl leptos_router::MatchNestedRoutes + Clone {
     let ssr = SsrMode::Async;
     view! {
         <ParentRoute path=ParamSegment("id") view=Exposure ssr>

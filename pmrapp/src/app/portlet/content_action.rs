@@ -36,7 +36,7 @@ impl ContentActions {
     where
         S: AsRef<str> + ToString,
     {
-        self.actions.retain(|(p, _)| (parent.as_ref() != p));
+        self.actions.retain(|(p, _)| parent.as_ref() != p);
         if let Some(items) = items {
             let mut new = items.into_iter()
                 .map(|item| (parent.to_string(), item))

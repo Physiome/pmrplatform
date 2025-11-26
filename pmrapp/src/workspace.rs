@@ -70,7 +70,7 @@ use crate::{
 };
 
 #[component]
-pub fn WorkspaceRoutes() -> impl MatchNestedRoutes + Clone {
+pub fn WorkspaceRoutes() -> impl leptos_router::MatchNestedRoutes + Clone {
     let ssr = SsrMode::Async;
     view! {
         <ParentRoute path=StaticSegment("/workspace") view=WorkspaceRoot ssr>
@@ -91,7 +91,7 @@ pub fn WorkspaceRoutes() -> impl MatchNestedRoutes + Clone {
 }
 
 #[component]
-fn WorkspaceViewRoutes() -> impl MatchNestedRoutes + Clone {
+fn WorkspaceViewRoutes() -> impl leptos_router::MatchNestedRoutes + Clone {
     let ssr = SsrMode::Async;
     view! {
         <ParentRoute path=ParamSegment("id") view=Workspace ssr>

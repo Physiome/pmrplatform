@@ -16,7 +16,7 @@ use crate::{
 use api::{list_citations, list_citation_resources};
 
 #[component]
-pub fn ListingRoutes() -> impl MatchNestedRoutes + Clone {
+pub fn ListingRoutes() -> impl leptos_router::MatchNestedRoutes + Clone {
     let ssr = SsrMode::Async;
     view! {
         <ParentRoute path=StaticSegment("/listing") view=ListingRoot ssr>

@@ -45,7 +45,7 @@ impl<P: PolicyBackend
     + Send
     + Sync
 > ACPlatform for P {
-    fn as_dyn(&self) -> &(dyn ACPlatform) {
+    fn as_dyn(&self) -> &dyn ACPlatform {
         self
     }
 }

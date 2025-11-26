@@ -53,7 +53,7 @@ pub fn provide_session_context() {
 }
 
 #[component(transparent)]
-pub fn ACRoutes() -> impl MatchNestedRoutes + Clone {
+pub fn ACRoutes() -> impl leptos_router::MatchNestedRoutes + Clone {
     let ssr = SsrMode::Async;
     view! {
         <ParentRoute path=StaticSegment("auth") view=AuthRoot ssr>
