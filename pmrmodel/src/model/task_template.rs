@@ -169,7 +169,7 @@ impl<'a, T> From<(
     }
 }
 
-fn vtt_helper(vtt: &ViewTaskTemplate) -> Iter<TaskTemplateArg> {
+fn vtt_helper(vtt: &ViewTaskTemplate) -> Iter<'_, TaskTemplateArg> {
     (&vtt.task_template)
         .as_ref()
         .expect("task_template must be provided with view_task_template")

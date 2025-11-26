@@ -20,7 +20,7 @@ impl<'p> Platform {
         &self,
         workspace_id: i64,
         commit_id: &str,
-    ) -> Result<ExposureCtrl, PlatformError> {
+    ) -> Result<ExposureCtrl<'_>, PlatformError> {
         let git_handle = self
             .repo_backend()
             .git_handle(workspace_id).await?;

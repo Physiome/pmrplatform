@@ -277,7 +277,7 @@ pub async fn read_safe_index_html(
     path: String,
     efvid: i64,
 ) -> Result<String, AppError> {
-    fn evaluate(url: &str) -> Option<Cow<str>> {
+    fn evaluate(url: &str) -> Option<Cow<'_, str>> {
         match url.as_bytes() {
             [b'/', ..] => Some(url.into()),
             _ => Some(["../", url].concat().into()),
