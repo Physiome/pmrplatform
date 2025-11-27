@@ -15,23 +15,52 @@ use std::{
 };
 use thiserror::Error;
 
+#[cfg_attr(feature = "utoipa", derive(utoipa::IntoResponses))]
 #[derive(Clone, Debug, Error, PartialEq, Serialize, Deserialize)]
 pub enum AppError {
+    #[cfg_attr(feature = "utoipa", response(
+        status = 400,
+        description = "Bad Request",
+    ))]
     #[error("400 Bad Request")]
     BadRequest,
+    #[cfg_attr(feature = "utoipa", response(
+        status = 403,
+        description = "Forbidden",
+    ))]
     #[error("403 Forbidden")]
     Forbidden,
+    #[cfg_attr(feature = "utoipa", response(
+        status = 404,
+        description = "Not Found",
+    ))]
     #[error("404 Not Found")]
     NotFound,
 
+    #[cfg_attr(feature = "utoipa", response(
+        status = 500,
+        description = "Internal Server Error",
+    ))]
     #[error("500 Internal Server Error")]
     InternalServerError,
+    #[cfg_attr(feature = "utoipa", response(
+        status = 500,
+        description = "Internal Server Error",
+    ))]
     #[error("500 Internal Server Error")]
     ViewNotImplemented,
 
     // other non-http error
+    #[cfg_attr(feature = "utoipa", response(
+        status = 500,
+        description = "Internal Server Error",
+    ))]
     #[error("Network Error")]
     NetworkError,
+    #[cfg_attr(feature = "utoipa", response(
+        status = 500,
+        description = "Internal Server Error",
+    ))]
     #[error("Encode/decode error")]
     SerdeError,
 }

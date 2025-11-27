@@ -36,6 +36,15 @@ use self::ssr::*;
 
 pub type Workspaces = Vec<AliasEntry<Workspace>>;
 
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    post,
+    path = "/api/workspace_root_policy_state",
+    responses((
+        status = 200,
+        description = "Check PolicyState for the current user for the /workspace/ endpoint.",
+        body = PolicyState
+    ), AppError),
+))]
 #[server(endpoint = "workspace_root_policy_state")]
 pub async fn workspace_root_policy_state() -> Result<PolicyState, AppError> {
     Ok(session().await?
@@ -45,9 +54,11 @@ pub async fn workspace_root_policy_state() -> Result<PolicyState, AppError> {
 #[cfg_attr(feature = "utoipa", utoipa::path(
     post,
     path = "/api/list_workspaces",
-    responses(
-        (status = 200, description = "List of workspaces within an EnforcedOk", body = EnforcedOk<Workspaces>),
-    ),
+    responses((
+        status = 200,
+        description = "List of workspaces within an EnforcedOk",
+        body = EnforcedOk<Workspaces>,
+    ), AppError),
 ))]
 #[server(endpoint = "list_workspaces")]
 pub async fn list_workspaces() -> Result<EnforcedOk<Workspaces>, AppError> {
@@ -73,7 +84,7 @@ pub async fn list_workspaces() -> Result<EnforcedOk<Workspaces>, AppError> {
         status = 200,
         description = "List of workspaces with their alias within an EnforcedOk",
         body = EnforcedOk<Workspaces>,
-    )),
+    ), AppError),
 ))]
 #[server(endpoint = "list_aliased_workspaces")]
 pub async fn list_aliased_workspaces() -> Result<EnforcedOk<Workspaces>, AppError> {

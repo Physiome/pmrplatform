@@ -6,6 +6,7 @@ use crate::{
     workspace::api::{
         __path_list_workspaces,
         __path_list_aliased_workspaces,
+        __path_workspace_root_policy_state,
         Workspaces,
     },
 };
@@ -16,6 +17,7 @@ use crate::{
     paths(
         list_workspaces,
         list_aliased_workspaces,
+        workspace_root_policy_state,
     ),
     components(schemas(
         EnforcedOk<Workspaces>,
