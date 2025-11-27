@@ -1,4 +1,4 @@
-use leptos::server;
+use leptos::{server, server_fn};
 use pmrcore::{
     alias::AliasEntry,
     repo::{
@@ -115,7 +115,62 @@ pub(crate) async fn resolve_id(id: Id) -> Result<i64, AppError> {
     })
 }
 
-#[server]
+#[cfg(feature = "utoipa")]
+#[allow(dead_code)]
+#[derive(utoipa::ToSchema)]
+struct WorkspaceInfoArgs {
+    id: Id,
+    commit: Option<String>,
+    path: Option<String>,
+}
+
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    post,
+    path = "/api/get_workspace_info",
+    request_body(
+        description = r#"
+Query for details associated with a workspace. Default values will be used where null is provided.
+
+Default commit is the top level commit.
+
+Default path points to the root of the repo.
+        "#,
+        content((
+            WorkspaceInfoArgs = "application/json",
+            examples(
+                ("Example 1" = (
+                    summary = "Using an alias to identify workspace to select its top level information.",
+                    value = json!({
+                        "commit": null,
+                        "id": {
+                          "Aliased": "beeler_reuter_1977"
+                        },
+                        "path": null
+                    })
+                )),
+                ("Example 2" = (
+                    summary = "Access details of a file within a commit using a number to identify workspace",
+                    value = json!({
+                        "commit": "cb090c96a2ce627457b14def4910ac39219b8340",
+                        "id": {
+                          "Number": "684"
+                        },
+                        "path": "beeler_reuter_1977.cellml"
+                    })
+                )),
+            )
+        )),
+    ),
+    responses((
+        status = 200,
+        description = "Get information related to a workspace",
+        body = EnforcedOk<RepoResult>,
+    ), AppError),
+))]
+#[server(
+    input = server_fn::codec::Json,
+    endpoint = "get_workspace_info",
+)]
 pub async fn get_workspace_info(
     // TODO this may need to be a enum to disambiguate the id vs. alias
     id: Id,

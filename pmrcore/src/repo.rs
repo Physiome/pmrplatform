@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use crate::workspace::Workspace;
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TreeEntryInfo {
     pub filemode: String,
@@ -9,6 +10,7 @@ pub struct TreeEntryInfo {
     pub name: String,
 }
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct LogEntryInfo {
     pub commit_id: String,
@@ -18,6 +20,7 @@ pub struct LogEntryInfo {
     pub message: String,
 }
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct FileInfo {
     pub size: u64,
@@ -25,13 +28,14 @@ pub struct FileInfo {
     pub mime_type: String,
 }
 
-
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TreeInfo {
     pub filecount: u64,
     pub entries: Vec<TreeEntryInfo>,
 }
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CommitInfo {
     pub commit_id: String,
@@ -39,12 +43,14 @@ pub struct CommitInfo {
     pub committer: String,
 }
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct LogInfo {
     // TODO fields about start, next, pagination?
     pub entries: Vec<LogEntryInfo>,
 }
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RemoteInfo {
     /// The url of the remote location.
@@ -57,6 +63,7 @@ pub struct RemoteInfo {
     pub path: String,
 }
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ObjectInfo {
     FileInfo(FileInfo),
@@ -66,6 +73,7 @@ pub enum ObjectInfo {
     Unknown,
 }
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum PathObjectInfo {
     FileInfo(FileInfo),
@@ -74,6 +82,7 @@ pub enum PathObjectInfo {
     Unknown,
 }
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RepoResult {
     /// The workspace that this result was derived from.
