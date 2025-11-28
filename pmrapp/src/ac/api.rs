@@ -59,6 +59,7 @@ pub(crate) async fn workflow_transition(
     target: String,
 ) -> Result<PolicyState, ServerFnError<AppError>> {
     if let Some(user) = current_user().await
+        // TODO figure out how to actually get 404 status code working here.
         .map_err(|_| AppError::Forbidden)?
     {
         let target_state = State::from_str(&target)

@@ -11,6 +11,7 @@ use crate::{
         __path_get_log_info,
         __path_get_workspace_info,
         __path_workspace_root_policy_state,
+        __path_synchronize_openapi,
         Workspaces,
     },
 };
@@ -25,6 +26,7 @@ use crate::{
         get_log_info,
         get_workspace_info,
         workspace_root_policy_state,
+        synchronize_openapi,
     ),
     components(schemas(
         EnforcedOk<Workspaces>,

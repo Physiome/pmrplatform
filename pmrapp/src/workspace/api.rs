@@ -328,6 +328,44 @@ pub async fn create_workspace(
     Ok(())
 }
 
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    post,
+    path = "/api/synchronize",
+    request_body(
+        description = r#"
+Synchronize workspace with the remote Git repository.
+        "#,
+        content((
+            i64 = "application/json",
+            examples(
+                ("Example 1" = (
+                    summary = "Synchronize a workspace by its alias.",
+                    value = json!({
+                        "id": {
+                          "Aliased": "beeler_reuter_1977"
+                        },
+                    })
+                )),
+            )
+        )),
+    ),
+    responses((
+        status = 200,
+        description = "This status code determines success.",
+        body = ()
+    ), AppError),
+))]
+#[server(
+    input = server_fn::codec::Json,
+    endpoint = "synchronize",
+)]
+pub async fn synchronize_openapi(
+    id: Id,
+) -> Result<(), AppError> {
+    let id = resolve_id(id).await?;
+    synchronize(id).await
+}
+
 #[server]
 pub async fn synchronize(
     id: i64,
