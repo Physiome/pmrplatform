@@ -5,7 +5,7 @@ use crate::{
     app::id::Id,
     enforcement::EnforcedOk,
     workspace::api::{
-        __path_create_workspace,
+        __path_create_workspace_core,
         __path_list_workspaces,
         __path_list_aliased_workspaces,
         __path_get_log_info,
@@ -19,7 +19,7 @@ use crate::{
 #[openapi(
     info(description = "OpenAPI description for pmrplatform"),
     paths(
-        create_workspace,
+        create_workspace_core,
         list_workspaces,
         list_aliased_workspaces,
         get_log_info,

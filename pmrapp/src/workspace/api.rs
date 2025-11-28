@@ -270,18 +270,19 @@ Create a workspace.
     ),
     responses((
         status = 200,
-        description = "Either an Ok with an empty tuple, or error.",
-        body = (),
+        description = "Path to the new workspace.",
+        body = String,
+        example = "/workspace/123/",
     ), AppError),
 ))]
 #[server(
     endpoint = "create_workspace",
 )]
-pub async fn create_workspace(
+pub async fn create_workspace_core(
     uri: String,
     description: Option<String>,
     long_description: Option<String>,
-) -> Result<(), AppError> {
+) -> Result<String, AppError> {
     let policy_state = session().await?
         .enforcer_and_policy_state("/workspace/", "create").await?;
     let platform = platform().await?;
@@ -313,8 +314,17 @@ pub async fn create_workspace(
                 .map_err(|_| AppError::InternalServerError)?;
         }
     }
+    Ok(format!("/workspace/{}/", entry.alias))
+}
 
-    leptos_axum::redirect(format!("/workspace/{}", entry.alias).as_ref());
+#[server]
+pub async fn create_workspace(
+    uri: String,
+    description: Option<String>,
+    long_description: Option<String>,
+) -> Result<(), AppError> {
+    let location = create_workspace_core(uri, description, long_description).await?;
+    leptos_axum::redirect(&location);
     Ok(())
 }
 
