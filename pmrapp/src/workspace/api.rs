@@ -115,6 +115,7 @@ pub(crate) async fn resolve_id(id: Id) -> Result<i64, AppError> {
     })
 }
 
+// this struct is a placeholder to help utoipa
 #[cfg(feature = "utoipa")]
 #[allow(dead_code)]
 #[derive(utoipa::ToSchema)]
@@ -129,7 +130,7 @@ struct WorkspaceInfoArgs {
     path = "/api/get_workspace_info",
     request_body(
         description = r#"
-Query for details associated with a workspace. Default values will be used where null is provided.
+Get details associated with a workspace. Default values will be used where null is provided.
 
 Default commit is the top level commit.
 
@@ -200,7 +201,37 @@ pub async fn get_workspace_info(
     }
 }
 
-#[server]
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    post,
+    path = "/api/get_log_info",
+    request_body(
+        description = r#"
+Get log entries associated with a workspace.
+        "#,
+        content((
+            Id = "application/json",
+            examples(
+                ("Example 1" = (
+                    summary = "Get log entries associated a specific workspace by alias.",
+                    value = json!({
+                        "id": {
+                          "Aliased": "beeler_reuter_1977"
+                        },
+                    })
+                )),
+            )
+        )),
+    ),
+    responses((
+        status = 200,
+        description = "Log entries from the workspace",
+        body = EnforcedOk<RepoResult>,
+    ), AppError),
+))]
+#[server(
+    input = server_fn::codec::Json,
+    endpoint = "get_log_info",
+)]
 pub async fn get_log_info(
     id: Id,
 ) -> Result<EnforcedOk<LogInfo>, AppError> {
@@ -216,7 +247,36 @@ pub async fn get_log_info(
         .map_err(|_| AppError::InternalServerError)?))
 }
 
-#[server]
+// this struct is a placeholder to help utoipa
+#[cfg(feature = "utoipa")]
+#[allow(dead_code)]
+#[derive(utoipa::ToSchema)]
+struct CreateWorkspaceArgs {
+    uri: String,
+    description: Option<String>,
+    long_description: Option<String>,
+}
+
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    post,
+    path = "/api/create_workspace",
+    request_body(
+        description = r#"
+Create a workspace.
+        "#,
+        content((
+            CreateWorkspaceArgs = "application/x-www-form-urlencoded",
+        )),
+    ),
+    responses((
+        status = 200,
+        description = "Either an Ok with an empty tuple, or error.",
+        body = (),
+    ), AppError),
+))]
+#[server(
+    endpoint = "create_workspace",
+)]
 pub async fn create_workspace(
     uri: String,
     description: Option<String>,
