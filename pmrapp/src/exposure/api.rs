@@ -1,11 +1,14 @@
 use leptos::{
     server,
+    server_fn,
     server_fn::codec::Rkyv,
 };
 use pmrcore::{
     alias::AliasEntry,
     exposure::{
         Exposure,
+        ExposureFile,
+        ExposureFileView,
         profile::ExposureFileProfile,
     },
     profile::{
@@ -20,7 +23,6 @@ use crate::{
     enforcement::EnforcedOk,
     error::AppError,
 };
-use super::ResolvedExposurePath;
 
 pub const WIZARD_FIELD_ROUTE: &'static str = "/api/exposure_wizard_field";
 
@@ -58,8 +60,17 @@ use self::ssr::*;
 
 pub type Exposures = Vec<AliasEntry<Exposure>>;
 
-#[server]
-pub async fn list() -> Result<EnforcedOk<Exposures>, AppError> {
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    post,
+    path = "/api/list_exposures",
+    responses((
+        status = 200,
+        description = "List of exposures within an EnforcedOk; wrapped in EnforcedOk due to typical usage as a top level page listing.",
+        body = EnforcedOk<Exposures>,
+    ), AppError),
+))]
+#[server(endpoint = "list_exposures")]
+pub async fn list_exposures() -> Result<EnforcedOk<Exposures>, AppError> {
     let policy_state = session().await?
         .enforcer_and_policy_state("/exposure/", "").await?;
     let platform = platform().await?;
@@ -76,8 +87,17 @@ pub async fn list() -> Result<EnforcedOk<Exposures>, AppError> {
     ))
 }
 
-#[server]
-pub async fn list_aliased() -> Result<EnforcedOk<Vec<AliasEntry<Exposure>>>, AppError> {
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    post,
+    path = "/api/list_aliased_exposures",
+    responses((
+        status = 200,
+        description = "List of exposures with their alias within an EnforcedOk; wrapped in EnforcedOk due to typical usage as a top level page listing.",
+        body = EnforcedOk<Exposures>,
+    ), AppError),
+))]
+#[server(endpoint = "list_aliased_exposures")]
+pub async fn list_aliased_exposures() -> Result<EnforcedOk<Exposures>, AppError> {
     let policy_state = session().await?
         .enforcer_and_policy_state("/exposure/", "").await?;
     let platform = platform().await?;
@@ -90,18 +110,48 @@ pub async fn list_aliased() -> Result<EnforcedOk<Vec<AliasEntry<Exposure>>>, App
     Ok(policy_state.to_enforced_ok(exposures))
 }
 
-#[server]
-pub async fn list_aliased_for_workspace(
-    workspace_id: Id,
-) -> Result<Vec<AliasEntry<Exposure>>, AppError> {
-    let id = crate::workspace::api::resolve_id(workspace_id).await?;
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    post,
+    path = "/api/list_aliased_exposures_for_workspace",
+    request_body(
+        description = r#"
+List exposures with their alias for a given workspace.
+        "#,
+        content((
+            Id = "application/json",
+            examples(
+                ("Example 1" = (
+                    summary = "Acquire the list by an alias to an exposure",
+                    value = json!({
+                        "id": {
+                            "Aliased": "beeler_reuter_1977",
+                        },
+                    })
+                )),
+            )
+        )),
+    ),
+    responses((
+        status = 200,
+        description = "List of exposures with their alias for the workspace that was specified.",
+        body = Exposures,
+    ), AppError),
+))]
+#[server(
+    input = server_fn::codec::Json,
+    endpoint = "list_aliased_exposures_for_workspace",
+)]
+pub async fn list_aliased_exposures_for_workspace(
+    id: Id,
+) -> Result<Exposures, AppError> {
+    let workspace_id = crate::workspace::api::resolve_id(id).await?;
     session().await?
-        .enforcer(format!("/workspace/{id}/"), "").await?;
+        .enforcer(format!("/workspace/{workspace_id}/"), "").await?;
     session().await?
         .enforcer(format!("/exposure/"), "").await?;
     let platform = platform().await?;
     let exposures = platform.mc_platform
-        .list_aliased_exposures_for_workspace(id)
+        .list_aliased_exposures_for_workspace(workspace_id)
         .await
         .map_err(|_| AppError::InternalServerError)?
         .into_iter()
@@ -124,6 +174,7 @@ async fn resolve_id(id: Id) -> Result<i64, AppError> {
     })
 }
 
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ExposureInfo {
     pub exposure: Exposure,
@@ -133,7 +184,37 @@ pub struct ExposureInfo {
     pub workspace_alias: Option<String>,
 }
 
-#[server]
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    post,
+    path = "/api/get_exposure_info",
+    request_body(
+        description = r#"
+Get the top level information of a given exposure.
+        "#,
+        content((
+            Id = "application/json",
+            examples(
+                ("Example 1" = (
+                    summary = "Acquire the exposure information by the alias to the exposure",
+                    value = json!({
+                        "id": {
+                            "Aliased": "c1"
+                        },
+                    })
+                )),
+            )
+        )),
+    ),
+    responses((
+        status = 200,
+        description = "The `ExposureInfo` wrapped by an `EnforcedOk`.",
+        body = EnforcedOk<ExposureInfo>,
+    ), AppError),
+))]
+#[server(
+    input = server_fn::codec::Json,
+    endpoint = "get_exposure_info",
+)]
 pub async fn get_exposure_info(id: Id) -> Result<EnforcedOk<ExposureInfo>, AppError> {
     let id = resolve_id(id).await?;
     let policy_state = session().await?
@@ -163,7 +244,45 @@ pub async fn get_exposure_info(id: Id) -> Result<EnforcedOk<ExposureInfo>, AppEr
     }))
 }
 
-#[server]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub enum ResolvedExposurePath {
+    Target(ExposureFile, Result<(ExposureFileView, Option<String>), Vec<String>>),
+    Redirect(String),
+}
+
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    post,
+    path = "/api/resolve_exposure_path",
+    request_body(
+        description = r#"
+Attempt to resolve additional information about a path within an exposure.
+        "#,
+        content((
+            Id = "application/json",
+            examples(
+                ("Example 1" = (
+                    summary = "Acquire the exposure information by the alias to the exposure and path",
+                    value = json!({
+                        "id": {
+                            "Aliased": "c1",
+                        },
+                        "path": "beeler_reuter_1977.cellml",
+                    })
+                )),
+            )
+        )),
+    ),
+    responses((
+        status = 200,
+        description = "The `ExposureInfo` wrapped by an `EnforcedOk`.",
+        body = EnforcedOk<ResolvedExposurePath>,
+    ), AppError),
+))]
+#[server(
+    input = server_fn::codec::Json,
+    endpoint = "resolve_exposure_path",
+)]
 pub async fn resolve_exposure_path(
     id: i64,
     path: String,
@@ -297,11 +416,62 @@ pub async fn read_safe_index_html(
     )
 }
 
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    post,
+    path = "/api/create_exposure",
+    request_body(
+        description = r#"
+Attempt to resolve additional information about a path within an exposure.
+        "#,
+        content((
+            Id = "application/json",
+            examples(
+                ("Example 1" = (
+                    summary = "Create the new exposure by the alias and commit id.",
+                    value = json!({
+                        "id": {
+                            "Aliased": "beeler_reuter_1977",
+                        },
+                        "commit_id": "cb090c96a2ce627457b14def4910ac39219b8340",
+                    })
+                )),
+            )
+        )),
+    ),
+    responses((
+        status = 200,
+        description = "Path to the new exposure",
+        body = String,
+        example = "/exposure/123/",
+    ), AppError),
+))]
+#[server(
+    input = server_fn::codec::Json,
+    endpoint = "create_exposure",
+)]
+pub async fn create_exposure_openapi(
+    id: Id,
+    commit_id: String,
+) -> Result<String, AppError> {
+    let workspace_id = crate::workspace::api::resolve_id(id).await?;
+    Ok(create_exposure_core(workspace_id, commit_id).await?)
+}
+
 #[server]
 pub async fn create_exposure(
     workspace_id: i64,
     commit_id: String,
 ) -> Result<(), AppError> {
+    let target = create_exposure_core(workspace_id, commit_id).await?;
+    leptos_axum::redirect(&target);
+    Ok(())
+}
+
+#[cfg(feature = "ssr")]
+async fn create_exposure_core(
+    workspace_id: i64,
+    commit_id: String,
+) -> Result<String, AppError> {
     let policy_state = session().await?
         .enforcer_and_policy_state("/exposure/", "create").await?;
     // also validate workspace read permissions, as having the ability to create
@@ -340,8 +510,7 @@ pub async fn create_exposure(
     let alias = ctrl.allocate_alias().await
         .map_err(|_| AppError::InternalServerError)?;
 
-    leptos_axum::redirect(format!("/exposure/{alias}").as_ref());
-    Ok(())
+    Ok(format!("/exposure/{alias}"))
 }
 
 #[derive(Clone, Serialize, Deserialize)]

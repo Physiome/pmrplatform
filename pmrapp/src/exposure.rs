@@ -58,14 +58,15 @@ use crate::{
         PolicyState,
     },
     exposure::api::{
-        list,
-        list_aliased,
+        list_exposures,
+        list_aliased_exposures,
         get_exposure_info,
         resolve_exposure_path,
         update_wizard_field,
         wizard,
         Exposures,
         ExposureInfo,
+        ResolvedExposurePath,
         WizardAddFile,
         WizardBuild,
         WIZARD_FIELD_ROUTE,
@@ -89,21 +90,6 @@ use crate::{
         Root,
     },
 };
-
-mod types {
-    use pmrcore::exposure::{
-        ExposureFile,
-        ExposureFileView,
-    };
-
-    #[derive(Clone, serde::Serialize, serde::Deserialize)]
-    pub enum ResolvedExposurePath {
-        Target(ExposureFile, Result<(ExposureFileView, Option<String>), Vec<String>>),
-        Redirect(String),
-    }
-}
-
-pub use types::ResolvedExposurePath;
 
 #[component]
 pub fn ExposureRoutes() -> impl leptos_router::MatchNestedRoutes + Clone {
@@ -155,7 +141,7 @@ pub fn ExposureRoot() -> impl IntoView {
                 // required by notify_into_inner which will take it.
                 provide_context(set_ps);
                 // main exposure root provides alias listing
-                let result = list_aliased()
+                let result = list_aliased_exposures()
                     .await
                     .map(EnforcedOk::notify_into_inner);
                 // this ensures if not taken, this will take it and effect the
@@ -187,7 +173,7 @@ pub fn ExposureIdRoot() -> impl IntoView {
                 // required by notify_into_inner which will take it.
                 provide_context(set_ps);
                 // id root uses id.
-                let result = list()
+                let result = list_exposures()
                     .await
                     .map(EnforcedOk::notify_into_inner);
                 // this ensures if not taken, this will take it and effect the

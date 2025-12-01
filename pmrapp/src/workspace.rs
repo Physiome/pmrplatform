@@ -47,7 +47,7 @@ use crate::{
     error_template::ErrorTemplate,
     exposure::api::{
         CreateExposure,
-        list_aliased_for_workspace,
+        list_aliased_exposures_for_workspace,
     },
     workspace::api::{
         list_workspaces,
@@ -754,7 +754,7 @@ pub fn WorkspaceLog() -> impl IntoView {
                 Ok(Some(id)) => {
                     let id = root.build_id(id)?;
                     let mut result = HashMap::new();
-                    for entry in list_aliased_for_workspace(id).await?.into_iter() {
+                    for entry in list_aliased_exposures_for_workspace(id).await?.into_iter() {
                         result.entry(entry.entity.commit_id)
                             .or_insert_with(Vec::new)
                             .push((

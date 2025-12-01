@@ -56,7 +56,7 @@ pub async fn workspace_root_policy_state() -> Result<PolicyState, AppError> {
     path = "/api/list_workspaces",
     responses((
         status = 200,
-        description = "List of workspaces within an EnforcedOk",
+        description = "List of workspaces within an EnforcedOk; wrapped in EnforcedOk due to typical usage as a top level page listing.",
         body = EnforcedOk<Workspaces>,
     ), AppError),
 ))]
@@ -82,7 +82,7 @@ pub async fn list_workspaces() -> Result<EnforcedOk<Workspaces>, AppError> {
     path = "/api/list_aliased_workspaces",
     responses((
         status = 200,
-        description = "List of workspaces with their alias within an EnforcedOk",
+        description = "List of workspaces with their alias within an EnforcedOk; wrapped in EnforcedOk due to typical usage as a top level page listing.",
         body = EnforcedOk<Workspaces>,
     ), AppError),
 ))]
