@@ -1,6 +1,7 @@
 use serde::{Serialize, Deserialize};
 use crate::task_template::UserInputMap;
 
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ExposureFileProfile {
     pub id: i64,

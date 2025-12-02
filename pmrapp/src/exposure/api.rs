@@ -513,6 +513,7 @@ async fn create_exposure_core(
     Ok(format!("/exposure/{alias}"))
 }
 
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Serialize, Deserialize)]
 pub struct WizardInfo {
     pub exposure: Exposure,
@@ -520,7 +521,37 @@ pub struct WizardInfo {
     pub profiles: Vec<Profile>,
 }
 
-#[server]
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    post,
+    path = "/api/wizard",
+    request_body(
+        description = r#"
+Acquire `WizardInfo` for the given exposure.
+        "#,
+        content((
+            Id = "application/json",
+            examples(
+                ("Example 1" = (
+                    summary = "Acquire the information by the exposure's alias.",
+                    value = json!({
+                        "id": {
+                            "Aliased": "c1",
+                        },
+                    }),
+                )),
+            )
+        )),
+    ),
+    responses((
+        status = 200,
+        description = "Wizard information within an `EnforcedOk`.",
+        body = EnforcedOk<WizardInfo>,
+    ), AppError),
+))]
+#[server(
+    input = server_fn::codec::Json,
+    endpoint = "wizard",
+)]
 pub async fn wizard(
     id: Id,
 ) -> Result<EnforcedOk<WizardInfo>, AppError> {
@@ -551,6 +582,59 @@ pub async fn wizard(
         files,
         profiles,
     }))
+}
+
+// this struct is a placeholder to help utoipa
+#[cfg(feature = "utoipa")]
+#[allow(dead_code)]
+#[derive(utoipa::ToSchema)]
+struct WizardAddFileArgs {
+    id: Id,
+    path: String,
+    profile_id: i64,
+}
+
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    post,
+    path = "/api/wizard_add_file",
+    request_body(
+        description = r#"
+Add a file to a wizard
+        "#,
+        content((
+            WizardAddFileArgs = "application/json",
+            examples(
+                ("Example 1" = (
+                    summary = "Acquire the information by the exposure's alias.",
+                    value = json!({
+                        "id": {
+                            "Aliased": "c1",
+                        },
+                        "path": "beeler_reuter_1977.cellml",
+                        "profile_id": 1,
+                    }),
+                )),
+            )
+        )),
+    ),
+    responses((
+        status = 200,
+        description = "Denotes success",
+        body = EnforcedOk<WizardInfo>,
+    ), AppError),
+))]
+#[server(
+    input = server_fn::codec::Json,
+    endpoint = "wizard_add_file",
+)]
+pub async fn wizard_add_file_openapi(
+    id: Id,
+    path: String,
+    profile_id: i64,
+) -> Result<EnforcedOk<WizardInfo>, AppError> {
+    let exposure_id = resolve_id(id.clone()).await?;
+    wizard_add_file(exposure_id, path, profile_id).await?;
+    wizard(id).await
 }
 
 #[server]
@@ -636,6 +720,44 @@ pub fn update_wizard_field(
             ))
         }
     })
+}
+
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    post,
+    path = "/api/wizard_build",
+    request_body(
+        description = r#"
+Build the exposure.
+        "#,
+        content((
+            WizardAddFileArgs = "application/json",
+            examples(
+                ("Example 1" = (
+                    summary = "Specify the exposure to build.",
+                    value = json!({
+                        "id": {
+                            "Aliased": "c1",
+                        },
+                    }),
+                )),
+            )
+        )),
+    ),
+    responses((
+        status = 200,
+        description = "Number of tasks queued.",
+        body = usize,
+    ), AppError),
+))]
+#[server(
+    input = server_fn::codec::Json,
+    endpoint = "wizard_build",
+)]
+pub async fn wizard_build_openapi(
+    id: Id,
+) -> Result<usize, AppError> {
+    let exposure_id = resolve_id(id).await?;
+    wizard_build(exposure_id).await
 }
 
 #[server]

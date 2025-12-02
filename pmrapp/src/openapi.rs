@@ -1,4 +1,8 @@
-use pmrcore::workspace::Workspace;
+use pmrcore::{
+    profile::UserPromptGroup,
+    task_template::UserInputMap,
+    workspace::Workspace,
+};
 use utoipa::OpenApi;
 
 use crate::{
@@ -7,11 +11,15 @@ use crate::{
     exposure::api::{
         Exposures,
         ExposureInfo,
+        WizardInfo,
         __path_list_exposures,
         __path_list_aliased_exposures,
         __path_list_aliased_exposures_for_workspace,
         __path_get_exposure_info,
         __path_create_exposure_openapi,
+        __path_wizard,
+        __path_wizard_add_file_openapi,
+        __path_wizard_build_openapi,
     },
     workspace::api::{
         __path_create_workspace_core,
@@ -35,6 +43,9 @@ use crate::{
         list_aliased_exposures_for_workspace,
         get_exposure_info,
         create_exposure_openapi,
+        wizard,
+        wizard_add_file_openapi,
+        wizard_build_openapi,
 
         // Workspaces
         create_workspace_core,
@@ -50,6 +61,9 @@ use crate::{
         Exposures,
         ExposureInfo,
         Id,
+        UserInputMap,
+        UserPromptGroup,
+        WizardInfo,
         Workspace,
         Workspaces,
     )),
