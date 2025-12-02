@@ -57,41 +57,61 @@ pub async fn wizard_field_update(
     let others = others.into_iter()
         .collect::<HashMap<_, _>>();
 
-    // 4. grab the exposure_id from the other keys and enforce access
+    // 4. grab the exposure_id from the other keys.
     let exposure_id = others.get("exposure_id")
         .ok_or(AppError::BadRequest)?
         .parse::<i64>()
         .map_err(|_| AppError::BadRequest)?;
-    Session::from(session)
-        .enforcer(format!("/exposure/{exposure_id}/"), "edit").await?;
 
     // 5. process the fields by grouping them by exposure_file_id, while
     //    ensuring that the exposure_file_id are under the exposure to
     //    maintain the security invariant.
+    let ef_user_input = fields.into_iter()
+        .into_group_map()
+        .into_iter();
+
+    process_ef_user_input(
+        platform,
+        session,
+        exposure_id,
+        ef_user_input,
+    ).await
+}
+
+async fn process_ef_user_input(
+    platform: Extension<Platform>,
+    session: Extension<AuthSession<ACPlatform>>,
+    exposure_id: i64,
+    ef_user_input: impl Iterator<Item = (i64, Vec<(i64, String)>)>,
+) -> Result<(), AppError> {
+    // 0. validate permission
+    Session::from(session)
+        .enforcer(format!("/exposure/{exposure_id}/"), "edit").await?;
 
     let ec = platform.get_exposure(exposure_id).await
         .map_err(|_| AppError::InternalServerError)?;
 
-    // 5.1 have a temporary holding every processed vttc handle and the
+    // 1. have a temporary holding every processed vttc handle and the
     //     user inputs associated with the exposure file underlying the
     //     vttc.
     let mut args = Vec::new();
-    for (efid, values) in fields.into_iter()
-        .into_group_map()
-        .into_iter()
-    {
+    for (efid, values) in ef_user_input {
         let efc = ec.ctrl_id(efid).await
             .map_err(|_| AppError::InternalServerError)?;
         let vttc = efc
             .try_into_vttc()
             .await
             .map_err(|_| AppError::InternalServerError)?;
+
+        // Convert `Vec<(i64, std::string::String)>` into `HashMap<i64, std::string::String>`
+        // TODO this somehow couples, it's desirable to allow HashMap (i.e. JavaScript's object)
+        // to be passed directly here, so this logic should be decoupled.
         let user_input = values.into_iter()
             .collect::<UserInputMap>();
         args.push((vttc, user_input))
     }
 
-    // 5.2 now update the database with the user inputs.
+    // 2. now update the database with the user inputs.
     for (vttc, user_input) in args.iter() {
         vttc.update_user_input(&user_input)
             .await
