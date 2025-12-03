@@ -18,16 +18,8 @@ pub fn log_error(error: impl std::fmt::Display) -> AppError {
 }
 
 pub async fn resolve_id(kind: &'static str, id: Id) -> Result<i64, AppError> {
-    Ok(match id {
-        Id::Number(s) => s.parse().map_err(|_| AppError::NotFound)?,
-        Id::Aliased(s) => platform()
-            .await?
-            .mc_platform
-            .resolve_alias(kind, &s)
-            .await
-            .map_err(|_| AppError::InternalServerError)?
-            .ok_or(AppError::NotFound)?,
-    })
+    let platform = platform().await?;
+    id.resolve(&platform, kind).await
 }
 
 pub mod ac;
