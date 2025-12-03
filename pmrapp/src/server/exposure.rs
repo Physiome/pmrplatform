@@ -1,6 +1,10 @@
 use axum::{
     Extension,
     extract::Path,
+    http::{
+        header::{CONTENT_TYPE, HeaderMap},
+        HeaderValue,
+    },
     response::IntoResponse,
 };
 use axum_login::AuthSession;
@@ -24,17 +28,31 @@ static RE: LazyLock<Regex> = LazyLock::new(||
 pub async fn wizard_field_update(
     platform: Extension<Platform>,
     session: Extension<AuthSession<ACPlatform>>,
+    headers: HeaderMap,
     body: String,
 ) -> Result<impl IntoResponse, AppError> {
-    // Steps 1-3 is parsing
-    // Step 4 is access validation
-    // Step 5 is database update
+    match headers.get(CONTENT_TYPE) {
+        Some(v) if v == "application/x-www-form-urlencoded".parse::<HeaderValue>().unwrap() => {
+            let (exposure_id, ef_user_input) = parse_wizard_field_update_www_form_urlencode(&body)?;
+            process_ef_user_input(
+                platform,
+                session,
+                exposure_id,
+                ef_user_input,
+            ).await
+        }
+        _ => Err(AppError::BadRequest),
+    }
+}
 
+fn parse_wizard_field_update_www_form_urlencode(
+    body: &str,
+) -> Result<(i64, impl Iterator<Item = (i64, Vec<(i64, String)>)>), AppError> {
     // 1. parse the incoming body and split the key-value pairs for keys
     //    that have two numbers separated by a `-` which denotes that
     //    these are to be treated as exposure_file_id + arg_id pairs for
     //    submission to the system, and other keys
-    let (fields, others): (Vec<_>, Vec<_>) = serde_urlencoded::from_str::<Vec<(String, String)>>(&body)
+    let (fields, others): (Vec<_>, Vec<_>) = serde_urlencoded::from_str::<Vec<(String, String)>>(body)
         .map_err(|_| AppError::BadRequest)?
         .into_iter()
         .partition(|(k, _)| RE.is_match(k));
@@ -70,19 +88,14 @@ pub async fn wizard_field_update(
         .into_group_map()
         .into_iter();
 
-    process_ef_user_input(
-        platform,
-        session,
-        exposure_id,
-        ef_user_input,
-    ).await
+    Ok((exposure_id, ef_user_input))
 }
 
 async fn process_ef_user_input(
     platform: Extension<Platform>,
     session: Extension<AuthSession<ACPlatform>>,
     exposure_id: i64,
-    ef_user_input: impl Iterator<Item = (i64, Vec<(i64, String)>)>,
+    ef_user_input: impl Iterator<Item = (i64, impl IntoIterator<Item = (i64, String)>)>,
 ) -> Result<(), AppError> {
     // 0. validate permission
     Session::from(session)
