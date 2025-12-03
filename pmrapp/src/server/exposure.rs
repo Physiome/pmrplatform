@@ -18,12 +18,20 @@ use std::{
     sync::LazyLock,
 };
 use crate::{
+    app::id::Id,
     error::AppError,
-    server::ac::Session,
+    server::{
+        self,
+        ac::Session,
+    },
 };
 
 static RE: LazyLock<Regex> = LazyLock::new(||
     Regex::new(r"^(\d+)-(\d+)$").unwrap());
+
+pub async fn resolve_id(id: Id) -> Result<i64, AppError> {
+    server::resolve_id("exposure", id).await
+}
 
 pub async fn wizard_field_update(
     platform: Extension<Platform>,

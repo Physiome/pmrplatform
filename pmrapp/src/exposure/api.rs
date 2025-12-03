@@ -52,6 +52,7 @@ mod ssr {
             log_error,
             platform,
             ac::session,
+            exposure::resolve_id,
         },
     };
 }
@@ -144,7 +145,7 @@ List exposures with their alias for a given workspace.
 pub async fn list_aliased_exposures_for_workspace(
     id: Id,
 ) -> Result<Exposures, AppError> {
-    let workspace_id = crate::workspace::api::resolve_id(id).await?;
+    let workspace_id = crate::server::workspace::resolve_id(id).await?;
     session().await?
         .enforcer(format!("/workspace/{workspace_id}/"), "").await?;
     session().await?
@@ -158,20 +159,6 @@ pub async fn list_aliased_exposures_for_workspace(
         .map(|exposure| exposure.map(|entity| entity.into_inner()))
         .collect();
     Ok(exposures)
-}
-
-#[cfg(feature = "ssr")]
-async fn resolve_id(id: Id) -> Result<i64, AppError> {
-    Ok(match id {
-        Id::Number(s) => s.parse().map_err(|_| AppError::NotFound)?,
-        Id::Aliased(s) => platform()
-            .await?
-            .mc_platform
-            .resolve_alias("exposure", &s)
-            .await
-            .map_err(|_| AppError::InternalServerError)?
-            .ok_or(AppError::NotFound)?,
-    })
 }
 
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
@@ -453,7 +440,7 @@ pub async fn create_exposure_openapi(
     id: Id,
     commit_id: String,
 ) -> Result<String, AppError> {
-    let workspace_id = crate::workspace::api::resolve_id(id).await?;
+    let workspace_id = crate::server::workspace::resolve_id(id).await?;
     Ok(create_exposure_core(workspace_id, commit_id).await?)
 }
 

@@ -28,7 +28,10 @@ mod ssr {
     };
     pub use crate::{
         ac::api::session,
-        server::platform,
+        server::{
+            platform,
+            workspace::resolve_id,
+        }
     };
 }
 #[cfg(feature = "ssr")]
@@ -98,21 +101,6 @@ pub async fn list_aliased_workspaces() -> Result<EnforcedOk<Workspaces>, AppErro
         .map(|workspace| workspace.map(|entity| entity.into_inner()))
         .collect();
     Ok(policy_state.to_enforced_ok(workspaces))
-}
-
-// TODO move this to server::workspace instead?
-#[cfg(feature = "ssr")]
-pub(crate) async fn resolve_id(id: Id) -> Result<i64, AppError> {
-    Ok(match id {
-        Id::Number(s) => s.parse().map_err(|_| AppError::NotFound)?,
-        Id::Aliased(s) => platform()
-            .await?
-            .mc_platform
-            .resolve_alias("workspace", &s)
-            .await
-            .map_err(|_| AppError::InternalServerError)?
-            .ok_or(AppError::NotFound)?,
-    })
 }
 
 // this struct is a placeholder to help utoipa

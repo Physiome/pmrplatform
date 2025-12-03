@@ -25,9 +25,17 @@ use pmrrepo::handle::GitResultTarget;
 use std::io::Write;
 
 use crate::{
+    app::id::Id,
     error::AppError,
-    server::ac::Session,
+    server::{
+        self,
+        ac::Session,
+    },
 };
+
+pub async fn resolve_id(id: Id) -> Result<i64, AppError> {
+    server::resolve_id("workspace", id).await
+}
 
 pub async fn collection_json_workspace(
     platform: Extension<Platform>,
