@@ -13,6 +13,7 @@ use regex::Regex;
 use pmrac::Platform as ACPlatform;
 use pmrcore::task_template::UserInputMap;
 use pmrctrl::platform::Platform;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     sync::LazyLock,
@@ -20,6 +21,7 @@ use std::{
 use crate::{
     app::id::Id,
     error::AppError,
+    exposure::api::WIZARD_FIELD_ROUTE,
     server::{
         self,
         ac::Session,
@@ -33,6 +35,47 @@ pub async fn resolve_id(id: Id) -> Result<i64, AppError> {
     server::resolve_id("exposure", id).await
 }
 
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    post,
+    path = WIZARD_FIELD_ROUTE,
+    request_body(
+        description = r#"
+Update the user input mapping for the provided `ExposureFile`s.
+        "#,
+        content((
+            WizardFieldUpdateArgs = "application/json",
+            examples(
+                ("Example 1" = (
+                    summary = "Acquire the information by the exposure's alias.",
+                    value = json!({
+                        "id": {
+                            "Aliased": "c1",
+                        },
+                        "ef_user_input": {
+                            "1": {
+                                "5": "baylor_hollingworth_chandler_2002_a.cellml",
+                                "7": "Legacy CellML-tmpdoc",
+                                "18": "CellML RDF Metadata",
+                                "19": "Creative Commons - Attributions 3.0 Unported",
+                            },
+                            "2": {
+                                "5": "baylor_hollingworth_chandler_2002_b.cellml",
+                                "7": "Legacy CellML-tmpdoc",
+                                "18": "CellML RDF Metadata",
+                                "19": "Creative Commons - Attributions 3.0 Unported",
+                            },
+                        }
+                    }),
+                )),
+            )
+        )),
+    ),
+    responses((
+        status = 200,
+        description = "This status code means all fields updated correctly.",
+        body = (),
+    ), AppError),
+))]
 pub async fn wizard_field_update(
     platform: Extension<Platform>,
     session: Extension<AuthSession<ACPlatform>>,
@@ -42,6 +85,15 @@ pub async fn wizard_field_update(
     match headers.get(CONTENT_TYPE) {
         Some(v) if v == "application/x-www-form-urlencoded".parse::<HeaderValue>().unwrap() => {
             let (exposure_id, ef_user_input) = parse_wizard_field_update_www_form_urlencode(&body)?;
+            process_ef_user_input(
+                platform,
+                session,
+                exposure_id,
+                ef_user_input,
+            ).await
+        }
+        Some(v) if v == "application/json".parse::<HeaderValue>().unwrap() => {
+            let (exposure_id, ef_user_input) = parse_wizard_field_update_json(&platform.0, &body).await?;
             process_ef_user_input(
                 platform,
                 session,
@@ -97,6 +149,30 @@ fn parse_wizard_field_update_www_form_urlencode(
         .into_iter();
 
     Ok((exposure_id, ef_user_input))
+}
+
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[derive(Clone, Serialize, Deserialize)]
+pub struct WizardFieldUpdateArgs {
+    pub id: Id,
+    pub ef_user_input: HashMap<i64, HashMap<i64, String>>,
+}
+
+async fn parse_wizard_field_update_json(
+    platform: &Platform,
+    body: &str,
+) -> Result<(i64, impl Iterator<Item = (i64, HashMap<i64, String>)>), AppError> {
+    // 1. parse the incoming body and split the key-value pairs for keys
+    //    that have two numbers separated by a `-` which denotes that
+    //    these are to be treated as exposure_file_id + arg_id pairs for
+    //    submission to the system, and other keys
+    let WizardFieldUpdateArgs {
+        id,
+        ef_user_input,
+    } = serde_json::from_str(body)
+        .map_err(|_| AppError::BadRequest)?;
+    let exposure_id = id.resolve(&platform, "exposure").await?;
+    Ok((exposure_id, ef_user_input.into_iter()))
 }
 
 async fn process_ef_user_input(

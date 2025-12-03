@@ -24,7 +24,7 @@ use crate::{
     error::AppError,
 };
 
-pub const WIZARD_FIELD_ROUTE: &'static str = "/api/exposure_wizard_field";
+pub const WIZARD_FIELD_ROUTE: &'static str = "/api/exposure_wizard_field_update";
 
 #[cfg(feature = "ssr")]
 mod ssr {
@@ -510,7 +510,7 @@ pub struct WizardInfo {
 
 #[cfg_attr(feature = "utoipa", utoipa::path(
     post,
-    path = "/api/wizard",
+    path = "/api/exposure_wizard",
     request_body(
         description = r#"
 Acquire `WizardInfo` for the given exposure.
@@ -537,7 +537,7 @@ Acquire `WizardInfo` for the given exposure.
 ))]
 #[server(
     input = server_fn::codec::Json,
-    endpoint = "wizard",
+    endpoint = "exposure_wizard",
 )]
 pub async fn wizard(
     id: Id,
@@ -583,7 +583,7 @@ struct WizardAddFileArgs {
 
 #[cfg_attr(feature = "utoipa", utoipa::path(
     post,
-    path = "/api/wizard_add_file",
+    path = "/api/exposure_wizard_add_file",
     request_body(
         description = r#"
 Add a file to a wizard
@@ -612,7 +612,7 @@ Add a file to a wizard
 ))]
 #[server(
     input = server_fn::codec::Json,
-    endpoint = "wizard_add_file",
+    endpoint = "exposure_wizard_add_file",
 )]
 pub async fn wizard_add_file_openapi(
     id: Id,
@@ -711,7 +711,7 @@ pub fn update_wizard_field(
 
 #[cfg_attr(feature = "utoipa", utoipa::path(
     post,
-    path = "/api/wizard_build",
+    path = "/api/exposure_wizard_build",
     request_body(
         description = r#"
 Build the exposure.
@@ -738,7 +738,7 @@ Build the exposure.
 ))]
 #[server(
     input = server_fn::codec::Json,
-    endpoint = "wizard_build",
+    endpoint = "exposure_wizard_build",
 )]
 pub async fn wizard_build_openapi(
     id: Id,

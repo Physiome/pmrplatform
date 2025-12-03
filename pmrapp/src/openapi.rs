@@ -21,6 +21,7 @@ use crate::{
         __path_wizard_add_file_openapi,
         __path_wizard_build_openapi,
     },
+    server::exposure::__path_wizard_field_update,
     workspace::api::{
         __path_create_workspace_core,
         __path_list_workspaces,
@@ -46,6 +47,7 @@ use crate::{
         wizard,
         wizard_add_file_openapi,
         wizard_build_openapi,
+        wizard_field_update,
 
         // Workspaces
         create_workspace_core,
