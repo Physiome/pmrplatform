@@ -1,3 +1,4 @@
+use ammonia::UrlRelative;
 use axum::{
     Extension,
     extract::Path,
@@ -15,6 +16,7 @@ use pmrcore::task_template::UserInputMap;
 use pmrctrl::platform::Platform;
 use serde::{Deserialize, Serialize};
 use std::{
+    borrow::Cow,
     collections::HashMap,
     sync::LazyLock,
 };
@@ -225,6 +227,7 @@ async fn process_ef_user_input(
     Ok(())
 }
 
+/// Provide access to the data provided by exposure file views.
 #[cfg_attr(feature = "utoipa", utoipa::path(
     get,
     path = "/data/exposure/{exposure_id}/{exposure_file_id}/{view_key}/{path}",
@@ -251,5 +254,41 @@ pub async fn exposure_file_data(
         .map_err(|_| AppError::InternalServerError)?;
     ec.read_blob(ef_id, &view_key, &path).await
         .map_err(|_| AppError::NotFound)
+}
 
+/// Provide access to the data provided by exposure file views, but pass through a filter that makes
+/// html safe to embed.
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    get,
+    path = "/data/exposure/safe_html/{exposure_id}/{exposure_file_id}/{view_key}/{path}",
+    params(
+        ("exposure_id" = i64, Path, description = "Exposure id."),
+        ("exposure_file_id" = i64, Path, description = "Exposure file id."),
+        ("view_key" = String, Path, description = "The `view_key` to the exposure file view."),
+        ("path" = String, Path, description = "Path to the target resource."),
+    ),
+    responses((
+        status = 200,
+        description = "The data contents.",
+        body = String,
+    ), AppError),
+))]
+pub async fn exposure_file_safe_html(
+    platform: Extension<Platform>,
+    session: Extension<AuthSession<ACPlatform>>,
+    args: Path<(i64, i64, String, String)>,
+) -> Result<String, AppError> {
+    fn evaluate(url: &str) -> Option<Cow<'_, str>> {
+        match url.as_bytes() {
+            [b'/', ..] => Some(url.into()),
+            _ => Some(["../", url].concat().into()),
+        }
+    }
+
+    let blob = exposure_file_data(platform, session, args).await?;
+    Ok(ammonia::Builder::new()
+        .url_relative(UrlRelative::Custom(Box::new(evaluate)))
+        .clean(&String::from_utf8_lossy(&blob))
+        .to_string()
+    )
 }

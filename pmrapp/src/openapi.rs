@@ -23,6 +23,7 @@ use crate::{
     },
     server::exposure::{
         __path_exposure_file_data,
+        __path_exposure_file_safe_html,
         __path_wizard_field_update,
     },
     workspace::api::{
@@ -43,6 +44,7 @@ use crate::{
     paths(
         // Exposures
         exposure_file_data,
+        exposure_file_safe_html,
         list_exposures,
         list_aliased_exposures,
         list_aliased_exposures_for_workspace,

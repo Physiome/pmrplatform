@@ -33,6 +33,7 @@ async fn main() -> anyhow::Result<()> {
     };
     use pmrapp::server::exposure::{
         exposure_file_data,
+        exposure_file_safe_html,
         wizard_field_update,
     };
     use pmrctrl::executor::Executor;
@@ -111,6 +112,7 @@ async fn main() -> anyhow::Result<()> {
         // to this route only if it exists.
         .route("/collection_json/workspace/", get(collection_json_workspace))
         .route("/data/exposure/{e_id}/{ef_id}/{view_key}/{*path}", get(exposure_file_data))
+        .route("/data/exposure/safe_html/{e_id}/{ef_id}/{view_key}/{*path}", get(exposure_file_safe_html))
         .route("/workspace/{workspace_alias}/rawfile/{commit_id}/{*path}", get(raw_aliased_workspace_download))
         .route("/workspace/:/id/{workspace_id}/rawfile/{commit_id}/{*path}", get(raw_workspace_download))
         .route(WIZARD_FIELD_ROUTE, post(wizard_field_update))
