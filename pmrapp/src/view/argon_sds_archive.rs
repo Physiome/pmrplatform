@@ -15,7 +15,7 @@ pub fn ArgonSdsArchive() -> impl IntoView {
     let efv = expect_context::<ExposureFileView>();
 
     let url = format!(
-        "/data/exposure/{}/{}/{}/{}",
+        "/api/exposure/{}/{}/{}/{}",
         ef.exposure_id,
         ef.id,
         efv.view_key.as_ref().expect("this is inside a resolved view"),

@@ -230,7 +230,7 @@ async fn process_ef_user_input(
 /// Provide access to the data provided by exposure file views.
 #[cfg_attr(feature = "utoipa", utoipa::path(
     get,
-    path = "/data/exposure/{exposure_id}/{exposure_file_id}/{view_key}/{path}",
+    path = "/api/exposure/{exposure_id}/{exposure_file_id}/{view_key}/{path}",
     params(
         ("exposure_id" = i64, Path, description = "Exposure id."),
         ("exposure_file_id" = i64, Path, description = "Exposure file id."),
@@ -260,7 +260,7 @@ pub async fn exposure_file_data(
 /// html safe to embed.
 #[cfg_attr(feature = "utoipa", utoipa::path(
     get,
-    path = "/data/exposure/safe_html/{exposure_id}/{exposure_file_id}/{view_key}/{path}",
+    path = "/api/exposure/safe_html/{exposure_id}/{exposure_file_id}/{view_key}/{path}",
     params(
         ("exposure_id" = i64, Path, description = "Exposure id."),
         ("exposure_file_id" = i64, Path, description = "Exposure file id."),
