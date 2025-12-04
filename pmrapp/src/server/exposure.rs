@@ -225,6 +225,21 @@ async fn process_ef_user_input(
     Ok(())
 }
 
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    get,
+    path = "/data/exposure/{exposure_id}/{exposure_file_id}/{view_key}/{path}",
+    params(
+        ("exposure_id" = i64, Path, description = "Exposure id."),
+        ("exposure_file_id" = i64, Path, description = "Exposure file id."),
+        ("view_key" = String, Path, description = "The `view_key` to the exposure file view."),
+        ("path" = String, Path, description = "Path to the target resource."),
+    ),
+    responses((
+        status = 200,
+        description = "The data contents.",
+        body = Vec<u8>,
+    ), AppError),
+))]
 pub async fn exposure_file_data(
     platform: Extension<Platform>,
     session: Extension<AuthSession<ACPlatform>>,

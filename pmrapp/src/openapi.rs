@@ -21,7 +21,10 @@ use crate::{
         __path_wizard_add_file_openapi,
         __path_wizard_build_openapi,
     },
-    server::exposure::__path_wizard_field_update,
+    server::exposure::{
+        __path_exposure_file_data,
+        __path_wizard_field_update,
+    },
     workspace::api::{
         __path_create_workspace_core,
         __path_list_workspaces,
@@ -39,6 +42,7 @@ use crate::{
     info(description = "OpenAPI description for pmrplatform"),
     paths(
         // Exposures
+        exposure_file_data,
         list_exposures,
         list_aliased_exposures,
         list_aliased_exposures_for_workspace,
