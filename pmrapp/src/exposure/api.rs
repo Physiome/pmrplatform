@@ -151,8 +151,8 @@ List exposures with their alias for a given workspace.
     ),
 ))]
 #[server(
-    input = server_fn::codec::Json,
     endpoint = "list_aliased_exposures_for_workspace",
+    input = server_fn::codec::Json,
 )]
 pub async fn list_aliased_exposures_for_workspace(
     id: Id,
@@ -215,8 +215,8 @@ Get the top level information of a given exposure.
     ),
 ))]
 #[server(
-    input = server_fn::codec::Json,
     endpoint = "get_exposure_info",
+    input = server_fn::codec::Json,
 )]
 pub async fn get_exposure_info(id: Id) -> Result<EnforcedOk<ExposureInfo>, AppError> {
     let id = resolve_id(id).await?;
@@ -287,8 +287,8 @@ Attempt to resolve additional information about a path within an exposure.
     ),
 ))]
 #[server(
-    input = server_fn::codec::Json,
     endpoint = "resolve_exposure_path",
+    input = server_fn::codec::Json,
 )]
 pub async fn resolve_exposure_path(
     id: i64,
@@ -456,8 +456,8 @@ Attempt to resolve additional information about a path within an exposure.
     ),
 ))]
 #[server(
-    input = server_fn::codec::Json,
     endpoint = "create_exposure",
+    input = server_fn::codec::Json,
 )]
 pub async fn create_exposure_openapi(
     id: Id,
@@ -562,8 +562,8 @@ Acquire `WizardInfo` for the given exposure.
     ),
 ))]
 #[server(
-    input = server_fn::codec::Json,
     endpoint = "exposure_wizard",
+    input = server_fn::codec::Json,
 )]
 pub async fn wizard(
     id: Id,
@@ -640,8 +640,8 @@ Add a file to a wizard
     ),
 ))]
 #[server(
-    input = server_fn::codec::Json,
     endpoint = "exposure_wizard_add_file",
+    input = server_fn::codec::Json,
 )]
 pub async fn wizard_add_file_openapi(
     id: Id,
@@ -769,8 +769,8 @@ Build the exposure.
     ),
 ))]
 #[server(
-    input = server_fn::codec::Json,
     endpoint = "exposure_wizard_build",
+    input = server_fn::codec::Json,
 )]
 pub async fn wizard_build_openapi(
     id: Id,

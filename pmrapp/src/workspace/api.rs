@@ -173,8 +173,8 @@ Default path points to the root of the repo.
     ),
 ))]
 #[server(
-    input = server_fn::codec::Json,
     endpoint = "get_workspace_info",
+    input = server_fn::codec::Json,
 )]
 pub async fn get_workspace_info(
     // TODO this may need to be a enum to disambiguate the id vs. alias
@@ -237,8 +237,8 @@ Get log entries associated with a workspace.
     ),
 ))]
 #[server(
-    input = server_fn::codec::Json,
     endpoint = "get_log_info",
+    input = server_fn::codec::Json,
 )]
 pub async fn get_log_info(
     id: Id,
@@ -370,8 +370,8 @@ Synchronize workspace with the remote Git repository.
     ),
 ))]
 #[server(
-    input = server_fn::codec::Json,
     endpoint = "synchronize",
+    input = server_fn::codec::Json,
 )]
 pub async fn synchronize_openapi(
     id: Id,
