@@ -26,7 +26,36 @@ use crate::{
 #[cfg(feature = "ssr")]
 pub use self::ssr::*;
 
-#[server]
+// this struct is a placeholder to help utoipa
+#[cfg(feature = "utoipa")]
+#[allow(dead_code)]
+#[derive(utoipa::ToSchema)]
+struct LoginPassword {
+    login: String,
+    password: String,
+}
+
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    post,
+    path = "/api/sign_in_with_login_password",
+    request_body(
+        description = r#"
+Sign in with login and password.
+        "#,
+        content((
+            LoginPassword = "application/x-www-form-urlencoded",
+        )),
+    ),
+    responses((
+        status = 200,
+        description = "Message describing the outcome.",
+        body = String,
+        example = "You are logged in.",
+    ), AppError),
+))]
+#[server(
+    endpoint = "sign_in_with_login_password",
+)]
 pub(crate) async fn sign_in_with_login_password(
     login: String,
     password: String,
@@ -38,7 +67,18 @@ pub(crate) async fn sign_in_with_login_password(
     Ok(session.sign_in_with_login_password(login, password).await?)
 }
 
-#[server]
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    post,
+    path = "/api/sign_out",
+    responses((
+        status = 200,
+        description = "Status code means success.",
+        body = (),
+    ), AppError),
+))]
+#[server(
+    endpoint = "sign_out",
+)]
 pub(crate) async fn sign_out() -> Result<(), AuthError> {
     let mut session = session().await
         .map_err(|_| AuthError::InternalServerError)?;
@@ -47,17 +87,58 @@ pub(crate) async fn sign_out() -> Result<(), AuthError> {
     Ok(())
 }
 
-#[server]
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    post,
+    path = "/api/current_user",
+    responses((
+        status = 200,
+        description = "The current user.",
+        body = Option<User>,
+    ), AppError),
+))]
+#[server(
+    endpoint = "current_user",
+)]
 pub(crate) async fn current_user() -> Result<Option<User>, ServerFnError> {
     Ok(session().await?
         .current_user())
 }
 
-#[server]
+// this struct is a placeholder to help utoipa
+#[cfg(feature = "utoipa")]
+#[allow(dead_code)]
+#[derive(utoipa::ToSchema)]
+struct WorkflowTransitionArgs {
+    /// The resource to have the workflow state updated.
+    resource: String,
+    /// The target state.
+    target: pmrcore::ac::workflow::State,
+}
+
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    post,
+    path = "/api/workflow_transition",
+    request_body(
+        description = r#"
+Update the workflow state for a given resource.
+        "#,
+        content((
+            WorkflowTransitionArgs = "application/x-www-form-urlencoded",
+        )),
+    ),
+    responses((
+        status = 200,
+        description = "The new `PolicyState` of the resource.",
+        body = PolicyState,
+    ), AppError),
+))]
+#[server(
+    endpoint = "workflow_transition",
+)]
 pub(crate) async fn workflow_transition(
     resource: String,
     target: String,
-) -> Result<PolicyState, ServerFnError<AppError>> {
+) -> Result<PolicyState, AppError> {
     if let Some(user) = current_user().await
         // TODO figure out how to actually get 404 status code working here.
         .map_err(|_| AppError::Forbidden)?

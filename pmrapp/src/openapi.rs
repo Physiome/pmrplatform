@@ -6,6 +6,12 @@ use pmrcore::{
 use utoipa::OpenApi;
 
 use crate::{
+    ac::api::{
+        __path_current_user,
+        __path_sign_in_with_login_password,
+        __path_sign_out,
+        __path_workflow_transition,
+    },
     app::id::Id,
     enforcement::EnforcedOk,
     exposure::api::{
@@ -42,6 +48,12 @@ use crate::{
 #[openapi(
     info(description = "OpenAPI description for pmrplatform"),
     paths(
+        // Auth
+        current_user,
+        sign_in_with_login_password,
+        sign_out,
+        workflow_transition,
+
         // Exposures
         exposure_file_data,
         exposure_file_safe_html,
