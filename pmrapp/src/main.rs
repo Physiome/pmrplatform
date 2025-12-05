@@ -10,7 +10,7 @@ async fn main() -> anyhow::Result<()> {
         },
         http::{
             Uri,
-            header::HeaderValue,
+            header::{self, HeaderValue},
             uri::PathAndQuery,
         },
         routing::{
@@ -96,6 +96,7 @@ async fn main() -> anyhow::Result<()> {
         );
 
     let cors = CorsLayer::new()
+        .allow_headers([header::CONTENT_TYPE])
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
         .allow_origin(
             args.cors_allow_origins
