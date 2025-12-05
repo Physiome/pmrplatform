@@ -47,6 +47,10 @@ pub type Workspaces = Vec<AliasEntry<Workspace>>;
         description = "Check PolicyState for the current user for the /workspace/ endpoint.",
         body = PolicyState
     ), AppError),
+    security(
+        (),
+        ("cookie" = []),
+    ),
 ))]
 #[server(endpoint = "workspace_root_policy_state")]
 pub async fn workspace_root_policy_state() -> Result<PolicyState, AppError> {
@@ -62,6 +66,10 @@ pub async fn workspace_root_policy_state() -> Result<PolicyState, AppError> {
         description = "List of workspaces within an EnforcedOk; wrapped in EnforcedOk due to typical usage as a top level page listing.",
         body = EnforcedOk<Workspaces>,
     ), AppError),
+    security(
+        (),
+        ("cookie" = []),
+    ),
 ))]
 #[server(endpoint = "list_workspaces")]
 pub async fn list_workspaces() -> Result<EnforcedOk<Workspaces>, AppError> {
@@ -88,6 +96,10 @@ pub async fn list_workspaces() -> Result<EnforcedOk<Workspaces>, AppError> {
         description = "List of workspaces with their alias within an EnforcedOk; wrapped in EnforcedOk due to typical usage as a top level page listing.",
         body = EnforcedOk<Workspaces>,
     ), AppError),
+    security(
+        (),
+        ("cookie" = []),
+    ),
 ))]
 #[server(endpoint = "list_aliased_workspaces")]
 pub async fn list_aliased_workspaces() -> Result<EnforcedOk<Workspaces>, AppError> {
@@ -155,6 +167,10 @@ Default path points to the root of the repo.
         description = "Get information related to a workspace",
         body = EnforcedOk<RepoResult>,
     ), AppError),
+    security(
+        (),
+        ("cookie" = []),
+    ),
 ))]
 #[server(
     input = server_fn::codec::Json,
@@ -215,6 +231,10 @@ Get log entries associated with a workspace.
         description = "Log entries from the workspace",
         body = EnforcedOk<RepoResult>,
     ), AppError),
+    security(
+        (),
+        ("cookie" = []),
+    ),
 ))]
 #[server(
     input = server_fn::codec::Json,
@@ -262,6 +282,9 @@ Create a workspace.
         body = String,
         example = "/workspace/123/",
     ), AppError),
+    security(
+        ("cookie" = []),
+    ),
 ))]
 #[server(
     endpoint = "create_workspace",
@@ -342,6 +365,9 @@ Synchronize workspace with the remote Git repository.
         description = "This status code determines success.",
         body = ()
     ), AppError),
+    security(
+        ("cookie" = []),
+    ),
 ))]
 #[server(
     input = server_fn::codec::Json,

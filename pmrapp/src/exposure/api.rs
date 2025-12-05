@@ -69,6 +69,10 @@ pub type Exposures = Vec<AliasEntry<Exposure>>;
         description = "List of exposures within an EnforcedOk; wrapped in EnforcedOk due to typical usage as a top level page listing.",
         body = EnforcedOk<Exposures>,
     ), AppError),
+    security(
+        (),
+        ("cookie" = []),
+    ),
 ))]
 #[server(endpoint = "list_exposures")]
 pub async fn list_exposures() -> Result<EnforcedOk<Exposures>, AppError> {
@@ -96,6 +100,10 @@ pub async fn list_exposures() -> Result<EnforcedOk<Exposures>, AppError> {
         description = "List of exposures with their alias within an EnforcedOk; wrapped in EnforcedOk due to typical usage as a top level page listing.",
         body = EnforcedOk<Exposures>,
     ), AppError),
+    security(
+        (),
+        ("cookie" = []),
+    ),
 ))]
 #[server(endpoint = "list_aliased_exposures")]
 pub async fn list_aliased_exposures() -> Result<EnforcedOk<Exposures>, AppError> {
@@ -137,6 +145,10 @@ List exposures with their alias for a given workspace.
         description = "List of exposures with their alias for the workspace that was specified.",
         body = Exposures,
     ), AppError),
+    security(
+        (),
+        ("cookie" = []),
+    ),
 ))]
 #[server(
     input = server_fn::codec::Json,
@@ -197,6 +209,10 @@ Get the top level information of a given exposure.
         description = "The `ExposureInfo` wrapped by an `EnforcedOk`.",
         body = EnforcedOk<ExposureInfo>,
     ), AppError),
+    security(
+        (),
+        ("cookie" = []),
+    ),
 ))]
 #[server(
     input = server_fn::codec::Json,
@@ -265,6 +281,10 @@ Attempt to resolve additional information about a path within an exposure.
         description = "The `ExposureInfo` wrapped by an `EnforcedOk`.",
         body = EnforcedOk<ResolvedExposurePath>,
     ), AppError),
+    security(
+        (),
+        ("cookie" = []),
+    ),
 ))]
 #[server(
     input = server_fn::codec::Json,
@@ -431,6 +451,9 @@ Attempt to resolve additional information about a path within an exposure.
         body = String,
         example = "/exposure/123/",
     ), AppError),
+    security(
+        ("cookie" = []),
+    ),
 ))]
 #[server(
     input = server_fn::codec::Json,
@@ -534,6 +557,9 @@ Acquire `WizardInfo` for the given exposure.
         description = "Wizard information within an `EnforcedOk`.",
         body = EnforcedOk<WizardInfo>,
     ), AppError),
+    security(
+        ("cookie" = []),
+    ),
 ))]
 #[server(
     input = server_fn::codec::Json,
@@ -609,6 +635,9 @@ Add a file to a wizard
         description = "Denotes success",
         body = EnforcedOk<WizardInfo>,
     ), AppError),
+    security(
+        ("cookie" = []),
+    ),
 ))]
 #[server(
     input = server_fn::codec::Json,
@@ -735,6 +764,9 @@ Build the exposure.
         description = "Number of tasks queued.",
         body = usize,
     ), AppError),
+    security(
+        ("cookie" = []),
+    ),
 ))]
 #[server(
     input = server_fn::codec::Json,

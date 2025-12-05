@@ -3,7 +3,18 @@ use pmrcore::{
     task_template::UserInputMap,
     workspace::Workspace,
 };
-use utoipa::OpenApi;
+use utoipa::{
+    openapi::{
+        self,
+        security::{
+            ApiKey,
+            ApiKeyValue,
+            SecurityScheme,
+        },
+    },
+    Modify,
+    OpenApi,
+};
 
 use crate::{
     ac::api::{
@@ -44,8 +55,26 @@ use crate::{
     },
 };
 
+struct Security;
+
+impl Modify for Security {
+    fn modify(&self, openapi: &mut openapi::OpenApi) {
+        if let Some(components) = openapi.components.as_mut() {
+            components.add_security_scheme(
+                "cookie",
+                SecurityScheme::ApiKey(ApiKey::Cookie(ApiKeyValue::with_description(
+                    "id",
+                    "This is typically set as a `HttpOnly` cookie via the `sign_in_with_login_password` \
+                    endpoint.",
+                ))),
+            );
+        }
+    }
+}
+
 #[derive(OpenApi)]
 #[openapi(
+    modifiers(&Security),
     info(description = "OpenAPI description for pmrplatform"),
     paths(
         // Auth

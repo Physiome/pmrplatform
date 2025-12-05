@@ -77,6 +77,9 @@ Update the user input mapping for the provided `ExposureFile`s.
         description = "This status code means all fields updated correctly.",
         body = (),
     ), AppError),
+    security(
+        ("cookie" = []),
+    ),
 ))]
 pub async fn wizard_field_update(
     platform: Extension<Platform>,
@@ -242,6 +245,10 @@ async fn process_ef_user_input(
         description = "The data contents.",
         body = Vec<u8>,
     ), AppError),
+    security(
+        (),
+        ("cookie" = []),
+    ),
 ))]
 pub async fn exposure_file_data(
     platform: Extension<Platform>,
@@ -272,6 +279,10 @@ pub async fn exposure_file_data(
         description = "The data contents.",
         body = String,
     ), AppError),
+    security(
+        (),
+        ("cookie" = []),
+    ),
 ))]
 pub async fn exposure_file_safe_html(
     platform: Extension<Platform>,

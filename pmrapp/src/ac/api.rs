@@ -75,6 +75,10 @@ pub(crate) async fn sign_in_with_login_password(
         description = "Status code means success.",
         body = (),
     ), AppError),
+    security(
+        (),
+        ("cookie" = []),
+    ),
 ))]
 #[server(
     endpoint = "sign_out",
@@ -95,6 +99,10 @@ pub(crate) async fn sign_out() -> Result<(), AuthError> {
         description = "The current user.",
         body = Option<User>,
     ), AppError),
+    security(
+        (),
+        ("cookie" = []),
+    ),
 ))]
 #[server(
     endpoint = "current_user",
@@ -131,6 +139,9 @@ Update the workflow state for a given resource.
         description = "The new `PolicyState` of the resource.",
         body = PolicyState,
     ), AppError),
+    security(
+        ("cookie" = []),
+    ),
 ))]
 #[server(
     endpoint = "workflow_transition",
