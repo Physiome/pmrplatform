@@ -18,11 +18,11 @@ async fn main() -> anyhow::Result<()> {
             post,
         },
     };
-    use axum_login::AuthManagerLayerBuilder;
     use clap::Parser;
     use http::Method;
     use leptos::prelude::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
+    use pmrac::axum_login::BearerTokenManagerLayer;
     use pmrapp::app::*;
     use pmrapp::conf::Cli;
     use pmrapp::exposure::api::WIZARD_FIELD_ROUTE;
@@ -83,16 +83,17 @@ async fn main() -> anyhow::Result<()> {
         .map_err(anyhow::Error::from_boxed)?;
 
     let session_store = MemoryStore::default();
-    let session_layer = SessionManagerLayer::new(session_store)
+    let session_layer = SessionManagerLayer::new(session_store.clone())
         .with_secure(false)
         .with_expiry(Expiry::OnInactivity(Duration::days(1)));
 
     let auth_service = ServiceBuilder::new()
         .layer(
-            AuthManagerLayerBuilder::new(
+            BearerTokenManagerLayer::new(
+                session_store,
                 platform.ac_platform.clone(),
                 session_layer,
-            ).build()
+            )
         );
 
     let cors = CorsLayer::new()

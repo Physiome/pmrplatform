@@ -13,6 +13,7 @@ axum-login = { workspace = true, optional = true }
 casbin = { workspace = true, optional = true }
 clap = { workspace = true, features = ["derive", "env"], optional = true }
 dotenvy = { workspace = true, optional = true }
+http = { workspace = true, optional = true }
 log = { workspace = true }
 pmrcore = { workspace = true, features = [ "display", "server" ] }
 pmrdb = { workspace = true }
@@ -22,6 +23,10 @@ serde_json = { workspace = true, optional = true }
 stderrlog = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs", "io-util", "macros", "rt", "rt-multi-thread"] }
+tower-cookies = { workspace = true, optional = true }
+tower-layer = { workspace = true, optional = true }
+tower-service = { workspace = true, optional = true }
+tower-sessions = { workspace = true, optional = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
@@ -34,6 +39,11 @@ axum-login = [
     "pmrcore/bytemuck",
     "dep:async-trait",
     "dep:axum-login",
+    "dep:http",
+    "dep:tower-cookies",
+    "dep:tower-layer",
+    "dep:tower-service",
+    "dep:tower-sessions",
 ]
 bin = [
     "anyhow",

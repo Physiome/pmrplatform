@@ -50,6 +50,7 @@ pub type Workspaces = Vec<AliasEntry<Workspace>>;
     security(
         (),
         ("cookie" = []),
+        ("bearer" = []),
     ),
 ))]
 #[server(endpoint = "workspace_root_policy_state")]
@@ -69,6 +70,7 @@ pub async fn workspace_root_policy_state() -> Result<PolicyState, AppError> {
     security(
         (),
         ("cookie" = []),
+        ("bearer" = []),
     ),
 ))]
 #[server(endpoint = "list_workspaces")]
@@ -99,6 +101,7 @@ pub async fn list_workspaces() -> Result<EnforcedOk<Workspaces>, AppError> {
     security(
         (),
         ("cookie" = []),
+        ("bearer" = []),
     ),
 ))]
 #[server(endpoint = "list_aliased_workspaces")]
@@ -170,6 +173,7 @@ Default path points to the root of the repo.
     security(
         (),
         ("cookie" = []),
+        ("bearer" = []),
     ),
 ))]
 #[server(
@@ -234,6 +238,7 @@ Get log entries associated with a workspace.
     security(
         (),
         ("cookie" = []),
+        ("bearer" = []),
     ),
 ))]
 #[server(
@@ -284,6 +289,7 @@ Create a workspace.
     ), AppError),
     security(
         ("cookie" = []),
+        ("bearer" = []),
     ),
 ))]
 #[server(
@@ -367,6 +373,7 @@ Synchronize workspace with the remote Git repository.
     ), AppError),
     security(
         ("cookie" = []),
+        ("bearer" = []),
     ),
 ))]
 #[server(

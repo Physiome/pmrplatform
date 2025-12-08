@@ -9,6 +9,8 @@ use utoipa::{
         security::{
             ApiKey,
             ApiKeyValue,
+            HttpBuilder,
+            HttpAuthScheme,
             SecurityScheme,
         },
     },
@@ -68,6 +70,14 @@ impl Modify for Security {
                     "This is typically set as a `HttpOnly` cookie via the `sign_in_with_login_password` \
                     endpoint.",
                 ))),
+            );
+            components.add_security_scheme(
+                "bearer",
+                SecurityScheme::Http(
+                    HttpBuilder::new()
+                        .scheme(HttpAuthScheme::Bearer)
+                        .build(),
+                ),
             );
         }
     }

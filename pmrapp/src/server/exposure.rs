@@ -79,6 +79,7 @@ Update the user input mapping for the provided `ExposureFile`s.
     ), AppError),
     security(
         ("cookie" = []),
+        ("bearer" = []),
     ),
 ))]
 pub async fn wizard_field_update(
@@ -248,6 +249,7 @@ async fn process_ef_user_input(
     security(
         (),
         ("cookie" = []),
+        ("bearer" = []),
     ),
 ))]
 pub async fn exposure_file_data(
@@ -282,6 +284,7 @@ pub async fn exposure_file_data(
     security(
         (),
         ("cookie" = []),
+        ("bearer" = []),
     ),
 ))]
 pub async fn exposure_file_safe_html(

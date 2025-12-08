@@ -72,6 +72,7 @@ pub type Exposures = Vec<AliasEntry<Exposure>>;
     security(
         (),
         ("cookie" = []),
+        ("bearer" = []),
     ),
 ))]
 #[server(endpoint = "list_exposures")]
@@ -103,6 +104,7 @@ pub async fn list_exposures() -> Result<EnforcedOk<Exposures>, AppError> {
     security(
         (),
         ("cookie" = []),
+        ("bearer" = []),
     ),
 ))]
 #[server(endpoint = "list_aliased_exposures")]
@@ -148,6 +150,7 @@ List exposures with their alias for a given workspace.
     security(
         (),
         ("cookie" = []),
+        ("bearer" = []),
     ),
 ))]
 #[server(
@@ -212,6 +215,7 @@ Get the top level information of a given exposure.
     security(
         (),
         ("cookie" = []),
+        ("bearer" = []),
     ),
 ))]
 #[server(
@@ -284,6 +288,7 @@ Attempt to resolve additional information about a path within an exposure.
     security(
         (),
         ("cookie" = []),
+        ("bearer" = []),
     ),
 ))]
 #[server(
@@ -453,6 +458,7 @@ Attempt to resolve additional information about a path within an exposure.
     ), AppError),
     security(
         ("cookie" = []),
+        ("bearer" = []),
     ),
 ))]
 #[server(
@@ -559,6 +565,7 @@ Acquire `WizardInfo` for the given exposure.
     ), AppError),
     security(
         ("cookie" = []),
+        ("bearer" = []),
     ),
 ))]
 #[server(
@@ -637,6 +644,7 @@ Add a file to a wizard
     ), AppError),
     security(
         ("cookie" = []),
+        ("bearer" = []),
     ),
 ))]
 #[server(
@@ -766,6 +774,7 @@ Build the exposure.
     ), AppError),
     security(
         ("cookie" = []),
+        ("bearer" = []),
     ),
 ))]
 #[server(

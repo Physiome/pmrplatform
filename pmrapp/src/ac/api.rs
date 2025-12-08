@@ -114,6 +114,7 @@ pub async fn sign_in_with_login_password(
     security(
         (),
         ("cookie" = []),
+        ("bearer" = []),
     ),
 ))]
 #[server(
@@ -138,6 +139,7 @@ pub async fn sign_out() -> Result<(), AuthError> {
     security(
         (),
         ("cookie" = []),
+        ("bearer" = []),
     ),
 ))]
 #[server(
@@ -177,6 +179,7 @@ Update the workflow state for a given resource.
     ), AppError),
     security(
         ("cookie" = []),
+        ("bearer" = []),
     ),
 ))]
 #[server(
