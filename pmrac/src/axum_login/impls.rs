@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use crate::{
     error::Error,
     platform::Platform,
@@ -11,7 +10,6 @@ use ::axum_login::{
     UserId,
 };
 
-#[async_trait]
 impl AuthnBackend for Platform {
     type User = Session;
     type Credentials = Credentials;

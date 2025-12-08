@@ -96,7 +96,7 @@ async fn main() -> anyhow::Result<()> {
         );
 
     let cors = CorsLayer::new()
-        .allow_headers([header::CONTENT_TYPE])
+        .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION])
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
         .allow_origin(
             args.cors_allow_origins

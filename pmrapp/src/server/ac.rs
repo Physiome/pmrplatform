@@ -1,6 +1,7 @@
 use axum::Extension;
 use axum_login::{
     AuthSession,
+    AuthUser,
     Error as AxumLoginError,
 };
 use pmrac::{
@@ -104,7 +105,7 @@ impl Session {
         &mut self,
         login: String,
         password: String,
-    ) -> Result<String, AuthError> {
+    ) -> Result<Option<String>, AuthError> {
         let creds = Credentials {
             authorization: Authorization::LoginPassword(login, password),
             origin: "localhost".to_string(),  // TODO plug in remote host
@@ -113,7 +114,23 @@ impl Session {
             Ok(Some(auth)) => {
                 self.0.login(&auth).await
                     .map_err(|_| AuthError::InternalServerError)?;
-                Ok("You are logged in.".to_string())
+                // FIXME in the next version of axum-login (>=0.19.0) the session will become private
+                // a probably strategy later will require a new native axum endpoint that will first
+                // initialize a `Session`, make it into one of the available `Extensions` (likely via
+                // `req.extensions_mut().insert(...)`) which should hopefully make it available to
+                // `axum_login`.
+                //
+                // Once that is done an appropriate extraction will pull that session if it's set up
+                // correctly, it shouldn't trigger `axum_login` to cycle the id for the session, as
+                // the predetermined `id` will be the one that is returned.
+                //
+                // Moreover, using a custom session manager/new type session (via extension) may also
+                // bypass the default tower-service that will send the set cookie header.  For now
+                // this is "fine" as there's only so much time I've been given to solve this issue.
+                self.0.session.save().await
+                    .map_err(|_| AuthError::InternalServerError)?;
+
+                Ok(self.0.session.id().map(|s| s.to_string()))
             },
             Ok(None) | Err(AxumLoginError::Backend(ACError::Authentication(_))) => {
                 // TODO handle restricted account error differently?

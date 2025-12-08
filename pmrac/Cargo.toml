@@ -3,7 +3,7 @@ name = "pmrac"
 version = "0.0.1"
 
 authors = ["Tommy Yu <tommy.yu@auckland.ac.nz>"]
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 async-trait = { workspace = true, optional = true }

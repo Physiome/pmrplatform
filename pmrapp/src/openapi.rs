@@ -19,6 +19,7 @@ use utoipa::{
 use crate::{
     ac::api::{
         __path_current_user,
+        __path_bearer_from_login_password,
         __path_sign_in_with_login_password,
         __path_sign_out,
         __path_workflow_transition,
@@ -78,6 +79,7 @@ impl Modify for Security {
     info(description = "OpenAPI description for pmrplatform"),
     paths(
         // Auth
+        bearer_from_login_password,
         current_user,
         sign_in_with_login_password,
         sign_out,

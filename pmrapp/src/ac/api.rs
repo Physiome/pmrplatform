@@ -1,6 +1,7 @@
 use leptos::{
     prelude::ServerFnError,
     server,
+    server_fn,
 };
 use pmrcore::ac::user::User;
 
@@ -35,6 +36,40 @@ struct LoginPassword {
     password: String,
 }
 
+/// Acquire a bearer token from login/password
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    post,
+    path = "/api/bearer/from_login_password",
+    request_body(
+        description = r#"
+Acquire a bearer token from login/password.
+        "#,
+        content((
+            LoginPassword = "application/json",
+        )),
+    ),
+    responses((
+        status = 200,
+        description = "The bearer token.",
+        body = String,
+        example = "abcdefghijkKJIHGFEDCBA",
+    ), AppError),
+))]
+#[server(
+    endpoint = "bearer/from_login_password",
+    input = server_fn::codec::Json,
+)]
+pub async fn bearer_from_login_password(
+    login: String,
+    password: String,
+) -> Result<String, AuthError> {
+    let mut session = session().await
+        .map_err(|_| AuthError::InternalServerError)?;
+    session.sign_in_with_login_password(login, password).await?
+        .ok_or(AuthError::InternalServerError)
+}
+
+/// Sets a `SameSite=Strict` session cookie on success.
 #[cfg_attr(feature = "utoipa", utoipa::path(
     post,
     path = "/api/sign_in_with_login_password",
@@ -56,7 +91,7 @@ Sign in with login and password.
 #[server(
     endpoint = "sign_in_with_login_password",
 )]
-pub(crate) async fn sign_in_with_login_password(
+pub async fn sign_in_with_login_password(
     login: String,
     password: String,
 ) -> Result<String, AuthError> {
@@ -64,7 +99,8 @@ pub(crate) async fn sign_in_with_login_password(
         .map_err(|_| AuthError::InternalServerError)?;
     // FIXME figure out how to best approach CSRF; maybe this be best moved to the
     // middleware.
-    Ok(session.sign_in_with_login_password(login, password).await?)
+    session.sign_in_with_login_password(login, password).await?;
+    Ok("You are logged in.".to_string())
 }
 
 #[cfg_attr(feature = "utoipa", utoipa::path(
@@ -83,7 +119,7 @@ pub(crate) async fn sign_in_with_login_password(
 #[server(
     endpoint = "sign_out",
 )]
-pub(crate) async fn sign_out() -> Result<(), AuthError> {
+pub async fn sign_out() -> Result<(), AuthError> {
     let mut session = session().await
         .map_err(|_| AuthError::InternalServerError)?;
     session.sign_out().await?;
@@ -107,7 +143,7 @@ pub(crate) async fn sign_out() -> Result<(), AuthError> {
 #[server(
     endpoint = "current_user",
 )]
-pub(crate) async fn current_user() -> Result<Option<User>, ServerFnError> {
+pub async fn current_user() -> Result<Option<User>, ServerFnError> {
     Ok(session().await?
         .current_user())
 }
@@ -146,7 +182,7 @@ Update the workflow state for a given resource.
 #[server(
     endpoint = "workflow_transition",
 )]
-pub(crate) async fn workflow_transition(
+pub async fn workflow_transition(
     resource: String,
     target: String,
 ) -> Result<PolicyState, AppError> {
