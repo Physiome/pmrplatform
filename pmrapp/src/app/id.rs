@@ -23,10 +23,7 @@ impl Id {
                 .mc_platform
                 .resolve_alias(kind, &s)
                 .await
-                .map_err(|e| {
-                    dbg!(e);
-                    AppError::InternalServerError
-                })?
+                .map_err(|_| AppError::InternalServerError)?
                 .ok_or(AppError::NotFound)?,
         })
     }

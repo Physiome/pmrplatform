@@ -4,7 +4,6 @@ use std::{
     task::{Context, Poll},
 };
 use axum_login::{AuthManager, AuthnBackend};
-use pmrcore::ac::session::SessionToken;
 use http::{header, Request, Response};
 use tower_cookies::CookieManager;
 use tower_layer::Layer;

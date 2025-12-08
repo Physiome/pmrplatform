@@ -1,7 +1,6 @@
 use axum::Extension;
 use axum_login::{
     AuthSession,
-    AuthUser,
     Error as AxumLoginError,
 };
 use pmrac::{
