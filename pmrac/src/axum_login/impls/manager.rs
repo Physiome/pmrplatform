@@ -36,15 +36,6 @@ where
             config: BearerTokenManagerConfig::default(),
         }
     }
-
-    // TODO provide a function to generate a token for the bearer token creation endpoint which
-    // should also override the original token in our layer, which should bypass the cookie
-    // controller entirely and thus won't trigger the set-cookie header to be sent.
-    pub async fn bind(&self, session: SessionToken) -> Id {
-        let id = Id::default();
-        // let session = Session::new(id.clone(), self.store.clone(), self.config.expiry.clone());
-        id
-    }
 }
 
 impl<ReqBody, ResBody, S, Store: SessionStore> Service<Request<ReqBody>> for BearerTokenManager<S, Store>
@@ -91,6 +82,11 @@ where
                             _ => (),
                         }
                     }
+                } else {
+                    if Some(req.uri().to_string().as_ref()) == config.new_bearer_endpoint {
+                        let session = Session::new(Some(Id::default()), store, config.expiry);
+                        req.extensions_mut().insert(session);
+                    }
                 }
                 inner.call(req).await
             }
@@ -126,6 +122,11 @@ impl<
 
     pub fn with_data_key(mut self, data_key: &'static str) -> Self {
         self.config.data_key = Some(data_key);
+        self
+    }
+
+    pub fn with_new_bearer_endpoint(mut self, new_bearer_endpoint: &'static str) -> Self {
+        self.config.new_bearer_endpoint = Some(new_bearer_endpoint);
         self
     }
 }

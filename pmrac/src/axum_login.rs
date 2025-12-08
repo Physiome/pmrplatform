@@ -22,6 +22,7 @@ pub enum Authorization {
 pub(crate) struct BearerTokenManagerConfig {
     pub(crate) expiry: Option<Expiry>,
     pub(crate) data_key: Option<&'static str>,
+    pub(crate) new_bearer_endpoint: Option<&'static str>,
 }
 
 #[derive(Clone)]

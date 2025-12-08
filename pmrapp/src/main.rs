@@ -94,6 +94,7 @@ async fn main() -> anyhow::Result<()> {
                 platform.ac_platform.clone(),
                 session_layer,
             )
+            .with_new_bearer_endpoint("/api/bearer/from_login_password"),
         );
 
     let cors = CorsLayer::new()

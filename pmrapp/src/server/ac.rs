@@ -120,13 +120,10 @@ impl Session {
                 // `req.extensions_mut().insert(...)`) which should hopefully make it available to
                 // `axum_login`.
                 //
-                // Once that is done an appropriate extraction will pull that session if it's set up
-                // correctly, it shouldn't trigger `axum_login` to cycle the id for the session, as
-                // the predetermined `id` will be the one that is returned.
-                //
-                // Moreover, using a custom session manager/new type session (via extension) may also
-                // bypass the default tower-service that will send the set cookie header.  For now
-                // this is "fine" as there's only so much time I've been given to solve this issue.
+                // We do have an override in place, but it's not appropriately hooked up to return
+                // the Id, but for now this is fine, as overriding the session is sufficient.  That
+                // said, this probably should be used in conjunction with tower's session value for
+                // the underlying `Id`.
                 self.0.session.save().await
                     .map_err(|_| AuthError::InternalServerError)?;
 
