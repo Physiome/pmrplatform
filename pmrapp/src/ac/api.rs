@@ -50,9 +50,11 @@ Acquire a bearer token from login/password.
     ),
     responses((
         status = 200,
+        content((
+            String = "application/json",
+            example = json!("abcdefghijkKJIHGFEDCBA"),
+        )),
         description = "The bearer token.",
-        body = String,
-        example = "abcdefghijkKJIHGFEDCBA",
     ), AppError),
 ))]
 #[server(
@@ -83,9 +85,11 @@ Sign in with login and password.
     ),
     responses((
         status = 200,
+        content((
+            String = "application/json",
+            example = json!("You are logged in."),
+        )),
         description = "Message describing the outcome.",
-        body = String,
-        example = "You are logged in.",
     ), AppError),
 ))]
 #[server(

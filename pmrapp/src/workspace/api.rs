@@ -283,9 +283,11 @@ Create a workspace.
     ),
     responses((
         status = 200,
+        content((
+            String = "application/json",
+            example = json!("/workspace/123/"),
+        )),
         description = "Path to the new workspace.",
-        body = String,
-        example = "/workspace/123/",
     ), AppError),
     security(
         ("cookie" = []),

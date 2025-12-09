@@ -452,9 +452,11 @@ Attempt to resolve additional information about a path within an exposure.
     ),
     responses((
         status = 200,
+        content((
+            String = "application/json",
+            example = json!("/exposure/123/"),
+        )),
         description = "Path to the new exposure",
-        body = String,
-        example = "/exposure/123/",
     ), AppError),
     security(
         ("cookie" = []),
