@@ -70,6 +70,7 @@ pub async fn collection_json_workspace(
 #[cfg_attr(feature = "utoipa", utoipa::path(
     get,
     path = "/api/workspace/{workspace_alias}/rawfile/{commit_id}/{path}",
+    summary = "This endpoint is also bound to `/workspace/{workspace_alias}/rawfile/{commit_id}/{path}`.",
     params(
         ("workspace_alias" = String, Path, description = "Workspace's alias."),
         ("commit_id" = String, Path, description = "The commit id."),

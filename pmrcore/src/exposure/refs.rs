@@ -72,7 +72,14 @@ impl ExposureRef<'_> {
     }
 
     pub fn clone_inner(&self) -> Exposure {
-        self.inner.clone()
+        let mut inner = self.inner.clone();
+        inner.files = self.files.get().map(|v| v
+            .iter()
+            .map(|v| v.clone_inner())
+            .collect::<Vec<_>>()
+            .into()
+        );
+        inner
     }
 }
 

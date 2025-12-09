@@ -179,28 +179,56 @@ pub async fn list_aliased_exposures_for_workspace(
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ExposureInfo {
+    /// The exposure
     pub exposure: Exposure,
+    /// The alias to the exposure
     pub exposure_alias: Option<String>,
+    /// A listing of all files in the workspace in 2-tuple, first element being a string, second being a
+    /// boolean on whether or not this has an `ExposureFile`.
     pub files: Vec<(String, bool)>,
+    /// The underlying workspace to this exposure.
     pub workspace: Workspace,
+    /// The alias to the underlying workspace.
     pub workspace_alias: Option<String>,
 }
 
 #[cfg_attr(feature = "utoipa", utoipa::path(
     post,
     path = "/api/get_exposure_info",
+    description = r#"
+Get the full information about a given exposure.
+
+Routing to the exposure should be formatted as
+`/exposure/{exposure_id}/{workspace_file_path}/{view_key}{/residual}`
+
+`{exposure_id}` should be derived from `exposure.id`.
+
+`{workspace_file_path}` should be derived from the respective item in one of the `exposure.files`.
+
+`{view_key}` would be one of the `views` of the above.
+
+`{/residual}` are extra parts specific to the view, can be considered additional routes inside it.
+
+Refer to `/api/resolve_exposure_path` as a helper to resolve the path, but the logic to do so may be
+constructed such that the returned value from this endpoint may achieve the same within any client.
+    "#,
     request_body(
-        description = r#"
-Get the top level information of a given exposure.
-        "#,
         content((
             Id = "application/json",
             examples(
                 ("Example 1" = (
-                    summary = "Acquire the exposure information by the alias to the exposure",
+                    summary = "Acquire the exposure information by the alias to the exposure.",
                     value = json!({
                         "id": {
                             "Aliased": "c1"
+                        },
+                    })
+                )),
+                ("Example 2" = (
+                    summary = "Acquire the exposure information by its underlying numberic id.",
+                    value = json!({
+                        "id": {
+                            "Number": "525"
                         },
                     })
                 )),
@@ -231,6 +259,15 @@ pub async fn get_exposure_info(id: Id) -> Result<EnforcedOk<ExposureInfo>, AppEr
         .map_err(|_| AppError::InternalServerError)?;
     let files = ctrl.pair_files_info().await
         .map_err(|_| AppError::InternalServerError)?;
+
+    for file in ctrl.exposure().files().await
+        .map_err(|_| AppError::InternalServerError)?
+        .iter()
+    {
+        file.views().await
+            .map_err(|_| AppError::InternalServerError)?;
+    }
+
     let exposure = ctrl.exposure().clone_inner();
     let workspace = platform.mc_platform
         .get_workspace(exposure.workspace_id)
@@ -258,23 +295,68 @@ pub enum ResolvedExposurePath {
     Redirect(String),
 }
 
+// this struct is a placeholder to help utoipa
+#[cfg(feature = "utoipa")]
+#[allow(dead_code)]
+#[derive(utoipa::ToSchema)]
+struct ResolveExposureArgs {
+    id: Id,
+    path: String,
+}
+
 #[cfg_attr(feature = "utoipa", utoipa::path(
     post,
     path = "/api/resolve_exposure_path",
-    request_body(
-        description = r#"
+    description = r#"
 Attempt to resolve additional information about a path within an exposure.
-        "#,
+
+This endpoint is intended to be a routing aid, all relevant information related to an exposure
+should be available via the `/api/get_exposure_info` endpoint.
+
+The inner could either be a target or a redirect.
+
+A redirect should point to the expected underlying file backed by the workspace.
+
+A target contains a 2-tuple, first one is an `ExposureFile`, the next is a `Result`, where the
+`Ok` variant contains a 2-tuple with the resolved `ExposureFileView` and any unconsumed path
+fragments being the `residual`.  The `Err` variant is simply a list of possible base `view_keys`
+that may be appended to instead.
+
+The values from the `ExposureFile` should provide `exposure_id` and the `exposure_file_id`, and
+the selected `ExposureFileView` should provide the `view_key` which form the base to resolve
+resource from the `/api/exposure/{exposure_id}/{exposure_file_id}/{view_key}/{path}` endpoint.
+
+The `residual` simply aid the identification of subviews for the client.
+    "#,
+    request_body(
         content((
-            Id = "application/json",
+            ResolveExposureArgs = "application/json",
             examples(
-                ("Example 1" = (
+                ("List views available for an exposure file." = (
+                    summary = "Resolve the path to some file with a trailing slash to gather key information",
+                    value = json!({
+                        "id": {
+                            "Aliased": "c1",
+                        },
+                        "path": "beeler_reuter_1977.cellml/",
+                    })
+                )),
+                ("Resolve into a target with an exposure file, along with a specific view" = (
                     summary = "Acquire the exposure information by the alias to the exposure and path",
                     value = json!({
                         "id": {
                             "Aliased": "c1",
                         },
-                        "path": "beeler_reuter_1977.cellml",
+                        "path": "beeler_reuter_1977.cellml/view",
+                    })
+                )),
+                ("Resolve into a target with an exposure file, along with a specific view" = (
+                    summary = "Acquire the exposure information by the alias to the exposure and path",
+                    value = json!({
+                        "id": {
+                            "Aliased": "c1",
+                        },
+                        "path": "beeler_reuter_1977.cellml/cellml_codegen/python",
                     })
                 )),
             )
@@ -295,6 +377,15 @@ Attempt to resolve additional information about a path within an exposure.
     endpoint = "resolve_exposure_path",
     input = server_fn::codec::Json,
 )]
+pub async fn resolve_exposure_path_openapi(
+    id: Id,
+    path: String,
+) -> Result<EnforcedOk<ResolvedExposurePath>, AppError> {
+    let exposure_id = resolve_id(id.clone()).await?;
+    resolve_exposure_path(exposure_id, path).await
+}
+
+#[server]
 pub async fn resolve_exposure_path(
     id: i64,
     path: String,
@@ -428,6 +519,15 @@ pub async fn read_safe_index_html(
     )
 }
 
+// this struct is a placeholder to help utoipa
+#[cfg(feature = "utoipa")]
+#[allow(dead_code)]
+#[derive(utoipa::ToSchema)]
+struct CreateExposureArgs {
+    id: Id,
+    commit_id: String,
+}
+
 #[cfg_attr(feature = "utoipa", utoipa::path(
     post,
     path = "/api/create_exposure",
@@ -436,7 +536,7 @@ pub async fn read_safe_index_html(
 Attempt to resolve additional information about a path within an exposure.
         "#,
         content((
-            Id = "application/json",
+            CreateExposureArgs = "application/json",
             examples(
                 ("Example 1" = (
                     summary = "Create the new exposure by the alias and commit id.",
