@@ -67,6 +67,25 @@ pub async fn collection_json_workspace(
     Ok(Json(collection.links(links)))
 }
 
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    get,
+    path = "/api/workspace/{workspace_alias}/rawfile/{commit_id}/{path}",
+    params(
+        ("workspace_alias" = String, Path, description = "Workspace's alias."),
+        ("commit_id" = String, Path, description = "The commit id."),
+        ("path" = String, Path, description = "Path to the target file."),
+    ),
+    responses((
+        status = 200,
+        description = "The data contents.",
+        body = Vec<u8>,
+    ), AppError),
+    security(
+        (),
+        ("cookie" = []),
+        ("bearer" = []),
+    ),
+))]
 pub async fn raw_aliased_workspace_download(
     platform: Extension<Platform>,
     session: Extension<AuthSession<ACPlatform>>,

@@ -116,8 +116,14 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/exposure/{e_id}/{ef_id}/{view_key}/{*path}", get(exposure_file_data))
         .route("/api/exposure/safe_html/{e_id}/{ef_id}/{view_key}/{*path}", get(exposure_file_safe_html))
         .route("/collection_json/workspace/", get(collection_json_workspace))
+
+        // These are duplicated to /api/ to keep the OpenAPI specification consistent, while
+        // keeping the original in the event we will fall back to a fully integrated application.
         .route("/workspace/{workspace_alias}/rawfile/{commit_id}/{*path}", get(raw_aliased_workspace_download))
         .route("/workspace/:/id/{workspace_id}/rawfile/{commit_id}/{*path}", get(raw_workspace_download))
+        .route("/api/workspace/{workspace_alias}/rawfile/{commit_id}/{*path}", get(raw_aliased_workspace_download))
+        .route("/api/workspace/:/id/{workspace_id}/rawfile/{commit_id}/{*path}", get(raw_workspace_download))
+
         .route(WIZARD_FIELD_ROUTE, post(wizard_field_update))
         .leptos_routes(
             &leptos_options,
