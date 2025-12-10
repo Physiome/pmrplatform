@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use pmrbin::citation::index;
+use pmrmeta::citation::index;
 use pmrctrl::platform::{
     Builder as PlatformBuilder,
     Platform,

@@ -1,5 +1,5 @@
 use oxigraph::store::Store;
-use pmrbin::{
+use pmrmeta::{
     cellml::meta::{
         query_keywords,
         query_pubmed_id,

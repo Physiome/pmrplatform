@@ -1,4 +1,4 @@
-use pmrbin::citation::index;
+use pmrmeta::citation::index;
 mod utils;
 
 #[test]

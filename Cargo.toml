@@ -4,7 +4,7 @@ members = [
     "pmr2-migration",
     "pmrac",
     "pmrapp",
-    "pmrbin",
+    "pmrmeta",
     "pmrapp/e2e",
     "pmrctrl",
     "pmrcore",
@@ -37,7 +37,7 @@ collection_json = { path = "./collection_json", version = "0.0.1" }
 pmr2-migration = { path = "./pmr2-migration", version = "0.0.1" }
 pmrac = { path = "./pmrac", version = "0.0.1" }
 pmrapp = { path = "./pmrapp", version = "0.0.1" }
-pmrbin = { path = "./pmrbin", version = "0.0.1" }
+pmrmeta = { path = "./pmrbin", version = "0.0.1" }
 pmrcore = { path = "./pmrcore", version = "0.0.1" }
 pmrctrl = { path = "./pmrctrl", version = "0.0.1" }
 pmrdb = { path = "./pmrdb", version = "0.0.1" }
