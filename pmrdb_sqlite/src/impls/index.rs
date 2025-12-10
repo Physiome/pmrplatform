@@ -382,20 +382,20 @@ pub(crate) mod testing {
             .await
             .map_err(anyhow::Error::from_boxed)?;
 
-        backend.index_resource("keyword", "/test/resource", &[]).await?;
+        backend.index_resource("keyword", "/test/resource", &mut [].into_iter()).await?;
         assert_eq!(
             backend.list_kinds().await?,
             vec!["keyword".to_string()],
         );
         assert!(backend.list_terms("keyword").await?.unwrap().terms.is_empty());
 
-        backend.index_resource("title", "/test/resource", &[
+        backend.index_resource("title", "/test/resource", &mut [
             "Test Resource",
-        ]).await?;
-        backend.index_resource("keyword", "/test/resource", &[
+        ].into_iter()).await?;
+        backend.index_resource("keyword", "/test/resource", &mut [
             "hello",
             "world",
-        ]).await?;
+        ].into_iter()).await?;
         assert_eq!(
             backend.list_kinds().await?,
             vec!["keyword".to_string(), "title".to_string()],

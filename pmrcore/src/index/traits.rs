@@ -52,13 +52,11 @@ pub trait IndexBackend {
         &self,
         kind: &str,
         resource_path: &str,
-        // TODO have this be a concrete local iterator that can be constructed
-        // from any iterator to keep this trait object safe.
-        terms: &[&str],
+        terms: &mut (dyn Iterator<Item = &str> + Send + Sync),
     ) -> Result<(), BackendError> {
         let idx_kind_id = self.resolve_kind(kind).await?;
 
-        for term in terms.iter() {
+        for term in terms {
             let idx_entry_id = self.resolve_idx_entry(idx_kind_id, term).await?;
             self.add_idx_entry_link(idx_entry_id, &resource_path).await?;
         }
