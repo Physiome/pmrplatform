@@ -224,7 +224,7 @@ view_key = "references"
 description = "References"
 
 [view_task_templates.task_template]
-bin_path = "${PMRPLATFORM_DIR}/target/release/pmr-citation"
+bin_path = "${PMRPLATFORM_BIN_DIR}/pmr-cellml"
 version_id = "0.0.1"
 
 [[view_task_templates.task_template.args]]

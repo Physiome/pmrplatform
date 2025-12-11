@@ -1,13 +1,13 @@
 [profile]
 title = "Citation Index"
-description = "Citation only for an XML file"
+description = "Extract citation only for an XML file"
 
 [[view_task_templates]]
 view_key = "citation"
 description = "Citation"
 
 [view_task_templates.task_template]
-bin_path = "${PMRPLATFORM_DIR}/target/release/pmr-citation"
+bin_path = "${PMRPLATFORM_BIN_DIR}/pmr-citation"
 version_id = "0.0.1"
 
 [[view_task_templates.task_template.args]]
