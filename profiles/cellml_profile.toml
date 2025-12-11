@@ -7,7 +7,7 @@ view_key = "view"
 description = "Documentation"
 
 [view_task_templates.task_template]
-bin_path = "${PMR2_BUILDOUT_DIR}/bin/cellml.pmr2"
+bin_path = "${PMR2_BUILDOUT_DIR}/bin/pmr2.compat"
 version_id = "0.10.7"
 
 [[view_task_templates.task_template.args]]
@@ -60,7 +60,7 @@ view_key = "cellml_codegen"
 description = "CellML code generation"
 
 [view_task_templates.task_template]
-bin_path = "${PMR2_BUILDOUT_DIR}/bin/cellml.pmr2"
+bin_path = "${PMR2_BUILDOUT_DIR}/bin/pmr2.compat"
 version_id = "0.10.7"
 
 [[view_task_templates.task_template.args]]
@@ -94,7 +94,7 @@ view_key = "cellml_math"
 description = "CellML Mathematics"
 
 [view_task_templates.task_template]
-bin_path = "${PMR2_BUILDOUT_DIR}/bin/cellml.pmr2"
+bin_path = "${PMR2_BUILDOUT_DIR}/bin/pmr2.compat"
 version_id = "0.10.7"
 final_task_template_arg_id = 45
 
@@ -226,12 +226,6 @@ description = "References"
 [view_task_templates.task_template]
 bin_path = "${PMRPLATFORM_BIN_DIR}/pmr-cellml"
 version_id = "0.0.1"
-
-[[view_task_templates.task_template.args]]
-flag = "rdfxml"
-flag_joined = false
-flag_omit_when_null = false
-choice_fixed = false
 
 [[view_task_templates.task_template.args]]
 flag = "index"
