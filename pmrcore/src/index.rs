@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// The underlying raw entity for the kind of the index
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 pub struct IdxKind {
     pub id: i64,
     pub description: String,
@@ -24,6 +25,7 @@ pub struct IdxEntryLink {
 
 /// A listing of terms for a particular index identified by [`IdxKind`].
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 pub struct IndexTerms {
     pub kind: IdxKind,
     pub terms: Vec<String>,
@@ -31,9 +33,13 @@ pub struct IndexTerms {
 
 /// A listing of resources for a particular term under a particular index identified by [`IdxKind`].
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 pub struct IndexResourceSet {
     pub kind: IdxKind,
     pub term: String,
+    // TODO perhaps resource_path may be enclosed in an option to denote the term is unknown
+    // TODO need to have an API that turn the resource_path into a fully form record type that
+    // will provide the actual alias associated with any given path.
     pub resource_paths: Vec<String>,
 }
 

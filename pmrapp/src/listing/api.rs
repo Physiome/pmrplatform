@@ -9,6 +9,7 @@ use crate::error::AppError;
 #[cfg(feature = "ssr")]
 mod ssr {
     pub use crate::server::platform;
+    pub use crate::server::index;
 }
 #[cfg(feature = "ssr")]
 use self::ssr::*;
@@ -30,15 +31,13 @@ pub async fn list_citation_resources(identifier: String) -> Result<Vec<String>, 
 #[server]
 pub async fn list_indexes() -> Result<Vec<String>, AppError> {
     let platform = platform().await?;
-    platform.pc_platform.list_kinds().await
-        .map_err(|_| AppError::InternalServerError)
+    index::indexes_core(&platform).await
 }
 
 #[server]
 pub async fn list_index_terms(kind: String) -> Result<Option<IndexTerms>, AppError> {
     let platform = platform().await?;
-    platform.pc_platform.list_terms(&kind).await
-        .map_err(|_| AppError::InternalServerError)
+    index::terms_core(&platform, kind).await
 }
 
 #[server]
@@ -47,6 +46,5 @@ pub async fn list_indexed_resources_by_kind_term(
     term: String,
 ) -> Result<Option<IndexResourceSet>, AppError> {
     let platform = platform().await?;
-    platform.pc_platform.list_resources(&kind, &term).await
-        .map_err(|_| AppError::InternalServerError)
+    index::resources_core(&platform, kind, term).await
 }

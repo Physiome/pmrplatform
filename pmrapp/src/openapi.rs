@@ -48,6 +48,11 @@ use crate::{
             __path_exposure_file_safe_html,
             __path_wizard_field_update,
         },
+        index::{
+            __path_indexes,
+            __path_terms,
+            __path_resources,
+        },
         workspace::__path_raw_aliased_workspace_download,
     },
     workspace::api::{
@@ -112,6 +117,11 @@ impl Modify for Security {
         wizard_add_file_openapi,
         wizard_build_openapi,
         wizard_field_update,
+
+        // Index
+        indexes,
+        terms,
+        resources,
 
         // Workspaces
         create_workspace_core,

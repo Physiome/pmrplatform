@@ -22,19 +22,22 @@ async fn main() -> anyhow::Result<()> {
     use http::Method;
     use leptos::prelude::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
-    use pmrac::axum_login::BearerTokenManagerLayer;
+    use axum_login_bearer::BearerTokenAuthManagerLayer;
     use pmrapp::app::*;
     use pmrapp::conf::Cli;
     use pmrapp::exposure::api::WIZARD_FIELD_ROUTE;
-    use pmrapp::server::workspace::{
-        collection_json_workspace,
-        raw_aliased_workspace_download,
-        raw_workspace_download,
-    };
-    use pmrapp::server::exposure::{
-        exposure_file_data,
-        exposure_file_safe_html,
-        wizard_field_update,
+    use pmrapp::server::{
+        exposure::{
+            exposure_file_data,
+            exposure_file_safe_html,
+            wizard_field_update,
+        },
+        index,
+        workspace::{
+            collection_json_workspace,
+            raw_aliased_workspace_download,
+            raw_workspace_download,
+        },
     };
     use pmrctrl::executor::Executor;
     use pmrtqs::runtime::Builder as RuntimeBuilder;
@@ -123,6 +126,14 @@ async fn main() -> anyhow::Result<()> {
         .route("/workspace/:/id/{workspace_id}/rawfile/{commit_id}/{*path}", get(raw_workspace_download))
         .route("/api/workspace/{workspace_alias}/rawfile/{commit_id}/{*path}", get(raw_aliased_workspace_download))
         .route("/api/workspace/:/id/{workspace_id}/rawfile/{commit_id}/{*path}", get(raw_workspace_download))
+
+        // Index routes
+        .route("/api/index", get(index::indexes))
+        .route("/api/index/", get(index::indexes))
+        .route("/api/index/{keyword}", get(index::terms))
+        .route("/api/index/{keyword}/", get(index::terms))
+        .route("/api/index/{keyword}/{term}", get(index::resources))
+        .route("/api/index/{keyword}/{term}/", get(index::resources))
 
         .route(WIZARD_FIELD_ROUTE, post(wizard_field_update))
         .leptos_routes(

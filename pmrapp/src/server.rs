@@ -24,4 +24,5 @@ pub async fn resolve_id(kind: &'static str, id: Id) -> Result<i64, AppError> {
 
 pub mod ac;
 pub mod exposure;
+pub mod index;
 pub mod workspace;

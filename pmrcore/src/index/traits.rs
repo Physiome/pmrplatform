@@ -39,6 +39,8 @@ pub trait IndexBackend {
         kind: &str,
     ) -> Result<Option<IndexTerms>, BackendError>;
     /// List the resources available under the kind
+    ///
+    /// A `Ok(None)` result should mean the kind is unknown.
     async fn list_resources(
         &self,
         kind: &str,
