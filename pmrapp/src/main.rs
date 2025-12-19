@@ -86,18 +86,19 @@ async fn main() -> anyhow::Result<()> {
         .map_err(anyhow::Error::from_boxed)?;
 
     let session_store = MemoryStore::default();
-    let session_layer = SessionManagerLayer::new(session_store.clone())
+    // let session_layer = SessionManagerLayer::new(session_store.clone())
+    let session_layer = SessionManagerLayer::new(MemoryStore::default())
         .with_secure(false)
         .with_expiry(Expiry::OnInactivity(Duration::days(1)));
 
     let auth_service = ServiceBuilder::new()
         .layer(
-            BearerTokenManagerLayer::new(
+            BearerTokenAuthManagerLayer::new(
                 session_store,
                 platform.ac_platform.clone(),
-                session_layer,
             )
-            .with_new_bearer_endpoint("/api/bearer/from_login_password"),
+            .with_session_manager_layer(session_layer)
+            .with_bearer_token_endpoint("/api/bearer/from_login_password"),
         );
 
     let cors = CorsLayer::new()

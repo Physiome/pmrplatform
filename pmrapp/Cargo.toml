@@ -12,6 +12,7 @@ anyhow = { workspace = true, optional = true }
 axum = { workspace = true, optional = true }
 axum-extra = { workspace = true, optional = true }
 axum-login = { workspace = true, optional = true }
+axum-login-bearer = { workspace = true, optional = true }
 chrono = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"], optional = true }
 collection_json = { workspace = true, optional = true }
@@ -67,6 +68,7 @@ ssr = [
     "dep:axum",
     "dep:axum-extra",
     "dep:axum-login",
+    "dep:axum-login-bearer",
     "dep:clap",
     "dep:collection_json",
     "dep:dotenvy",

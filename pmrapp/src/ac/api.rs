@@ -67,8 +67,8 @@ pub async fn bearer_from_login_password(
 ) -> Result<String, AuthError> {
     let mut session = session().await
         .map_err(|_| AuthError::InternalServerError)?;
-    session.sign_in_with_login_password(login, password).await?
-        .ok_or(AuthError::InternalServerError)
+    Ok(session.sign_in_with_login_password(login, password).await?
+        .ok_or(AuthError::InternalServerError)?)
 }
 
 /// Sets a `SameSite=Strict` session cookie on success.

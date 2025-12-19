@@ -39,5 +39,3 @@ impl AuthnBackend for Platform {
         Ok(Some(self.load_session(*session_token).await?))
     }
 }
-
-mod manager;

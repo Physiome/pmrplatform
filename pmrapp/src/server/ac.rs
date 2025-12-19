@@ -3,6 +3,7 @@ use axum_login::{
     AuthSession,
     Error as AxumLoginError,
 };
+use axum_login_bearer::BearerTokenSession;
 use pmrac::{
     error::Error as ACError,
     axum_login::{
@@ -113,20 +114,15 @@ impl Session {
             Ok(Some(auth)) => {
                 self.0.login(&auth).await
                     .map_err(|_| AuthError::InternalServerError)?;
-                // FIXME in the next version of axum-login (>=0.19.0) the session will become private
-                // a probably strategy later will require a new native axum endpoint that will first
-                // initialize a `Session`, make it into one of the available `Extensions` (likely via
-                // `req.extensions_mut().insert(...)`) which should hopefully make it available to
-                // `axum_login`.
-                //
-                // We do have an override in place, but it's not appropriately hooked up to return
-                // the Id, but for now this is fine, as overriding the session is sufficient.  That
-                // said, this probably should be used in conjunction with tower's session value for
-                // the underlying `Id`.
-                self.0.session.save().await
-                    .map_err(|_| AuthError::InternalServerError)?;
 
-                Ok(self.0.session.id().map(|s| s.to_string()))
+                if let Ok(session) = leptos_axum::extract::<BearerTokenSession>().await {
+                    session.save().await
+                        .map_err(|_| AuthError::InternalServerError)?;
+                    Ok(Some(session.encode_token()
+                        .ok_or(AuthError::InternalServerError)?))
+                } else {
+                    Ok(None)
+                }
             },
             Ok(None) | Err(AxumLoginError::Backend(ACError::Authentication(_))) => {
                 // TODO handle restricted account error differently?
