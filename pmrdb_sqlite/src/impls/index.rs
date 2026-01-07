@@ -377,22 +377,22 @@ pub(crate) mod testing {
     }
 
     #[async_std::test]
-    async fn test_index_resource() -> anyhow::Result<()> {
+    async fn test_resource_link_kind_with_terms() -> anyhow::Result<()> {
         let backend = SqliteBackend::pc("sqlite::memory:".into())
             .await
             .map_err(anyhow::Error::from_boxed)?;
 
-        backend.index_resource("keyword", "/test/resource", &mut [].into_iter()).await?;
+        backend.resource_link_kind_with_terms("/test/resource", "keyword", &mut [].into_iter()).await?;
         assert_eq!(
             backend.list_kinds().await?,
             vec!["keyword".to_string()],
         );
         assert!(backend.list_terms("keyword").await?.unwrap().terms.is_empty());
 
-        backend.index_resource("title", "/test/resource", &mut [
+        backend.resource_link_kind_with_terms("/test/resource", "title", &mut [
             "Test Resource",
         ].into_iter()).await?;
-        backend.index_resource("keyword", "/test/resource", &mut [
+        backend.resource_link_kind_with_terms("/test/resource", "keyword", &mut [
             "hello",
             "world",
         ].into_iter()).await?;

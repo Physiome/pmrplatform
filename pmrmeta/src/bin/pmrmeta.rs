@@ -53,7 +53,7 @@ enum IndexCmd {
 #[derive(Debug, Subcommand)]
 enum LinkCmd {
     #[command(arg_required_else_help = true)]
-    Add {
+    Create {
         resource_path: String,
         #[clap(long)]
         kind: String,
@@ -154,10 +154,10 @@ async fn parse_link_cmd(
     arg: LinkCmd,
 ) -> anyhow::Result<()> {
     match arg {
-        LinkCmd::Add { resource_path, kind, terms } => {
-            platform.pc_platform.index_resource(
-                &kind,
+        LinkCmd::Create { resource_path, kind, terms } => {
+            platform.pc_platform.resource_link_kind_with_terms(
                 &resource_path,
+                &kind,
                 &mut terms.iter()
                     .map(String::as_ref),
             ).await?;

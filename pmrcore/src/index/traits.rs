@@ -50,10 +50,10 @@ pub trait IndexBackend {
     // TODO there also needs to be an inverse of the above, list terms associated
     // with the resource.
 
-    async fn index_resource(
+    async fn resource_link_kind_with_terms(
         &self,
-        kind: &str,
         resource_path: &str,
+        kind: &str,
         terms: &mut (dyn Iterator<Item = &str> + Send + Sync),
     ) -> Result<(), BackendError> {
         let idx_kind_id = self.resolve_kind(kind).await?;

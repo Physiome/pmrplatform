@@ -78,7 +78,7 @@ async fn main() -> anyhow::Result<()> {
 
             // Add the various information acquired from the metadata into the index
             let keywords = query_keywords(&store)?;
-            platform.pc_platform.index_resource(
+            platform.pc_platform.resource_link_kind_with_terms(
                 "cellml_keyword",
                 &resource_path,
                 &mut keywords.iter()
