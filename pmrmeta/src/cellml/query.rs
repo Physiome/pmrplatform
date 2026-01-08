@@ -16,6 +16,8 @@ fn query_items<F>(
     var: &'static str,
     value: Option<&str>,
     formatter: F,
+    literal: bool,
+    iri: bool,
 ) -> Result<Vec<String>, RdfIndexerError>
 where
     F: Fn(&str) -> String,
@@ -34,8 +36,11 @@ where
     if let QueryResults::Solutions(solutions) = query.on_store(&store).execute()? {
         for solution in solutions {
             if let Ok(solution) = solution {
-                if let Some(Term::Literal(literal)) = solution.get(var) {
+                if literal && let Some(Term::Literal(literal)) = solution.get(var) {
                     result.push(formatter(literal.value()));
+                }
+                if iri && let Some(Term::NamedNode(literal)) = solution.get(var) {
+                    result.push(formatter(literal.as_str()));
                 }
             }
         }
@@ -43,8 +48,34 @@ where
     Ok(result)
 }
 
+fn query_literals<F>(
+    store: &Store,
+    query: &'static str,
+    var: &'static str,
+    value: Option<&str>,
+    formatter: F,
+) -> Result<Vec<String>, RdfIndexerError>
+where
+    F: Fn(&str) -> String,
+{
+    query_items(store, query, var, value, formatter, true, false)
+}
+
+fn query_iris<F>(
+    store: &Store,
+    query: &'static str,
+    var: &'static str,
+    value: Option<&str>,
+    formatter: F,
+) -> Result<Vec<String>, RdfIndexerError>
+where
+    F: Fn(&str) -> String,
+{
+    query_items(store, query, var, value, formatter, false, true)
+}
+
 pub fn keywords(store: &Store) -> Result<Vec<String>, RdfIndexerError> {
-    query_items(
+    query_literals(
         store,
         r#"
             PREFIX bqs: <http://www.cellml.org/bqs/1.0#>
@@ -65,7 +96,7 @@ pub fn keywords(store: &Store) -> Result<Vec<String>, RdfIndexerError> {
 }
 
 pub fn pubmed_id(store: &Store) -> Result<Vec<String>, RdfIndexerError> {
-    query_items(
+    query_literals(
         store,
         r#"
             PREFIX bqs: <http://www.cellml.org/bqs/1.0#>
@@ -85,7 +116,7 @@ pub fn pubmed_id(store: &Store) -> Result<Vec<String>, RdfIndexerError> {
 
 /// Return the dc:title, optionally constrained the results from the specified node.
 pub fn dc_title(store: &Store, node: Option<&str>) -> Result<Vec<String>, RdfIndexerError> {
-    query_items(
+    query_literals(
         store,
         r#"
             PREFIX dc: <http://purl.org/dc/elements/1.1/>
@@ -99,4 +130,24 @@ pub fn dc_title(store: &Store, node: Option<&str>) -> Result<Vec<String>, RdfInd
         node,
         str::to_string,
     )
+}
+
+/// Return the license specified by the graph
+pub fn license(store: &Store) -> Result<Option<String>, RdfIndexerError> {
+    Ok(query_iris(
+        store,
+        r#"
+            PREFIX dcterms: <http://purl.org/dc/terms/>
+
+            SELECT ?node ?license
+            WHERE {
+                ?node dcterms:license ?license .
+            }
+        "#,
+        "license",
+        Some(""),
+        str::to_string,
+    )?
+    .get(0)
+    .map(Clone::clone))
 }

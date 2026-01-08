@@ -52,3 +52,11 @@ fn title() -> anyhow::Result<()> {
     assert_eq!(result, &["Comparison of Simulated and Measured Calcium Sparks in Intact Skeletal Muscle Fibers of the Frog (Reaction A)"]);
     Ok(())
 }
+
+#[test]
+fn license() -> anyhow::Result<()> {
+    let store = xml_to_store(&utils::load_test_data("example_model.cellml")?[..])?;
+    let result = query::license(&store)?;
+    assert_eq!(result.as_deref(), Some("http://example.com/license"));
+    Ok(())
+}
