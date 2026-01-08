@@ -11,6 +11,8 @@ use xee_xpath::{
 
 use crate::error::RdfIndexerError;
 
+pub static BASE_IRI: &str = "urn:pmrplatform:oxigraph:";
+
 pub fn quads_from_xml<R>(mut reader: R) -> Result<Vec<Quad>, RdfIndexerError>
 where
     R: Read
@@ -41,7 +43,7 @@ where
 
     Ok(RdfParser::from_format(RdfFormat::RdfXml)
         // .with_base_iri("urn:pmr:virtuoso:")
-        .with_base_iri("urn:pmrplatform:oxigraph:")?
+        .with_base_iri(BASE_IRI)?
         .for_reader(extracted.as_bytes())
         .collect::<Result<Vec<_>, _>>()?)
 }

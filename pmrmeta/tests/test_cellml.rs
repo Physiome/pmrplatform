@@ -1,6 +1,7 @@
 use oxigraph::store::Store;
 use pmrmeta::{
     cellml::meta::{
+        query_dc_title,
         query_keywords,
         query_pubmed_id,
     },
@@ -45,5 +46,13 @@ fn pubmed_id() -> anyhow::Result<()> {
     let mut result = query_pubmed_id(&store)?;
     result.sort();
     assert_eq!(result, &["pmid:4778131", "pmid:5499787", "pmid:874889"]);
+    Ok(())
+}
+
+#[test]
+fn title() -> anyhow::Result<()> {
+    let store = xml_to_store(&utils::load_test_data("baylor_hollingworth_chandler_2002_a.cellml")?[..])?;
+    let result = query_dc_title(&store, Some(""))?;
+    assert_eq!(result, &["Comparison of Simulated and Measured Calcium Sparks in Intact Skeletal Muscle Fibers of the Frog (Reaction A)"]);
     Ok(())
 }

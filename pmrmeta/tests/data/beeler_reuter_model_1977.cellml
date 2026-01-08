@@ -261,7 +261,8 @@ CHANGES:
         The CellML Metadata Specification recommends that bibliographic metadata
         is used to provide information about the original model reference.  The
         "identifier" attribute on the "BibliographicReference" class provides an
-        elegant way to identify a cited reference using a database identifier            such as Pubmed.  All associated data such as author, journal title,
+        elegant way to identify a cited reference using a database identifier
+        such as Pubmed.  All associated data such as author, journal title,
         date, etc can be looked up on the database.
       -->
       <bqs:reference rdf:parseType="Resource">
@@ -289,7 +290,7 @@ CHANGES:
             </rdf:Seq>
           </dc:creator>
           <dc:title>
-            Reconstruction of the action potential of ventricular myocardial                 fibres
+            Reconstruction of the action potential of ventricular myocardial fibres
           </dc:title>
           <dcterms:issued rdf:parseType="Resource">
             <dcterms:W3CDTF>1977-06</dcterms:W3CDTF>
