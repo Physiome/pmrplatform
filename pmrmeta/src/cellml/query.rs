@@ -10,7 +10,7 @@ use crate::{
     read::BASE_IRI,
 };
 
-pub fn query_keywords(store: &Store) -> Result<Vec<String>, RdfIndexerError> {
+pub fn keywords(store: &Store) -> Result<Vec<String>, RdfIndexerError> {
     let mut result = Vec::new();
     if let QueryResults::Solutions(solutions) = SparqlEvaluator::new()
         .parse_query(r#"
@@ -39,7 +39,7 @@ pub fn query_keywords(store: &Store) -> Result<Vec<String>, RdfIndexerError> {
     Ok(result)
 }
 
-pub fn query_pubmed_id(store: &Store) -> Result<Vec<String>, RdfIndexerError> {
+pub fn pubmed_id(store: &Store) -> Result<Vec<String>, RdfIndexerError> {
     let mut result = Vec::new();
     if let QueryResults::Solutions(solutions) = SparqlEvaluator::new()
         .parse_query(r#"
@@ -67,7 +67,7 @@ pub fn query_pubmed_id(store: &Store) -> Result<Vec<String>, RdfIndexerError> {
 }
 
 /// Return the dc:title, optionally constrained the results from the specified node.
-pub fn query_dc_title(store: &Store, node: Option<&str>) -> Result<Vec<String>, RdfIndexerError> {
+pub fn dc_title(store: &Store, node: Option<&str>) -> Result<Vec<String>, RdfIndexerError> {
     let mut result = Vec::new();
     let mut query = SparqlEvaluator::new()
         .parse_query(r#"

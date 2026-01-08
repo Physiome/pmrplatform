@@ -1,9 +1,6 @@
 use clap::{Parser, Subcommand};
 use pmrmeta::{
-    cellml::meta::{
-        query_keywords,
-        query_pubmed_id,
-    },
+    cellml::query,
     read::xml_to_store,
 };
 use pmrctrl::platform::Builder as PlatformBuilder;
@@ -70,14 +67,14 @@ async fn main() -> anyhow::Result<()> {
             let store = xml_to_store(reader)?;
 
             // Store the citation for the incoming file
-            let citations = query_pubmed_id(&store)?;
+            let citations = query::pubmed_id(&store)?;
             for citation in citations.iter() {
                 platform.pc_platform.add_citation(&citation).await.ok();
                 platform.pc_platform.link_citation(&citation, &resource_path).await.ok();
             }
 
             // Add the various information acquired from the metadata into the index
-            let keywords = query_keywords(&store)?;
+            let keywords = query::keywords(&store)?;
             platform.pc_platform.resource_link_kind_with_terms(
                 "cellml_keyword",
                 &resource_path,

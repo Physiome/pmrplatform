@@ -1,10 +1,6 @@
 use oxigraph::store::Store;
 use pmrmeta::{
-    cellml::meta::{
-        query_dc_title,
-        query_keywords,
-        query_pubmed_id,
-    },
+    cellml::query,
     read::{
         quads_from_xml,
         xml_to_store,
@@ -16,7 +12,7 @@ mod utils;
 #[test]
 fn keywords1() -> anyhow::Result<()> {
     let store = xml_to_store(&utils::load_test_data("beeler_reuter_model_1977.cellml")?[..])?;
-    let mut result = query_keywords(&store)?;
+    let mut result = query::keywords(&store)?;
     result.sort();
     assert_eq!(result, &["electrophysiological", "ventricular myocyte"]);
     Ok(())
@@ -25,7 +21,7 @@ fn keywords1() -> anyhow::Result<()> {
 #[test]
 fn keywords2() -> anyhow::Result<()> {
     let store = xml_to_store(&utils::load_test_data("adrian_chandler_hodgkin_1970_version01.cellml")?[..])?;
-    let mut result = query_keywords(&store)?;
+    let mut result = query::keywords(&store)?;
     result.sort();
     assert_eq!(result, &["electrophysiology", "skeletal muscle"]);
     Ok(())
@@ -43,7 +39,7 @@ fn pubmed_id() -> anyhow::Result<()> {
     store.extend(quads_from_xml(
         &utils::load_test_data("adrian_chandler_hodgkin_1970_version01.cellml")?[..]
     )?)?;
-    let mut result = query_pubmed_id(&store)?;
+    let mut result = query::pubmed_id(&store)?;
     result.sort();
     assert_eq!(result, &["pmid:4778131", "pmid:5499787", "pmid:874889"]);
     Ok(())
@@ -52,7 +48,7 @@ fn pubmed_id() -> anyhow::Result<()> {
 #[test]
 fn title() -> anyhow::Result<()> {
     let store = xml_to_store(&utils::load_test_data("baylor_hollingworth_chandler_2002_a.cellml")?[..])?;
-    let result = query_dc_title(&store, Some(""))?;
+    let result = query::dc_title(&store, Some(""))?;
     assert_eq!(result, &["Comparison of Simulated and Measured Calcium Sparks in Intact Skeletal Muscle Fibers of the Frog (Reaction A)"]);
     Ok(())
 }

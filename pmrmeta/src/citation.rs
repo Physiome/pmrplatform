@@ -1,6 +1,6 @@
 use std::io::Read;
 use crate::{
-    cellml::meta::query_pubmed_id,
+    cellml::query,
     error::RdfIndexerError,
     read::xml_to_store,
 };
@@ -10,5 +10,5 @@ where
     R: Read
 {
     let store = xml_to_store(reader)?;
-    query_pubmed_id(&store)
+    query::pubmed_id(&store)
 }
