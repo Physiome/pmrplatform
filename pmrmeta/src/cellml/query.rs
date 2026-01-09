@@ -6,6 +6,7 @@ use oxigraph::{
 };
 
 use crate::{
+    cellml::Citation,
     error::RdfIndexerError,
     read::BASE_IRI,
 };
@@ -182,4 +183,43 @@ pub fn license(store: &Store) -> Result<Option<String>, RdfIndexerError> {
     )?
     .get(0)
     .map(Clone::clone))
+}
+
+/// Return the citation from the specified node
+///
+/// Typically this node will be resolved from the cmeta:id defined in the CellML file.
+pub fn citation(store: &Store, node: Option<&str>) -> Result<Vec<Citation>, RdfIndexerError> {
+    query_solutions(
+        store,
+        r#"
+        SELECT ?ref ?pmid ?title ?journal ?volume ?first_page ?last_page ?pdate
+            ?croot
+        WHERE {
+            ?node bqs:reference ?ref .
+            ?ref bqs:JournalArticle ?article .
+            OPTIONAL { ?article dc:creator ?croot } .
+            OPTIONAL { ?article bqs:Journal [ dc:title ?journal ] } .
+            OPTIONAL { ?ref bqs:Pubmed_id ?pmid } .
+            OPTIONAL { ?article dc:title ?title } .
+            OPTIONAL { ?article bqs:volume ?volume } .
+            OPTIONAL { ?article bqs:first_page ?first_page } .
+            OPTIONAL { ?article bqs:last_page ?last_page } .
+            OPTIONAL { ?article dcterms:issued [ dcterms:W3CDTF ?pdate ] } .
+        }
+        "#,
+        node.map(|node| ("node", node)),
+        |solution| {
+            let mut citation = Citation::default();
+            if let Some(Term::Literal(literal)) = solution.get("pmid") {
+                citation.id = Some(format!("urn:miriam:pubmed:{}", literal.value()))
+            }
+            if let Some(Term::Literal(literal)) = solution.get("title") {
+                citation.title = Some(literal.value().to_string())
+            }
+            if let Some(Term::Literal(literal)) = solution.get("journal") {
+                citation.journal = Some(literal.value().to_string())
+            }
+            Some(citation)
+        },
+    )
 }
