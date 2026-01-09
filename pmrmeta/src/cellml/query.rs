@@ -1,7 +1,7 @@
 use oxiri::Iri;
 use oxigraph::{
     model::{NamedNodeRef, Term},
-    sparql::{QueryResults, SparqlEvaluator, Variable},
+    sparql::{QueryResults, QuerySolution, SparqlEvaluator, Variable},
     store::Store,
 };
 
@@ -10,37 +10,31 @@ use crate::{
     read::BASE_IRI,
 };
 
-fn query_items<F>(
+fn query_solutions<F, T>(
     store: &Store,
     query: &'static str,
-    var: &'static str,
-    value: Option<&str>,
-    formatter: F,
-    literal: bool,
-    iri: bool,
-) -> Result<Vec<String>, RdfIndexerError>
+    root_node: Option<(&'static str, &str)>,
+    extractor: F,
+) -> Result<Vec<T>, RdfIndexerError>
 where
-    F: Fn(&str) -> String,
+    F: Fn(QuerySolution) -> Option<T>,
 {
     let mut result = Vec::new();
     let mut query = SparqlEvaluator::new().parse_query(query)?;
 
-    if let Some(value) = value {
-        let iri = Iri::parse(BASE_IRI)?.resolve(value)?;
+    if let Some((node_id, node_iri)) = root_node {
+        let node_iri = Iri::parse(BASE_IRI)?.resolve(node_iri)?;
         query = query.substitute_variable(
-            Variable::new("node").expect("specified static value must parse correctly"),
-            NamedNodeRef::new_unchecked(&iri),
+            Variable::new(node_id).expect("specified static node_id must parse correctly"),
+            NamedNodeRef::new_unchecked(&node_iri),
         );
     }
 
     if let QueryResults::Solutions(solutions) = query.on_store(&store).execute()? {
         for solution in solutions {
             if let Ok(solution) = solution {
-                if literal && let Some(Term::Literal(literal)) = solution.get(var) {
-                    result.push(formatter(literal.value()));
-                }
-                if iri && let Some(Term::NamedNode(literal)) = solution.get(var) {
-                    result.push(formatter(literal.as_str()));
+                if let Some(value) = extractor(solution) {
+                    result.push(value)
                 }
             }
         }
@@ -48,30 +42,68 @@ where
     Ok(result)
 }
 
+fn format_solution<F>(
+    var_id: &'static str,
+    formatter: F,
+    literal: bool,
+    iri: bool,
+) -> impl Fn(QuerySolution) -> Option<String>
+where
+    F: Fn(&str) -> String,
+{
+    move |solution| {
+        if literal && let Some(Term::Literal(literal)) = solution.get(var_id) {
+            Some(formatter(literal.value()))
+        }
+        else if iri && let Some(Term::NamedNode(literal)) = solution.get(var_id) {
+            Some(formatter(literal.as_str()))
+        }
+        else {
+            None
+        }
+    }
+}
+
+
+fn query_items<F>(
+    store: &Store,
+    query: &'static str,
+    root_node: Option<(&'static str, &str)>,
+    var_id: &'static str,
+    formatter: F,
+    literal: bool,
+    iri: bool,
+) -> Result<Vec<String>, RdfIndexerError>
+where
+    F: Fn(&str) -> String,
+{
+    query_solutions(store, query, root_node, format_solution(var_id, formatter, literal, iri))
+}
+
 fn query_literals<F>(
     store: &Store,
     query: &'static str,
-    var: &'static str,
-    value: Option<&str>,
+    root_node: Option<(&'static str, &str)>,
+    var_id: &'static str,
     formatter: F,
 ) -> Result<Vec<String>, RdfIndexerError>
 where
     F: Fn(&str) -> String,
 {
-    query_items(store, query, var, value, formatter, true, false)
+    query_items(store, query, root_node, var_id, formatter, true, false)
 }
 
 fn query_iris<F>(
     store: &Store,
     query: &'static str,
-    var: &'static str,
-    value: Option<&str>,
+    root_node: Option<(&'static str, &str)>,
+    var_id: &'static str,
     formatter: F,
 ) -> Result<Vec<String>, RdfIndexerError>
 where
     F: Fn(&str) -> String,
 {
-    query_items(store, query, var, value, formatter, false, true)
+    query_items(store, query, root_node, var_id, formatter, false, true)
 }
 
 pub fn keywords(store: &Store) -> Result<Vec<String>, RdfIndexerError> {
@@ -89,8 +121,8 @@ pub fn keywords(store: &Store) -> Result<Vec<String>, RdfIndexerError> {
                 ?container ?li ?value .
             }
         "#,
-        "value",
         None,
+        "value",
         str::to_string,
     )
 }
@@ -108,8 +140,8 @@ pub fn pubmed_id(store: &Store) -> Result<Vec<String>, RdfIndexerError> {
                 OPTIONAL { ?ref bqs:Pubmed_id ?pmid } .
             }
         "#,
-        "pmid",
         None,
+        "pmid",
         |pmid| format!("pmid:{pmid}"),
     )
 }
@@ -126,8 +158,8 @@ pub fn dc_title(store: &Store, node: Option<&str>) -> Result<Vec<String>, RdfInd
                 ?node dc:title ?title .
             }
         "#,
+        node.map(|node| ("node", node)),
         "title",
-        node,
         str::to_string,
     )
 }
@@ -144,8 +176,8 @@ pub fn license(store: &Store) -> Result<Option<String>, RdfIndexerError> {
                 ?node dcterms:license ?license .
             }
         "#,
+        Some(("node", "")),
         "license",
-        Some(""),
         str::to_string,
     )?
     .get(0)
