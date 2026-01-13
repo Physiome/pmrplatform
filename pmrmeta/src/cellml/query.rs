@@ -1,20 +1,33 @@
-use oxiri::Iri;
+use oxiri::{IriParseError, IriRef};
 use oxigraph::{
-    model::{NamedNodeRef, Term},
+    model::{NamedNode, Term},
     sparql::{QueryResults, QuerySolution, SparqlEvaluator, Variable},
     store::Store,
 };
 
 use crate::{
-    cellml::Citation,
+    cellml::{Citation, CitationAuthor},
     error::RdfIndexerError,
     read::BASE_IRI,
 };
 
+fn join_iri(iri: &str) -> Result<NamedNode, IriParseError> {
+    Ok(NamedNode::new_unchecked(
+        IriRef::parse(BASE_IRI)?
+            .resolve(iri)?
+            .into_inner()
+    ))
+}
+
+fn named_node(node: Option<(&'static str, &str)>) -> Result<Option<(&'static str, NamedNode)>, IriParseError> {
+    node.map(|(name, iri)| Ok::<_, IriParseError>((name, join_iri(iri)?)))
+        .transpose()
+}
+
 fn query_solutions<F, T>(
     store: &Store,
     query: &'static str,
-    root_node: Option<(&'static str, &str)>,
+    root_node: Option<(&'static str, impl Into<Term>)>,
     extractor: F,
 ) -> Result<Vec<T>, RdfIndexerError>
 where
@@ -23,12 +36,10 @@ where
     let mut result = Vec::new();
     let mut query = SparqlEvaluator::new().parse_query(query)?;
 
-    if let Some((node_id, node_iri)) = root_node {
-        let node_iri = Iri::parse(BASE_IRI)?.resolve(node_iri)?;
-        query = query.substitute_variable(
-            Variable::new(node_id).expect("specified static node_id must parse correctly"),
-            NamedNodeRef::new_unchecked(&node_iri),
-        );
+    if let Some((node_id, term)) = root_node {
+        let var = Variable::new(node_id)
+            .expect("specified static node_id must parse correctly");
+        query = query.substitute_variable(var, term);
     }
 
     if let QueryResults::Solutions(solutions) = query.on_store(&store).execute()? {
@@ -78,7 +89,12 @@ fn query_items<F>(
 where
     F: Fn(&str) -> String,
 {
-    query_solutions(store, query, root_node, format_solution(var_id, formatter, literal, iri))
+    Ok(query_solutions(
+        store,
+        query,
+        named_node(root_node)?,
+        format_solution(var_id, formatter, literal, iri),
+    )?)
 }
 
 fn query_literals<F>(
@@ -189,9 +205,13 @@ pub fn license(store: &Store) -> Result<Option<String>, RdfIndexerError> {
 ///
 /// Typically this node will be resolved from the cmeta:id defined in the CellML file.
 pub fn citation(store: &Store, node: Option<&str>) -> Result<Vec<Citation>, RdfIndexerError> {
-    query_solutions(
+    Ok(query_solutions(
         store,
         r#"
+        PREFIX bqs: <http://www.cellml.org/bqs/1.0#>
+        PREFIX dc: <http://purl.org/dc/elements/1.1/>
+        PREFIX dcterms: <http://purl.org/dc/terms/>
+
         SELECT ?ref ?pmid ?title ?journal ?volume ?first_page ?last_page ?pdate
             ?croot
         WHERE {
@@ -207,7 +227,7 @@ pub fn citation(store: &Store, node: Option<&str>) -> Result<Vec<Citation>, RdfI
             OPTIONAL { ?article dcterms:issued [ dcterms:W3CDTF ?pdate ] } .
         }
         "#,
-        node.map(|node| ("node", node)),
+        named_node(node.map(|node| ("node", node)))?,
         |solution| {
             let mut citation = Citation::default();
             if let Some(Term::Literal(literal)) = solution.get("pmid") {
@@ -219,7 +239,122 @@ pub fn citation(store: &Store, node: Option<&str>) -> Result<Vec<Citation>, RdfI
             if let Some(Term::Literal(literal)) = solution.get("journal") {
                 citation.journal = Some(literal.value().to_string())
             }
+            if let Some(Term::Literal(literal)) = solution.get("volume") {
+                citation.volume = Some(literal.value().to_string())
+            }
+            if let Some(Term::Literal(literal)) = solution.get("first_page") {
+                citation.first_page = Some(literal.value().to_string())
+            }
+            if let Some(Term::Literal(literal)) = solution.get("last_page") {
+                citation.last_page = Some(literal.value().to_string())
+            }
+            if let Some(Term::Literal(literal)) = solution.get("issued") {
+                citation.issued = Some(literal.value().to_string())
+            }
+            if let Some(Term::NamedNode(node)) = solution.get("croot") {
+                if let Ok(authors) = creators(store, node.clone()) {
+                    citation.authors = authors
+                }
+            }
+            if let Some(Term::BlankNode(node)) = solution.get("croot") {
+                if let Ok(authors) = creators(store, node.clone()) {
+                    citation.authors = authors
+                }
+            }
             Some(citation)
         },
-    )
+    )?)
+}
+
+pub fn creators(store: &Store, node: impl Into<Term>) -> Result<Vec<CitationAuthor>, RdfIndexerError> {
+    // first, gather all terms associated with vcards under the node of interest
+    let term = node.into();
+
+    let mut vcard_terms = Vec::new();
+    vcard_terms.append(&mut query_solutions(
+        store,
+        r#"
+	PREFIX bqs: <http://www.cellml.org/bqs/1.0#>
+	PREFIX vCard: <http://www.w3.org/2001/vcard-rdf/3.0#>
+
+	SELECT ?node ?vcnode
+	WHERE {
+	    ?node ?li ?creator .
+	    ?creator bqs:Person ?person .
+	    ?person vCard:N ?vcnode .
+	}
+	ORDER BY ?li
+        "#,
+        Some(("node", term.clone())),
+        |solution| solution.get("vcnode").map(Clone::clone),
+    )?);
+    vcard_terms.append(&mut query_solutions(
+        store,
+        r#"
+	PREFIX bqs: <http://www.cellml.org/bqs/1.0#>
+	PREFIX vCard: <http://www.w3.org/2001/vcard-rdf/3.0#>
+
+	SELECT ?node ?vcnode
+	WHERE {
+	    ?node ?li ?creator .
+	    ?creator vCard:N ?vcnode .
+	}
+	ORDER BY ?li
+        "#,
+        Some(("node", term.clone())),
+        |solution| solution.get("vcnode").map(Clone::clone),
+    )?);
+
+    let mut results = Vec::new();
+
+    for vcard_term in vcard_terms.into_iter() {
+        if let Some(mut author) = query_solutions(
+            store,
+            r#"
+            PREFIX vCard: <http://www.w3.org/2001/vcard-rdf/3.0#>
+
+            SELECT ?vcnode ?family ?given
+            WHERE {
+                ?vcnode vCard:Family ?family .
+                OPTIONAL { ?vcnode vCard:Given ?given } .
+            }
+            ORDER BY ?li
+            "#,
+            Some(("vcnode", vcard_term.clone())),
+            |solution| {
+                let mut author = CitationAuthor::default();
+                if let Some(Term::Literal(literal)) = solution.get("family") {
+                    author.family = literal.value().to_string();
+                }
+                if let Some(Term::Literal(literal)) = solution.get("given") {
+                    author.given = Some(literal.value().to_string());
+                }
+                Some(author)
+            }
+        )?.pop() {
+            author.other = query_solutions(
+                store,
+                r#"
+                PREFIX vCard: <http://www.w3.org/2001/vcard-rdf/3.0#>
+
+                SELECT ?vcnode ?other
+                WHERE {
+                    ?vcnode vCard:Other ?other .
+                }
+                ORDER BY ?li
+                "#,
+                Some(("vcnode", vcard_term)),
+                |solution| {
+                    if let Some(Term::Literal(literal)) = solution.get("other") {
+                        Some(literal.value().to_string())
+                    } else {
+                        None
+                    }
+                }
+            )?;
+            results.push(author);
+        }
+    }
+
+    Ok(results)
 }

@@ -13,6 +13,7 @@ pmrcore = { workspace = true }
 pmrctrl = { workspace = true }
 pmrdb = { workspace = true }
 pmrmodel = { workspace = true }
+serde = { workspace = true }
 stderrlog = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["sync", "fs"] }
