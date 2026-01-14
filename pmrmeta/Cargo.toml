@@ -19,6 +19,9 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["sync", "fs"] }
 xee-xpath = { workspace = true }
 
+[dev-dependencies]
+serde_json = { workspace = true }
+
 [features]
 sqlite = [
     "pmrctrl/sqlite",

@@ -249,6 +249,7 @@ pub fn citation(store: &Store, node: Option<&str>) -> Result<Vec<Citation>, RdfI
                 citation.last_page = Some(literal.value().to_string())
             }
             if let Some(Term::Literal(literal)) = solution.get("issued") {
+                // TODO verify the value is in fact a date
                 citation.issued = Some(literal.value().to_string())
             }
             if let Some(Term::NamedNode(node)) = solution.get("croot") {
