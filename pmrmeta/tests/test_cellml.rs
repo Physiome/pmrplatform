@@ -2,6 +2,7 @@ use oxigraph::store::Store;
 use pmrmeta::{
     cellml::{
         Citation,
+        VCardInfo,
         query,
     },
     read::{
@@ -137,6 +138,40 @@ fn citation_blank_nodes() -> anyhow::Result<()> {
 	"last_page": "1236",
 	"issued": null
     }]"#)?;
+    assert_eq!(result, expected);
+    Ok(())
+}
+
+#[test]
+fn dc_card_info_base() -> anyhow::Result<()> {
+    let store = xml_to_store(&utils::load_test_data("example_model.cellml")?[..])?;
+    let result = query::dc_vcard_info(&store, Some(""))?;
+    let expected = serde_json::from_str::<Vec<VCardInfo>>(r#"[{
+        "family": "Family",
+        "given": "Given",
+        "orgname": "Example Organization",
+        "orgunit": "Example Subsidary"
+    }]"#)?;
+    assert_eq!(result, expected);
+    Ok(())
+}
+
+#[test]
+fn dc_card_info_multi_creator() -> anyhow::Result<()> {
+    let store = xml_to_store(&utils::load_test_data("example_model_multi_creator.cellml")?[..])?;
+    let mut result = query::dc_vcard_info(&store, Some(""))?;
+    let expected = serde_json::from_str::<Vec<VCardInfo>>(r#"[{
+        "family": "FirstFamily",
+        "given": "FirstGiven",
+        "orgname": "Example Organization",
+        "orgunit": "Example Subsidary"
+    }, {
+        "family": "SecondFamily",
+        "given": "SecondGiven",
+        "orgname": "Example Organization",
+        "orgunit": "Example Subsidary"
+    }]"#)?;
+    result.sort_unstable_by(|a, b| a.family.cmp(&b.family));
     assert_eq!(result, expected);
     Ok(())
 }

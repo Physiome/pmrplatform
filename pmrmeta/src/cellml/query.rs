@@ -6,7 +6,7 @@ use oxigraph::{
 };
 
 use crate::{
-    cellml::{Citation, CitationAuthor},
+    cellml::{Citation, CitationAuthor, VCardInfo},
     error::RdfIndexerError,
     read::BASE_IRI,
 };
@@ -358,4 +358,91 @@ pub fn creators(store: &Store, node: impl Into<Term>) -> Result<Vec<CitationAuth
     }
 
     Ok(results)
+}
+
+pub fn dc_vcard_info(store: &Store, node: Option<&str>) -> Result<Vec<VCardInfo>, RdfIndexerError> {
+    let solution = |solution: QuerySolution| {
+        let mut info = VCardInfo::default();
+        let mut valid = false;
+        if let Some(Term::Literal(literal)) = solution.get("family") {
+            info.family = Some(literal.value().to_string());
+            valid = true;
+        }
+        if let Some(Term::Literal(literal)) = solution.get("given") {
+            info.given = Some(literal.value().to_string());
+            valid = true;
+        }
+        if let Some(Term::Literal(literal)) = solution.get("orgname") {
+            info.orgname = Some(literal.value().to_string());
+            valid = true;
+        }
+        if let Some(Term::Literal(literal)) = solution.get("orgunit") {
+            info.orgunit = Some(literal.value().to_string());
+            valid = true;
+        }
+        valid.then_some(info)
+    };
+
+    let named_node = named_node(node.map(|node| ("node", node)))?;
+
+    // First query against the structured version with list items; if this has the results,
+    // this gets returned immediately.
+    let results = query_solutions(
+        store,
+        r#"
+        PREFIX dc: <http://purl.org/dc/elements/1.1/>
+        PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        PREFIX vCard: <http://www.w3.org/2001/vcard-rdf/3.0#>
+
+        SELECT ?node ?family ?given ?orgname ?orgunit
+        WHERE {
+            ?node dc:creator ?creator .
+            ?creator ?li ?creators .
+            ?creator rdf:type ?containertype .
+            FILTER regex(str(?li),
+                '^http://www.w3.org/1999/02/22-rdf-syntax-ns#_') .
+            OPTIONAL {
+                ?creators vCard:N ?vcname .
+                OPTIONAL { ?vcname vCard:Family ?family } .
+                OPTIONAL { ?vcname vCard:Given ?given } .
+            } .
+            OPTIONAL {
+                ?creators vCard:ORG ?vcorg .
+                OPTIONAL { ?vcorg vCard:Orgname ?orgname } .
+                OPTIONAL { ?vcorg vCard:Orgunit ?orgunit } .
+            } .
+        }
+        "#,
+        named_node.clone(),
+        solution,
+    )?;
+    if results.len() > 0 {
+        return Ok(results);
+    }
+
+    Ok(query_solutions(
+        store,
+        r#"
+        PREFIX dc: <http://purl.org/dc/elements/1.1/>
+        PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        PREFIX vCard: <http://www.w3.org/2001/vcard-rdf/3.0#>
+
+        SELECT ?node ?family ?given ?orgname ?orgunit
+        WHERE {
+            ?node dc:creator ?creator .
+            OPTIONAL {
+                ?creator vCard:N ?vcname .
+                OPTIONAL { ?vcname vCard:Family ?family } .
+                OPTIONAL { ?vcname vCard:Given ?given } .
+            } .
+            OPTIONAL {
+                ?creator vCard:ORG ?vcorg .
+                OPTIONAL { ?vcorg vCard:Orgname ?orgname } .
+                OPTIONAL { ?vcorg vCard:Orgunit ?orgunit } .
+            } .
+        }
+        "#,
+        named_node,
+        solution,
+    )?)
 }
