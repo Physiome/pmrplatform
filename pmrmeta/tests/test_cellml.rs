@@ -19,6 +19,13 @@ fn keywords1() -> anyhow::Result<()> {
     let mut result = query::keywords(&store)?;
     result.sort();
     assert_eq!(result, &["electrophysiological", "ventricular myocyte"]);
+
+    let mut result = query::contextual_keywords(&store)?;
+    result.sort();
+    assert_eq!(result.iter().map(|(n, v)| (n.as_str(), v.as_str())).collect::<Vec<_>>(), &[
+        ("#beeler_reuter_mammalian_ventricle_1977", "electrophysiological"),
+        ("#beeler_reuter_mammalian_ventricle_1977", "ventricular myocyte"),
+    ]);
     Ok(())
 }
 
@@ -28,6 +35,13 @@ fn keywords2() -> anyhow::Result<()> {
     let mut result = query::keywords(&store)?;
     result.sort();
     assert_eq!(result, &["electrophysiology", "skeletal muscle"]);
+
+    let mut result = query::contextual_keywords(&store)?;
+    result.sort();
+    assert_eq!(result.iter().map(|(n, v)| (n.as_str(), v.as_str())).collect::<Vec<_>>(), &[
+        ("#Adrian_Chandler_Hodgkin_Frog_Sartorius_1970", "electrophysiology"),
+        ("#Adrian_Chandler_Hodgkin_Frog_Sartorius_1970", "skeletal muscle"),
+    ]);
     Ok(())
 }
 

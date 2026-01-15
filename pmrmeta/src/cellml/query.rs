@@ -127,20 +127,55 @@ pub fn keywords(store: &Store) -> Result<Vec<String>, RdfIndexerError> {
     query_literals(
         store,
         r#"
-            PREFIX bqs: <http://www.cellml.org/bqs/1.0#>
-            PREFIX dc: <http://purl.org/dc/elements/1.1/>
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        PREFIX bqs: <http://www.cellml.org/bqs/1.0#>
+        PREFIX dc: <http://purl.org/dc/elements/1.1/>
+        PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 
-            SELECT ?cmetaid ?value
-            WHERE {
-                ?cmetaid bqs:reference ?bqs .
-                ?bqs dc:subject [ rdf:value ?container ] .
-                ?container ?li ?value .
-            }
+        SELECT ?cmetaid ?value
+        WHERE {
+            ?cmetaid bqs:reference ?bqs .
+            ?bqs dc:subject [ rdf:value ?container ] .
+            ?container ?li ?value .
+        }
         "#,
         None,
         "value",
         str::to_string,
+    )
+}
+
+/// This version returns the context of which the keyword resides in.
+pub fn contextual_keywords(store: &Store) -> Result<Vec<(String, String)>, RdfIndexerError> {
+    query_solutions(
+        store,
+        r#"
+        PREFIX bqs: <http://www.cellml.org/bqs/1.0#>
+        PREFIX dc: <http://purl.org/dc/elements/1.1/>
+        PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+        SELECT ?cmetaid ?value
+        WHERE {
+            ?cmetaid bqs:reference ?bqs .
+            ?bqs dc:subject [ rdf:value ?container ] .
+            ?container ?li ?value .
+        }
+        "#,
+        None::<(_, Term)>,
+        |solution| {
+            if let Some(Term::NamedNode(cmetaid)) = solution.get("cmetaid") {
+                if let Some(Term::Literal(value)) = solution.get("value") {
+                    if cmetaid.as_str().starts_with(BASE_IRI) {
+                        return Some((
+                            cmetaid.as_str()[BASE_IRI.len()..].to_string(),
+                            value.value().to_string(),
+                        ))
+                    } else {
+                        return Some((cmetaid.to_string(), value.value().to_string()))
+                    }
+                }
+            }
+            None
+        }
     )
 }
 
