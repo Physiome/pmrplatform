@@ -8,6 +8,20 @@ use oxigraph::{
 
 #[non_exhaustive]
 #[derive(Debug, Error)]
+pub enum XeeError {
+    // TODO figure out how much info to actually include here
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+    #[error(transparent)]
+    XeeDocumentsError(#[from] xee_xpath::error::DocumentsError),
+    #[error(transparent)]
+    XeeErrorValue(#[from] xee_xpath::error::ErrorValue),
+    #[error(transparent)]
+    XeeXpathError(#[from] xee_xpath::error::Error),
+}
+
+#[non_exhaustive]
+#[derive(Debug, Error)]
 pub enum RdfIndexerError {
     // TODO figure out how much info to actually include here
     #[error(transparent)]
@@ -23,9 +37,5 @@ pub enum RdfIndexerError {
     #[error(transparent)]
     SparqlSyntaxError(#[from] SparqlSyntaxError),
     #[error(transparent)]
-    XeeDocumentsError(#[from] xee_xpath::error::DocumentsError),
-    #[error(transparent)]
-    XeeErrorValue(#[from] xee_xpath::error::ErrorValue),
-    #[error(transparent)]
-    XeeXpathError(#[from] xee_xpath::error::Error),
+    XeeError(#[from] XeeError),
 }

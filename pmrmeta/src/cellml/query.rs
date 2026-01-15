@@ -8,7 +8,7 @@ use oxigraph::{
 use crate::{
     cellml::{Citation, CitationAuthor, VCardInfo},
     error::RdfIndexerError,
-    read::BASE_IRI,
+    xml::BASE_IRI,
 };
 
 fn join_iri(iri: &str) -> Result<NamedNode, IriParseError> {

@@ -1,6 +1,7 @@
 use oxigraph::store::Store;
 use pmrmeta::{
     cellml::{
+        cmeta::Cmeta,
         Citation,
         VCardInfo,
         query,
@@ -73,8 +74,8 @@ fn title() -> anyhow::Result<()> {
 
 #[test]
 fn license() -> anyhow::Result<()> {
-    let store = xml_to_store(&utils::load_test_data("example_model.cellml")?[..])?;
-    let result = query::license(&store)?;
+    let cmeta = Cmeta::new(&utils::load_test_data("example_model.cellml")?[..])?;
+    let result = cmeta.license()?;
     assert_eq!(result.as_deref(), Some("http://example.com/license"));
     Ok(())
 }
@@ -187,5 +188,17 @@ fn dc_card_info_multi_creator() -> anyhow::Result<()> {
     }]"#)?;
     result.sort_unstable_by(|a, b| a.family.cmp(&b.family));
     assert_eq!(result, expected);
+    Ok(())
+}
+
+#[test]
+fn cmetaids() -> anyhow::Result<()> {
+    let cmeta = Cmeta::new(&utils::load_test_data("baylor_hollingworth_chandler_2002_a.cellml")?[..])?;
+    assert_eq!(cmeta.root_cmetaid(), Some("baylor_2002a"));
+    assert_eq!(cmeta.cmetaids().len(), 5);
+
+    let cmeta = Cmeta::new(&utils::load_test_data("example_model.cellml")?[..])?;
+    assert_eq!(cmeta.root_cmetaid(), Some("complex_model"));
+    assert_eq!(cmeta.cmetaids().len(), 3);
     Ok(())
 }
