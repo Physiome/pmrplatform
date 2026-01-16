@@ -29,3 +29,29 @@ pub struct VCardInfo {
     pub orgname: Option<String>,
     pub orgunit: Option<String>,
 }
+
+impl VCardInfo {
+    pub fn fullname(&self) -> Option<String> {
+        let mut result = None;
+        if let Some(given) = &self.given {
+            result.get_or_insert(given.to_string());
+        }
+        if let Some(family) = &self.family {
+            result = Some(result.map(|x| format!("{x} {family}"))
+                .unwrap_or_else(|| family.to_string()));
+        }
+        result
+    }
+
+    pub fn org(&self) -> Option<String> {
+        let mut result = None;
+        if let Some(orgunit) = &self.orgunit {
+            result.get_or_insert(orgunit.to_string());
+        }
+        if let Some(orgname) = &self.orgname {
+            result = Some(result.map(|x| format!("{x}, {orgname}"))
+                .unwrap_or_else(|| orgname.to_string()));
+        }
+        result
+    }
+}

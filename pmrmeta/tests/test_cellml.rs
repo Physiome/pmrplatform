@@ -158,6 +158,24 @@ fn citation_blank_nodes() -> anyhow::Result<()> {
 }
 
 #[test]
+fn vcard_helpers() -> anyhow::Result<()> {
+    let vcard = serde_json::from_str::<VCardInfo>(r#"{
+        "family": "Family",
+        "orgname": "Example Organization"
+    }"#)?;
+    assert_eq!(vcard.fullname().as_deref(), Some("Family"));
+    assert_eq!(vcard.org().as_deref(), Some("Example Organization"));
+
+    let vcard = serde_json::from_str::<VCardInfo>(r#"{
+        "given": "Given",
+        "orgunit": "Subsidary"
+    }"#)?;
+    assert_eq!(vcard.fullname().as_deref(), Some("Given"));
+    assert_eq!(vcard.org().as_deref(), Some("Subsidary"));
+    Ok(())
+}
+
+#[test]
 fn dc_card_info_base() -> anyhow::Result<()> {
     let store = xml_to_store(&utils::load_test_data("example_model.cellml")?[..])?;
     let result = query::dc_vcard_info(&store, Some(""))?;
@@ -168,6 +186,8 @@ fn dc_card_info_base() -> anyhow::Result<()> {
         "orgunit": "Example Subsidary"
     }]"#)?;
     assert_eq!(result, expected);
+    assert_eq!(result[0].fullname().as_deref(), Some("Given Family"));
+    assert_eq!(result[0].org().as_deref(), Some("Example Subsidary, Example Organization"));
     Ok(())
 }
 
