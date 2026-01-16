@@ -24,6 +24,7 @@ default-members = [
     "pmrcore",
     "pmrdb",
     "pmrdb_sqlite",
+    "pmrmeta",
     "pmrmodel",
     "pmrrbac",
     "pmrrepo",

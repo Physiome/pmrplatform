@@ -64,4 +64,16 @@ pub trait IndexBackend {
         }
         Ok(())
     }
+
+    async fn resource_link_kind_with_term(
+        &self,
+        resource_path: &str,
+        kind: &str,
+        term: &str,
+    ) -> Result<(), BackendError> {
+        let idx_kind_id = self.resolve_kind(kind).await?;
+        let idx_entry_id = self.resolve_idx_entry(idx_kind_id, term).await?;
+        self.add_idx_entry_link(idx_entry_id, &resource_path).await?;
+        Ok(())
+    }
 }

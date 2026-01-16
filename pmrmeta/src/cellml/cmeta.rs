@@ -18,17 +18,19 @@ pub struct Cmeta {
 #[derive(Default, Deserialize, Serialize)]
 pub struct Pmr2Cmeta {
     #[serde(rename = "citation_bibliographicCitation")]
-    citation_bibliographic_citation: Option<String>,
+    pub citation_bibliographic_citation: Option<String>,
     // names (last, first, second)
-    citation_authors: Option<Vec<(String, String, String)>>,
-    citation_title: Option<String>,
-    citation_id: Option<String>,
-    citation_issued: Option<String>,
-    model_author: Option<String>,
-    model_author_org: Option<String>,
-    model_title: Option<String>,
+    pub citation_authors: Option<Vec<(String, String, String)>>,
+    pub citation_title: Option<String>,
+    pub citation_id: Option<String>,
+    pub citation_issued: Option<String>,
+    pub model_author: Option<String>,
+    pub model_author_org: Option<String>,
+    pub model_title: Option<String>,
     // keyword (location, identifier)
-    keywords: Option<Vec<(String, String)>>,
+    pub keywords: Option<Vec<(String, String)>>,
+
+    pub citations: Vec<Citation>,
 }
 
 impl Cmeta {

@@ -14,13 +14,11 @@ pmrctrl = { workspace = true }
 pmrdb = { workspace = true }
 pmrmodel = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 stderrlog = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["sync", "fs"] }
 xee-xpath = { workspace = true }
-
-[dev-dependencies]
-serde_json = { workspace = true }
 
 [features]
 sqlite = [
