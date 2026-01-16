@@ -100,7 +100,7 @@ fn citation_named_nodes() -> anyhow::Result<()> {
         "volume": "235",
         "first_page": "103",
         "last_page": "131",
-        "issued": null
+        "issued": "1973-01-01"
     }, {
         "id": "urn:miriam:pubmed:5499787",
         "authors": [{
@@ -121,7 +121,7 @@ fn citation_named_nodes() -> anyhow::Result<()> {
         "volume": "208",
         "first_page": "607",
         "last_page": "644",
-        "issued": null
+        "issued": "1970-01-01"
     }]"#)?;
     assert_eq!(result, expected);
     Ok(())
@@ -151,7 +151,7 @@ fn citation_blank_nodes() -> anyhow::Result<()> {
 	"volume": "11",
 	"first_page": "1234",
 	"last_page": "1236",
-	"issued": null
+	"issued": "2009-00-00 00:00"
     }]"#)?;
     assert_eq!(result, expected);
     Ok(())

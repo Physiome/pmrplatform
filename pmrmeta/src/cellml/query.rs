@@ -76,7 +76,6 @@ where
     }
 }
 
-
 fn query_items<F>(
     store: &Store,
     query: &'static str,
@@ -185,7 +184,7 @@ pub fn pubmed_id(store: &Store) -> Result<Vec<String>, RdfIndexerError> {
         r#"
             PREFIX bqs: <http://www.cellml.org/bqs/1.0#>
 
-            SELECT ?ref ?pmid
+            SELECT ?node ?ref ?pmid
             WHERE {
                 ?node bqs:reference ?ref .
                 ?ref bqs:JournalArticle ?article .
@@ -247,7 +246,7 @@ pub fn citation(store: &Store, node: Option<&str>) -> Result<Vec<Citation>, RdfI
         PREFIX dc: <http://purl.org/dc/elements/1.1/>
         PREFIX dcterms: <http://purl.org/dc/terms/>
 
-        SELECT ?ref ?pmid ?title ?journal ?volume ?first_page ?last_page ?pdate
+        SELECT ?node ?ref ?pmid ?title ?journal ?volume ?first_page ?last_page ?pdate
             ?croot
         WHERE {
             ?node bqs:reference ?ref .
@@ -283,7 +282,7 @@ pub fn citation(store: &Store, node: Option<&str>) -> Result<Vec<Citation>, RdfI
             if let Some(Term::Literal(literal)) = solution.get("last_page") {
                 citation.last_page = Some(literal.value().to_string())
             }
-            if let Some(Term::Literal(literal)) = solution.get("issued") {
+            if let Some(Term::Literal(literal)) = solution.get("pdate") {
                 // TODO verify the value is in fact a date
                 citation.issued = Some(literal.value().to_string())
             }
