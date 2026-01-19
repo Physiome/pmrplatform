@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use async_trait::async_trait;
 use pmrcore::{
     error::BackendError,
@@ -5,6 +6,7 @@ use pmrcore::{
         IdxKind,
         IndexResourceSet,
         IndexTerms,
+        ResourceKindedTerms,
         traits::IndexBackend,
     }
 };
@@ -269,6 +271,43 @@ WHERE
     }))
 }
 
+async fn get_resource_kinded_terms_sqlite(
+    backend: &SqliteBackend,
+    resource_path: &str,
+) -> Result<ResourceKindedTerms, BackendError> {
+    let data = sqlx::query!(
+        r#"
+SELECT
+    idx_kind.description AS kind,
+    idx_entry.term AS term
+FROM
+    idx_entry_link
+JOIN
+    idx_entry ON idx_entry_link.idx_entry_id == idx_entry.id
+JOIN
+    idx_kind ON idx_entry.idx_kind_id == idx_kind.id
+WHERE
+    resource_path = ?1
+        "#,
+        resource_path,
+    )
+    .map(|row| (row.kind, row.term))
+    .fetch_all(&*backend.pool)
+    .await?
+    .into_iter()
+    .fold(BTreeMap::<String, Vec<String>>::new(), |mut data, (kind, term)| {
+        data.entry(kind)
+            .or_insert_with(|| Vec::new())
+            .push(term);
+        data
+    });
+
+    Ok(ResourceKindedTerms {
+        resource_path: resource_path.to_string(),
+        data,
+    })
+}
+
 #[async_trait]
 impl IndexBackend for SqliteBackend {
     async fn resolve_kind(
@@ -319,6 +358,13 @@ impl IndexBackend for SqliteBackend {
         term: &str,
     ) -> Result<Option<IndexResourceSet>, BackendError> {
         list_resources_sqlite(self, kind, term).await
+    }
+
+    async fn get_resource_kinded_terms(
+        &self,
+        resource_path: &str,
+    ) -> Result<ResourceKindedTerms, BackendError> {
+        get_resource_kinded_terms_sqlite(self, resource_path).await
     }
 
 }

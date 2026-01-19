@@ -47,8 +47,11 @@ pub trait IndexBackend {
         term: &str,
     ) -> Result<Option<IndexResourceSet>, BackendError>;
 
-    // TODO there also needs to be an inverse of the above, list terms associated
-    // with the resource.
+    /// Get the kinded terms for the given resource path
+    async fn get_resource_kinded_terms(
+        &self,
+        resource_path: &str,
+    ) -> Result<ResourceKindedTerms, BackendError>;
 
     async fn resource_link_kind_with_terms(
         &self,

@@ -46,6 +46,7 @@ use pmrcore::{
         traits::IndexBackend,
         IndexTerms,
         IndexResourceSet,
+        ResourceKindedTerms,
     },
     platform::{
         DefaultMCPlatform,
@@ -728,6 +729,13 @@ impl IndexBackend for MockPlatform {
         _kind: &str,
         _term: &str,
     ) -> Result<Option<IndexResourceSet>, BackendError> {
+        unimplemented!()
+    }
+
+    async fn get_resource_kinded_terms(
+        &self,
+        _resource_path: &str,
+    ) -> Result<ResourceKindedTerms, BackendError> {
         unimplemented!()
     }
 }

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\nSELECT\n    idx_kind.description AS kind,\n    idx_entry.term AS term\nFROM\n    idx_entry_link\nJOIN\n    idx_entry ON idx_entry_link.idx_entry_id == idx_entry.id\nJOIN\n    idx_kind ON idx_entry.idx_kind_id == idx_kind.id\nWHERE\n    resource_path = ?1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "kind",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "term",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "df798c851188f65e77c8c14121bb2633e9ba4f8341c614d15c422b43f87dc091"
+}

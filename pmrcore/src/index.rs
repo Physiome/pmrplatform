@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 /// The underlying raw entity for the kind of the index
@@ -41,6 +42,14 @@ pub struct IndexResourceSet {
     // TODO need to have an API that turn the resource_path into a fully form record type that
     // will provide the actual alias associated with any given path.
     pub resource_paths: Vec<String>,
+}
+
+/// A listing of resources for a particular term under a particular index identified by [`IdxKind`].
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
+pub struct ResourceKindedTerms {
+    pub resource_path: String,
+    pub data: BTreeMap<String, Vec<String>>,
 }
 
 pub mod traits;
