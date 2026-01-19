@@ -65,7 +65,7 @@ where
 {
     move |solution| {
         if literal && let Some(Term::Literal(literal)) = solution.get(var_id) {
-            Some(formatter(literal.value()))
+            Some(formatter(literal.value().trim()))
         }
         else if iri && let Some(Term::NamedNode(literal)) = solution.get(var_id) {
             Some(formatter(literal.as_str()))
@@ -166,10 +166,10 @@ pub fn contextual_keywords(store: &Store) -> Result<Vec<(String, String)>, RdfIn
                     if cmetaid.as_str().starts_with(BASE_IRI) {
                         return Some((
                             cmetaid.as_str()[BASE_IRI.len()..].to_string(),
-                            value.value().to_string(),
+                            value.value().trim().to_string(),
                         ))
                     } else {
-                        return Some((cmetaid.to_string(), value.value().to_string()))
+                        return Some((cmetaid.to_string(), value.value().trim().to_string()))
                     }
                 }
             }
@@ -211,7 +211,7 @@ pub fn dc_title(store: &Store, node: Option<&str>) -> Result<Vec<String>, RdfInd
         "#,
         node.map(|node| ("node", node)),
         "title",
-        str::to_string,
+        |s| s.trim().to_string(),
     )
 }
 
@@ -265,26 +265,26 @@ pub fn citation(store: &Store, node: Option<&str>) -> Result<Vec<Citation>, RdfI
         |solution| {
             let mut citation = Citation::default();
             if let Some(Term::Literal(literal)) = solution.get("pmid") {
-                citation.id = Some(format!("urn:miriam:pubmed:{}", literal.value()))
+                citation.id = Some(format!("urn:miriam:pubmed:{}", literal.value().trim()))
             }
             if let Some(Term::Literal(literal)) = solution.get("title") {
-                citation.title = Some(literal.value().to_string())
+                citation.title = Some(literal.value().trim().to_string())
             }
             if let Some(Term::Literal(literal)) = solution.get("journal") {
-                citation.journal = Some(literal.value().to_string())
+                citation.journal = Some(literal.value().trim().to_string())
             }
             if let Some(Term::Literal(literal)) = solution.get("volume") {
-                citation.volume = Some(literal.value().to_string())
+                citation.volume = Some(literal.value().trim().to_string())
             }
             if let Some(Term::Literal(literal)) = solution.get("first_page") {
-                citation.first_page = Some(literal.value().to_string())
+                citation.first_page = Some(literal.value().trim().to_string())
             }
             if let Some(Term::Literal(literal)) = solution.get("last_page") {
-                citation.last_page = Some(literal.value().to_string())
+                citation.last_page = Some(literal.value().trim().to_string())
             }
             if let Some(Term::Literal(literal)) = solution.get("pdate") {
                 // TODO verify the value is in fact a date
-                citation.issued = Some(literal.value().to_string())
+                citation.issued = Some(literal.value().trim().to_string())
             }
             if let Some(Term::NamedNode(node)) = solution.get("croot") {
                 if let Ok(authors) = creators(store, node.clone()) {
@@ -359,10 +359,10 @@ pub fn creators(store: &Store, node: impl Into<Term>) -> Result<Vec<CitationAuth
             |solution| {
                 let mut author = CitationAuthor::default();
                 if let Some(Term::Literal(literal)) = solution.get("family") {
-                    author.family = literal.value().to_string();
+                    author.family = literal.value().trim().to_string();
                 }
                 if let Some(Term::Literal(literal)) = solution.get("given") {
-                    author.given = Some(literal.value().to_string());
+                    author.given = Some(literal.value().trim().to_string());
                 }
                 Some(author)
             }
@@ -381,7 +381,7 @@ pub fn creators(store: &Store, node: impl Into<Term>) -> Result<Vec<CitationAuth
                 Some(("vcnode", vcard_term)),
                 |solution| {
                     if let Some(Term::Literal(literal)) = solution.get("other") {
-                        Some(literal.value().to_string())
+                        Some(literal.value().trim().to_string())
                     } else {
                         None
                     }
@@ -399,19 +399,19 @@ pub fn dc_vcard_info(store: &Store, node: Option<&str>) -> Result<Vec<VCardInfo>
         let mut info = VCardInfo::default();
         let mut valid = false;
         if let Some(Term::Literal(literal)) = solution.get("family") {
-            info.family = Some(literal.value().to_string());
+            info.family = Some(literal.value().trim().to_string());
             valid = true;
         }
         if let Some(Term::Literal(literal)) = solution.get("given") {
-            info.given = Some(literal.value().to_string());
+            info.given = Some(literal.value().trim().to_string());
             valid = true;
         }
         if let Some(Term::Literal(literal)) = solution.get("orgname") {
-            info.orgname = Some(literal.value().to_string());
+            info.orgname = Some(literal.value().trim().to_string());
             valid = true;
         }
         if let Some(Term::Literal(literal)) = solution.get("orgunit") {
-            info.orgunit = Some(literal.value().to_string());
+            info.orgunit = Some(literal.value().trim().to_string());
             valid = true;
         }
         valid.then_some(info)
