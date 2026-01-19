@@ -9,7 +9,8 @@ use gix::{
         CommitRef,
         tree::EntryKind,
     },
-    traverse::commit::Sorting,
+    revision::walk::Sorting,
+    traverse::commit::simple::CommitTimeOrder,
     Commit,
     Repository,
 };
@@ -330,7 +331,7 @@ impl<'repo> GitHandle<'repo> {
         let commit = commit.expect("None case should have been handled");
         let mut filter = PathFilter::new(&repo, path);
         let log_entry_iter = repo.rev_walk([commit.id])
-            .sorting(Sorting::ByCommitTimeNewestFirst)
+            .sorting(Sorting::ByCommitTime(CommitTimeOrder::NewestFirst))
             .all().map_err(GixError::from)?
             .filter(|info| info.as_ref()
                 .map(|info| filter.check(info))
@@ -339,12 +340,12 @@ impl<'repo> GitHandle<'repo> {
             .map(|info| {
                 let commit = info?.object()?;
                 let commit_ref = CommitRef::from_bytes(&commit.data)?;
-                let committer = commit_ref.committer;
+                let committer = commit_ref.committer()?;
                 Ok(LogEntryInfo {
                     commit_id: format!("{}", commit.id()),
-                    author: signature_ref(&commit_ref.author),
+                    author: signature_ref(&commit_ref.author()?),
                     committer: signature_ref(&committer),
-                    commit_timestamp: committer.time.seconds,
+                    commit_timestamp: committer.time()?.seconds,
                     message: commit_ref.message.to_string(),
                 })
             });

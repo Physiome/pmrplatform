@@ -4,6 +4,7 @@ use gix::{
         Init,
         Key,
     },
+    date::parse::TimeBuf,
     objs::tree,
 };
 use std::{
@@ -60,8 +61,8 @@ pub fn init_empty_commit(
         }
     };
     repo.commit_as(
-        &signature,
-        &signature,
+        signature.to_ref(&mut TimeBuf::default()),
+        signature.to_ref(&mut TimeBuf::default()),
         "HEAD",
         "initial commit",
         tree_id,
@@ -155,8 +156,8 @@ pub fn append_commit_from_objects(
         }
     };
     Ok(repo.commit_as(
-        &signature,
-        &signature,
+        signature.to_ref(&mut TimeBuf::default()),
+        signature.to_ref(&mut TimeBuf::default()),
         "HEAD",
         message.unwrap_or("commit"),
         append_tree_from_objects(&repo, Some(treeref), objects)?,

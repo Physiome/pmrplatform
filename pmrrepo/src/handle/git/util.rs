@@ -265,7 +265,8 @@ pub(crate) fn checkout(
         &commit
             .tree().map_err(GixError::from)?
             .id(),
-        &odb
+        &odb,
+        Default::default(),
     ).map_err(GixError::from)?;
     let opts = gix::worktree::state::checkout::Options {
         fs: gix::fs::Capabilities::probe(dest_dir),

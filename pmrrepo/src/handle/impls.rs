@@ -256,8 +256,8 @@ mod tests {
             gix::open::Options::isolated(),
         ).unwrap().to_thread_local();
         let mut config = repo.config_snapshot_mut();
-        config.set_raw_value("committer", None, "name", "user").unwrap();
-        config.set_raw_value("committer", None, "email", "user@example.com").unwrap();
+        config.set_raw_value(&"committer.name", "user").unwrap();
+        config.set_raw_value(&"committer.email", "user@example.com").unwrap();
         drop(config);
         test_pmr::repo::init_empty_commit(&repo, None).unwrap();
         test_pmr::repo::commit(&repo, vec![("some_file", "")]).unwrap();

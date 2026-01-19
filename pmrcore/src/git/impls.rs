@@ -220,8 +220,10 @@ fn commitref_id_to_commitinfo(
 ) -> CommitInfo {
     CommitInfo {
         commit_id: commit_id,
-        author: format_signature_ref(&commit.author()),
-        committer: format_signature_ref(&commit.committer()),
+        author: format_signature_ref(&commit.author()
+            .expect("should have been verified as a well-formed commit")),
+        committer: format_signature_ref(&commit.committer()
+            .expect("should have been verified as a well-formed commit")),
     }
 }
 
@@ -241,8 +243,8 @@ fn objectdetached_to_commitinfo(
     let commit = CommitRef::from_bytes(&object.data)?;
     Ok(CommitInfo {
         commit_id: object.id.to_string(),
-        author: format_signature_ref(&commit.author),
-        committer: format_signature_ref(&commit.committer),
+        author: format_signature_ref(&commit.author()?),
+        committer: format_signature_ref(&commit.committer()?),
     })
 }
 

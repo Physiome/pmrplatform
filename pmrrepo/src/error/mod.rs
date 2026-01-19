@@ -27,9 +27,13 @@ pub enum GixError {
     #[error(transparent)]
     ConfigFileInitFromPath(#[from] gix::config::file::init::from_paths::Error),
     #[error(transparent)]
+    DateParse(#[from] gix::date::parse::Error),
+    #[error(transparent)]
     HashDecode(#[from] gix::hash::decode::Error),
     #[error(transparent)]
     IndexFileInit(#[from] gix::index::file::init::Error),
+    #[error(transparent)]
+    IndexInitFromTree(#[from] gix::index::init::from_tree::Error),
     #[error(transparent)]
     ObjectCommit(#[from] gix::object::commit::Error),
     #[error(transparent)]
@@ -53,7 +57,7 @@ pub enum GixError {
     #[error(transparent)]
     RevisionWalk(#[from] gix::revision::walk::Error),
     #[error(transparent)]
-    TraverseCommitAncestors(#[from] gix::traverse::commit::ancestors::Error),
+    RevisionWalkIter(#[from] gix::revision::walk::iter::Error),
     #[error(transparent)]
     TraverseTreeBreadthfirst(#[from] gix::traverse::tree::breadthfirst::Error),
     #[error(transparent)]
