@@ -63,7 +63,6 @@ enum LinkCmd {
     #[command(arg_required_else_help = true)]
     List {
         resource_path: String,
-        kind: String,
     },
     #[command(arg_required_else_help = true)]
     Forget {
@@ -163,9 +162,13 @@ async fn parse_link_cmd(
             ).await?;
             println!("indexed {resource_path:?}, {kind:?}, {terms:?}");
         }
-        LinkCmd::List { resource_path, kind } => {
-            println!("list {resource_path:?} for index of kind {kind:?}");
-            todo!()
+        LinkCmd::List { resource_path } => {
+            let results = platform.pc_platform.get_resource_kinded_terms(
+                &resource_path,
+            ).await?;
+            println!("Resource at path {resource_path:?} contains the following kinded terms:");
+            let output = serde_json::to_string_pretty(&results)?;
+            println!("{output}");
         }
         LinkCmd::Forget { resource_path, kind } => {
             platform.pc_platform.forget_resource_path(
@@ -180,7 +183,7 @@ async fn parse_link_cmd(
 
 async fn parse_query_cmd(
     platform: &Platform,
-    QueryCmd { kind, term}: QueryCmd,
+    QueryCmd { kind, term }: QueryCmd,
 ) -> anyhow::Result<()> {
     match platform.pc_platform.list_resources(
         &kind,
