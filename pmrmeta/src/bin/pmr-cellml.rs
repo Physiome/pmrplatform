@@ -6,6 +6,7 @@ use pmrmeta::{
     },
     read::xml_to_store,
 };
+use pmrcore::exposure::traits::Exposure as _;
 use pmrctrl::platform::Builder as PlatformBuilder;
 use std::{
     fs,
@@ -87,15 +88,6 @@ async fn main() -> anyhow::Result<()> {
                 platform.pc_platform.add_citation(&citation).await.ok();
                 platform.pc_platform.link_citation(&citation, &resource_path).await.ok();
             }
-
-            // Add the various information acquired from the metadata into the index
-            let keywords = query::keywords(&store)?;
-            platform.pc_platform.resource_link_kind_with_terms(
-                "cellml_keyword",
-                &resource_path,
-                &mut keywords.iter()
-                    .map(String::as_ref),
-            ).await?;
         }
         Commands::Cmeta { input_path, output_dir, exposure_id, exposure_path } => {
             let resource_path = format!("/exposure/{exposure_id}/{exposure_path}");
@@ -178,13 +170,26 @@ async fn main() -> anyhow::Result<()> {
             )
             .await?;
 
-            // TODO may need to expand the relevant API to make retrieval of the
-            // additional data from the database more straightforward.
-            // let exposure = platform.get_exposure(exposure_id).await?;
-            // let file = exposure.ctrl_path(exposure_path).await?;
-            // let pathinfo = file.pathinfo();
-            // let repo = todo!();
-            // let commit = pathinfo.commit(repo);
+            let exposure = platform.get_exposure(exposure_id).await?;
+            platform.pc_platform.resource_link_kind_with_term(
+                &resource_path,
+                "created_ts",
+                &exposure.exposure().created_ts().to_string(),
+            )
+            .await?;
+
+            let file = exposure.ctrl_path(exposure_path).await?;
+            let pathinfo = file.pathinfo();
+            let repo = pathinfo.repo();
+            if let Some(commit) = pathinfo.commit(&repo) {
+                let seconds = commit.decode()?.author()?.time()?.seconds.to_string();
+                platform.pc_platform.resource_link_kind_with_term(
+                    &resource_path,
+                    "commit_authored_ts",
+                    &seconds.to_string(),
+                )
+                .await?;
+            }
 
         }
     }
