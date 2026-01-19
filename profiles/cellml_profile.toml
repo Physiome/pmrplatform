@@ -129,8 +129,8 @@ view_key = "cellml_metadata"
 description = "Model Metadata"
 
 [view_task_templates.task_template]
-bin_path = "${PMR2_BUILDOUT_DIR}/bin/pmr2.compat"
-version_id = "0.10.7"
+bin_path = "${PMRPLATFORM_BIN_DIR}/pmr-cellml"
+version_id = "0.0.1"
 
 [[view_task_templates.task_template.args]]
 flag = "cmeta"
@@ -156,6 +156,26 @@ prompt = ""
 default = "working_dir"
 choice_fixed = true
 choice_source = "working_dir"
+choices = []
+
+[[view_task_templates.task_template.args]]
+flag = "--exposure-id="
+flag_joined = true
+flag_omit_when_null = false
+prompt = ""
+default = "exposure_id"
+choice_fixed = true
+choice_source = "exposure_id"
+choices = []
+
+[[view_task_templates.task_template.args]]
+flag = "--exposure-path="
+flag_joined = true
+flag_omit_when_null = false
+prompt = ""
+default = "exposure_file"
+choice_fixed = true
+choice_source = "exposure_file"
 choices = []
 
 [[view_task_templates]]

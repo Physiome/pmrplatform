@@ -7,7 +7,7 @@ view_key = "view"
 description = "Documentation"
 
 [view_task_templates.task_template]
-bin_path = "${PMR2_BUILDOUT_DIR}/bin/cellml.pmr2"
+bin_path = "${PMR2_BUILDOUT_DIR}/bin/pmr2.compat"
 version_id = "0.10.7"
 
 [[view_task_templates.task_template.args]]
