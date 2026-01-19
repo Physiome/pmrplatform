@@ -79,4 +79,29 @@ pub trait IndexBackend {
         self.add_idx_entry_link(idx_entry_id, &resource_path).await?;
         Ok(())
     }
+
+    /// Get the kinded terms for the given resource path
+    async fn list_resources_details(
+        &self,
+        kind: &str,
+        term: &str,
+    ) -> Result<Option<IndexResourceDetailedSet>, BackendError> {
+        if let Some(IndexResourceSet {
+            kind,
+            term,
+            resource_paths,
+        }) = self.list_resources(kind, term).await? {
+            let mut results = Vec::new();
+            for resource_path in resource_paths.into_iter() {
+                results.push(self.get_resource_kinded_terms(&resource_path).await?);
+            }
+            Ok(Some(IndexResourceDetailedSet {
+                kind,
+                term,
+                resource_paths: results
+            }))
+        } else {
+            Ok(None)
+        }
+    }
 }

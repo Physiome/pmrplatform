@@ -195,7 +195,7 @@ async fn parse_query_cmd(
                 results.resource_paths.len()
             );
             for resource_path in results.resource_paths.iter() {
-                println!("- {resource_path}");
+                println!("- {resource_path:?}");
             }
         }
         None => {

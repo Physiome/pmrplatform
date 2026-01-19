@@ -3,7 +3,7 @@ use axum::{
     Json,
     extract::Path,
 };
-use pmrcore::index::{IndexTerms, IndexResourceSet};
+use pmrcore::index::{IndexTerms, IndexResourceDetailedSet};
 use pmrctrl::platform::Platform;
 use serde::{Deserialize, Serialize};
 
@@ -78,8 +78,8 @@ pub(crate) async fn resources_core(
     platform: &Platform,
     kind: String,
     term: String,
-) -> Result<Option<IndexResourceSet>, AppError> {
-    platform.pc_platform.list_resources(&kind, &term).await
+) -> Result<Option<IndexResourceDetailedSet>, AppError> {
+    platform.pc_platform.list_resources_details(&kind, &term).await
         .map_err(|_| AppError::InternalServerError)
 }
 
@@ -93,12 +93,12 @@ pub(crate) async fn resources_core(
     responses((
         status = 200,
         description = "Listing of resources by the term under a kind from the index.",
-        body = Option<IndexResourceSet>,
+        body = Option<IndexResourceDetailedSet>,
     ), AppError),
 ))]
 pub async fn resources(
     platform: Extension<Platform>,
     Path((kind, term)): Path<(String, String)>,
-) -> Result<Json<Option<IndexResourceSet>>, AppError> {
+) -> Result<Json<Option<IndexResourceDetailedSet>>, AppError> {
     Ok(Json(resources_core(&platform.0, kind, term).await?))
 }

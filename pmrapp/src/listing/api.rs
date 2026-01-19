@@ -1,7 +1,7 @@
 use leptos::server;
 use pmrcore::{
     citation::Citation,
-    index::{IndexTerms, IndexResourceSet},
+    index::{IndexTerms, IndexResourceDetailedSet},
 };
 
 use crate::error::AppError;
@@ -44,7 +44,7 @@ pub async fn list_index_terms(kind: String) -> Result<Option<IndexTerms>, AppErr
 pub async fn list_indexed_resources_by_kind_term(
     kind: String,
     term: String,
-) -> Result<Option<IndexResourceSet>, AppError> {
+) -> Result<Option<IndexResourceDetailedSet>, AppError> {
     let platform = platform().await?;
     index::resources_core(&platform, kind, term).await
 }

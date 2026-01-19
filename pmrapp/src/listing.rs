@@ -283,10 +283,19 @@ pub fn TermListing() -> impl IntoView {
                 Some(resource_set) => {
                     let view = resource_set.resource_paths
                         .into_iter()
-                        .map(move |resource_path| view! {
-                            <li><a href=resource_path.clone()>
-                                {resource_path.clone()}
-                            </a></li>
+                        .map(move |info| {
+                            let href = match info.data.get("aliased_uri") {
+                                Some(items) => items.get(0)
+                                    .map(String::as_str)
+                                    .unwrap_or(info.resource_path.as_str()),
+                                None => info.resource_path.as_str(),
+                            }
+                            .to_string();
+                            view! {
+                                <li><a href=href>
+                                    {href.clone()}
+                                </a></li>
+                            }
                         })
                         .collect_view();
                     view! {
