@@ -169,6 +169,15 @@ async fn main() -> anyhow::Result<()> {
                 )
             )
             .await?;
+            // Citation id.
+            platform.pc_platform.resource_link_kind_with_terms(
+                &resource_path,
+                "citation_id",
+                &mut pmr2_cmeta.citations
+                    .iter()
+                    .filter_map(|citation| citation.id.as_deref()),
+            )
+            .await?;
 
             let exposure = platform.get_exposure(exposure_id).await?;
             platform.pc_platform.resource_link_kind_with_term(
