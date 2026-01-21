@@ -391,15 +391,6 @@ mock! {
         async fn list_citations(
             &self,
         ) -> Result<Vec<Citation>, BackendError>;
-        async fn add_citation_link(
-            &self,
-            citation_id: i64,
-            resource_path: &str,
-        ) -> Result<(), BackendError>;
-        async fn list_citation_resources(
-            &self,
-            identifier: &str,
-        ) -> Result<Vec<String>, BackendError>;
     }
 
     impl PlatformUrl for Platform {

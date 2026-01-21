@@ -6,16 +6,4 @@ pub struct Citation {
     pub identifier: String,
 }
 
-#[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd, Deserialize, Serialize)]
-pub struct CitationLink {
-    pub citation_id: i64,
-    pub resource_path: String,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct CitationResourceSet {
-    pub citation: Citation,
-    pub resource_paths: Vec<String>,
-}
-
 pub mod traits;

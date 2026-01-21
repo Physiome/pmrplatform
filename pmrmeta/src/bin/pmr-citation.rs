@@ -34,11 +34,6 @@ enum Commands {
     Add {
         identifier: String,
     },
-    #[command(arg_required_else_help = true)]
-    Link {
-        identifier: String,
-        resource_path: String,
-    },
     List {
         identifier: Option<String>,
     },
@@ -85,15 +80,22 @@ async fn main() -> anyhow::Result<()> {
         Commands::Add { identifier } => {
             platform.pc_platform.add_citation(&identifier).await?;
         },
-        Commands::Link { identifier, resource_path } => {
-            platform.pc_platform.link_citation(&identifier, &resource_path).await?;
-        },
         Commands::List { identifier } => {
             if let Some(identifier) = identifier {
-                let resources = platform.pc_platform.list_citation_resources(&identifier).await?;
-                println!("Listing of resources associated with citation {identifier}");
-                for resources in resources.into_iter() {
-                    println!("{resources}");
+
+                match platform.pc_platform.list_resources(
+                    "citation_id",
+                    &identifier,
+                ).await? {
+                    Some(results) => {
+                        println!("Listing of resources associated with citation {identifier}");
+                        for resource_path in results.resource_paths.iter() {
+                            println!("- {resource_path:?}");
+                        }
+                    }
+                    None => {
+                        println!("citation {identifier} not indexed?");
+                    }
                 }
             } else {
                 let citations = platform.pc_platform.list_citations().await?;
@@ -122,7 +124,12 @@ async fn parse_rdfxml_cmd<'p>(
             let citations = index(reader)?;
             for citation in citations.iter() {
                 platform.pc_platform.add_citation(&citation).await.ok();
-                platform.pc_platform.link_citation(&citation, &resource_path).await.ok();
+                platform.pc_platform.resource_link_kind_with_term(
+                    &resource_path,
+                    "citation_id",
+                    &citation,
+                )
+                .await?;
             }
         }
     }

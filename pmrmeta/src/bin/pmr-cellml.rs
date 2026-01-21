@@ -77,16 +77,14 @@ async fn main() -> anyhow::Result<()> {
     let _ = CONF.set(args.config);
 
     match args.command {
-        Commands::Index { input_path, exposure_id, exposure_path } => {
+        Commands::Index { input_path, .. } => {
             let reader = BufReader::new(fs::File::open(input_path)?);
-            let resource_path = format!("/exposure/{exposure_id}/{exposure_path}");
             let store = xml_to_store(reader)?;
 
             // Store the citation for the incoming file
             let citations = query::pubmed_id(&store)?;
             for citation in citations.iter() {
                 platform.pc_platform.add_citation(&citation).await.ok();
-                platform.pc_platform.link_citation(&citation, &resource_path).await.ok();
             }
         }
         Commands::Cmeta { input_path, output_dir, exposure_id, exposure_path } => {
