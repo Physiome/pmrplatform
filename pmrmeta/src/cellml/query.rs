@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use oxiri::{IriParseError, IriRef};
 use oxigraph::{
     model::{NamedNode, Term},
@@ -211,7 +212,9 @@ pub fn dc_title(store: &Store, node: Option<&str>) -> Result<Vec<String>, RdfInd
         "#,
         node.map(|node| ("node", node)),
         "title",
-        |s| s.trim().to_string(),
+        |s| s.trim()
+            .split_ascii_whitespace()
+            .join(" ")
     )
 }
 
@@ -268,7 +271,12 @@ pub fn citation(store: &Store, node: Option<&str>) -> Result<Vec<Citation>, RdfI
                 citation.id = Some(format!("urn:miriam:pubmed:{}", literal.value().trim()))
             }
             if let Some(Term::Literal(literal)) = solution.get("title") {
-                citation.title = Some(literal.value().trim().to_string())
+                citation.title = Some(
+                    literal.value()
+                        .trim()
+                        .split_ascii_whitespace()
+                        .join(" ")
+                )
             }
             if let Some(Term::Literal(literal)) = solution.get("journal") {
                 citation.journal = Some(literal.value().trim().to_string())
