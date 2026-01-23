@@ -1,10 +1,11 @@
 use std::io::Read;
 
 use oxigraph::store::Store;
+use pmrcore::citation::Citation;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    cellml::{Citation, VCardInfo, query},
+    cellml::{VCardInfo, query},
     error::RdfIndexerError,
     xml::Xml,
 };

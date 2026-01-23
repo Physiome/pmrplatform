@@ -8,8 +8,8 @@ use crate::{
 pub trait CitationBackend {
     async fn add_citation(
         &self,
-        identifier: &str,
-    ) -> Result<i64, BackendError>;
+        citation: &Citation,
+    ) -> Result<(), BackendError>;
 
     /// Get a particular citation
     async fn get_citation_by_identifier(

@@ -89,6 +89,7 @@
                           <dcterms:W3CDTF>2009-00-00 00:00</dcterms:W3CDTF>
                   </dcterms:issued>
               </bqs:JournalArticle>
+              <bqs:Pubmed_id>fake</bqs:Pubmed_id>
           </bqs:reference>
 
           <bqs:reference rdf:parseType="Resource">

@@ -1,11 +1,5 @@
 use clap::{Parser, Subcommand};
-use pmrmeta::{
-    cellml::{
-        query,
-        cmeta::{Cmeta, Pmr2Cmeta},
-    },
-    read::xml_to_store,
-};
+use pmrmeta::cellml::cmeta::{Cmeta, Pmr2Cmeta};
 use pmrcore::exposure::traits::Exposure as _;
 use pmrctrl::platform::Builder as PlatformBuilder;
 use std::{
@@ -35,15 +29,6 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    #[command(arg_required_else_help = true)]
-    Index {
-        #[clap(long)]
-        input_path: String,
-        #[clap(long)]
-        exposure_id: i64,
-        #[clap(long)]
-        exposure_path: String,
-    },
     #[command(arg_required_else_help = true)]
     Cmeta {
         #[clap(long)]
@@ -77,16 +62,6 @@ async fn main() -> anyhow::Result<()> {
     let _ = CONF.set(args.config);
 
     match args.command {
-        Commands::Index { input_path, .. } => {
-            let reader = BufReader::new(fs::File::open(input_path)?);
-            let store = xml_to_store(reader)?;
-
-            // Store the citation for the incoming file
-            let citations = query::pubmed_id(&store)?;
-            for citation in citations.iter() {
-                platform.pc_platform.add_citation(&citation).await.ok();
-            }
-        }
         Commands::Cmeta { input_path, output_dir, exposure_id, exposure_path } => {
             let resource_path = format!("/exposure/{exposure_id}/{exposure_path}");
 
@@ -114,12 +89,12 @@ async fn main() -> anyhow::Result<()> {
                     .map(|a| (
                         a.family.to_string(),
                         a.given.clone().unwrap_or_default(),
-                        a.other.join(" ")
+                        a.other.clone().unwrap_or_default(),
                     ))
                     .collect()
                 );
-                pmr2_cmeta.citation_title = citations.title.clone();
-                pmr2_cmeta.citation_id = citations.id.clone();
+                pmr2_cmeta.citation_title = Some(citations.title.clone());
+                pmr2_cmeta.citation_id = Some(citations.id.clone());
                 pmr2_cmeta.citation_issued = citations.issued.clone();
             }
             pmr2_cmeta.citations = citations;
@@ -167,13 +142,18 @@ async fn main() -> anyhow::Result<()> {
                 )
             )
             .await?;
+            // citation
+
+            for citation in pmr2_cmeta.citations.iter() {
+                platform.pc_platform.add_citation(&citation).await.ok();
+            }
             // Citation id.
             platform.pc_platform.resource_link_kind_with_terms(
                 &resource_path,
                 "citation_id",
                 &mut pmr2_cmeta.citations
                     .iter()
-                    .filter_map(|citation| citation.id.as_deref()),
+                    .map(|citation| citation.id.as_ref()),
             )
             .await?;
 

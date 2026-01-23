@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nINSERT INTO citation_author (\n    citation_id,\n    family,\n    given,\n    other,\n    ordering\n)\nVALUES ( ?1, ?2, ?3, ?4, ?5 )\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "c18840560e81fda92b9634a6146752df5dc8d3e1014a9633468d0e17d44b876a"
+}

@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\nSELECT\n    family,\n    given,\n    other\nFROM\n    citation_author\nWHERE\n    citation_id = ?1\nORDER BY\n    ordering\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "family",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "given",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "other",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "10b05007305fbc3c39c2ea1d91cd35202f343bf980409874277d7b8bcf62ea56"
+}

@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use pmrmeta::citation::index;
+use pmrmeta::{cellml::query, read};
 use pmrctrl::platform::{
     Builder as PlatformBuilder,
     Platform,
@@ -30,13 +30,6 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    #[command(arg_required_else_help = true)]
-    Add {
-        identifier: String,
-    },
-    List {
-        identifier: Option<String>,
-    },
     #[command(arg_required_else_help = true)]
     Rdfxml {
         #[command(subcommand)]
@@ -77,34 +70,6 @@ async fn main() -> anyhow::Result<()> {
     let _ = CONF.set(args.config);
 
     match args.command {
-        Commands::Add { identifier } => {
-            platform.pc_platform.add_citation(&identifier).await?;
-        },
-        Commands::List { identifier } => {
-            if let Some(identifier) = identifier {
-
-                match platform.pc_platform.list_resources(
-                    "citation_id",
-                    &identifier,
-                ).await? {
-                    Some(results) => {
-                        println!("Listing of resources associated with citation {identifier}");
-                        for resource_path in results.resource_paths.iter() {
-                            println!("- {resource_path:?}");
-                        }
-                    }
-                    None => {
-                        println!("citation {identifier} not indexed?");
-                    }
-                }
-            } else {
-                let citations = platform.pc_platform.list_citations().await?;
-                println!("Listing of citation identifiers recorded");
-                for citation in citations.into_iter() {
-                    println!("{}", citation.identifier);
-                }
-            }
-        },
         Commands::Rdfxml { cmd } => {
             parse_rdfxml_cmd(&platform, cmd).await?;
         },
@@ -119,18 +84,42 @@ async fn parse_rdfxml_cmd<'p>(
 ) -> anyhow::Result<()> {
     match arg {
         RdfxmlCmd::Index { input_path, exposure_id, exposure_path } => {
-            let reader = BufReader::new(fs::File::open(input_path)?);
             let resource_path = format!("/exposure/{exposure_id}/{exposure_path}");
-            let citations = index(reader)?;
+            let reader = BufReader::new(fs::File::open(input_path)?);
+            // with the data gathered, populate the index
+            // Only index the first alias created, or the id if that's not found.
+            let alias = platform
+                .mc_platform
+                .get_alias("exposure", exposure_id)
+                .await?
+                .unwrap_or(exposure_id.to_string());
+            platform.pc_platform.resource_link_kind_with_term(
+                &resource_path,
+                "exposure_alias",
+                &alias,
+            )
+            .await?;
+            platform.pc_platform.resource_link_kind_with_term(
+                &resource_path,
+                "aliased_uri",
+                &format!("/exposure/{alias}/{exposure_path}")
+            )
+            .await?;
+
+            let store = read::xml_to_store(reader)?;
+            let citations = query::citation(&store, None)?;
             for citation in citations.iter() {
                 platform.pc_platform.add_citation(&citation).await.ok();
-                platform.pc_platform.resource_link_kind_with_term(
-                    &resource_path,
-                    "citation_id",
-                    &citation,
-                )
-                .await?;
             }
+            // Citation id.
+            platform.pc_platform.resource_link_kind_with_terms(
+                &resource_path,
+                "citation_id",
+                &mut citations
+                    .iter()
+                    .map(|citation| citation.id.as_ref()),
+            )
+            .await?;
         }
     }
     Ok(())

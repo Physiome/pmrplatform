@@ -1,8 +1,8 @@
 use oxigraph::store::Store;
+use pmrcore::citation::Citation;
 use pmrmeta::{
     cellml::{
         cmeta::Cmeta,
-        Citation,
         VCardInfo,
         query,
     },
@@ -89,11 +89,11 @@ fn citation_named_nodes() -> anyhow::Result<()> {
         "authors": [{
             "family": "Adrian",
             "given": "R",
-            "other": ["H"]
+            "other": "H"
         }, {
             "family": "Peachey",
             "given": "L",
-            "other": ["D"]
+            "other": "D"
         }],
         "title": "Reconstruction of the Action Potential of Frog Sartorius Muscle",
         "journal": "Journal of Physiology",
@@ -106,15 +106,15 @@ fn citation_named_nodes() -> anyhow::Result<()> {
         "authors": [{
             "family": "Adrian",
             "given": "R",
-            "other": ["H"]
+            "other": "H"
         }, {
             "family": "Chandler",
             "given": "W",
-            "other": ["K"]
+            "other": "K"
         }, {
             "family": "Hodgkin",
             "given": "A",
-            "other": ["L"]
+            "other": "L"
         }],
         "title": "Voltage Clamp Experiments in Striated Muscle Fibres",
         "journal": "Journal of Physiology",
@@ -132,19 +132,19 @@ fn citation_blank_nodes() -> anyhow::Result<()> {
     let store = xml_to_store(&utils::load_test_data("detailed_citation.cellml")?[..])?;
     let result = query::citation(&store, None)?;
     let expected = serde_json::from_str::<Vec<Citation>>(r#"[{
-	"id": null,
+	"id": "urn:miriam:pubmed:fake",
 	"authors": [{
 	    "family": "Author",
 	    "given": "Main",
-	    "other": []
+	    "other": ""
 	}, {
 	    "family": "Family2",
 	    "given": "Hello",
-	    "other": []
+	    "other": ""
 	}, {
 	    "family": "Family3",
 	    "given": "User",
-	    "other": []
+	    "other": ""
 	}],
 	"title": "Journal article title to the model",
 	"journal": "Some Journal",

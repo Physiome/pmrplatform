@@ -1,0 +1,56 @@
+{
+  "db_name": "SQLite",
+  "query": "\nSELECT\n    id,\n    title,\n    journal,\n    volume,\n    first_page,\n    last_page,\n    issued\nFROM\n    citation\nORDER BY\n    title\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "title",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "journal",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "volume",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "first_page",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_page",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "issued",
+        "ordinal": 6,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "e55ae3a751a6df4ef086a550c6ac04a754282e2a0c6868327b71311a126910d7"
+}

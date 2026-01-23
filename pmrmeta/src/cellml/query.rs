@@ -5,9 +5,10 @@ use oxigraph::{
     sparql::{QueryResults, QuerySolution, SparqlEvaluator, Variable},
     store::Store,
 };
+use pmrcore::citation::{Citation, CitationAuthor};
 
 use crate::{
-    cellml::{Citation, CitationAuthor, VCardInfo},
+    cellml::VCardInfo,
     error::RdfIndexerError,
     xml::BASE_IRI,
 };
@@ -268,16 +269,21 @@ pub fn citation(store: &Store, node: Option<&str>) -> Result<Vec<Citation>, RdfI
         |solution| {
             let mut citation = Citation::default();
             if let Some(Term::Literal(literal)) = solution.get("pmid") {
-                citation.id = Some(format!("urn:miriam:pubmed:{}", literal.value().trim()))
+                citation.id = format!("urn:miriam:pubmed:{}", literal.value().trim())
+            } else {
+                // FIXME make this check before citation is allocated
+                return None;
             }
             if let Some(Term::Literal(literal)) = solution.get("title") {
-                citation.title = Some(
-                    literal.value()
-                        .trim()
-                        .split_ascii_whitespace()
-                        .join(" ")
-                )
+                citation.title = literal.value()
+                    .trim()
+                    .split_ascii_whitespace()
+                    .join(" ")
+            } else {
+                // FIXME make this check before citation is allocated
+                return None;
             }
+
             if let Some(Term::Literal(literal)) = solution.get("journal") {
                 citation.journal = Some(literal.value().trim().to_string())
             }
@@ -375,7 +381,7 @@ pub fn creators(store: &Store, node: impl Into<Term>) -> Result<Vec<CitationAuth
                 Some(author)
             }
         )?.pop() {
-            author.other = query_solutions(
+            author.other = Some(query_solutions(
                 store,
                 r#"
                 PREFIX vCard: <http://www.w3.org/2001/vcard-rdf/3.0#>
@@ -389,12 +395,13 @@ pub fn creators(store: &Store, node: impl Into<Term>) -> Result<Vec<CitationAuth
                 Some(("vcnode", vcard_term)),
                 |solution| {
                     if let Some(Term::Literal(literal)) = solution.get("other") {
-                        Some(literal.value().trim().to_string())
+                        // take first character
+                        Some(literal.value().trim()[..1].to_string())
                     } else {
                         None
                     }
                 }
-            )?;
+            )?.join(""));
             results.push(author);
         }
     }

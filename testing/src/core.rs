@@ -382,8 +382,8 @@ mock! {
     impl CitationBackend for Platform {
         async fn add_citation(
             &self,
-            identifier: &str,
-        ) -> Result<i64, BackendError>;
+            citation: &Citation,
+        ) -> Result<(), BackendError>;
         async fn get_citation_by_identifier(
             &self,
             identifier: &str,
