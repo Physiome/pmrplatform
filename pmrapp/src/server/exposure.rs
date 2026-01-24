@@ -92,7 +92,7 @@ pub async fn wizard_field_update(
         Some(v) if v == "application/x-www-form-urlencoded".parse::<HeaderValue>().unwrap() => {
             let (exposure_id, ef_user_input) = parse_wizard_field_update_www_form_urlencode(&body)?;
             process_ef_user_input(
-                platform,
+                platform.clone(),
                 session,
                 exposure_id,
                 ef_user_input,
@@ -101,7 +101,7 @@ pub async fn wizard_field_update(
         Some(v) if v == "application/json".parse::<HeaderValue>().unwrap() => {
             let (exposure_id, ef_user_input) = parse_wizard_field_update_json(&platform.0, &body).await?;
             process_ef_user_input(
-                platform,
+                platform.clone(),
                 session,
                 exposure_id,
                 ef_user_input,

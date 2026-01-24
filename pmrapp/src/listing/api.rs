@@ -22,13 +22,6 @@ pub async fn list_citations() -> Result<Vec<Citation>, AppError> {
 }
 
 #[server]
-pub async fn list_citation_resources(identifier: String) -> Result<Vec<String>, AppError> {
-    let platform = platform().await?;
-    platform.pc_platform.list_citation_resources(&identifier).await
-        .map_err(|_| AppError::InternalServerError)
-}
-
-#[server]
 pub async fn list_indexes() -> Result<Vec<String>, AppError> {
     let platform = platform().await?;
     index::indexes_core(&platform).await

@@ -109,7 +109,7 @@ async fn main() -> anyhow::Result<()> {
                 .mc_platform
                 .get_alias("exposure", exposure_id)
                 .await?
-                .unwrap_or(exposure_id.to_string());
+                .unwrap_or(format!(":/id/{exposure_id}"));
             platform.pc_platform.resource_link_kind_with_term(
                 &resource_path,
                 "exposure_alias",

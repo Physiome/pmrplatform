@@ -15,7 +15,6 @@ use crate::{
 };
 use api::{
     list_citations,
-    list_citation_resources,
     list_indexes,
     list_index_terms,
     list_indexed_resources_by_kind_term,
@@ -84,8 +83,8 @@ pub fn ListingByReference() -> impl IntoView {
         citation_listing.await.map(|citation| citation
             .into_iter()
             .map(move |citation| view! {
-                <li><a href=format!("/listing/by-reference/{}", citation.identifier)>
-                    {citation.identifier.clone()}
+                <li><a href=format!("/listing/by-reference/{}", citation.id)>
+                    {citation.title}" - "{citation.id.clone()}
                 </a></li>
             })
             .collect_view()
@@ -113,34 +112,46 @@ pub struct CitationParams {
 pub fn ReferenceDetails() -> impl IntoView {
     let params = use_params::<CitationParams>();
 
-    let resources = Resource::new_blocking(
+    let resource_set = Resource::new_blocking(
         move || params.get().map(|p| p.id),
         move |id| async move {
             match id {
                 Err(_) => Err(AppError::InternalServerError),
                 Ok(None) => Err(AppError::NotFound),
                 Ok(Some(id)) => {
-                    Ok((id.clone(), list_citation_resources(id).await?))
+                    Ok(list_indexed_resources_by_kind_term(
+                        String::from("citation_id"),
+                        id,
+                    ).await?)
                 }
             }
         }
     );
 
     let view = move || Suspend::new(async move {
-        resources.await.map(|(id, resources)| {
-            let items = resources
+        Ok::<_, AppError>(resource_set.await?.map(|resource_set| {
+            let items = resource_set.resource_paths
                 .into_iter()
-                .map(move |resource| view! {
-                    <li><a href=format!("{resource}/")>{resource.clone()}</a></li>
+                .filter_map(move |resource| {
+                    let uri = resource.data.get("aliased_uri");
+                    let title = resource.data.get("description");
+                    if let Some(uri) = uri && let Some(title) = title {
+                        if let Some(uri) = uri.get(0) && let Some(title) = title.get(0) {
+                            return Some(view! {
+                                <li><a href=format!("{uri}/")>{title.clone()}</a></li>
+                            });
+                        }
+                    }
+                    None
                 })
                 .collect_view();
             view! {
-                <h1>"Listing of resources that cites reference "{id}</h1>
+                <h1>"Listing of resources that cites reference "{resource_set.term}</h1>
                 <ul>
                     {items}
                 </ul>
             }
-        })
+        }))
     });
 
     view! {
