@@ -1,9 +1,14 @@
+use std::collections::BTreeMap;
+
 use axum::{
     Extension,
     Json,
     extract::Path,
 };
-use pmrcore::index::{IndexTerms, IndexResourceDetailedSet};
+use pmrcore::{
+    citation::Citation,
+    index::{IndexTerms, IndexResourceDetailedSet},
+};
 use pmrctrl::platform::Platform;
 use serde::{Deserialize, Serialize};
 
@@ -101,4 +106,30 @@ pub async fn resources(
     Path((kind, term)): Path<(String, String)>,
 ) -> Result<Json<Option<IndexResourceDetailedSet>>, AppError> {
     Ok(Json(resources_core(&platform.0, kind, term).await?))
+}
+
+pub(crate) async fn citations_core(
+    platform: &Platform,
+) -> Result<Vec<Citation>, AppError> {
+    platform.pc_platform.list_citations().await
+        .map_err(|_| AppError::InternalServerError)
+}
+
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    get,
+    path = "/api/citations",
+    responses((
+        status = 200,
+        description = "Listing of resources by the term under a kind from the index.",
+        body = BTreeMap<String, Citation>,
+    ), AppError),
+))]
+pub async fn citations(
+    platform: Extension<Platform>,
+) -> Result<Json<BTreeMap<String, Citation>>, AppError> {
+    let citations = citations_core(&platform.0).await?
+        .into_iter()
+        .map(|citation| (citation.id.clone(), citation))
+        .collect::<BTreeMap<_, _>>();
+    Ok(Json(citations))
 }

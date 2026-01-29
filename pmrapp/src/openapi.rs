@@ -49,6 +49,7 @@ use crate::{
             __path_wizard_field_update,
         },
         index::{
+            __path_citations,
             __path_indexes,
             __path_terms,
             __path_resources,
@@ -119,6 +120,7 @@ impl Modify for Security {
         wizard_field_update,
 
         // Index
+        citations,
         indexes,
         terms,
         resources,

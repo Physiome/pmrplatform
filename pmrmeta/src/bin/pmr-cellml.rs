@@ -71,16 +71,16 @@ async fn main() -> anyhow::Result<()> {
             let cmeta_id = cmeta.root_cmetaid();
             let title = cmeta.dc_title(Some(""))?;
             let citations = cmeta.citation(cmeta_id.map(|s| format!("#{s}")).as_deref())?;
-            let vcard = cmeta.dc_vcard_info(Some(""))?;
+            let vcards = cmeta.dc_vcard_info(Some(""))?;
             let keywords = cmeta.contextual_keywords()?;
 
             // first gather the data for the output file
             let mut pmr2_cmeta = Pmr2Cmeta::default();
             pmr2_cmeta.keywords = Some(keywords.clone());
             pmr2_cmeta.model_title = title.get(0).take().cloned();
-            if let Some(vcard) = vcard.get(0) {
-                pmr2_cmeta.model_author = vcard.fullname();
-                pmr2_cmeta.model_author_org = vcard.org();
+            if let Some(vcards) = vcards.get(0) {
+                pmr2_cmeta.model_author = vcards.fullname();
+                pmr2_cmeta.model_author_org = vcards.org();
             }
             if let Some(citations) = citations.get(0) {
                 pmr2_cmeta.citation_bibliographic_citation = citations.journal.clone();
@@ -156,12 +156,36 @@ async fn main() -> anyhow::Result<()> {
                     .map(|citation| citation.id.as_ref()),
             )
             .await?;
+            platform.pc_platform.resource_link_kind_with_terms(
+                &resource_path,
+                "citation_author_family_name",
+                &mut pmr2_cmeta.citations
+                    .iter()
+                    .map(|citation| {
+                        citation.authors
+                            .iter()
+                            .map(|author| author.family.as_ref())
+                    })
+                    .flatten()
+            )
+            .await?;
 
             let exposure = platform.get_exposure(exposure_id).await?;
             platform.pc_platform.resource_link_kind_with_term(
                 &resource_path,
                 "created_ts",
                 &exposure.exposure().created_ts().to_string(),
+            )
+            .await?;
+
+            let model_author_full_names = vcards.iter()
+                .filter_map(|vcard| vcard.fullname())
+                .collect::<Vec<_>>();
+            platform.pc_platform.resource_link_kind_with_terms(
+                &resource_path,
+                "model_author",
+                &mut model_author_full_names.iter()
+                    .map(String::as_str),
             )
             .await?;
 

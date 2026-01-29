@@ -17,8 +17,7 @@ use self::ssr::*;
 #[server]
 pub async fn list_citations() -> Result<Vec<Citation>, AppError> {
     let platform = platform().await?;
-    platform.pc_platform.list_citations().await
-        .map_err(|_| AppError::InternalServerError)
+    index::citations_core(&platform).await
 }
 
 #[server]

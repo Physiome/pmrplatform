@@ -129,6 +129,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/workspace/:/id/{workspace_id}/rawfile/{commit_id}/{*path}", get(raw_workspace_download))
 
         // Index routes
+        .route("/api/citations", get(index::citations))
+        .route("/api/citations/", get(index::citations))
         .route("/api/index", get(index::indexes))
         .route("/api/index/", get(index::indexes))
         .route("/api/index/{keyword}", get(index::terms))
