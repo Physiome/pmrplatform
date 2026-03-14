@@ -6,6 +6,8 @@ use oxigraph::{
     store::StorageError,
 };
 
+pub use xrust::xdmerror::Error as XrustError;
+
 #[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum XeeError {

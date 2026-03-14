@@ -8,15 +8,17 @@ use xee_xpath::{
     Documents, DocumentHandle, Item, Itemable, Queries, Query,
 };
 
-use crate::error::{RdfIndexerError, XeeError};
+use crate::error::{RdfIndexerError, XeeError, XrustError};
 
 pub static BASE_IRI: &str = "urn:pmrplatform:oxigraph:";
+const CELLML_TMPDOC_TO_HTML: &str = include_str!("data/cellml_tmpdoc-to-html.xslt");
 
 // Provide an abstraction that doesn't separate out the main document handle from the
 // collection of documents to make a less cumbersome API.
-pub(crate) struct Xml {
+pub struct Xml {
     documents: Documents,
     handle: DocumentHandle,
+    input_xml: String,
 }
 
 impl Xml {
@@ -28,7 +30,7 @@ impl Xml {
         reader.read_to_string(&mut input_xml)?;
         let mut documents = Documents::new();
         let handle = documents.add_string_without_uri(&input_xml)?;
-        Ok(Self { documents, handle })
+        Ok(Self { documents, handle, input_xml })
     }
 
     pub fn xpath(&mut self, s: &str) -> Result<Vec<String>, XeeError> {
@@ -59,5 +61,57 @@ impl Xml {
             .with_base_iri(BASE_IRI)?
             .for_reader(extracted.as_bytes())
             .collect::<Result<Vec<_>, _>>()?)
+    }
+}
+
+
+mod xslt {
+    use xrust::{
+        item::{Item, Node, NodeType, Sequence, SequenceTrait},
+        trees::smite::RNode,
+        parser::{ParseError, xml::parse},
+        transform::{
+            context::{StaticContext, StaticContextBuilder},
+            Transform,
+        },
+        xdmerror::{Error, ErrorKind},
+        xslt::from_document,
+    };
+
+    use super::*;
+
+    impl Xml {
+        pub fn xslt(&self, src: &str) -> Result<String, XrustError> {
+            // hopefully xee will support xslt eventually; there are imports that conflict so
+            // only have it here.
+            let doc = Item::Node(parse(
+                RNode::new_document(),
+                &self.input_xml,
+                Some(|_: &_| Err(ParseError::MissingNameSpace)),
+            )?);
+            let xslt = parse(
+                RNode::new_document(),
+                CELLML_TMPDOC_TO_HTML,
+                Some(|_: &_| Err(ParseError::MissingNameSpace)),
+            )?;
+            let mut static_context = StaticContextBuilder::new()
+                .message(|_| Ok(()))
+                .fetcher(|_| Err(Error::new(ErrorKind::NotImplemented, "not implemented")))
+                .parser(|_| Err(Error::new(ErrorKind::NotImplemented, "not implemented")))
+                .build();
+            let mut ctx = from_document(
+                xslt,
+                None,
+                |s: &str| parse(RNode::new_document(), s, Some(|_: &_| Err(ParseError::MissingNameSpace))),
+                |_| Ok(String::new()),
+            )?;
+
+            ctx.context(vec![doc], 0);
+            ctx.result_document(RNode::new_document());
+
+            let out = ctx.evaluate(&mut static_context)?;
+
+            Ok(out.to_xml())
+        }
     }
 }

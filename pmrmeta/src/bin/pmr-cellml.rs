@@ -1,5 +1,8 @@
 use clap::{Parser, Subcommand};
-use pmrmeta::cellml::cmeta::{Cmeta, Pmr2Cmeta};
+use pmrmeta::{
+    cellml::cmeta::{Cmeta, Pmr2Cmeta},
+    xml::Xml,
+};
 use pmrcore::exposure::traits::Exposure as _;
 use pmrctrl::platform::Builder as PlatformBuilder;
 use std::{
@@ -40,6 +43,11 @@ enum Commands {
         #[clap(long)]
         exposure_path: String,
     },
+    #[command(arg_required_else_help = true)]
+    Xslt {
+        #[clap(long)]
+        input_path: String,
+    }
 }
 
 #[tokio::main]
@@ -62,6 +70,12 @@ async fn main() -> anyhow::Result<()> {
     let _ = CONF.set(args.config);
 
     match args.command {
+        Commands::Xslt { input_path } => {
+            let reader = BufReader::new(fs::File::open(input_path)?);
+            let mut xml = Xml::new(reader)?;
+            let output = xml.xslt("")?;
+            println!("{output}");
+        }
         Commands::Cmeta { input_path, output_dir, exposure_id, exposure_path } => {
             let resource_path = format!("/exposure/{exposure_id}/{exposure_path}");
 
