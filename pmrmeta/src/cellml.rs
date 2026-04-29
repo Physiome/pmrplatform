@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-pub mod query;
 pub mod cmeta;
+pub mod query;
 
 #[derive(Default, Debug, PartialEq, Deserialize, Serialize)]
 pub struct VCardInfo {

@@ -67,13 +67,10 @@ impl Xml {
 
 mod xslt {
     use xrust::{
-        item::{Item, Node, NodeType, Sequence, SequenceTrait},
+        item::{Item, Node, SequenceTrait},
         trees::smite::RNode,
         parser::{ParseError, xml::parse},
-        transform::{
-            context::{StaticContext, StaticContextBuilder},
-            Transform,
-        },
+        transform::context::StaticContextBuilder,
         xdmerror::{Error, ErrorKind},
         xslt::from_document,
     };
@@ -81,7 +78,7 @@ mod xslt {
     use super::*;
 
     impl Xml {
-        pub fn xslt(&self, src: &str) -> Result<String, XrustError> {
+        pub fn xslt(&self) -> Result<String, XrustError> {
             // hopefully xee will support xslt eventually; there are imports that conflict so
             // only have it here.
             let doc = Item::Node(parse(

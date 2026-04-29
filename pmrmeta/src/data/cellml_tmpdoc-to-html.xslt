@@ -56,6 +56,7 @@
   </xsl:template><!--match="tmp-doc:documentation"-->
 
   <xsl:template match="*"/>
+  <xsl:template match="comment()"/>
 
   <xsl:template name="do-head">
     <xsl:param name="name"/>
