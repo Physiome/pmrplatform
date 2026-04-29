@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 pub mod cmeta;
+pub mod legacy;
 pub mod query;
 
 #[derive(Default, Debug, PartialEq, Deserialize, Serialize)]

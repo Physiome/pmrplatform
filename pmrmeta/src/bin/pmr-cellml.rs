@@ -1,6 +1,9 @@
 use clap::{Parser, Subcommand};
 use pmrmeta::{
-    cellml::cmeta::{Cmeta, Pmr2Cmeta},
+    cellml::{
+        cmeta::{Cmeta, Pmr2Cmeta},
+        legacy::sub_makefile_terms,
+    },
     xml::Xml,
 };
 use pmrcore::exposure::traits::Exposure as _;
@@ -206,7 +209,7 @@ impl Commands {
 #[derive(Debug, Subcommand)]
 enum Docgen {
     #[command(arg_required_else_help = true)]
-    Xslt {
+    Tmpdoc {
         #[clap(long)]
         input_path: String,
     }
@@ -216,10 +219,10 @@ enum Docgen {
 impl Docgen {
     async fn run(self) -> anyhow::Result<()> {
         match self {
-            Docgen::Xslt { input_path } => {
+            Docgen::Tmpdoc { input_path } => {
                 let reader = BufReader::new(fs::File::open(input_path)?);
                 let xml = Xml::new(reader)?;
-                let output = &xml.xslt()?;
+                let output = sub_makefile_terms(&xml.xslt()?);
                 println!("{output}");
             }
         }
