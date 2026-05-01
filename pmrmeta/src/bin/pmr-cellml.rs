@@ -34,24 +34,27 @@ struct Cli {
     config: Config,
 }
 
+#[derive(Debug, Parser)]
+struct Arguments {
+    #[clap(long)]
+    input_path: String,
+    #[clap(long)]
+    output_dir: String,
+    #[clap(long)]
+    exposure_id: i64,
+    #[clap(long)]
+    exposure_path: String,
+}
+
 #[derive(Debug, Subcommand)]
 enum Commands {
     #[command(arg_required_else_help = true)]
-    Cmeta {
-        #[clap(long)]
-        input_path: String,
-        #[clap(long)]
-        output_dir: String,
-        #[clap(long)]
-        exposure_id: i64,
-        #[clap(long)]
-        exposure_path: String,
-    },
+    Cmeta(Arguments),
     #[command(arg_required_else_help = true)]
     Docgen {
         #[command(subcommand)]
-        docgen: Docgen
-    }
+        docgen: Docgen,
+    },
 }
 
 impl Commands {
@@ -60,7 +63,7 @@ impl Commands {
             Commands::Docgen { docgen } => {
                 docgen.run().await?;
             }
-            Commands::Cmeta { input_path, output_dir, exposure_id, exposure_path } => {
+            Commands::Cmeta(Arguments { input_path, output_dir, exposure_id, exposure_path }) => {
                 let resource_path = format!("/exposure/{exposure_id}/{exposure_path}");
 
                 let reader = BufReader::new(fs::File::open(input_path)?);
@@ -209,21 +212,23 @@ impl Commands {
 #[derive(Debug, Subcommand)]
 enum Docgen {
     #[command(arg_required_else_help = true)]
-    Tmpdoc {
-        #[clap(long)]
-        input_path: String,
-    }
+    Tmpdoc(Arguments),
+    #[command(arg_required_else_help = true)]
+    Rst(Arguments),
 }
 
 
 impl Docgen {
     async fn run(self) -> anyhow::Result<()> {
         match self {
-            Docgen::Tmpdoc { input_path } => {
+            Docgen::Tmpdoc(Arguments { input_path, output_dir, exposure_id, exposure_path }) => {
                 let reader = BufReader::new(fs::File::open(input_path)?);
                 let xml = Xml::new(reader)?;
                 let output = sub_makefile_terms(&xml.xslt()?);
                 println!("{output}");
+            }
+            Docgen::Rst(Arguments { input_path, output_dir, exposure_id, exposure_path }) => {
+                todo!()
             }
         }
         Ok(())
