@@ -1,5 +1,6 @@
 pub mod cellml;
 pub mod citation;
+pub mod cli;
 pub mod error;
 pub mod read;
 pub mod xml;
