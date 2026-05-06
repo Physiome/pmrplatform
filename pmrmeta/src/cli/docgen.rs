@@ -1,8 +1,6 @@
 use clap::Subcommand;
-use std::{
-    fs,
-    io::BufReader,
-};
+use pmrctrl::platform::Platform;
+use std::io::{Read, Write};
 
 use crate::{
     cellml::legacy::sub_makefile_terms,
@@ -20,18 +18,35 @@ pub enum Docgen {
 
 
 impl Docgen {
-    pub async fn run(self) -> anyhow::Result<()> {
-        match self {
-            Docgen::Tmpdoc(Arguments { input_path, output_dir, exposure_id, exposure_path }) => {
-                let reader = BufReader::new(fs::File::open(input_path)?);
+    pub async fn run(self, platform: &Platform) -> anyhow::Result<()> {
+        let (arguments, doc) = match self {
+            Docgen::Tmpdoc(arguments) => {
+                let reader = arguments.input_reader()?;
                 let xml = Xml::new(reader)?;
-                let output = sub_makefile_terms(&xml.xslt()?);
-                println!("{output}");
+                let doc = sub_makefile_terms(&xml.xslt()?);
+                (arguments, doc)
             }
-            Docgen::Rst(Arguments { input_path, output_dir, exposure_id, exposure_path }) => {
-                todo!()
+            Docgen::Rst(arguments) => {
+                let mut reader = arguments.input_reader()?;
+                let mut buffer = String::new();
+                reader.read_to_string(&mut buffer)?;
+                // let doc = parserst::parse(&buffer)?
+                //     .into_iter()
+                //     .map(|b| b.to_string())
+                //     .collect::<Vec<_>>()
+                //     .join("\n");
+                let rstdoc = rst_parser::parse(&buffer)?;
+                let mut stream = Vec::<u8>::new();
+                rst_renderer::render_html(&rstdoc, &mut stream, false)?;
+                let doc = String::from_utf8(stream)?;
+                (arguments, doc)
             }
-        }
+        };
+
+        // write the output to the file
+        let mut output_writer = arguments.output_writer("index.html")?;
+        output_writer.write(doc.as_bytes())?;
+
         Ok(())
     }
 }

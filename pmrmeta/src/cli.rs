@@ -1,6 +1,13 @@
 use clap::{Parser, Subcommand};
-use pmrctrl::platform::Builder as PlatformBuilder;
-use pmrctrl::platform::Platform;
+use pmrctrl::platform::{
+    Builder as PlatformBuilder,
+    Platform,
+};
+use std::{
+    fs::File,
+    io::BufReader,
+    path::Path,
+};
 
 mod docgen;
 mod cmeta;
@@ -46,12 +53,29 @@ pub struct Config {
     pub verbose: u8,
 }
 
+impl Arguments {
+    pub fn input_reader(&self) -> std::io::Result<BufReader<File>> {
+        Ok(BufReader::new(File::open(&self.input_path)?))
+    }
+
+    pub fn output_writer(&self, path: impl AsRef<Path>) -> std::io::Result<File> {
+        Ok(File::create(Path::new(&self.output_dir).join(path))?)
+    }
+
+    pub fn resource_path(&self) -> String {
+        format!(
+            "/exposure/{}/{}",
+            self.exposure_id,
+            self.exposure_path,
+        )
+    }
+}
 
 impl Commands {
     pub async fn run(self, platform: Platform) -> anyhow::Result<()> {
         match self {
             Commands::Docgen { docgen } => {
-                docgen.run().await?;
+                docgen.run(&platform).await?;
             }
             Commands::Cmeta(arguments) => {
                 cmeta::run(&platform, arguments).await?;

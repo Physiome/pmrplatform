@@ -52,8 +52,8 @@ pub async fn run(
     pmr2_cmeta.citations = citations;
 
     // write the output to the file
-    let output_dir = fs::File::create(Path::new(&output_dir).join("cmeta.json"))?;
-    serde_json::to_writer(output_dir, &pmr2_cmeta)?;
+    let output = fs::File::create(Path::new(&output_dir).join("cmeta.json"))?;
+    serde_json::to_writer(output, &pmr2_cmeta)?;
 
     // with the data gathered, populate the index
     // Only index the first alias created, or the id if that's not found.
