@@ -47,6 +47,21 @@ impl Docgen {
         let mut output_writer = arguments.output_writer("index.html")?;
         output_writer.write(doc.as_bytes())?;
 
+        let htmlconf = html2text::config::with_decorator(html2text::render::TrivialDecorator::new())
+            .raw_mode(true);
+
+        let text = htmlconf.string_from_read(doc.as_bytes(), usize::MAX - 1)?;
+        println!("{text}");
+
+        let resource_path = arguments.resource_path();
+        platform.pc_platform.resource_link_kind_with_terms(
+            &resource_path,
+            "text",
+            &mut text.as_str()
+                .split_whitespace(),
+        )
+        .await?;
+
         Ok(())
     }
 }
