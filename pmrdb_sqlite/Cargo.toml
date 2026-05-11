@@ -18,6 +18,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-async-std-native-tls", "sqlite"] }
 thiserror = { workspace = true }
+unicode-segmentation = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

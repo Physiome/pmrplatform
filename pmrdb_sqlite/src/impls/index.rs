@@ -11,6 +11,7 @@ use pmrcore::{
         traits::IndexBackend,
     }
 };
+use unicode_segmentation::UnicodeSegmentation;
 
 use crate::SqliteBackend;
 
@@ -375,9 +376,23 @@ WHERE
         resource_path,
     )
     .map(|row| {
+        let idx = row.content
+            .as_ref()
+            .map(|content| content.unicode_word_indices()
+                .nth(WORD_COUNT as usize)
+                .map(|(idx, word)| idx + word.len())
+                .unwrap_or(content.len())
+            );
         ResourceBrief {
             title: row.title,
-            brief: row.content,
+            brief: row.content.map(|content| {
+                let idx = idx.expect("this must have a length");
+                let mut brief = content[0..idx].to_owned();
+                if idx < content.len() {
+                    brief.push_str("…");
+                };
+                brief
+            }),
             resource_path: row.resource_path.expect("resource_path should have matched here"),
         }
     })
