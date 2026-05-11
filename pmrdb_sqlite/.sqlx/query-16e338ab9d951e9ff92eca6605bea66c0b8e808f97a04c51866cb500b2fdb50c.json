@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\nSELECT\n    title AS \"title: String\",\n    snippet(idx_text, 1, ?2, ?3, '…', ?4) AS \"content: String\",\n    resource_path AS \"resource_path: String\"\nFROM\n    idx_text\nWHERE\n    idx_text MATCH ?1\nORDER BY\n    bm25(idx_text)\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "title: String",
+        "ordinal": 0,
+        "type_info": "Null"
+      },
+      {
+        "name": "content: String",
+        "ordinal": 1,
+        "type_info": "Null"
+      },
+      {
+        "name": "resource_path: String",
+        "ordinal": 2,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      true,
+      null,
+      true
+    ]
+  },
+  "hash": "16e338ab9d951e9ff92eca6605bea66c0b8e808f97a04c51866cb500b2fdb50c"
+}

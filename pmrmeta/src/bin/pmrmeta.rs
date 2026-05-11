@@ -236,7 +236,15 @@ async fn parse_text_cmd(
             };
         }
         TextCmd::Query { text } => {
-            todo!();
+            let results = platform.pc_platform.list_resources_text(&text, Some(("**", "**"))).await?;
+            for resource_brief in results.into_iter() {
+                println!(
+                    "<{}>\n{}\n----\n{}\n",
+                    resource_brief.resource_path,
+                    resource_brief.title.as_deref().unwrap_or("<untitled>"),
+                    resource_brief.brief.as_deref().unwrap_or("<blank>"),
+                );
+            }
         }
         TextCmd::Forget { resource_path } => {
             platform.pc_platform.forget_resource_text(&resource_path).await?;

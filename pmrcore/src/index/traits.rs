@@ -58,6 +58,14 @@ pub trait IndexBackend {
         kind: &str,
         term: &str,
     ) -> Result<Option<IndexResourceSet>, BackendError>;
+    /// List the text associated with the resources given the provided text.
+    ///
+    /// An optional bracket may be provided to highlight the matched text.
+    async fn list_resources_text(
+        &self,
+        text: &str,
+        bracket: Option<(&str, &str)>,
+    ) -> Result<Vec<ResourceBrief>, BackendError>;
 
     /// Get the kinded terms for the given resource path
     async fn get_resource_kinded_terms(

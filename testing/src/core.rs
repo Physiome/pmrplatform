@@ -740,6 +740,14 @@ impl IndexBackend for MockPlatform {
         unimplemented!()
     }
 
+    async fn list_resources_text(
+        &self,
+        _text: &str,
+        _bracket: Option<(&str, &str)>,
+    ) -> Result<Vec<ResourceBrief>, BackendError> {
+        unimplemented!()
+    }
+
     async fn get_resource_kinded_terms(
         &self,
         _resource_path: &str,

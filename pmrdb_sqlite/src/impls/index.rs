@@ -14,6 +14,8 @@ use pmrcore::{
 
 use crate::SqliteBackend;
 
+const WORD_COUNT: i64 = 60;
+
 // Postgresql version should look like this instead:
 //
 // WITH q AS (
@@ -385,6 +387,46 @@ WHERE
     Ok(result)
 }
 
+async fn list_idx_text_sqlite(
+    backend: &SqliteBackend,
+    text: &str,
+    bracket: Option<(&str, &str)>,
+) -> Result<Vec<ResourceBrief>, BackendError> {
+    let (start, end) = bracket.unwrap_or(("", ""));
+    let result = sqlx::query!(
+        r#"
+SELECT
+    title AS "title: String",
+    snippet(idx_text, 1, ?2, ?3, '…', ?4) AS "content: String",
+    resource_path AS "resource_path: String"
+FROM
+    idx_text
+WHERE
+    idx_text MATCH ?1
+ORDER BY
+    bm25(idx_text)
+        "#,
+        text,
+        start,
+        end,
+        WORD_COUNT,
+    )
+    .map(|row| {
+        row.resource_path.map(|resource_path| ResourceBrief {
+            title: row.title,
+            brief: row.content,
+            resource_path: resource_path,
+        })
+    })
+    .fetch_all(&*backend.pool)
+    .await?
+    .into_iter()
+    .filter_map(|s| s)
+    .collect::<Vec<_>>();
+
+    Ok(result)
+}
+
 #[async_trait]
 impl IndexBackend for SqliteBackend {
     async fn resolve_kind(
@@ -451,6 +493,14 @@ impl IndexBackend for SqliteBackend {
         term: &str,
     ) -> Result<Option<IndexResourceSet>, BackendError> {
         list_resources_sqlite(self, kind, term).await
+    }
+
+    async fn list_resources_text(
+        &self,
+        text: &str,
+        bracket: Option<(&str, &str)>,
+    ) -> Result<Vec<ResourceBrief>, BackendError> {
+        list_idx_text_sqlite(self, text, bracket).await
     }
 
     async fn get_resource_kinded_terms(
