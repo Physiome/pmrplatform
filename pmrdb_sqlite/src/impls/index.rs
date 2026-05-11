@@ -6,6 +6,7 @@ use pmrcore::{
         IdxKind,
         IndexResourceSet,
         IndexTerms,
+        ResourceBrief,
         ResourceKindedTerms,
         traits::IndexBackend,
     }
@@ -102,6 +103,50 @@ ON CONFLICT(idx_entry_id, resource_path) DO NOTHING
     Ok(())
 }
 
+async fn idx_text_forget_sqlite(
+    backend: &SqliteBackend,
+    resource_path: &str,
+) -> Result<(), BackendError> {
+    sqlx::query!(
+        r#"
+DELETE FROM idx_text
+WHERE resource_path = ?1
+        "#,
+        resource_path,
+    )
+    .execute(&*backend.pool)
+    .await?;
+
+    Ok(())
+}
+
+async fn add_idx_text_sqlite(
+    backend: &SqliteBackend,
+    title: Option<&str>,
+    content: Option<&str>,
+    resource_path: &str,
+) -> Result<(), BackendError> {
+    idx_text_forget_sqlite(backend, resource_path).await?;
+
+    sqlx::query!(
+        r#"
+INSERT INTO idx_text (
+    title,
+    content,
+    resource_path
+)
+VALUES ( ?1, ?2, ?3 )
+        "#,
+        title,
+        content,
+        resource_path,
+    )
+    .execute(&*backend.pool)
+    .await?;
+
+    Ok(())
+}
+
 async fn forget_resource_path_sqlite(
     backend: &SqliteBackend,
     kind: Option<&str>,
@@ -119,6 +164,8 @@ WHERE
             )
                 .execute(&*backend.pool)
                 .await?;
+            // Also forgets the text index.
+            idx_text_forget_sqlite(backend, resource_path).await?;
         }
         Some(kind) => {
             let idx_kind = match get_idx_kind_sqlite(backend, kind).await? {
@@ -308,6 +355,36 @@ WHERE
     })
 }
 
+async fn get_resource_brief_sqlite(
+    backend: &SqliteBackend,
+    resource_path: &str,
+) -> Result<Option<ResourceBrief>, BackendError> {
+    let result = sqlx::query!(
+        r#"
+SELECT
+    title AS "title: String",
+    content AS "content: String",
+    resource_path AS "resource_path: String"
+FROM
+    idx_text
+WHERE
+    resource_path = ?1
+        "#,
+        resource_path,
+    )
+    .map(|row| {
+        ResourceBrief {
+            title: row.title,
+            brief: row.content,
+            resource_path: row.resource_path.expect("resource_path should have matched here"),
+        }
+    })
+    .fetch_optional(&*backend.pool)
+    .await?;
+
+    Ok(result)
+}
+
 #[async_trait]
 impl IndexBackend for SqliteBackend {
     async fn resolve_kind(
@@ -333,12 +410,28 @@ impl IndexBackend for SqliteBackend {
         add_idx_entry_link_sqlite(self, idx_entry_id, resource_path).await
     }
 
+    async fn add_idx_text(
+        &self,
+        title: Option<&str>,
+        content: Option<&str>,
+        resource_path: &str,
+    ) -> Result<(), BackendError> {
+        add_idx_text_sqlite(self, title, content, resource_path).await
+    }
+
     async fn forget_resource_path(
         &self,
         kind: Option<&str>,
         resource_path: &str,
     ) -> Result<(), BackendError> {
         forget_resource_path_sqlite(self, kind, resource_path).await
+    }
+
+    async fn forget_resource_text(
+        &self,
+        resource_path: &str,
+    ) -> Result<(), BackendError> {
+        idx_text_forget_sqlite(self, resource_path).await
     }
 
     async fn list_kinds(&self) -> Result<Vec<String>, BackendError> {
@@ -365,6 +458,13 @@ impl IndexBackend for SqliteBackend {
         resource_path: &str,
     ) -> Result<ResourceKindedTerms, BackendError> {
         get_resource_kinded_terms_sqlite(self, resource_path).await
+    }
+
+    async fn get_resource_brief(
+        &self,
+        resource_path: &str,
+    ) -> Result<Option<ResourceBrief>, BackendError> {
+        get_resource_brief_sqlite(self, resource_path).await
     }
 
 }

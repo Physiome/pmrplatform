@@ -24,10 +24,22 @@ pub trait IndexBackend {
         idx_entry_id: i64,
         resource_path: &str,
     ) -> Result<(), BackendError>;
+    /// Link `resource_path` with the text content for the text index.
+    async fn add_idx_text(
+        &self,
+        title: Option<&str>,
+        content: Option<&str>,
+        resource_path: &str,
+    ) -> Result<(), BackendError>;
     /// Forget the `resource_path` from the index.
     async fn forget_resource_path(
         &self,
         kind: Option<&str>,
+        resource_path: &str,
+    ) -> Result<(), BackendError>;
+    /// Forget the text associated with `resource_path`.
+    async fn forget_resource_text(
+        &self,
         resource_path: &str,
     ) -> Result<(), BackendError>;
 
@@ -52,6 +64,12 @@ pub trait IndexBackend {
         &self,
         resource_path: &str,
     ) -> Result<ResourceKindedTerms, BackendError>;
+
+    /// Get the brief associated with the resource path.
+    async fn get_resource_brief(
+        &self,
+        resource_path: &str,
+    ) -> Result<Option<ResourceBrief>, BackendError>;
 
     async fn resource_link_kind_with_terms(
         &self,

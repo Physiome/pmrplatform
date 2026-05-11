@@ -46,6 +46,7 @@ use pmrcore::{
         traits::IndexBackend,
         IndexTerms,
         IndexResourceSet,
+        ResourceBrief,
         ResourceKindedTerms,
     },
     platform::{
@@ -696,9 +697,25 @@ impl IndexBackend for MockPlatform {
         unimplemented!()
     }
 
+    async fn add_idx_text(
+        &self,
+        _title: Option<&str>,
+        _content: Option<&str>,
+        _resource_path: &str,
+    ) -> Result<(), BackendError> {
+        unimplemented!()
+    }
+
     async fn forget_resource_path(
         &self,
         _kind: Option<&str>,
+        _resource_path: &str,
+    ) -> Result<(), BackendError> {
+        unimplemented!()
+    }
+
+    async fn forget_resource_text(
+        &self,
         _resource_path: &str,
     ) -> Result<(), BackendError> {
         unimplemented!()
@@ -727,6 +744,13 @@ impl IndexBackend for MockPlatform {
         &self,
         _resource_path: &str,
     ) -> Result<ResourceKindedTerms, BackendError> {
+        unimplemented!()
+    }
+
+    async fn get_resource_brief(
+        &self,
+        _resource_path: &str,
+    ) -> Result<Option<ResourceBrief>, BackendError> {
         unimplemented!()
     }
 }

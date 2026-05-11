@@ -36,6 +36,11 @@ enum Commands {
         cmd: LinkCmd,
     },
     #[command(arg_required_else_help = true)]
+    Text {
+        #[command(subcommand)]
+        cmd: TextCmd,
+    },
+    #[command(arg_required_else_help = true)]
     Query {
         #[clap(flatten)]
         cmd: QueryCmd,
@@ -71,6 +76,28 @@ enum LinkCmd {
     },
 }
 
+#[derive(Debug, Subcommand)]
+enum TextCmd {
+    #[command(arg_required_else_help = true)]
+    Store {
+        resource_path: String,
+        title: Option<String>,
+        content: Option<String>,
+    },
+    #[command(arg_required_else_help = true)]
+    Show {
+        resource_path: String,
+    },
+    #[command(arg_required_else_help = true)]
+    Query {
+        text: String,
+    },
+    #[command(arg_required_else_help = true)]
+    Forget {
+        resource_path: String,
+    },
+}
+
 #[derive(Debug, Parser)]
 struct QueryCmd {
     kind: String,
@@ -102,6 +129,9 @@ async fn main() -> anyhow::Result<()> {
         },
         Commands::Link { cmd } => {
             parse_link_cmd(&platform, cmd).await?;
+        },
+        Commands::Text { cmd } => {
+            parse_text_cmd(&platform, cmd).await?;
         },
         Commands::Query { cmd } => {
             parse_query_cmd(&platform, cmd).await?;
@@ -175,6 +205,41 @@ async fn parse_link_cmd(
                 kind.as_deref(),
                 &resource_path,
             ).await?;
+            println!("forgotten {resource_path:?}");
+        }
+    }
+    Ok(())
+}
+
+async fn parse_text_cmd(
+    platform: &Platform,
+    arg: TextCmd,
+) -> anyhow::Result<()> {
+    match arg {
+        TextCmd::Store { resource_path, title, content } => {
+            platform.pc_platform.add_idx_text(
+                title.as_deref(),
+                content.as_deref(),
+                &resource_path,
+            ).await?;
+            println!("indexed {resource_path:?}");
+        }
+        TextCmd::Show { resource_path } => {
+            if let Some(resource_brief) = platform.pc_platform.get_resource_brief(&resource_path).await? {
+                println!(
+                    "{}\n----\n{}",
+                    resource_brief.title.as_deref().unwrap_or("<untitled>"),
+                    resource_brief.brief.as_deref().unwrap_or("<blank>"),
+                );
+            } else {
+                println!("No text indexed for {resource_path:?}");
+            };
+        }
+        TextCmd::Query { text } => {
+            todo!();
+        }
+        TextCmd::Forget { resource_path } => {
+            platform.pc_platform.forget_resource_text(&resource_path).await?;
             println!("forgotten {resource_path:?}");
         }
     }

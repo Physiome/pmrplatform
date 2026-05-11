@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\nSELECT\n    title AS \"title: String\",\n    content AS \"content: String\",\n    resource_path AS \"resource_path: String\"\nFROM\n    idx_text\nWHERE\n    resource_path = ?1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "title: String",
+        "ordinal": 0,
+        "type_info": "Null"
+      },
+      {
+        "name": "content: String",
+        "ordinal": 1,
+        "type_info": "Null"
+      },
+      {
+        "name": "resource_path: String",
+        "ordinal": 2,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "26b1960c301656c56b9a2fe6bb8048904eb72df61f056500646f5d108deb61cc"
+}

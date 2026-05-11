@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nINSERT INTO idx_text (\n    title,\n    content,\n    resource_path\n)\nVALUES ( ?1, ?2, ?3 )\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "4deff85fdeccd8d8a35d011a89ecb2b9c84ead3868f28ea82fc537a79876f2b3"
+}

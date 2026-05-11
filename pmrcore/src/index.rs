@@ -65,4 +65,13 @@ pub struct ResourceKindedTerms {
     pub data: BTreeMap<String, Vec<String>>,
 }
 
+/// A brief about the resource.
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
+pub struct ResourceBrief {
+    pub resource_path: String,
+    pub title: Option<String>,
+    pub brief: Option<String>,
+}
+
 pub mod traits;
