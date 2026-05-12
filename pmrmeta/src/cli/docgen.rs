@@ -12,12 +12,16 @@ use crate::{
     xml::Xml,
 };
 
+mod htmldoc;
+
 #[derive(Debug, Subcommand)]
 pub enum Docgen {
     #[command(arg_required_else_help = true)]
     Tmpdoc(Arguments),
     #[command(arg_required_else_help = true)]
     Rst(Arguments),
+    #[command(arg_required_else_help = true)]
+    Htmldoc(Arguments),
 }
 
 
@@ -66,25 +70,48 @@ impl Docgen {
                 let title = arguments.exposure_path.clone();
                 (arguments, Some(title), Some(doc))
             }
+            Docgen::Htmldoc(arguments) => {
+                let reader = arguments.input_reader()?;
+                let title = htmldoc::parse_title(reader)?;
+                let mut doc = String::new();
+                arguments.input_reader()?
+                    .read_to_string(&mut doc)?;
+                (arguments, Some(title), Some(doc))
+            }
         };
 
         // write the output to the file
         let text = if let Some(doc) = doc {
-            let mut output_writer = arguments.output_writer("index.html")?;
-            output_writer.write(doc.as_bytes())?;
-
+            if !arguments.dry_run {
+                let mut output_writer = arguments.output_writer("index.html")?;
+                output_writer.write(doc.as_bytes())?;
+            }
             let htmlconf = html2text::config::with_decorator(TrivialDecorator::new())
                 .raw_mode(true);
-
             let text = htmlconf.string_from_read(doc.as_bytes(), usize::MAX - 1)?;
-            println!("{text}");
             Some(text)
         } else {
             None
         };
 
         let resource_path = arguments.resource_path();
-        platform.pc_platform.add_idx_text(title.as_deref(), text.as_deref(), &resource_path).await?;
+        if !arguments.dry_run {
+            platform.pc_platform.add_idx_text(title.as_deref(), text.as_deref(), &resource_path).await?;
+        } else {
+            println!("*** DRY RUN ***");
+            println!("<{resource_path}>");
+            if let Some(title) = title {
+                println!("Title: {title}");
+            } else {
+                println!("Title: <untitled>");
+            }
+            println!("----");
+            if let Some(text) = text {
+                println!("{text}");
+            } else {
+                println!("<blank>");
+            }
+        }
 
         // platform.pc_platform.resource_link_kind_with_terms(
         //     &resource_path,

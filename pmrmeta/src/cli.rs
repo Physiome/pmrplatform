@@ -24,6 +24,8 @@ pub struct Arguments {
     pub exposure_id: i64,
     #[clap(long)]
     pub exposure_path: String,
+    #[clap(long)]
+    pub dry_run: bool,
 }
 
 #[derive(Debug, Parser)]

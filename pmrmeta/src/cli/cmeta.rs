@@ -13,7 +13,7 @@ use crate::{
 
 pub async fn run(
     platform: &Platform,
-    Arguments { input_path, output_dir, exposure_id, exposure_path }: Arguments,
+    Arguments { input_path, output_dir, exposure_id, exposure_path, .. }: Arguments,
 ) -> anyhow::Result<()> {
     let resource_path = format!("/exposure/{exposure_id}/{exposure_path}");
 
