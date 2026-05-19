@@ -119,7 +119,11 @@ pub trait IndexBackend {
         }) = self.list_resources(kind, term).await? {
             let mut results = Vec::new();
             for resource_path in resource_paths.into_iter() {
-                results.push(self.get_resource_kinded_terms(&resource_path).await?);
+                let mut kinded_terms = self.get_resource_kinded_terms(&resource_path).await?;
+                let brief = self.get_resource_brief(&resource_path).await?.unwrap_or_default();
+                kinded_terms.data.insert(String::from("_title"), brief.title.into_iter().collect());
+                kinded_terms.data.insert(String::from("_brief"), brief.brief.into_iter().collect());
+                results.push(kinded_terms);
             }
             Ok(Some(IndexResourceDetailedSet {
                 kind,
