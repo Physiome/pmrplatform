@@ -130,4 +130,35 @@ pub trait IndexBackend {
             Ok(None)
         }
     }
+
+    /// Convert a resource brief into resource kinded terms, with the `title` and `brief` field encoded
+    /// as keys prefixed with `_` inside data.
+    async fn resource_brief_to_kinded_terms(
+        &self,
+        brief: ResourceBrief,
+    ) -> Result<ResourceKindedTerms, BackendError> {
+        let mut kinded_terms = self.get_resource_kinded_terms(&brief.resource_path).await?;
+        kinded_terms.data.insert(String::from("_title"), brief.title.into_iter().collect());
+        kinded_terms.data.insert(String::from("_brief"), brief.brief.into_iter().collect());
+        Ok(kinded_terms)
+    }
+
+    /// List the text associated with the resources given the provided text, but converted to a
+    /// `ResourceKindedTerms` using `resource_brief_to_kinded_terms`.
+    ///
+    /// An optional bracket may be provided to highlight the matched text.
+    async fn list_resources_text_as_kinded_terms(
+        &self,
+        text: &str,
+        bracket: Option<(&str, &str)>,
+    ) -> Result<Vec<ResourceKindedTerms>, BackendError> {
+        let mut results = Vec::new();
+        for brief in self.list_resources_text(text, bracket)
+            .await?
+            .into_iter()
+        {
+            results.push(self.resource_brief_to_kinded_terms(brief).await?);
+        }
+        Ok(results)
+    }
 }

@@ -53,6 +53,7 @@ use crate::{
             __path_indexes,
             __path_terms,
             __path_resources,
+            __path_resource_briefs,
         },
         workspace::__path_raw_aliased_workspace_download,
     },
@@ -124,6 +125,7 @@ impl Modify for Security {
         indexes,
         terms,
         resources,
+        resource_briefs,
 
         // Workspaces
         create_workspace_core,

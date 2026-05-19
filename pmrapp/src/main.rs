@@ -137,6 +137,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/index/{keyword}/", get(index::terms))
         .route("/api/index/{keyword}/{term}", get(index::resources))
         .route("/api/index/{keyword}/{term}/", get(index::resources))
+        .route("/api/search", post(index::resource_briefs))
 
         .route(WIZARD_FIELD_ROUTE, post(wizard_field_update))
         .leptos_routes(
