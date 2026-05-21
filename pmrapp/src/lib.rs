@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 pub mod ac;
 pub mod app;
 #[cfg(not(feature = "ssr"))]
