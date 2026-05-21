@@ -7,7 +7,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_kind__description ON idx_kind(description)
 CREATE TABLE IF NOT EXISTS idx_entry (
     id INTEGER PRIMARY KEY NOT NULL,
     idx_kind_id INTEGER NOT NULL,
-    term TEXT NOT NULL,
+    term TEXT NOT NULL COLLATE NOCASE,
     FOREIGN KEY(idx_kind_id) REFERENCES idx_kind(id)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_entry__idx_kind_id_term ON idx_entry(idx_kind_id, term);

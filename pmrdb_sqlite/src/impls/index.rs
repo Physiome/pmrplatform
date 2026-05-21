@@ -629,6 +629,14 @@ pub(crate) mod testing {
             backend.list_resources("title", "Test Resource").await?.unwrap().resource_paths,
             vec!["/test/resource".to_string()],
         );
+        // query should be case insensitive, but data should still be returned as if they are.
+        assert_eq!(
+            backend.list_resources("title", "test resource").await?.unwrap().resource_paths,
+            vec!["/test/resource".to_string()],
+        );
+        let kinded_terms = backend.get_resource_kinded_terms("/test/resource").await?;
+        assert_eq!(kinded_terms.resource_path, "/test/resource");
+        assert_eq!(kinded_terms.data.get("title"), Some(vec!["Test Resource".to_string()]).as_ref());
         backend.forget_resource_path(None, "/test/resource").await?;
         assert!(backend.list_resources("title", "Test Resource").await?.unwrap().resource_paths.is_empty());
         // TODO should clean up terms that have no records?
