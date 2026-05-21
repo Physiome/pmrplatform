@@ -46,6 +46,23 @@ fn keywords2() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[test]
+fn keywords3() -> anyhow::Result<()> {
+    let store = xml_to_store(&utils::load_test_data("example_model.cellml")?[..])?;
+    let mut result = query::keywords(&store)?;
+    result.sort();
+    assert_eq!(result, &["cardiac", "electrophysiology", "ventricular myocyte"]);
+
+    let mut result = query::contextual_keywords(&store)?;
+    result.sort();
+    assert_eq!(result.iter().map(|(n, v)| (n.as_str(), v.as_str())).collect::<Vec<_>>(), &[
+        ("#complex_model", "cardiac"),
+        ("#complex_model", "electrophysiology"),
+        ("#complex_model", "ventricular myocyte"),
+    ]);
+    Ok(())
+}
+
 // This really is a combination test to show how merging multiple files into
 // a single store might work (it doesn't work well to distinguish data source,
 // but it does work).

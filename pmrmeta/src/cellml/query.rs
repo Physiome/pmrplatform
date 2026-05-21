@@ -141,7 +141,7 @@ pub fn keywords(store: &Store) -> Result<Vec<String>, RdfIndexerError> {
         "#,
         None,
         "value",
-        str::to_string,
+        str::to_lowercase,
     )
 }
 
@@ -165,14 +165,14 @@ pub fn contextual_keywords(store: &Store) -> Result<Vec<(String, String)>, RdfIn
         |solution| {
             if let Some(Term::NamedNode(cmetaid)) = solution.get("cmetaid") {
                 if let Some(Term::Literal(value)) = solution.get("value") {
-                    if cmetaid.as_str().starts_with(BASE_IRI) {
-                        return Some((
-                            cmetaid.as_str()[BASE_IRI.len()..].to_string(),
-                            value.value().trim().to_string(),
-                        ))
-                    } else {
-                        return Some((cmetaid.to_string(), value.value().trim().to_string()))
-                    }
+                    return Some((
+                        if cmetaid.as_str().starts_with(BASE_IRI) {
+                            cmetaid.as_str()[BASE_IRI.len()..].to_string()
+                        } else {
+                            cmetaid.to_string()
+                        },
+                        value.value().trim().to_lowercase(),
+                    ))
                 }
             }
             None
