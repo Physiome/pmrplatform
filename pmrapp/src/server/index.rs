@@ -7,7 +7,7 @@ use axum::{
 };
 use pmrcore::{
     citation::Citation,
-    index::{IndexTerms, IndexResourceDetailedSet, ResourceKindedTerms},
+    index::{IndexTerms, IndexResourceDetailedSet, Query, ResourceKindedTerms},
 };
 use pmrctrl::platform::Platform;
 use serde::{Deserialize, Serialize};
@@ -114,19 +114,13 @@ pub struct ResourceBriefs {
     pub results: Vec<ResourceKindedTerms>,
 }
 
-#[derive(Deserialize, Serialize)]
-#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-pub struct ResourceBriefQuery {
-    pub query: String,
-}
-
 // Index Resource Set
 pub(crate) async fn resource_briefs_core(
     platform: &Platform,
-    query: ResourceBriefQuery,
+    query: Query,
 ) -> Result<Vec<ResourceKindedTerms>, AppError> {
     platform.pc_platform
-        .list_resources_text_as_kinded_terms(&query.query, Some(("<mark>", "</mark>")))
+        .query_resource(&query, Some(("<mark>", "</mark>")))
         .await
         .map_err(|_| AppError::InternalServerError)
 }
@@ -134,7 +128,7 @@ pub(crate) async fn resource_briefs_core(
 #[cfg_attr(feature = "utoipa", utoipa::path(
     post,
     path = "/api/search",
-    request_body=ResourceBriefQuery,
+    request_body=Query,
     responses((
         status = 200,
         description = "Listing of resources, titles, and description.",
@@ -143,7 +137,7 @@ pub(crate) async fn resource_briefs_core(
 ))]
 pub async fn resource_briefs(
     Extension(platform): Extension<Platform>,
-    extract::Json(query): extract::Json<ResourceBriefQuery>,
+    extract::Json(query): extract::Json<Query>,
 ) -> Result<Json<ResourceBriefs>, AppError> {
     let results = resource_briefs_core(&platform, query).await?;
     Ok(Json(ResourceBriefs { results }))

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use std::collections::HashSet;
 use crate::error::BackendError;
 use super::*;
 
@@ -106,6 +107,17 @@ pub trait IndexBackend {
         Ok(())
     }
 
+    async fn get_resource_details(
+        &self,
+        resource_path: &str,
+    ) -> Result<ResourceKindedTerms, BackendError> {
+        let mut kinded_terms = self.get_resource_kinded_terms(resource_path).await?;
+        let brief = self.get_resource_brief(resource_path).await?.unwrap_or_default();
+        kinded_terms.data.insert(String::from("_title"), brief.title.into_iter().collect());
+        kinded_terms.data.insert(String::from("_brief"), brief.brief.into_iter().collect());
+        Ok(kinded_terms)
+    }
+
     /// Get the kinded terms for the given resource path
     async fn list_resources_details(
         &self,
@@ -119,11 +131,7 @@ pub trait IndexBackend {
         }) = self.list_resources(kind, term).await? {
             let mut results = Vec::new();
             for resource_path in resource_paths.into_iter() {
-                let mut kinded_terms = self.get_resource_kinded_terms(&resource_path).await?;
-                let brief = self.get_resource_brief(&resource_path).await?.unwrap_or_default();
-                kinded_terms.data.insert(String::from("_title"), brief.title.into_iter().collect());
-                kinded_terms.data.insert(String::from("_brief"), brief.brief.into_iter().collect());
-                results.push(kinded_terms);
+                results.push(self.get_resource_details(&resource_path).await?);
             }
             Ok(Some(IndexResourceDetailedSet {
                 kind,
@@ -162,6 +170,70 @@ pub trait IndexBackend {
             .into_iter()
         {
             results.push(self.resource_brief_to_kinded_terms(brief).await?);
+        }
+        Ok(results)
+    }
+
+    async fn query_resource(
+        &self,
+        Query { query, filters }: &Query,
+        bracket: Option<(&str, &str)>,
+    ) -> Result<Vec<ResourceKindedTerms>, BackendError> {
+        // 1. If there is a query, gather the briefs to be used later.
+        let briefs = if let Some(query) = query {
+            Some(self.list_resources_text(query, bracket).await?)
+        } else {
+            None
+        };
+
+        // 2. If filters are empty, simply return the briefs as is.
+        if filters.is_empty() {
+            let mut results = Vec::new();
+            for brief in briefs.unwrap_or_default().into_iter() {
+                results.push(self.resource_brief_to_kinded_terms(brief).await?);
+            }
+            return Ok(results);
+        }
+
+        // 3.1 Use the first filter, and set up the initial set of resource paths.
+        let mut filters = filters.into_iter();
+        let mut resource_paths: HashSet<String> = if let Some(Filter { kind, term }) = filters.next() {
+            self.list_resources(kind, term).await?
+                .unwrap_or_default()
+                .resource_paths
+                .into_iter()
+                .collect()
+        } else {
+            Default::default()
+        };
+
+        // 3.2 Intersect every remaining results with kind/term pairs (i.e. `and` everything together).
+        for Filter { kind, term } in filters.into_iter() {
+            resource_paths = resource_paths
+                .intersection(
+                    &self.list_resources(kind, term).await?
+                        .unwrap_or_default()
+                        .resource_paths
+                        .into_iter()
+                        .collect::<HashSet<String>>()
+                )
+                .cloned()
+                .collect();
+        }
+
+        let mut results = Vec::new();
+        if let Some(briefs) = briefs {
+            // 4.1 Briefs will be available with text query, so combine that with the resources.
+            for brief in briefs.into_iter() {
+                if resource_paths.contains(&brief.resource_path) {
+                    results.push(self.resource_brief_to_kinded_terms(brief).await?);
+                }
+            }
+        } else {
+            // 4.2. No text query so no briefs, so simply get everything.
+            for resource_path in resource_paths.into_iter() {
+                results.push(self.get_resource_details(&resource_path).await?);
+            }
         }
         Ok(results)
     }

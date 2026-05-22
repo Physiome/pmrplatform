@@ -74,4 +74,21 @@ pub struct ResourceBrief {
     pub brief: Option<String>,
 }
 
+/// Used for search/query.
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
+pub struct Filter {
+    pub kind: String,
+    pub term: String,
+}
+
+/// Used for search/query.
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(default)]
+#[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
+pub struct Query {
+    pub query: Option<String>,
+    pub filters: Vec<Filter>,
+}
+
 pub mod traits;
