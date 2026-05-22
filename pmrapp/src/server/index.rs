@@ -128,7 +128,47 @@ pub(crate) async fn resource_briefs_core(
 #[cfg_attr(feature = "utoipa", utoipa::path(
     post,
     path = "/api/search",
-    request_body=Query,
+    request_body(
+        description=r#"
+Perform a search across indices and texts associated with resources.
+        "#,
+        content((
+            Query = "application/json",
+            examples(
+                ("Example 1" = (
+                    summary = "Basic text query",
+                    value = json!({
+                        "query": "Ca2+",
+                    }),
+                )),
+                ("Example 2" = (
+                    summary = "Multiple search terms from a keyword",
+                    value = json!({
+			"filters": [{
+			    "kind": "cellml_keyword",
+			    "term": "cardiac",
+			}, {
+			    "kind": "cellml_keyword",
+			    "term": "electrophysiology",
+			}],
+                    }),
+                )),
+                ("Example 3" = (
+                    summary = "Combine both text and keywords",
+                    value = json!({
+                        "query": "sarcoplasmic reticulum",
+			"filters": [{
+			    "kind": "citation_author_family_name",
+			    "term": "rice",
+			}, {
+			    "kind": "cellml_keyword",
+			    "term": "electrophysiology",
+			}],
+                    }),
+                )),
+            ),
+        )),
+    ),
     responses((
         status = 200,
         description = "Listing of resources, titles, and description.",
