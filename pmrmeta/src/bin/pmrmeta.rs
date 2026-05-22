@@ -44,6 +44,8 @@ enum Commands {
     Query {
         #[clap(flatten)]
         cmd: QueryCmd,
+        #[clap(long)]
+        details: bool,
     },
 }
 
@@ -133,8 +135,8 @@ async fn main() -> anyhow::Result<()> {
         Commands::Text { cmd } => {
             parse_text_cmd(&platform, cmd).await?;
         },
-        Commands::Query { cmd } => {
-            parse_query_cmd(&platform, cmd).await?;
+        Commands::Query { cmd, details } => {
+            parse_query_cmd(&platform, cmd, details).await?;
         },
     }
 
@@ -257,22 +259,42 @@ async fn parse_text_cmd(
 async fn parse_query_cmd(
     platform: &Platform,
     QueryCmd { kind, term }: QueryCmd,
+    details: bool,
 ) -> anyhow::Result<()> {
-    match platform.pc_platform.list_resources(
-        &kind,
-        &term,
-    ).await? {
-        Some(results) => {
-            println!(
-                "Querying index of kind {kind:?} for term {term:?} got {} result(s)",
-                results.resource_paths.len()
-            );
-            for resource_path in results.resource_paths.iter() {
-                println!("- {resource_path:?}");
+    if details {
+        match platform.pc_platform.list_resources_details(
+            &kind,
+            &term,
+        ).await? {
+            Some(results) => {
+                println!(
+                    "Querying index of kind {kind:?} for term {term:?} got {} result(s)",
+                    results.resource_paths.len()
+                );
+                let output = serde_json::to_string_pretty(&results)?;
+                println!("{output}");
+            }
+            None => {
+                println!("No index of kind {kind:?} or term {term:?}");
             }
         }
-        None => {
-            println!("No index of kind {kind:?} or term {term:?}");
+    } else {
+        match platform.pc_platform.list_resources(
+            &kind,
+            &term,
+        ).await? {
+            Some(results) => {
+                println!(
+                    "Querying index of kind {kind:?} for term {term:?} got {} result(s)",
+                    results.resource_paths.len()
+                );
+                for resource_path in results.resource_paths.iter() {
+                    println!("- {resource_path:?}");
+                }
+            }
+            None => {
+                println!("No index of kind {kind:?} or term {term:?}");
+            }
         }
     }
     Ok(())
