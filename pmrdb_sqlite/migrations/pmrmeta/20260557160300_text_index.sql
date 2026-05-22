@@ -3,5 +3,6 @@
 CREATE VIRTUAL TABLE idx_text USING fts5(
     title,
     content,
-    resource_path UNINDEXED
+    resource_path UNINDEXED,
+    tokenize = "porter unicode61 remove_diacritics 2 tokenchars '+&'"
 );

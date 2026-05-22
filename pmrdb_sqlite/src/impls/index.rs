@@ -407,6 +407,16 @@ async fn list_idx_text_sqlite(
     text: &str,
     bracket: Option<(&str, &str)>,
 ) -> Result<Vec<ResourceBrief>, BackendError> {
+    let corrected_text = text.split_whitespace()
+        .map(|s| {
+            if s.len() > 2 && s.contains("+") {
+                format!("\"{s}\"")
+            } else {
+                s.to_owned()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
     let (start, end) = bracket.unwrap_or(("", ""));
     let result = sqlx::query!(
         r#"
@@ -421,7 +431,7 @@ WHERE
 ORDER BY
     bm25(idx_text)
         "#,
-        text,
+        corrected_text,
         start,
         end,
         WORD_COUNT,
@@ -538,7 +548,10 @@ impl IndexBackend for SqliteBackend {
 pub(crate) mod testing {
     use pmrcore::{
         platform::PlatformConnector as _,
-        index::traits::IndexBackend,
+        index::{
+            traits::IndexBackend,
+            ResourceBrief,
+        },
     };
     use crate::SqliteBackend;
 
@@ -640,6 +653,64 @@ pub(crate) mod testing {
         backend.forget_resource_path(None, "/test/resource").await?;
         assert!(backend.list_resources("title", "Test Resource").await?.unwrap().resource_paths.is_empty());
         // TODO should clean up terms that have no records?
+
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn test_resource_text() -> anyhow::Result<()> {
+        let backend = SqliteBackend::pc("sqlite::memory:".into())
+            .await
+            .map_err(anyhow::Error::from_boxed)?;
+        backend.add_idx_text(
+            Some("Example Title"),
+            Some("Content is test+ corrected."),
+            "/test/resource",
+        ).await?;
+
+        assert_eq!(
+            backend.list_resources_text("title", Some(("**", "**"))).await?,
+            vec![
+                ResourceBrief {
+                    resource_path: "/test/resource".to_string(),
+                    title: Some("Example Title".to_string()),
+                    brief: Some("Content is test+ corrected.".to_string()),
+                },
+            ],
+        );
+
+        assert_eq!(
+            backend.list_resources_text("content", Some(("**", "**"))).await?,
+            vec![
+                ResourceBrief {
+                    resource_path: "/test/resource".to_string(),
+                    title: Some("Example Title".to_string()),
+                    brief: Some("**Content** is test+ corrected.".to_string()),
+                },
+            ],
+        );
+
+        assert_eq!(
+            backend.list_resources_text("test+", Some(("**", "**"))).await?,
+            vec![
+                ResourceBrief {
+                    resource_path: "/test/resource".to_string(),
+                    title: Some("Example Title".to_string()),
+                    brief: Some("Content is **test+** corrected.".to_string()),
+                },
+            ],
+        );
+
+        assert_eq!(
+            backend.list_resources_text("correct", Some(("**", "**"))).await?,
+            vec![
+                ResourceBrief {
+                    resource_path: "/test/resource".to_string(),
+                    title: Some("Example Title".to_string()),
+                    brief: Some("Content is test+ **corrected**.".to_string()),
+                },
+            ],
+        );
 
         Ok(())
     }

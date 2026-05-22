@@ -66,7 +66,7 @@ pub struct ResourceKindedTerms {
 }
 
 /// A brief about the resource.
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
 #[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 pub struct ResourceBrief {
     pub resource_path: String,
