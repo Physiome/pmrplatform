@@ -402,15 +402,50 @@ WHERE
     Ok(result)
 }
 
+// Given how double quotes are still useful to group words together, we cannot simply naively put
+// every word inside double quotes.  This function effectively escapes all of the incoming string
+// for the fts5 query search so that the symbols and special phrases don't have any effect aside
+// from the double quotes, where they will be handled so that quoted words of phrases remain as
+// double quoted, unquoted words will be quoted (prevents symbols being evaluated) and finally any
+// unclosed quotes will be automatically closed.
+fn quote_fts5(s: &str) -> String {
+    let mut result = String::new();
+    let mut quoted = false;
+    for substr in s.split_whitespace() {
+        if !result.is_empty() {
+            result.push_str(" ");
+        }
+        let mut q_iter = substr.split("\"").peekable();
+        while let Some(q_substr) = q_iter.next() {
+            if !q_substr.is_empty() {
+                if quoted {
+                    result.push_str(q_substr);
+                } else {
+                    result.push_str("\"");
+                    result.push_str(q_substr);
+                    result.push_str("\"");
+                }
+            }
+
+            if q_iter.peek().is_some() {
+                result.push_str("\"");
+                quoted = !quoted;
+            }
+        }
+    }
+
+    if quoted {
+        result.push_str("\"");
+    }
+    result
+}
+
 async fn list_idx_text_sqlite(
     backend: &SqliteBackend,
     text: &str,
     bracket: Option<(&str, &str)>,
 ) -> Result<Vec<ResourceBrief>, BackendError> {
-    let corrected_text = text.split_whitespace()
-        .map(|s| format!("\"{s}\""))
-        .collect::<Vec<_>>()
-        .join(" ");
+    let corrected_text = quote_fts5(text);
     let (start, end) = bracket.unwrap_or(("", ""));
     let result = sqlx::query!(
         r#"
@@ -548,6 +583,75 @@ pub(crate) mod testing {
         },
     };
     use crate::SqliteBackend;
+    use super::quote_fts5;
+
+    #[test]
+    fn test_quote_fts5() {
+        // Basic cases.
+        assert_eq!(quote_fts5(r#""#), r#""#);
+        assert_eq!(quote_fts5(r#"""#), r#""""#);
+        assert_eq!(quote_fts5(r#""""#), r#""""#);
+
+        // Well-formed, fully quoted.
+        assert_eq!(quote_fts5(r#""hello world""#), r#""hello world""#);
+        assert_eq!(quote_fts5(r#""hello" "world""#), r#""hello" "world""#);
+        assert_eq!(quote_fts5(r#""hello and goodbye""#), r#""hello and goodbye""#);
+        assert_eq!(
+            quote_fts5(r#""hello world" "and" "good-bye world""#),
+            r#""hello world" "and" "good-bye world""#,
+        );
+
+        // Unquoted, will be quoted.
+        assert_eq!(quote_fts5(r#" hello world "#), r#""hello" "world""#);
+        assert_eq!(quote_fts5(r#"hello   world"#), r#""hello" "world""#);
+        assert_eq!(quote_fts5(r#"hello "world""#), r#""hello" "world""#);
+        assert_eq!(quote_fts5(r#""hello" world"#), r#""hello" "world""#);
+        assert_eq!(quote_fts5(r#""hello world" unquoted"#), r#""hello world" "unquoted""#);
+        assert_eq!(quote_fts5(r#"unquoted "hello world""#), r#""unquoted" "hello world""#);
+        assert_eq!(quote_fts5(r#"unquoted "hello world" unquoted"#), r#""unquoted" "hello world" "unquoted""#);
+        assert_eq!(
+            quote_fts5(r#""hello world" and "good-bye world""#),
+            r#""hello world" "and" "good-bye world""#,
+        );
+
+        // Unbalanced quotes are corrected by adding a termination quote.
+        assert_eq!(quote_fts5(r#""hello world"#), r#""hello world""#);
+        assert_eq!(quote_fts5(r#"hello "and" "goodbye world"#), r#""hello" "and" "goodbye world""#);
+        assert_eq!(quote_fts5(r#""hello" "world"#), r#""hello" "world""#);
+
+        // Single trailing spaces are kept.
+        assert_eq!(quote_fts5(r#""hello ""#), r#""hello ""#);
+        assert_eq!(quote_fts5(r#""hello world ""#), r#""hello world ""#);
+
+        // Lack of whitespace between quotes are preserved without spaces inserted.
+        assert_eq!(quote_fts5(r#""hello""world""#), r#""hello""world""#);
+        assert_eq!(quote_fts5(r#"hello""world""#), r#""hello""""world""""#);
+        assert_eq!(quote_fts5(r#""hello"world"#), r#""hello""world""#);
+        assert_eq!(quote_fts5(r#"hello""world"#), r#""hello""""world""#);
+        assert_eq!(quote_fts5(r#"hello"world goodbye"#), r#""hello""world goodbye""#);
+        assert_eq!(quote_fts5(r#""hello""world goodbye"#), r#""hello""world goodbye""#);
+        assert_eq!(quote_fts5(r#""hello""world goodbye"#), r#""hello""world goodbye""#);
+        assert_eq!(quote_fts5(r#""hello""world goodbye""#), r#""hello""world goodbye""#);
+        assert_eq!(quote_fts5(r#""""#), r#""""#);
+        assert_eq!(quote_fts5(r#""""""#), r#""""""#);
+        assert_eq!(quote_fts5(r#"""""hi"#), r#""""""hi""#);
+        assert_eq!(quote_fts5(r#""""hello ""#), r#""""hello ""#);
+        assert_eq!(quote_fts5(r#""""hello world ""#), r#""""hello world ""#);
+        assert_eq!(quote_fts5(r#""""hello """"#), r#""""hello """"#);
+        assert_eq!(quote_fts5(r#""""hello world """"#), r#""""hello world """"#);
+
+        // Multiple white spaces inside quotes will still be converted into a normal whitespace.
+        assert_eq!(quote_fts5(r#""""hello  x  """"#), r#""""hello x """"#);
+        assert_eq!(quote_fts5(r#""""hello  x  world  """"#), r#""""hello x world """"#);
+
+        // Odd number of quotes inside a substr correctly interpreted as unterminated and auto-terminated.
+        assert_eq!(quote_fts5(r#""hello""world and goodbye world"#), r#""hello""world and goodbye world""#);
+        assert_eq!(quote_fts5(r#""he""ll""o world and goodbye"#), r#""he""ll""o world and goodbye""#);
+        assert_eq!(quote_fts5(r#"""#), r#""""#);
+        assert_eq!(quote_fts5(r#"""""#), r#""""""#);
+        assert_eq!(quote_fts5(r#"""""""#), r#""""""""#);
+        assert_eq!(quote_fts5(r#""""""hi"#), r#""""""hi""#);
+    }
 
     #[async_std::test]
     async fn test_empty_index() -> anyhow::Result<()> {
