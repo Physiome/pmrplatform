@@ -408,13 +408,7 @@ async fn list_idx_text_sqlite(
     bracket: Option<(&str, &str)>,
 ) -> Result<Vec<ResourceBrief>, BackendError> {
     let corrected_text = text.split_whitespace()
-        .map(|s| {
-            if s.len() > 2 && s.contains("+") {
-                format!("\"{s}\"")
-            } else {
-                s.to_owned()
-            }
-        })
+        .map(|s| format!("\"{s}\""))
         .collect::<Vec<_>>()
         .join(" ");
     let (start, end) = bracket.unwrap_or(("", ""));
