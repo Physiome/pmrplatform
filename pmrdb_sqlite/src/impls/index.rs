@@ -639,6 +639,9 @@ pub(crate) mod testing {
         assert_eq!(quote_fts5(r#""""hello world ""#), r#""""hello world ""#);
         assert_eq!(quote_fts5(r#""""hello """"#), r#""""hello """"#);
         assert_eq!(quote_fts5(r#""""hello world """"#), r#""""hello world """"#);
+        assert_eq!(quote_fts5(r#"a"a"a"#), r#""a""a""a""#);
+        assert_eq!(quote_fts5(r#""a"a"a"#), r#""a""a""a""#);
+        assert_eq!(quote_fts5(r#"a"a"a""#), r#""a""a""a""""#);
 
         // Multiple white spaces inside quotes will still be converted into a normal whitespace.
         assert_eq!(quote_fts5(r#""""hello  x  """"#), r#""""hello x """"#);
