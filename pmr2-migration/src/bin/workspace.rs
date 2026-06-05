@@ -15,9 +15,13 @@ use serde::{Deserialize, Serialize};
 struct Entry {
     alias: String,
     description: Option<String>,
+    long_description: Option<String>,
     path: String,
     url: String,
     workflow_state: State,
+
+    creation_date: i64,
+    effective_date: Option<i64>,
 }
 
 #[derive(Debug, Parser)]
@@ -73,13 +77,13 @@ async fn main() -> anyhow::Result<()> {
             // alias, url can be derived from path, but this will be assumed to
             // be set by the `pdbg_workspace_export.py` script to be executed
             // inside the Zope/Plone debug shell.
-            for Entry { alias, description, path, url, workflow_state } in entries.into_iter() {
+            for Entry { alias, description, long_description, path, url, workflow_state } in entries.into_iter() {
                 // create the workspace and alias entries, set the workflow state
                 let workspace_id = WorkspaceBackend::add_workspace(
                     platform.mc_platform.as_ref(),
                     &url,
                     description.as_deref(),
-                    None,
+                    long_description.as_deref(),
                 ).await?;
                 platform.mc_platform.add_alias(
                     "workspace",
