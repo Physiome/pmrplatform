@@ -53,7 +53,7 @@ use pmrcore::{
         DefaultMCPlatform,
         DefaultPCPlatform,
         DefaultTMPlatform,
-        PlatformUrl,
+        PlatformCore,
     },
     task::{
         Task,
@@ -394,7 +394,7 @@ mock! {
         ) -> Result<Vec<Citation>, BackendError>;
     }
 
-    impl PlatformUrl for Platform {
+    impl PlatformCore for Platform {
         fn url(&self) -> &str;
     }
 

@@ -6,8 +6,10 @@ use std::{
 use clap::{Parser, Subcommand, ValueEnum};
 use pmrcore::{
     ac::workflow::state::State,
+    platform::ConnectorOption,
     workspace::traits::WorkspaceBackend,
 };
+use pmrdb::Backend;
 use pmrctrl::platform::Builder;
 use serde::{Deserialize, Serialize};
 
@@ -64,7 +66,17 @@ async fn main() -> anyhow::Result<()> {
         .init()
         .unwrap();
 
-    let platform = args.platform_builder.build().await
+    let platform = args.platform_builder.clone().build().await
+        .map_err(anyhow::Error::from_boxed)?;
+
+    let mc = Backend::mc(ConnectorOption::from(&args.platform_builder.pmrapp_db_url)).await
+        .map_err(anyhow::Error::from_boxed)?;
+    // FIXME: may need to feature gate by db type due to how the erased dynamic type cannot be raw,
+    // and that it's not possible to have the `Backend` helper provide truly dynamic raw access as that
+    // exposes a concrete type that kills the dynamic nature of this, also that the sqlx executor isn't
+    // dyn compatible...
+    // let mc_backend = mc.as_ref().backend();
+    let pc = Backend::pc(ConnectorOption::from(&args.platform_builder.pmrpc_db_url)).await
         .map_err(anyhow::Error::from_boxed)?;
 
     match args.command {
@@ -77,7 +89,7 @@ async fn main() -> anyhow::Result<()> {
             // alias, url can be derived from path, but this will be assumed to
             // be set by the `pdbg_workspace_export.py` script to be executed
             // inside the Zope/Plone debug shell.
-            for Entry { alias, description, long_description, path, url, workflow_state } in entries.into_iter() {
+            for Entry { alias, description, long_description, path, url, workflow_state, .. } in entries.into_iter() {
                 // create the workspace and alias entries, set the workflow state
                 let workspace_id = WorkspaceBackend::add_workspace(
                     platform.mc_platform.as_ref(),

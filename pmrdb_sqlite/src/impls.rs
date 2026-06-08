@@ -1,15 +1,24 @@
 use async_trait::async_trait;
 use pmrcore::platform::{
-    ACPlatform, ConnectorOption, MCPlatform, PCPlatform, PlatformConnector, PlatformUrl, TMPlatform,
+    RawACPlatform, ConnectorOption, RawMCPlatform, RawPCPlatform, PlatformConnector, PlatformCore, RawPlatform,
+    RawTMPlatform,
 };
 use sqlx::{migrate::MigrateDatabase, Sqlite, SqlitePool};
 use std::sync::Arc;
 
 use crate::SqliteBackend;
 
-impl PlatformUrl for SqliteBackend {
+impl PlatformCore for SqliteBackend {
     fn url(&self) -> &str {
         self.url.as_ref()
+    }
+}
+
+impl RawPlatform for SqliteBackend {
+    type Backend = SqlitePool;
+
+    fn backend(&self) -> &Self::Backend {
+        &self.pool
     }
 }
 
@@ -50,7 +59,7 @@ impl SqliteBackend {
 
 #[async_trait]
 impl PlatformConnector for SqliteBackend {
-    async fn ac(opts: ConnectorOption) -> Result<impl ACPlatform, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    async fn ac(opts: ConnectorOption) -> Result<impl RawACPlatform, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let backend = SqliteBackend::connect(opts).await
             .map_err(Box::new)?
             .migrate_ac()
@@ -59,7 +68,7 @@ impl PlatformConnector for SqliteBackend {
         Ok(backend)
     }
 
-    async fn mc(opts: ConnectorOption) -> Result<impl MCPlatform, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    async fn mc(opts: ConnectorOption) -> Result<impl RawMCPlatform, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let backend = SqliteBackend::connect(opts).await
             .map_err(Box::new)?
             .migrate_mc()
@@ -68,7 +77,7 @@ impl PlatformConnector for SqliteBackend {
         Ok(backend)
     }
 
-    async fn pc(opts: ConnectorOption) -> Result<impl PCPlatform, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    async fn pc(opts: ConnectorOption) -> Result<impl RawPCPlatform, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let backend = SqliteBackend::connect(opts).await
             .map_err(Box::new)?
             .migrate_pc()
@@ -77,7 +86,7 @@ impl PlatformConnector for SqliteBackend {
         Ok(backend)
     }
 
-    async fn tm(opts: ConnectorOption) -> Result<impl TMPlatform, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    async fn tm(opts: ConnectorOption) -> Result<impl RawTMPlatform, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let backend = SqliteBackend::connect(opts).await
             .map_err(Box::new)?
             .migrate_tm()

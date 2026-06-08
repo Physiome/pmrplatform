@@ -1,5 +1,5 @@
-use pmrcore::platform::{ACPlatform, MCPlatform, PCPlatform, TMPlatform};
-pub use pmrcore::platform::{ConnectorOption, PlatformConnector};
+use pmrcore::platform::{ACPlatform, MCPlatform, PCPlatform, TMPlatform, PlatformConnector};
+pub use pmrcore::platform::ConnectorOption;
 #[cfg(feature = "sqlite")]
 use pmrdb_sqlite::SqliteBackend;
 
@@ -39,7 +39,12 @@ impl TryFrom<&str> for BackendKind {
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         match s.split(':').next() {
+            #[cfg(feature = "sqlite")]
             Some("sqlite") => Ok(BackendKind::Sqlite),
+            #[cfg(not(feature = "sqlite"))]
+            Some("sqlite") => Err(Error(format!(
+                r#"The feature "sqlite" must be enabled for pmrdb in order to connect to {s:?}"#,
+            ))),
             _ => Err(Error(format!("The connection string {s:?} is unsupported.")))
         }
     }
@@ -52,11 +57,10 @@ impl Backend {
         match BackendKind::try_from(opts.url.as_str()) {
             #[cfg(feature = "sqlite")]
             Ok(BackendKind::Sqlite) => Ok(Box::new(SqliteBackend::ac(opts).await?)),
-            #[cfg(not(feature = "sqlite"))]
-            Ok(s) => Err(Box::new(Error(format!(
-                r#"The feature "{s}" must be enabled for pmrdb in order to connect to {:?}"#, opts.url
-            )))),
             Err(e) => Err(Box::new(e)),
+            // or the not features here, as `BackendKind::try_from` should have caught this
+            #[cfg(not(feature = "sqlite"))]
+            _ => unreachable!(),
         }
     }
 

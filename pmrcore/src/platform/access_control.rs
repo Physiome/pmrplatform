@@ -1,6 +1,9 @@
 use async_trait::async_trait;
 use crate::{
-    platform::PlatformUrl,
+    platform::{
+        PlatformCore,
+        RawPlatform,
+    },
     ac::{
         traits::{
             PolicyBackend,
@@ -23,7 +26,7 @@ pub trait ACPlatform: PolicyBackend
     + UserBackend
     + SessionBackend
 
-    + PlatformUrl
+    + PlatformCore
 
     + Send
     + Sync
@@ -32,13 +35,14 @@ pub trait ACPlatform: PolicyBackend
 }
 
 pub trait DefaultACPlatform: ACPlatform {}
+pub trait RawACPlatform: ACPlatform + RawPlatform {}
 
 impl<P: PolicyBackend
     + ResourceBackend
     + UserBackend
     + SessionBackend
 
-    + PlatformUrl
+    + PlatformCore
 
     + DefaultACPlatform
 
@@ -49,3 +53,5 @@ impl<P: PolicyBackend
         self
     }
 }
+
+impl <P: ACPlatform + RawPlatform> RawACPlatform for P {}

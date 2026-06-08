@@ -1,7 +1,10 @@
 use async_trait::async_trait;
 use crate::{
     error::BackendError,
-    platform::PlatformUrl,
+    platform::{
+        PlatformCore,
+        RawPlatform,
+    },
     task::{
         TaskRef,
         traits::TaskBackend,
@@ -19,7 +22,7 @@ use crate::{
 #[async_trait]
 pub trait TMPlatform: TaskBackend
     + TaskTemplateBackend
-    + PlatformUrl
+    + PlatformCore
 
     + Send
     + Sync
@@ -37,10 +40,11 @@ pub trait TMPlatform: TaskBackend
 }
 
 pub trait DefaultTMPlatform: TMPlatform {}
+pub trait RawTMPlatform: TMPlatform + RawPlatform {}
 
 impl<P: TaskBackend
     + TaskTemplateBackend
-    + PlatformUrl
+    + PlatformCore
 
     + DefaultTMPlatform
 
@@ -51,3 +55,5 @@ impl<P: TaskBackend
         self
     }
 }
+
+impl <P: TMPlatform + RawPlatform> RawTMPlatform for P {}

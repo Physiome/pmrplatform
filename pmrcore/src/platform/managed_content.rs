@@ -23,7 +23,10 @@ use crate::{
         },
     },
     idgen::traits::GenAliasBackend,
-    platform::PlatformUrl,
+    platform::{
+        PlatformCore,
+        RawPlatform,
+    },
     profile::{
         ViewTaskTemplateProfile,
         traits::{
@@ -69,7 +72,7 @@ pub trait MCPlatform: WorkspaceBackend
     + ProfileViewsBackend
     + ViewTaskTemplateProfileBackend
 
-    + PlatformUrl
+    + PlatformCore
 
     + Send
     + Sync
@@ -345,6 +348,7 @@ pub trait MCPlatform: WorkspaceBackend
 }
 
 pub trait DefaultMCPlatform: MCPlatform {}
+pub trait RawMCPlatform: MCPlatform + RawPlatform {}
 
 impl<P: workspace::traits::WorkspaceBackend
     + WorkspaceSyncBackend
@@ -364,7 +368,7 @@ impl<P: workspace::traits::WorkspaceBackend
     + ProfileViewsBackend
     + ViewTaskTemplateProfileBackend
 
-    + PlatformUrl
+    + PlatformCore
 
     + DefaultMCPlatform
 
@@ -375,3 +379,5 @@ impl<P: workspace::traits::WorkspaceBackend
         self
     }
 }
+
+impl <P: MCPlatform + RawPlatform> RawMCPlatform for P {}

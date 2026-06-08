@@ -3,7 +3,10 @@ use crate::{
     citation::traits::CitationBackend,
     // error::BackendError,
     index::traits::IndexBackend,
-    platform::PlatformUrl,
+    platform::{
+        PlatformCore,
+        RawPlatform,
+    },
 };
 
 /// PCPlatform - Processed Content Platform
@@ -16,7 +19,7 @@ use crate::{
 /// that require some form of RDBMS to better link across all related managed
 /// content that have been stored on the overall platform itself.
 #[async_trait]
-pub trait PCPlatform: PlatformUrl
+pub trait PCPlatform: PlatformCore
     + CitationBackend
     + IndexBackend
     // TODO need to determine how this will apply
@@ -33,8 +36,9 @@ pub trait PCPlatform: PlatformUrl
 }
 
 pub trait DefaultPCPlatform: PCPlatform {}
+pub trait RawPCPlatform: PCPlatform + RawPlatform {}
 
-impl<P: PlatformUrl
+impl<P: PlatformCore
     + CitationBackend
     + IndexBackend
 
@@ -47,3 +51,5 @@ impl<P: PlatformUrl
         self
     }
 }
+
+impl <P: PCPlatform + RawPlatform> RawPCPlatform for P {}
