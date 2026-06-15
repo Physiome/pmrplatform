@@ -50,6 +50,7 @@ impl fmt::Debug for Platform {
     }
 }
 
+mod ac;
 mod exposure;
 mod profile;
 mod task;

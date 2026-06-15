@@ -201,29 +201,12 @@ pub async fn workflow_transition(
             .expect("State::from_str shouldn't have failed!");
         let platform = platform().await
             .map_err(|_| AppError::InternalServerError)?;
-        let state = platform
-            .ac_platform
-            .get_wf_state_for_res(&resource)
-            .await
-            .map_err(|_| AppError::InternalServerError)?;
-        let roles = platform
-            .ac_platform
-            .generate_policy_for_agent_res(&user.clone().into(), resource.clone())
+
+        platform.workflow_transition(&user, resource, target_state)
             .await
             .map_err(|_| AppError::InternalServerError)?
-            .to_roles();
-        if TRANSITIONS.validate(roles, state, target_state) {
-            platform.ac_platform.set_wf_state_for_res(&resource, target_state).await
-                .map_err(|_| AppError::InternalServerError)?;
-            let policy = platform
-                .ac_platform
-                .generate_policy_for_agent_res(&user.into(), resource)
-                .await
-                .map_err(|_| AppError::InternalServerError)?;
-            Ok(PolicyState::new(Some(policy), target_state))
-        } else {
-            Err(AppError::Forbidden)?
-        }
+            .map(|policy| PolicyState::new(Some(policy), target_state))
+            .ok_or(AppError::Forbidden)
     } else {
         Err(AppError::Forbidden)?
     }

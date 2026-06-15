@@ -1,3 +1,4 @@
+use pmrac::error::Error as AcError;
 use pmrcore::error::{
     BackendError,
     Error,
@@ -11,6 +12,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum PlatformError {
+    #[error(transparent)]
+    AcError(#[from] AcError),
     #[error(transparent)]
     BackendError(#[from] BackendError),
     #[error(transparent)]
