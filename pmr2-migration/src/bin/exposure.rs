@@ -11,6 +11,10 @@ use pmrcore::{
     exposure::traits::{Exposure, ExposureFile},
     task_template::UserInputMap,
 };
+#[cfg(feature = "sqlite")]
+use pmrcore::platform::{ConnectorOption, PlatformConnector, RawPlatform};
+#[cfg(feature = "sqlite")]
+use pmrdb_sqlite::SqliteBackend;
 use pmrctrl::platform::{Builder, Platform};
 use serde::{Deserialize, Serialize};
 
@@ -48,9 +52,13 @@ pub struct ErrorMsg(pub String);
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ExposureEntry {
-    pub path: String,
+    #[serde(rename = "path")]
+    pub exposure_path: String,
     pub workflow_state: State,
     pub wizard_export: WizardExport,
+
+    pub creation_date: i64,
+    pub effective_date: Option<i64>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -212,6 +220,14 @@ impl Site {
     }
 }
 
+#[cfg(not(feature = "sqlite"))]
+compile_error!("a db backend feature must be enabled.");
+
+struct RawBackend {
+    #[cfg(feature = "sqlite")]
+    mc: SqliteBackend,
+}
+
 static SITE: OnceLock<Site> = OnceLock::new();
 
 #[tokio::main]
@@ -228,14 +244,27 @@ async fn main() -> anyhow::Result<()> {
         .init()
         .unwrap();
 
-    let platform = args.platform_builder.build().await
+    let platform = args.platform_builder
+        .clone()
+        .build()
+        .await
         .map_err(anyhow::Error::from_boxed)?;
+
+    #[cfg(feature = "sqlite")]
+    let mc = SqliteBackend::mc(ConnectorOption::from(&args.platform_builder.pmrapp_db_url)).await
+        .map_err(anyhow::Error::from_boxed)?;
+    // #[cfg(feature = "sqlite")]
+    // let pc = SqliteBackend::pc(ConnectorOption::from(&args.platform_builder.pmrpc_db_url)).await
+    //     .map_err(anyhow::Error::from_boxed)?;
+
+    let raw_backend = RawBackend { mc };
 
     prepare_defaults(&platform).await?;
 
     match args.command {
         Commands::Import { input } => process_exposure_entries(
             &platform,
+            &raw_backend,
             match input {
                 Some(path) => serde_json::from_reader(BufReader::new(fs::File::open(path)?))?,
                 None => serde_json::from_reader(BufReader::new(stdin()))?,
@@ -282,28 +311,25 @@ async fn site() -> &'static Site {
 
 async fn process_exposure_entries(
     platform: &Platform,
+    raw_backend: &RawBackend,
     exposure_entries: Vec<ExposureEntry>,
 ) -> anyhow::Result<()> {
-    for ExposureEntry {
-        path,
-        workflow_state,
-        wizard_export,
-    } in exposure_entries.into_iter() {
-        process_wizard_export(
-            platform,
-            path,
-            wizard_export,
-            workflow_state,
-        ).await?
+    for entry in exposure_entries.into_iter() {
+        process_wizard_export(platform, raw_backend, entry).await?
     }
     Ok(())
 }
 
 async fn process_wizard_export(
     platform: &Platform,
-    exposure_path: String,
-    wizard_export: WizardExport,
-    workflow_state: State,
+    raw_backend: &RawBackend,
+    ExposureEntry {
+        exposure_path,
+        wizard_export,
+        workflow_state,
+        creation_date,
+        ..
+    }: ExposureEntry,
 ) -> anyhow::Result<()> {
     let mut top = None::<Top>;
     let mut files = Vec::<(String, File)>::new();
@@ -374,6 +400,13 @@ async fn process_wizard_export(
         &format!("/exposure/{exposure_id}/"),
         workflow_state,
     ).await?;
+    // TODO need to update the workflow state change.
+
+    sqlx::query("UPDATE exposure SET created_ts = ?1 WHERE id = ?2")
+        .bind(creation_date)
+        .bind(exposure_id)
+        .execute(&*raw_backend.mc.backend())
+        .await?;
 
     // needed to deal with lifetime issues associated with the `EFViewTemplatesCtrl`
     let mut cache = Vec::new();
