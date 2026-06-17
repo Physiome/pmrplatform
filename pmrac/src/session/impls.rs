@@ -33,7 +33,7 @@ impl Session {
     // about dealing with the timestamp at all?
     pub async fn save(&self) -> Result<i64, Error> {
         Ok(self.platform
-            .ac_platform()
+            .backend()
             .save_session(&self.session)
             .await?)
     }
@@ -41,7 +41,7 @@ impl Session {
     /// Logout this session.
     pub async fn logout(self) -> Result<(), Error> {
         Ok(self.platform
-            .ac_platform()
+            .backend()
             .purge_session(self.session.token)
             .await?)
     }
@@ -49,7 +49,7 @@ impl Session {
     /// Logout all other sessions assoicated with the user.
     pub async fn logout_others(&self) -> Result<(), Error> {
         Ok(self.platform
-            .ac_platform()
+            .backend()
             .purge_user_sessions(
                 self.user().id(),
                 Some(self.session.token),

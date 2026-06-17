@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nINSERT INTO res_wf_state_log (\n    res,\n    state,\n    ts\n)\nVALUES (?1, ?2, ?3)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "1cb8790a3af303fdc46ee9231fd7b6c3bf4ceaced8fba83bbad065bc9e2aba27"
+}

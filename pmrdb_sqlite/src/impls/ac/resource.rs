@@ -65,6 +65,31 @@ DO UPDATE SET
     Ok(())
 }
 
+async fn log_wf_state_for_res_sqlite(
+    backend: &SqliteBackend,
+    res: &str,
+    wf_state: State,
+    ts: i64,
+) -> Result<(), BackendError> {
+    let state = <&'static str>::from(wf_state);
+    sqlx::query!(
+        r#"
+INSERT INTO res_wf_state_log (
+    res,
+    state,
+    ts
+)
+VALUES (?1, ?2, ?3)
+        "#,
+        res,
+        state,
+        ts,
+    )
+    .execute(&*backend.pool)
+    .await?;
+    Ok(())
+}
+
 async fn generate_policy_for_agent_res_sqlite(
     backend: &SqliteBackend,
     agent: &Agent,
@@ -213,6 +238,20 @@ impl ResourceBackend for SqliteBackend {
             &self,
             res,
             wf_state,
+        ).await
+    }
+
+    async fn log_wf_state_for_res(
+        &self,
+        res: &str,
+        wf_state: State,
+        ts: i64,
+    ) -> Result<(), BackendError> {
+        log_wf_state_for_res_sqlite(
+            &self,
+            res,
+            wf_state,
+            ts,
         ).await
     }
 

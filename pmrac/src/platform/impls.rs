@@ -1,3 +1,4 @@
+use chrono::Utc;
 use pmrcore::{
     ac::{
         agent::Agent,
@@ -77,7 +78,7 @@ impl Builder {
 }
 
 impl Platform {
-    pub(crate) fn ac_platform(&self) -> &dyn ACPlatform {
+    pub fn backend(&self) -> &dyn ACPlatform {
         self.0.ac_platform.as_ref()
     }
 }
@@ -307,11 +308,19 @@ impl Platform {
         &self,
         res: &str,
         wf_state: State,
-    ) -> Result<(), Error> {
-        Ok(self.0.ac_platform.set_wf_state_for_res(
+    ) -> Result<i64, Error> {
+        // FIXME use transaction when implemented.
+        let ts = Utc::now().timestamp();
+        self.0.ac_platform.log_wf_state_for_res(
             res,
             wf_state,
-        ).await?)
+            ts,
+        ).await?;
+        self.0.ac_platform.set_wf_state_for_res(
+            res,
+            wf_state,
+        ).await?;
+        Ok(ts)
     }
 
     pub async fn generate_policy_for_agent_res(

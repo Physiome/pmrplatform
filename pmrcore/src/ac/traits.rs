@@ -104,6 +104,12 @@ pub trait ResourceBackend {
         res: &str,
         wf_state: State,
     ) -> Result<(), BackendError>;
+    async fn log_wf_state_for_res(
+        &self,
+        res: &str,
+        wf_state: State,
+        ts: i64,
+    ) -> Result<(), BackendError>;
     async fn generate_policy_for_agent_res(
         &self,
         agent: &Agent,

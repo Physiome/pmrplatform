@@ -117,6 +117,14 @@ CREATE TABLE IF NOT EXISTS res_wf_state (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS res_wf_state__res ON res_wf_state(res);
 
+CREATE TABLE IF NOT EXISTS res_wf_state_log (
+    id INTEGER PRIMARY KEY NOT NULL,
+    res TEXT NOT NULL,
+    ts INTEGER NOT NULL,
+    state TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS res_wf_state_log__res_ts ON res_wf_state_log(res, ts);
+
 -- Note that the token for the user_session here SHOULD NOT be conveyed
 -- outside of the system directly (e.g. not even through cookies) - as
 -- the token is equivalent to the key to become the user and the design
