@@ -89,6 +89,7 @@ impl<'p> ExposureCtrl<'p> {
         ExposureFileCtrl<'p>,
         PlatformError
     > {
+        let exposure_id = self.0.exposure.id();
         // FIXME should fail with already exists if already created
         // quick failing here.
         let pathinfo = self.0.git_handle.pathinfo(
@@ -100,7 +101,7 @@ impl<'p> ExposureCtrl<'p> {
         let exposure_file = self.0.platform.mc_platform.get_exposure_file(
             ExposureFileBackend::insert(
                 mcp,
-                self.0.exposure.id(),
+                exposure_id,
                 workspace_file_path,
                 None,
             ).await?
@@ -111,6 +112,28 @@ impl<'p> ExposureCtrl<'p> {
             exposure_file,
             pathinfo,
         );
+
+        // Find all the alias for the current exposure and add.
+        for alias_entry in self.0.platform.mc_platform.get_aliases("exposure", exposure_id).await?.iter() {
+            // TODO This should fail on actual database error and not duplicate.
+            let alias = &alias_entry.alias;
+            let resource_path = format!("/exposure/{exposure_id}/{workspace_file_path}");
+            let aliased_uri = format!("/exposure/{alias}/{workspace_file_path}");
+            self.0.platform.pc_platform.resource_link_kind_with_term(
+                &resource_path,
+                "exposure_alias",
+                &alias,
+            )
+            .await?;
+            self.0.platform.pc_platform.resource_link_kind_with_term(
+                &resource_path,
+                "aliased_uri",
+                &aliased_uri,
+            )
+            .await
+            .ok();
+        }
+
         Ok(
             MutexGuard::map(
                 self.0.exposure_file_ctrls.lock(),

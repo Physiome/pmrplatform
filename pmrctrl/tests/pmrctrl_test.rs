@@ -1793,6 +1793,107 @@ async fn test_exposure_file_registry() -> anyhow::Result<()> {
     Ok(())
 }
 
+// Valid only for the test_exposure_alias tests.
+async fn check_exposure_alias(platform: &Platform, exposure_id: i64) -> anyhow::Result<()> {
+    assert_eq!(
+        platform.mc_platform.get_alias("exposure", exposure_id).await?.as_deref(),
+        Some("an_alias"),
+    );
+
+    assert_eq!(
+        platform.pc_platform
+            .get_resource_kinded_terms(&format!("/exposure/{exposure_id}/"))
+            .await?
+            .data
+            .get("aliased_uri")
+            .map(|v| v[0].clone()),
+        Some("/exposure/an_alias/".to_string()),
+    );
+
+    let data_a = platform.pc_platform
+        .get_resource_kinded_terms(&format!("/exposure/{exposure_id}/dir1/nested/file_a"))
+        .await?
+        .data;
+    assert_eq!(
+        data_a.get("exposure_alias").map(|v| v[0].clone()),
+        Some("an_alias".to_string()),
+    );
+    assert_eq!(
+        data_a.get("aliased_uri").map(|v| v[0].clone()),
+        Some("/exposure/an_alias/dir1/nested/file_a".to_string()),
+    );
+
+    let data_b = platform.pc_platform
+        .get_resource_kinded_terms(&format!("/exposure/{exposure_id}/dir1/nested/file_b"))
+        .await?
+        .data;
+    assert_eq!(
+        data_b.get("exposure_alias").map(|v| v[0].clone()),
+        Some("an_alias".to_string()),
+    );
+    assert_eq!(
+        data_b.get("aliased_uri").map(|v| v[0].clone()),
+        Some("/exposure/an_alias/dir1/nested/file_b".to_string()),
+    );
+
+    let data_c = platform.pc_platform
+        .get_resource_kinded_terms(&format!("/exposure/{exposure_id}/dir1/nested/file_c"))
+        .await?
+        .data;
+    assert_eq!(
+        data_c.get("exposure_alias").map(|v| v[0].clone()),
+        Some("an_alias".to_string()),
+    );
+    assert_eq!(
+        data_c.get("aliased_uri").map(|v| v[0].clone()),
+        Some("/exposure/an_alias/dir1/nested/file_c".to_string()),
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_exposure_alias_after_file() -> anyhow::Result<()> {
+    let (_reporoot, platform) = create_sqlite_platform().await?;
+    let exposure = platform.create_exposure(
+        3,
+        "8ae6e9af37c8bd78614545d0ab807348fc46dcab",
+    ).await?;
+    let exposure_id = exposure.exposure().id();
+
+    exposure.create_file("dir1/nested/file_a").await?.exposure_file().id();
+    exposure.create_file("dir1/nested/file_b").await?.exposure_file().id();
+    exposure.create_file("dir1/nested/file_c").await?.exposure_file().id();
+
+    // Add exposure alias after the files have been created.
+    platform.add_exposure_alias(exposure_id, "an_alias").await?;
+
+    check_exposure_alias(&platform, exposure_id).await?;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_exposure_alias_before_file() -> anyhow::Result<()> {
+    let (_reporoot, platform) = create_sqlite_platform().await?;
+    let exposure = platform.create_exposure(
+        3,
+        "8ae6e9af37c8bd78614545d0ab807348fc46dcab",
+    ).await?;
+    let exposure_id = exposure.exposure().id();
+
+    // Add exposure alias first, then create files.
+    platform.add_exposure_alias(exposure_id, "an_alias").await?;
+
+    exposure.create_file("dir1/nested/file_a").await?.exposure_file().id();
+    exposure.create_file("dir1/nested/file_b").await?.exposure_file().id();
+    exposure.create_file("dir1/nested/file_c").await?.exposure_file().id();
+
+    check_exposure_alias(&platform, exposure_id).await?;
+
+    Ok(())
+}
+
 #[test]
 fn test_send_sync_ctrl() {
     is_send_sync::<pmrctrl::handle::ExposureCtrl>();

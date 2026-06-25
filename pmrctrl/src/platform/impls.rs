@@ -51,6 +51,7 @@ impl fmt::Debug for Platform {
 }
 
 mod ac;
+mod alias;
 mod exposure;
 mod profile;
 mod task;

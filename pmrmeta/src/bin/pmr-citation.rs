@@ -86,26 +86,6 @@ async fn parse_rdfxml_cmd<'p>(
         RdfxmlCmd::Index { input_path, exposure_id, exposure_path } => {
             let resource_path = format!("/exposure/{exposure_id}/{exposure_path}");
             let reader = BufReader::new(fs::File::open(input_path)?);
-            // with the data gathered, populate the index
-            // Only index the first alias created, or the id if that's not found.
-            let alias = platform
-                .mc_platform
-                .get_alias("exposure", exposure_id)
-                .await?
-                .unwrap_or(exposure_id.to_string());
-            platform.pc_platform.resource_link_kind_with_term(
-                &resource_path,
-                "exposure_alias",
-                &alias,
-            )
-            .await?;
-            platform.pc_platform.resource_link_kind_with_term(
-                &resource_path,
-                "aliased_uri",
-                &format!("/exposure/{alias}/{exposure_path}")
-            )
-            .await?;
-
             let store = read::xml_to_store(reader)?;
             let citations = query::citation(&store, None)?;
             for citation in citations.iter() {

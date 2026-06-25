@@ -56,24 +56,6 @@ pub async fn run(
     serde_json::to_writer(output, &pmr2_cmeta)?;
 
     // with the data gathered, populate the index
-    // Only index the first alias created, or the id if that's not found.
-    let alias = platform
-        .mc_platform
-        .get_alias("exposure", exposure_id)
-        .await?
-        .unwrap_or(format!(":/id/{exposure_id}"));
-    platform.pc_platform.resource_link_kind_with_term(
-        &resource_path,
-        "exposure_alias",
-        &alias,
-    )
-    .await?;
-    platform.pc_platform.resource_link_kind_with_term(
-        &resource_path,
-        "aliased_uri",
-        &format!("/exposure/{alias}/{exposure_path}")
-    )
-    .await?;
     // Add the various information acquired from the metadata into the index
     platform.pc_platform.resource_link_kind_with_terms(
         &resource_path,
