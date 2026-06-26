@@ -57,6 +57,24 @@ pub struct IndexResourceDetailedSet {
     pub resource_paths: Vec<ResourceKindedTerms>,
 }
 
+// TODO Rather than being reconstructed from the normalized form, there should be a denormalized form
+// of the following structure in the database somewhere.  I would assume the data be serialized and
+// stored as a text/blob.
+//
+// Mainly, this would significantly speed up the lookup of data associated with resource_path, but
+// also provide injection of data associated with the parent but normally not associated with searches.
+// Though ideally the denormalized form should record the updated timestamp (in at least microsecond
+// precision) and also the keys that are actually from the object.
+//
+// Naturally, this will help eliminate duplicate data that's stored as part of the parent (e.g. the
+// workflow state/timestamp) that's common to all children items, so that during resource_path lookup
+// those data will be provided for the children.
+//
+// Updating the index should now include a last-updated field, but this cache (in)validation strategy
+// will need to be re-evaluated at time of implementation.
+//
+// A consideration will need to be made on what to do with text handling, as those are bulky fields
+// so an additional lookup may still be required for that.
 /// A listing of resources for a particular term under a particular index identified by [`IdxKind`].
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]

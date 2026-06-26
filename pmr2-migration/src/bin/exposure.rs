@@ -328,6 +328,7 @@ async fn process_wizard_export(
         wizard_export,
         workflow_state,
         creation_date,
+        effective_date,
         ..
     }: ExposureEntry,
 ) -> anyhow::Result<()> {
@@ -389,24 +390,39 @@ async fn process_wizard_export(
             platform.create_exposure(workspace_id, &commit_id).await?
         }
     };
-    platform.mc_platform.add_alias(
-        "exposure",
-        ec.exposure().id(),
-        &alias,
-    // ).await?;
-    ).await.ok();
     let exposure_id = ec.exposure().id();
-    platform.ac_platform.set_wf_state_for_res(
-        &format!("/exposure/{exposure_id}/"),
-        workflow_state,
-    ).await?;
-    // TODO need to update the workflow state change.
-
     sqlx::query("UPDATE exposure SET created_ts = ?1 WHERE id = ?2")
         .bind(creation_date)
         .bind(exposure_id)
         .execute(&*raw_backend.mc.backend())
         .await?;
+
+    // naturally, this can choke on duplicate alias, which shouldn't happen.
+    platform.add_exposure_alias(
+        ec.exposure().id(),
+        &alias,
+    ).await?;
+    let exposure_path = format!("/exposure/{exposure_id}/");
+    let effective_date = effective_date.unwrap_or(creation_date);
+    platform.ac_platform.backend().set_wf_state_for_res(
+        &exposure_path,
+        workflow_state,
+    ).await?;
+    platform.ac_platform.backend().log_wf_state_for_res(
+        &exposure_path,
+        workflow_state,
+        effective_date,
+    ).await?;
+    match workflow_state {
+        State::Published | State::Expired => {
+            platform.pc_platform.resource_link_kind_with_term(
+                &exposure_path,
+                "published_date",
+                &effective_date.to_string(),
+            ).await?;
+        }
+        _ => (),
+    }
 
     // needed to deal with lifetime issues associated with the `EFViewTemplatesCtrl`
     let mut cache = Vec::new();

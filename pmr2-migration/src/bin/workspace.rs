@@ -97,7 +97,8 @@ async fn main() -> anyhow::Result<()> {
             // be set by the `pdbg_workspace_export.py` script to be executed
             // inside the Zope/Plone debug shell.
             for Entry {
-                alias, description, long_description, path, url, workflow_state, creation_date, ..
+                alias, description, long_description, path, url, workflow_state, creation_date, effective_date,
+                ..
             } in entries.into_iter() {
                 // create the workspace and alias entries, set the workflow state
                 let workspace_id = WorkspaceBackend::add_workspace(
@@ -119,10 +120,27 @@ async fn main() -> anyhow::Result<()> {
                     workspace_id,
                     &alias,
                 ).await?;
-                platform.ac_platform.set_wf_state_for_res(
-                    &format!("/workspace/{workspace_id}/"),
+                let workspace_path = format!("/workspace/{workspace_id}/");
+                let effective_date = effective_date.unwrap_or(creation_date);
+                platform.ac_platform.backend().set_wf_state_for_res(
+                    &workspace_path,
                     workflow_state,
                 ).await?;
+                platform.ac_platform.backend().log_wf_state_for_res(
+                    &workspace_path,
+                    workflow_state,
+                    effective_date,
+                ).await?;
+                match workflow_state {
+                    State::Published | State::Expired => {
+                        platform.pc_platform.resource_link_kind_with_term(
+                            &workspace_path,
+                            "published_date",
+                            &effective_date.to_string(),
+                        ).await?;
+                    }
+                    _ => (),
+                }
 
                 // then find the target .git, and move/copy/symlink depending on what got specified
                 // path is assumed to always start with `/`.
