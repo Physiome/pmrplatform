@@ -113,11 +113,18 @@ impl<'p> ExposureCtrl<'p> {
             pathinfo,
         );
 
+        let resource_path = format!("/exposure/{exposure_id}/{workspace_file_path}");
+        self.0.platform.pc_platform.resource_link_kind_with_term(
+            &resource_path,
+            "exposure_id",
+            &exposure_id.to_string(),
+        )
+        .await?;
+
         // Find all the alias for the current exposure and add.
         for alias_entry in self.0.platform.mc_platform.get_aliases("exposure", exposure_id).await?.iter() {
             // TODO This should fail on actual database error and not duplicate.
             let alias = &alias_entry.alias;
-            let resource_path = format!("/exposure/{exposure_id}/{workspace_file_path}");
             let aliased_uri = format!("/exposure/{alias}/{workspace_file_path}");
             self.0.platform.pc_platform.resource_link_kind_with_term(
                 &resource_path,
