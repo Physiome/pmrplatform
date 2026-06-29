@@ -55,7 +55,7 @@ jobs:
       run: cargo binstall cargo-leptos --no-confirm
 
     - name: Build pmrplatform
-      run: cargo build
+      run: cargo build --all-features
 
     - name: Build pmrapp (with webpack)
       run: |
