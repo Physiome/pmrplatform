@@ -69,9 +69,9 @@ pub async fn run(
         &resource_path,
         "description",
         // fallback from main title to citation title to generated one.
-        &pmr2_cmeta.model_title.unwrap_or(
-            pmr2_cmeta.citation_title.unwrap_or(
-                format!("Exposure {exposure_id}")
+        pmr2_cmeta.model_title.as_deref().unwrap_or(
+            pmr2_cmeta.citation_title.as_deref().unwrap_or(
+                &exposure_path,
             )
         )
     )
