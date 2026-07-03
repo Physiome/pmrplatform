@@ -43,7 +43,7 @@ use pmrcore::{
         HexId,
     },
     index::{
-        traits::IndexBackend,
+        traits::IndexCoreBackend,
         IndexTerms,
         IndexResourceSet,
         ResourceBrief,
@@ -673,7 +673,7 @@ impl TaskTemplateBackend for MockPlatform {
 }
 
 #[async_trait]
-impl IndexBackend for MockPlatform {
+impl IndexCoreBackend for MockPlatform {
     async fn resolve_kind(
         &self,
         _kind: &str,

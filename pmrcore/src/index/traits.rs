@@ -4,7 +4,7 @@ use crate::error::BackendError;
 use super::*;
 
 #[async_trait]
-pub trait IndexBackend {
+pub trait IndexCoreBackend {
     /// This resolves the `id` associated with `kind`; if not already exist it will be created and
     /// its `id` returned.
     async fn resolve_kind(
@@ -79,7 +79,10 @@ pub trait IndexBackend {
         &self,
         resource_path: &str,
     ) -> Result<Option<ResourceBrief>, BackendError>;
+}
 
+#[async_trait]
+pub trait IndexBackend: IndexCoreBackend {
     async fn resource_link_kind_with_terms(
         &self,
         resource_path: &str,
@@ -237,4 +240,10 @@ pub trait IndexBackend {
         }
         Ok(results)
     }
+}
+
+impl<T> IndexBackend for T
+where
+    T: IndexCoreBackend
+{
 }

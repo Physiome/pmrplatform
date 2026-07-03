@@ -8,7 +8,7 @@ use pmrcore::{
         IndexTerms,
         ResourceBrief,
         ResourceKindedTerms,
-        traits::IndexBackend,
+        traits::IndexCoreBackend,
     }
 };
 use unicode_segmentation::UnicodeSegmentation;
@@ -482,7 +482,7 @@ ORDER BY
 }
 
 #[async_trait]
-impl IndexBackend for SqliteBackend {
+impl IndexCoreBackend for SqliteBackend {
     async fn resolve_kind(
         &self,
         kind: &str,
@@ -578,7 +578,10 @@ pub(crate) mod testing {
     use pmrcore::{
         platform::PlatformConnector as _,
         index::{
-            traits::IndexBackend,
+            traits::{
+                IndexCoreBackend,
+                IndexBackend,
+            },
             ResourceBrief,
         },
     };
@@ -754,6 +757,7 @@ pub(crate) mod testing {
         backend.forget_resource_path(None, "/test/resource").await?;
         assert!(backend.list_resources("title", "Test Resource").await?.unwrap().resource_paths.is_empty());
         // TODO should clean up terms that have no records?
+        // TODO usage of the denormalized cache.
 
         Ok(())
     }
