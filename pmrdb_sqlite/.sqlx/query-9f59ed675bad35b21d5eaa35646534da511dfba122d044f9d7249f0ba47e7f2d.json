@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nINSERT INTO resource_indexed (\n    resource_path,\n    data\n)\nVALUES ( ?1, ?2 )\nON CONFLICT(resource_path) DO UPDATE SET\n    data = ?2\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "9f59ed675bad35b21d5eaa35646534da511dfba122d044f9d7249f0ba47e7f2d"
+}

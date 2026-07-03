@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\nSELECT\n    resource_path,\n    data\nFROM\n    resource_indexed\nWHERE\n    resource_path = ?1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "resource_path",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "data",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "0a9e9976cf3ae01ee440fd3fb9e47698d600ab6fc056fb45409e9e8695fe8617"
+}

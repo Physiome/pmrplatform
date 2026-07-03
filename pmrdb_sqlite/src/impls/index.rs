@@ -8,7 +8,10 @@ use pmrcore::{
         IndexTerms,
         ResourceBrief,
         ResourceKindedTerms,
-        traits::IndexCoreBackend,
+        traits::{
+            IndexCoreBackend,
+            IndexCoreCache,
+        },
     }
 };
 use unicode_segmentation::UnicodeSegmentation;
@@ -358,6 +361,65 @@ WHERE
     })
 }
 
+async fn cache_resource_kinded_terms_sqlite(
+    backend: &SqliteBackend,
+    resource_path: &str,
+) -> Result<ResourceKindedTerms, BackendError> {
+    let results = get_resource_kinded_terms_sqlite(backend, resource_path).await?;
+    let data = serde_json::to_string(&results.data).expect("serialization shouldn't fail on this basic type");
+    sqlx::query!(
+        r#"
+INSERT INTO resource_indexed (
+    resource_path,
+    data
+)
+VALUES ( ?1, ?2 )
+ON CONFLICT(resource_path) DO UPDATE SET
+    data = ?2
+        "#,
+        resource_path,
+        data,
+    )
+    .execute(&*backend.pool)
+    .await?;
+
+    Ok(results)
+}
+
+async fn get_cached_resource_kinded_terms_sqlite(
+    backend: &SqliteBackend,
+    resource_path: &str,
+) -> Result<Option<ResourceKindedTerms>, BackendError> {
+    let result = sqlx::query!(
+        r#"
+SELECT
+    resource_path,
+    data
+FROM
+    resource_indexed
+WHERE
+    resource_path = ?1
+        "#,
+        resource_path,
+    )
+    .map(|row| (row.resource_path, row.data))
+    .fetch_optional(&*backend.pool)
+    .await?;
+
+    if let Some((resource_path, data)) = result {
+        if let Some(data) = data {
+            return Ok(serde_json::from_str(&data)
+                .ok()
+                .map(|data| ResourceKindedTerms {
+                    resource_path,
+                    data,
+                })
+            )
+        }
+    }
+    Ok(None)
+}
+
 async fn get_resource_brief_sqlite(
     backend: &SqliteBackend,
     resource_path: &str,
@@ -570,7 +632,23 @@ impl IndexCoreBackend for SqliteBackend {
     ) -> Result<Option<ResourceBrief>, BackendError> {
         get_resource_brief_sqlite(self, resource_path).await
     }
+}
 
+#[async_trait]
+impl IndexCoreCache for SqliteBackend {
+    async fn cache_resource_kinded_terms(
+        &self,
+        resource_path: &str,
+    ) -> Result<ResourceKindedTerms, BackendError> {
+        cache_resource_kinded_terms_sqlite(self, resource_path).await
+    }
+
+    async fn get_cached_resource_kinded_terms(
+        &self,
+        resource_path: &str,
+    ) -> Result<Option<ResourceKindedTerms>, BackendError> {
+        get_cached_resource_kinded_terms_sqlite(self, resource_path).await
+    }
 }
 
 #[cfg(test)]
@@ -580,6 +658,7 @@ pub(crate) mod testing {
         index::{
             traits::{
                 IndexCoreBackend,
+                IndexCoreCache,
                 IndexBackend,
             },
             ResourceBrief,
@@ -816,6 +895,46 @@ pub(crate) mod testing {
                 },
             ],
         );
+
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn test_cache() -> anyhow::Result<()> {
+        let backend = SqliteBackend::pc("sqlite::memory:".into())
+            .await
+            .map_err(anyhow::Error::from_boxed)?;
+
+        backend.resource_link_kind_with_terms("/test/resource", "keyword", &mut [].into_iter()).await?;
+        backend.resource_link_kind_with_terms("/test/resource", "title", &mut [
+            "Test Resource",
+        ].into_iter()).await?;
+        backend.resource_link_kind_with_terms("/test/resource", "keyword", &mut [
+            "hello",
+            "world",
+        ].into_iter()).await?;
+
+        let kinded_terms = backend.get_resource_kinded_terms("/test/resource").await?;
+        assert_eq!(kinded_terms.resource_path, "/test/resource");
+        assert!(backend.get_cached_resource_kinded_terms("/test/resource").await?.is_none());
+
+        let caching_kinded_terms = backend.cache_resource_kinded_terms("/test/resource").await?;
+        let cached_kinded_terms = backend.get_cached_resource_kinded_terms("/test/resource").await?;
+        let (cached_resource_path, cached_data) = if let Some(cached_kinded_terms) = cached_kinded_terms {
+            (Some(cached_kinded_terms.resource_path), Some(cached_kinded_terms.data))
+        } else {
+            (None, None)
+        };
+        assert_eq!(kinded_terms.resource_path, caching_kinded_terms.resource_path);
+        assert_eq!(Some(kinded_terms.resource_path), cached_resource_path);
+
+        assert_eq!(kinded_terms.data, caching_kinded_terms.data);
+        assert_eq!(Some(kinded_terms.data), cached_data);
+
+        backend.forget_resource_path(None, "/test/resource").await?;
+        assert!(backend.list_resources("title", "Test Resource").await?.unwrap().resource_paths.is_empty());
+        // cache does NOT automatically be invalidated, use the version that manages this.
+        assert!(backend.get_cached_resource_kinded_terms("/test/resource").await?.is_some());
 
         Ok(())
     }

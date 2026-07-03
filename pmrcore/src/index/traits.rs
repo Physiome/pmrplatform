@@ -82,6 +82,29 @@ pub trait IndexCoreBackend {
 }
 
 #[async_trait]
+pub trait IndexCoreCache {
+    // TODO Revisit this design later, perhaps consider:
+    // - Provide an in-memory wrapper instead, or in conjunction with this denormalized
+    // - This be part of a concrete wrapper that implements subparts of this trait
+    // - Rather, this trait be broken up into separate portions with the lower level core containing
+    //   only the database access, while the pre-implemented part be a supertrait, with further custom
+    //   implementation for the wrapper.
+    /// Cache the kinded terms for the given resource path at the database before returning it.
+    async fn cache_resource_kinded_terms(
+        &self,
+        resource_path: &str,
+    ) -> Result<ResourceKindedTerms, BackendError>;
+
+    /// Get the kinded terms for the given resource path from the cache.
+    ///
+    /// `None` will be returned the database failed to produce the value.
+    async fn get_cached_resource_kinded_terms(
+        &self,
+        resource_path: &str,
+    ) -> Result<Option<ResourceKindedTerms>, BackendError>;
+}
+
+#[async_trait]
 pub trait IndexBackend: IndexCoreBackend {
     async fn resource_link_kind_with_terms(
         &self,

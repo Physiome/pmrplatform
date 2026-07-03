@@ -18,3 +18,8 @@ CREATE TABLE IF NOT EXISTS idx_entry_link (
     FOREIGN KEY(idx_entry_id) REFERENCES idx_entry(id)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_entry_link__idx_entry_id_resource_path ON idx_entry_link(idx_entry_id, resource_path);
+
+CREATE TABLE IF NOT EXISTS resource_indexed (
+    resource_path TEXT PRIMARY KEY NOT NULL,
+    data TEXT
+);
