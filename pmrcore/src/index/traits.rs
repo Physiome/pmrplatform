@@ -102,6 +102,17 @@ pub trait IndexCoreCache {
         &self,
         resource_path: &str,
     ) -> Result<Option<ResourceKindedTerms>, BackendError>;
+
+    /// Uncache the kinded terms for the given resource path.
+    async fn uncache_resource_kinded_terms(
+        &self,
+        resource_path: &str,
+    ) -> Result<(), BackendError>;
+
+    /// Uncache all kinded terms.
+    async fn uncache_all_resource_kinded_terms(
+        &self,
+    ) -> Result<(), BackendError>;
 }
 
 #[async_trait]

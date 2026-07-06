@@ -420,6 +420,37 @@ WHERE
     Ok(None)
 }
 
+async fn uncache_resource_kinded_terms_sqlite(
+    backend: &SqliteBackend,
+    resource_path: &str,
+) -> Result<(), BackendError> {
+    sqlx::query!(
+        r#"
+DELETE FROM
+    resource_indexed
+WHERE
+    resource_path = ?1
+        "#,
+        resource_path,
+    )
+    .execute(&*backend.pool)
+    .await?;
+    Ok(())
+}
+
+async fn uncache_all_resource_kinded_terms_sqlite(
+    backend: &SqliteBackend,
+) -> Result<(), BackendError> {
+    sqlx::query!(
+        r#"
+DELETE FROM resource_indexed
+        "#,
+    )
+    .execute(&*backend.pool)
+    .await?;
+    Ok(())
+}
+
 async fn get_resource_brief_sqlite(
     backend: &SqliteBackend,
     resource_path: &str,
@@ -648,6 +679,19 @@ impl IndexCoreCache for SqliteBackend {
         resource_path: &str,
     ) -> Result<Option<ResourceKindedTerms>, BackendError> {
         get_cached_resource_kinded_terms_sqlite(self, resource_path).await
+    }
+
+    async fn uncache_resource_kinded_terms(
+        &self,
+        resource_path: &str,
+    ) -> Result<(), BackendError> {
+        uncache_resource_kinded_terms_sqlite(self, resource_path).await
+    }
+
+    async fn uncache_all_resource_kinded_terms(
+        &self,
+    ) -> Result<(), BackendError> {
+        uncache_all_resource_kinded_terms_sqlite(self).await
     }
 }
 
@@ -935,6 +979,23 @@ pub(crate) mod testing {
         assert!(backend.list_resources("title", "Test Resource").await?.unwrap().resource_paths.is_empty());
         // cache does NOT automatically be invalidated, use the version that manages this.
         assert!(backend.get_cached_resource_kinded_terms("/test/resource").await?.is_some());
+
+        // non-existent references can be manually cached
+        let caching_empty = backend.cache_resource_kinded_terms("/test/alternate").await?;
+        let cached_empty = backend.get_cached_resource_kinded_terms("/test/alternate").await?
+            .expect("should have been correctly cached above");
+
+        assert!(caching_empty.data.is_empty());
+        assert!(cached_empty.data.is_empty());
+
+        // Cache may be cleared one at a time.
+        backend.uncache_resource_kinded_terms("/test/resource").await?;
+        assert!(backend.get_cached_resource_kinded_terms("/test/resource").await?.is_none());
+        assert!(backend.get_cached_resource_kinded_terms("/test/alternate").await?.is_some());
+
+        // Fully clear the cache.
+        backend.uncache_all_resource_kinded_terms().await?;
+        assert!(backend.get_cached_resource_kinded_terms("/test/alternate").await?.is_none());
 
         Ok(())
     }

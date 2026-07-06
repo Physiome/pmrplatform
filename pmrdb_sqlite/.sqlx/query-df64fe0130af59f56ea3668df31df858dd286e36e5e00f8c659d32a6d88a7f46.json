@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\nDELETE FROM\n    resource_indexed\nWHERE\n    resource_path = ?1\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "df64fe0130af59f56ea3668df31df858dd286e36e5e00f8c659d32a6d88a7f46"
+}
