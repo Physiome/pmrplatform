@@ -83,12 +83,9 @@ pub trait IndexCoreBackend {
 
 #[async_trait]
 pub trait IndexCoreCache {
-    // TODO Revisit this design later, perhaps consider:
-    // - Provide an in-memory wrapper instead, or in conjunction with this denormalized
-    // - This be part of a concrete wrapper that implements subparts of this trait
-    // - Rather, this trait be broken up into separate portions with the lower level core containing
-    //   only the database access, while the pre-implemented part be a supertrait, with further custom
-    //   implementation for the wrapper.
+    // TODO
+    // - Provide an in-memory wrapper instead, or in conjunction with this denormalized,
+    //   be part of a concrete wrapper that implements subparts of this trait
     /// Cache the kinded terms for the given resource path at the database before returning it.
     async fn cache_resource_kinded_terms(
         &self,
@@ -118,7 +115,119 @@ pub trait IndexCoreCache {
 // TODO not make this a super trait but have this implement only for `IndexBackend`.
 // idea is to have the cache layer implement this.
 #[async_trait]
-pub trait IndexBackend: IndexCoreBackend {
+pub trait IndexBackend {
+    async fn add_idx_text(
+        &self,
+        title: Option<&str>,
+        content: Option<&str>,
+        resource_path: &str,
+    ) -> Result<(), BackendError>;
+
+    async fn forget_resource_path(
+        &self,
+        kind: Option<&str>,
+        resource_path: &str,
+    ) -> Result<(), BackendError>;
+
+    async fn forget_resource_text(
+        &self,
+        resource_path: &str,
+    ) -> Result<(), BackendError>;
+
+    /// List the kinds of indexes available.
+    async fn list_kinds(&self) -> Result<Vec<String>, BackendError>;
+
+    /// List the terms available under the kind
+    async fn list_terms(
+        &self,
+        kind: &str,
+    ) -> Result<Option<IndexTerms>, BackendError>;
+
+    /// List the resources available under the kind
+    ///
+    /// A `Ok(None)` result should mean the kind is unknown.
+    async fn list_resources(
+        &self,
+        kind: &str,
+        term: &str,
+    ) -> Result<Option<IndexResourceSet>, BackendError>;
+
+    /// List the text associated with the resources given the provided text.
+    ///
+    /// An optional bracket may be provided to highlight the matched text.
+    async fn list_resources_text(
+        &self,
+        text: &str,
+        bracket: Option<(&str, &str)>,
+    ) -> Result<Vec<ResourceBrief>, BackendError>;
+
+    /// Get the kinded terms for the given resource path.
+    async fn get_resource_kinded_terms(
+        &self,
+        resource_path: &str,
+    ) -> Result<ResourceKindedTerms, BackendError>;
+
+    /// Get the brief for the given resource path.
+    async fn get_resource_brief(
+        &self,
+        resource_path: &str,
+    ) -> Result<Option<ResourceBrief>, BackendError>;
+
+    async fn resource_link_kind_with_terms(
+        &self,
+        resource_path: &str,
+        kind: &str,
+        terms: &mut (dyn Iterator<Item = &str> + Send + Sync),
+    ) -> Result<(), BackendError>;
+
+    async fn resource_link_kind_with_term(
+        &self,
+        resource_path: &str,
+        kind: &str,
+        term: &str,
+    ) -> Result<(), BackendError>;
+
+    async fn get_resource_details(
+        &self,
+        resource_path: &str,
+    ) -> Result<ResourceKindedTerms, BackendError>;
+
+    /// Get the kinded terms for the given resource path
+    async fn list_resources_details(
+        &self,
+        kind: &str,
+        term: &str,
+    ) -> Result<Option<IndexResourceDetailedSet>, BackendError>;
+
+    /// Convert a resource brief into resource kinded terms, with the `title` and `brief` field encoded
+    /// as keys prefixed with `_` inside data.
+    async fn resource_brief_to_kinded_terms(
+        &self,
+        brief: ResourceBrief,
+    ) -> Result<ResourceKindedTerms, BackendError>;
+
+    /// List the text associated with the resources given the provided text, but converted to a
+    /// `ResourceKindedTerms` using `resource_brief_to_kinded_terms`.
+    ///
+    /// An optional bracket may be provided to highlight the matched text.
+    async fn list_resources_text_as_kinded_terms(
+        &self,
+        text: &str,
+        bracket: Option<(&str, &str)>,
+    ) -> Result<Vec<ResourceKindedTerms>, BackendError>;
+
+    async fn query_resource(
+        &self,
+        query: &Query,
+        bracket: Option<(&str, &str)>,
+    ) -> Result<Vec<ResourceKindedTerms>, BackendError>;
+}
+
+#[async_trait]
+impl<T> IndexBackend for T
+where
+    T: IndexCoreBackend + Sync
+{
     async fn add_idx_text(
         &self,
         title: Option<&str>,
@@ -353,8 +462,3 @@ pub trait IndexBackend: IndexCoreBackend {
     }
 }
 
-impl<T> IndexBackend for T
-where
-    T: IndexCoreBackend
-{
-}
