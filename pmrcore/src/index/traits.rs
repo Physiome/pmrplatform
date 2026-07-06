@@ -26,35 +26,35 @@ pub trait IndexCoreBackend {
         resource_path: &str,
     ) -> Result<(), BackendError>;
     /// Link `resource_path` with the text content for the text index.
-    async fn add_idx_text(
+    async fn add_idx_text_core(
         &self,
         title: Option<&str>,
         content: Option<&str>,
         resource_path: &str,
     ) -> Result<(), BackendError>;
     /// Forget the `resource_path` from the index.
-    async fn forget_resource_path(
+    async fn forget_resource_path_core(
         &self,
         kind: Option<&str>,
         resource_path: &str,
     ) -> Result<(), BackendError>;
     /// Forget the text associated with `resource_path`.
-    async fn forget_resource_text(
+    async fn forget_resource_text_core(
         &self,
         resource_path: &str,
     ) -> Result<(), BackendError>;
 
     /// List the kinds of indexes available.
-    async fn list_kinds(&self) -> Result<Vec<String>, BackendError>;
+    async fn list_kinds_core(&self) -> Result<Vec<String>, BackendError>;
     /// List the terms available under the kind
-    async fn list_terms(
+    async fn list_terms_core(
         &self,
         kind: &str,
     ) -> Result<Option<IndexTerms>, BackendError>;
     /// List the resources available under the kind
     ///
     /// A `Ok(None)` result should mean the kind is unknown.
-    async fn list_resources(
+    async fn list_resources_core(
         &self,
         kind: &str,
         term: &str,
@@ -62,20 +62,20 @@ pub trait IndexCoreBackend {
     /// List the text associated with the resources given the provided text.
     ///
     /// An optional bracket may be provided to highlight the matched text.
-    async fn list_resources_text(
+    async fn list_resources_text_core(
         &self,
         text: &str,
         bracket: Option<(&str, &str)>,
     ) -> Result<Vec<ResourceBrief>, BackendError>;
 
     /// Get the kinded terms for the given resource path
-    async fn get_resource_kinded_terms(
+    async fn get_resource_kinded_terms_core(
         &self,
         resource_path: &str,
     ) -> Result<ResourceKindedTerms, BackendError>;
 
     /// Get the brief associated with the resource path.
-    async fn get_resource_brief(
+    async fn get_resource_brief_core(
         &self,
         resource_path: &str,
     ) -> Result<Option<ResourceBrief>, BackendError>;
@@ -115,8 +115,85 @@ pub trait IndexCoreCache {
     ) -> Result<(), BackendError>;
 }
 
+// TODO not make this a super trait but have this implement only for `IndexBackend`.
+// idea is to have the cache layer implement this.
 #[async_trait]
 pub trait IndexBackend: IndexCoreBackend {
+    async fn add_idx_text(
+        &self,
+        title: Option<&str>,
+        content: Option<&str>,
+        resource_path: &str,
+    ) -> Result<(), BackendError> {
+        self.add_idx_text_core(title, content, resource_path).await
+    }
+
+    async fn forget_resource_path(
+        &self,
+        kind: Option<&str>,
+        resource_path: &str,
+    ) -> Result<(), BackendError> {
+        self.forget_resource_path_core(kind, resource_path).await
+    }
+
+    async fn forget_resource_text(
+        &self,
+        resource_path: &str,
+    ) -> Result<(), BackendError> {
+        self.forget_resource_text_core(resource_path).await
+    }
+
+    /// List the kinds of indexes available.
+    async fn list_kinds(&self) -> Result<Vec<String>, BackendError> {
+        self.list_kinds_core().await
+    }
+
+    /// List the terms available under the kind
+    async fn list_terms(
+        &self,
+        kind: &str,
+    ) -> Result<Option<IndexTerms>, BackendError> {
+        self.list_terms_core(kind).await
+    }
+
+    /// List the resources available under the kind
+    ///
+    /// A `Ok(None)` result should mean the kind is unknown.
+    async fn list_resources(
+        &self,
+        kind: &str,
+        term: &str,
+    ) -> Result<Option<IndexResourceSet>, BackendError> {
+        self.list_resources_core(kind, term).await
+    }
+
+    /// List the text associated with the resources given the provided text.
+    ///
+    /// An optional bracket may be provided to highlight the matched text.
+    async fn list_resources_text(
+        &self,
+        text: &str,
+        bracket: Option<(&str, &str)>,
+    ) -> Result<Vec<ResourceBrief>, BackendError> {
+        self.list_resources_text_core(text, bracket).await
+    }
+
+    /// Get the kinded terms for the given resource path.
+    async fn get_resource_kinded_terms(
+        &self,
+        resource_path: &str,
+    ) -> Result<ResourceKindedTerms, BackendError> {
+        self.get_resource_kinded_terms_core(resource_path).await
+    }
+
+    /// Get the brief for the given resource path.
+    async fn get_resource_brief(
+        &self,
+        resource_path: &str,
+    ) -> Result<Option<ResourceBrief>, BackendError> {
+        self.get_resource_brief_core(resource_path).await
+    }
+
     async fn resource_link_kind_with_terms(
         &self,
         resource_path: &str,

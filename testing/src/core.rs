@@ -697,7 +697,7 @@ impl IndexCoreBackend for MockPlatform {
         unimplemented!()
     }
 
-    async fn add_idx_text(
+    async fn add_idx_text_core(
         &self,
         _title: Option<&str>,
         _content: Option<&str>,
@@ -706,7 +706,7 @@ impl IndexCoreBackend for MockPlatform {
         unimplemented!()
     }
 
-    async fn forget_resource_path(
+    async fn forget_resource_path_core(
         &self,
         _kind: Option<&str>,
         _resource_path: &str,
@@ -714,25 +714,25 @@ impl IndexCoreBackend for MockPlatform {
         unimplemented!()
     }
 
-    async fn forget_resource_text(
+    async fn forget_resource_text_core(
         &self,
         _resource_path: &str,
     ) -> Result<(), BackendError> {
         unimplemented!()
     }
 
-    async fn list_kinds(&self) -> Result<Vec<String>, BackendError> {
+    async fn list_kinds_core(&self) -> Result<Vec<String>, BackendError> {
         unimplemented!()
     }
 
-    async fn list_terms(
+    async fn list_terms_core(
         &self,
         _kind: &str,
     ) -> Result<Option<IndexTerms>, BackendError> {
         unimplemented!()
     }
 
-    async fn list_resources(
+    async fn list_resources_core(
         &self,
         _kind: &str,
         _term: &str,
@@ -740,7 +740,7 @@ impl IndexCoreBackend for MockPlatform {
         unimplemented!()
     }
 
-    async fn list_resources_text(
+    async fn list_resources_text_core(
         &self,
         _text: &str,
         _bracket: Option<(&str, &str)>,
@@ -748,14 +748,14 @@ impl IndexCoreBackend for MockPlatform {
         unimplemented!()
     }
 
-    async fn get_resource_kinded_terms(
+    async fn get_resource_kinded_terms_core(
         &self,
         _resource_path: &str,
     ) -> Result<ResourceKindedTerms, BackendError> {
         unimplemented!()
     }
 
-    async fn get_resource_brief(
+    async fn get_resource_brief_core(
         &self,
         _resource_path: &str,
     ) -> Result<Option<ResourceBrief>, BackendError> {

@@ -599,7 +599,7 @@ impl IndexCoreBackend for SqliteBackend {
         add_idx_entry_link_sqlite(self, idx_entry_id, resource_path).await
     }
 
-    async fn add_idx_text(
+    async fn add_idx_text_core(
         &self,
         title: Option<&str>,
         content: Option<&str>,
@@ -608,7 +608,7 @@ impl IndexCoreBackend for SqliteBackend {
         add_idx_text_sqlite(self, title, content, resource_path).await
     }
 
-    async fn forget_resource_path(
+    async fn forget_resource_path_core(
         &self,
         kind: Option<&str>,
         resource_path: &str,
@@ -616,25 +616,25 @@ impl IndexCoreBackend for SqliteBackend {
         forget_resource_path_sqlite(self, kind, resource_path).await
     }
 
-    async fn forget_resource_text(
+    async fn forget_resource_text_core(
         &self,
         resource_path: &str,
     ) -> Result<(), BackendError> {
         idx_text_forget_sqlite(self, resource_path).await
     }
 
-    async fn list_kinds(&self) -> Result<Vec<String>, BackendError> {
+    async fn list_kinds_core(&self) -> Result<Vec<String>, BackendError> {
         list_kinds_sqlite(self).await
     }
 
-    async fn list_terms(
+    async fn list_terms_core(
         &self,
         kind: &str,
     ) -> Result<Option<IndexTerms>, BackendError> {
         list_terms_sqlite(self, kind).await
     }
 
-    async fn list_resources(
+    async fn list_resources_core(
         &self,
         kind: &str,
         term: &str,
@@ -642,7 +642,7 @@ impl IndexCoreBackend for SqliteBackend {
         list_resources_sqlite(self, kind, term).await
     }
 
-    async fn list_resources_text(
+    async fn list_resources_text_core(
         &self,
         text: &str,
         bracket: Option<(&str, &str)>,
@@ -650,14 +650,14 @@ impl IndexCoreBackend for SqliteBackend {
         list_idx_text_sqlite(self, text, bracket).await
     }
 
-    async fn get_resource_kinded_terms(
+    async fn get_resource_kinded_terms_core(
         &self,
         resource_path: &str,
     ) -> Result<ResourceKindedTerms, BackendError> {
         get_resource_kinded_terms_sqlite(self, resource_path).await
     }
 
-    async fn get_resource_brief(
+    async fn get_resource_brief_core(
         &self,
         resource_path: &str,
     ) -> Result<Option<ResourceBrief>, BackendError> {
