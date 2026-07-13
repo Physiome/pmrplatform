@@ -9,8 +9,8 @@ use pmrcore::{
         ResourceBrief,
         ResourceKindedTerms,
         traits::{
-            IndexCoreBackend,
-            IndexCoreCache,
+            IndexCoreDBBackend,
+            IndexCoreDBCache,
         },
     }
 };
@@ -575,7 +575,7 @@ ORDER BY
 }
 
 #[async_trait]
-impl IndexCoreBackend for SqliteBackend {
+impl IndexCoreDBBackend for SqliteBackend {
     async fn resolve_kind(
         &self,
         kind: &str,
@@ -666,7 +666,7 @@ impl IndexCoreBackend for SqliteBackend {
 }
 
 #[async_trait]
-impl IndexCoreCache for SqliteBackend {
+impl IndexCoreDBCache for SqliteBackend {
     async fn cache_resource_kinded_terms(
         &self,
         resource_path: &str,
@@ -701,9 +701,10 @@ pub(crate) mod testing {
         platform::PlatformConnector as _,
         index::{
             traits::{
-                IndexCoreBackend,
-                IndexCoreCache,
                 IndexBackend,
+                IndexCoreBackend,
+                IndexCoreDBBackend,
+                IndexCoreDBCache,
             },
             ResourceBrief,
         },

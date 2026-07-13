@@ -4,7 +4,7 @@ use crate::error::BackendError;
 use super::*;
 
 #[async_trait]
-pub trait IndexCoreBackend {
+pub trait IndexCoreDBBackend {
     /// This resolves the `id` associated with `kind`; if not already exist it will be created and
     /// its `id` returned.
     async fn resolve_kind(
@@ -82,7 +82,7 @@ pub trait IndexCoreBackend {
 }
 
 #[async_trait]
-pub trait IndexCoreCache {
+pub trait IndexCoreDBCache {
     // TODO
     // - Provide an in-memory wrapper instead, or in conjunction with this denormalized,
     //   be part of a concrete wrapper that implements subparts of this trait
@@ -115,7 +115,7 @@ pub trait IndexCoreCache {
 // TODO not make this a super trait but have this implement only for `IndexBackend`.
 // idea is to have the cache layer implement this.
 #[async_trait]
-pub trait IndexBackend {
+pub trait IndexCoreBackend {
     async fn add_idx_text(
         &self,
         title: Option<&str>,
@@ -172,61 +172,12 @@ pub trait IndexBackend {
         &self,
         resource_path: &str,
     ) -> Result<Option<ResourceBrief>, BackendError>;
-
-    async fn resource_link_kind_with_terms(
-        &self,
-        resource_path: &str,
-        kind: &str,
-        terms: &mut (dyn Iterator<Item = &str> + Send + Sync),
-    ) -> Result<(), BackendError>;
-
-    async fn resource_link_kind_with_term(
-        &self,
-        resource_path: &str,
-        kind: &str,
-        term: &str,
-    ) -> Result<(), BackendError>;
-
-    async fn get_resource_details(
-        &self,
-        resource_path: &str,
-    ) -> Result<ResourceKindedTerms, BackendError>;
-
-    /// Get the kinded terms for the given resource path
-    async fn list_resources_details(
-        &self,
-        kind: &str,
-        term: &str,
-    ) -> Result<Option<IndexResourceDetailedSet>, BackendError>;
-
-    /// Convert a resource brief into resource kinded terms, with the `title` and `brief` field encoded
-    /// as keys prefixed with `_` inside data.
-    async fn resource_brief_to_kinded_terms(
-        &self,
-        brief: ResourceBrief,
-    ) -> Result<ResourceKindedTerms, BackendError>;
-
-    /// List the text associated with the resources given the provided text, but converted to a
-    /// `ResourceKindedTerms` using `resource_brief_to_kinded_terms`.
-    ///
-    /// An optional bracket may be provided to highlight the matched text.
-    async fn list_resources_text_as_kinded_terms(
-        &self,
-        text: &str,
-        bracket: Option<(&str, &str)>,
-    ) -> Result<Vec<ResourceKindedTerms>, BackendError>;
-
-    async fn query_resource(
-        &self,
-        query: &Query,
-        bracket: Option<(&str, &str)>,
-    ) -> Result<Vec<ResourceKindedTerms>, BackendError>;
 }
 
 #[async_trait]
-impl<T> IndexBackend for T
+impl<T> IndexCoreBackend for T
 where
-    T: IndexCoreBackend + Sync
+    T: IndexCoreDBBackend + Sync
 {
     async fn add_idx_text(
         &self,
@@ -302,33 +253,23 @@ where
     ) -> Result<Option<ResourceBrief>, BackendError> {
         self.get_resource_brief_core(resource_path).await
     }
+}
 
+#[async_trait]
+pub trait IndexBackend: IndexCoreBackend {
     async fn resource_link_kind_with_terms(
         &self,
         resource_path: &str,
         kind: &str,
         terms: &mut (dyn Iterator<Item = &str> + Send + Sync),
-    ) -> Result<(), BackendError> {
-        let idx_kind_id = self.resolve_kind(kind).await?;
-
-        for term in terms {
-            let idx_entry_id = self.resolve_idx_entry(idx_kind_id, term).await?;
-            self.add_idx_entry_link(idx_entry_id, &resource_path).await?;
-        }
-        Ok(())
-    }
+    ) -> Result<(), BackendError>;
 
     async fn resource_link_kind_with_term(
         &self,
         resource_path: &str,
         kind: &str,
         term: &str,
-    ) -> Result<(), BackendError> {
-        let idx_kind_id = self.resolve_kind(kind).await?;
-        let idx_entry_id = self.resolve_idx_entry(idx_kind_id, term).await?;
-        self.add_idx_entry_link(idx_entry_id, &resource_path).await?;
-        Ok(())
-    }
+    ) -> Result<(), BackendError>;
 
     async fn get_resource_details(
         &self,
@@ -462,3 +403,35 @@ where
     }
 }
 
+#[async_trait]
+impl<T> IndexBackend for T
+where
+    T: IndexCoreDBBackend + Sync
+{
+    async fn resource_link_kind_with_terms(
+        &self,
+        resource_path: &str,
+        kind: &str,
+        terms: &mut (dyn Iterator<Item = &str> + Send + Sync),
+    ) -> Result<(), BackendError> {
+        let idx_kind_id = self.resolve_kind(kind).await?;
+
+        for term in terms {
+            let idx_entry_id = self.resolve_idx_entry(idx_kind_id, term).await?;
+            self.add_idx_entry_link(idx_entry_id, &resource_path).await?;
+        }
+        Ok(())
+    }
+
+    async fn resource_link_kind_with_term(
+        &self,
+        resource_path: &str,
+        kind: &str,
+        term: &str,
+    ) -> Result<(), BackendError> {
+        let idx_kind_id = self.resolve_kind(kind).await?;
+        let idx_entry_id = self.resolve_idx_entry(idx_kind_id, term).await?;
+        self.add_idx_entry_link(idx_entry_id, &resource_path).await?;
+        Ok(())
+    }
+}

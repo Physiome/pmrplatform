@@ -1,4 +1,7 @@
-use std::collections::BTreeMap;
+use std::{
+    collections::BTreeMap,
+    sync::{Arc, RwLock},
+};
 use serde::{Deserialize, Serialize};
 
 /// The underlying raw entity for the kind of the index
@@ -109,4 +112,24 @@ pub struct Query {
     pub filters: Vec<Filter>,
 }
 
+/// A memory cache of `ResourceKindedTerms` stored within some `IndexBackend` that has been retrieved.
+#[derive(Clone, Debug, Default)]
+pub struct ResourceKindedTermsCache<B> {
+    backend: B,
+    heap: Arc<RwLock<BTreeMap<String, BTreeMap<String, Vec<String>>>>>,
+}
+
+/// A generic implementation to enable `IndexCoreCache` for some `IndexCoreBackend`.
+///
+/// Typically some database backend that implements `IndexCoreBackend` may also implement `IndexCoreCache`.
+/// The generic `IndexBackend` implementation is only implemented for those that implement `IndexCoreBackend`,
+/// with the caching unused.  This struct wraps some `IndexBackend` that also implements `IndexCoreCache` so
+/// that the implemented caching methodology for the backend (usually on disk) may be used and provided by this
+/// generic implementation.
+#[derive(Clone, Debug, Default)]
+pub struct CachedIndexBackend<B> {
+    backend: B,
+}
+
+mod impls;
 pub mod traits;
