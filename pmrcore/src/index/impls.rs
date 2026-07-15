@@ -65,6 +65,18 @@ impl<B> ResourceKindedTermsCache<B> {
     }
 }
 
+impl<B> ResourceKindedTermsCache<B>
+where
+    B: IndexCoreBackend + Send + Sync,
+{
+    pub fn new(backend: B) -> Self {
+        Self {
+            backend,
+            heap: Default::default(),
+        }
+    }
+}
+
 #[async_trait]
 impl<B> IndexCoreBackend for ResourceKindedTermsCache<B>
 where
@@ -179,6 +191,17 @@ where
         self.backend.resource_link_kind_with_term(resource_path, kind, term).await?;
         self.update(resource_path, kind, &[String::from(term)]);
         Ok(())
+    }
+}
+
+impl<B> CachedIndexBackend<B>
+where
+    B: IndexCoreBackend + Send + Sync,
+{
+    pub fn new(backend: B) -> Self {
+        Self {
+            backend,
+        }
     }
 }
 

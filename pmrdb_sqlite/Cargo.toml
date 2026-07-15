@@ -25,4 +25,6 @@ anyhow = { workspace = true }
 async-std = { workspace = true, features = ["attributes"] }
 mockall = { workspace = true }
 tempfile = { workspace = true }
+test-case = { workspace = true }
 test-pmr = { path = "../testing", features = ["model", "rand"] }
+test-pmr-macros = { path = "../testing-macros" }

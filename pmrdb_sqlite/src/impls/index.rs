@@ -695,6 +695,77 @@ impl IndexCoreDBCache for SqliteBackend {
     }
 }
 
+#[test]
+fn test_quote_fts5() {
+    // Basic cases.
+    assert_eq!(quote_fts5(r#""#), r#""#);
+    assert_eq!(quote_fts5(r#"""#), r#""""#);
+    assert_eq!(quote_fts5(r#""""#), r#""""#);
+
+    // Well-formed, fully quoted.
+    assert_eq!(quote_fts5(r#""hello world""#), r#""hello world""#);
+    assert_eq!(quote_fts5(r#""hello" "world""#), r#""hello" "world""#);
+    assert_eq!(quote_fts5(r#""hello and goodbye""#), r#""hello and goodbye""#);
+    assert_eq!(
+        quote_fts5(r#""hello world" "and" "good-bye world""#),
+        r#""hello world" "and" "good-bye world""#,
+    );
+
+    // Unquoted, will be quoted.
+    assert_eq!(quote_fts5(r#" hello world "#), r#""hello" "world""#);
+    assert_eq!(quote_fts5(r#"hello   world"#), r#""hello" "world""#);
+    assert_eq!(quote_fts5(r#"hello "world""#), r#""hello" "world""#);
+    assert_eq!(quote_fts5(r#""hello" world"#), r#""hello" "world""#);
+    assert_eq!(quote_fts5(r#""hello world" unquoted"#), r#""hello world" "unquoted""#);
+    assert_eq!(quote_fts5(r#"unquoted "hello world""#), r#""unquoted" "hello world""#);
+    assert_eq!(quote_fts5(r#"unquoted "hello world" unquoted"#), r#""unquoted" "hello world" "unquoted""#);
+    assert_eq!(
+        quote_fts5(r#""hello world" and "good-bye world""#),
+        r#""hello world" "and" "good-bye world""#,
+    );
+
+    // Unbalanced quotes are corrected by adding a termination quote.
+    assert_eq!(quote_fts5(r#""hello world"#), r#""hello world""#);
+    assert_eq!(quote_fts5(r#"hello "and" "goodbye world"#), r#""hello" "and" "goodbye world""#);
+    assert_eq!(quote_fts5(r#""hello" "world"#), r#""hello" "world""#);
+
+    // Single trailing spaces are kept.
+    assert_eq!(quote_fts5(r#""hello ""#), r#""hello ""#);
+    assert_eq!(quote_fts5(r#""hello world ""#), r#""hello world ""#);
+
+    // Lack of whitespace between quotes are preserved without spaces inserted.
+    assert_eq!(quote_fts5(r#""hello""world""#), r#""hello""world""#);
+    assert_eq!(quote_fts5(r#"hello""world""#), r#""hello""""world""""#);
+    assert_eq!(quote_fts5(r#""hello"world"#), r#""hello""world""#);
+    assert_eq!(quote_fts5(r#"hello""world"#), r#""hello""""world""#);
+    assert_eq!(quote_fts5(r#"hello"world goodbye"#), r#""hello""world goodbye""#);
+    assert_eq!(quote_fts5(r#""hello""world goodbye"#), r#""hello""world goodbye""#);
+    assert_eq!(quote_fts5(r#""hello""world goodbye"#), r#""hello""world goodbye""#);
+    assert_eq!(quote_fts5(r#""hello""world goodbye""#), r#""hello""world goodbye""#);
+    assert_eq!(quote_fts5(r#""""#), r#""""#);
+    assert_eq!(quote_fts5(r#""""""#), r#""""""#);
+    assert_eq!(quote_fts5(r#"""""hi"#), r#""""""hi""#);
+    assert_eq!(quote_fts5(r#""""hello ""#), r#""""hello ""#);
+    assert_eq!(quote_fts5(r#""""hello world ""#), r#""""hello world ""#);
+    assert_eq!(quote_fts5(r#""""hello """"#), r#""""hello """"#);
+    assert_eq!(quote_fts5(r#""""hello world """"#), r#""""hello world """"#);
+    assert_eq!(quote_fts5(r#"a"a"a"#), r#""a""a""a""#);
+    assert_eq!(quote_fts5(r#""a"a"a"#), r#""a""a""a""#);
+    assert_eq!(quote_fts5(r#"a"a"a""#), r#""a""a""a""""#);
+
+    // Multiple white spaces inside quotes will still be converted into a normal whitespace.
+    assert_eq!(quote_fts5(r#""""hello  x  """"#), r#""""hello x """"#);
+    assert_eq!(quote_fts5(r#""""hello  x  world  """"#), r#""""hello x world """"#);
+
+    // Odd number of quotes inside a substr correctly interpreted as unterminated and auto-terminated.
+    assert_eq!(quote_fts5(r#""hello""world and goodbye world"#), r#""hello""world and goodbye world""#);
+    assert_eq!(quote_fts5(r#""he""ll""o world and goodbye"#), r#""he""ll""o world and goodbye""#);
+    assert_eq!(quote_fts5(r#"""#), r#""""#);
+    assert_eq!(quote_fts5(r#"""""#), r#""""""#);
+    assert_eq!(quote_fts5(r#"""""""#), r#""""""""#);
+    assert_eq!(quote_fts5(r#""""""hi"#), r#""""""hi""#);
+}
+
 #[cfg(test)]
 pub(crate) mod testing {
     use pmrcore::{
@@ -706,88 +777,19 @@ pub(crate) mod testing {
                 IndexCoreDBBackend,
                 IndexCoreDBCache,
             },
+            CachedIndexBackend,
             ResourceBrief,
+            ResourceKindedTermsCache,
         },
     };
+    use test_case::test_case;
     use crate::SqliteBackend;
-    use super::quote_fts5;
 
-    #[test]
-    fn test_quote_fts5() {
-        // Basic cases.
-        assert_eq!(quote_fts5(r#""#), r#""#);
-        assert_eq!(quote_fts5(r#"""#), r#""""#);
-        assert_eq!(quote_fts5(r#""""#), r#""""#);
+    use test_pmr_macros::sqlite_pcb_cache_test_case;
 
-        // Well-formed, fully quoted.
-        assert_eq!(quote_fts5(r#""hello world""#), r#""hello world""#);
-        assert_eq!(quote_fts5(r#""hello" "world""#), r#""hello" "world""#);
-        assert_eq!(quote_fts5(r#""hello and goodbye""#), r#""hello and goodbye""#);
-        assert_eq!(
-            quote_fts5(r#""hello world" "and" "good-bye world""#),
-            r#""hello world" "and" "good-bye world""#,
-        );
-
-        // Unquoted, will be quoted.
-        assert_eq!(quote_fts5(r#" hello world "#), r#""hello" "world""#);
-        assert_eq!(quote_fts5(r#"hello   world"#), r#""hello" "world""#);
-        assert_eq!(quote_fts5(r#"hello "world""#), r#""hello" "world""#);
-        assert_eq!(quote_fts5(r#""hello" world"#), r#""hello" "world""#);
-        assert_eq!(quote_fts5(r#""hello world" unquoted"#), r#""hello world" "unquoted""#);
-        assert_eq!(quote_fts5(r#"unquoted "hello world""#), r#""unquoted" "hello world""#);
-        assert_eq!(quote_fts5(r#"unquoted "hello world" unquoted"#), r#""unquoted" "hello world" "unquoted""#);
-        assert_eq!(
-            quote_fts5(r#""hello world" and "good-bye world""#),
-            r#""hello world" "and" "good-bye world""#,
-        );
-
-        // Unbalanced quotes are corrected by adding a termination quote.
-        assert_eq!(quote_fts5(r#""hello world"#), r#""hello world""#);
-        assert_eq!(quote_fts5(r#"hello "and" "goodbye world"#), r#""hello" "and" "goodbye world""#);
-        assert_eq!(quote_fts5(r#""hello" "world"#), r#""hello" "world""#);
-
-        // Single trailing spaces are kept.
-        assert_eq!(quote_fts5(r#""hello ""#), r#""hello ""#);
-        assert_eq!(quote_fts5(r#""hello world ""#), r#""hello world ""#);
-
-        // Lack of whitespace between quotes are preserved without spaces inserted.
-        assert_eq!(quote_fts5(r#""hello""world""#), r#""hello""world""#);
-        assert_eq!(quote_fts5(r#"hello""world""#), r#""hello""""world""""#);
-        assert_eq!(quote_fts5(r#""hello"world"#), r#""hello""world""#);
-        assert_eq!(quote_fts5(r#"hello""world"#), r#""hello""""world""#);
-        assert_eq!(quote_fts5(r#"hello"world goodbye"#), r#""hello""world goodbye""#);
-        assert_eq!(quote_fts5(r#""hello""world goodbye"#), r#""hello""world goodbye""#);
-        assert_eq!(quote_fts5(r#""hello""world goodbye"#), r#""hello""world goodbye""#);
-        assert_eq!(quote_fts5(r#""hello""world goodbye""#), r#""hello""world goodbye""#);
-        assert_eq!(quote_fts5(r#""""#), r#""""#);
-        assert_eq!(quote_fts5(r#""""""#), r#""""""#);
-        assert_eq!(quote_fts5(r#"""""hi"#), r#""""""hi""#);
-        assert_eq!(quote_fts5(r#""""hello ""#), r#""""hello ""#);
-        assert_eq!(quote_fts5(r#""""hello world ""#), r#""""hello world ""#);
-        assert_eq!(quote_fts5(r#""""hello """"#), r#""""hello """"#);
-        assert_eq!(quote_fts5(r#""""hello world """"#), r#""""hello world """"#);
-        assert_eq!(quote_fts5(r#"a"a"a"#), r#""a""a""a""#);
-        assert_eq!(quote_fts5(r#""a"a"a"#), r#""a""a""a""#);
-        assert_eq!(quote_fts5(r#"a"a"a""#), r#""a""a""a""""#);
-
-        // Multiple white spaces inside quotes will still be converted into a normal whitespace.
-        assert_eq!(quote_fts5(r#""""hello  x  """"#), r#""""hello x """"#);
-        assert_eq!(quote_fts5(r#""""hello  x  world  """"#), r#""""hello x world """"#);
-
-        // Odd number of quotes inside a substr correctly interpreted as unterminated and auto-terminated.
-        assert_eq!(quote_fts5(r#""hello""world and goodbye world"#), r#""hello""world and goodbye world""#);
-        assert_eq!(quote_fts5(r#""he""ll""o world and goodbye"#), r#""he""ll""o world and goodbye""#);
-        assert_eq!(quote_fts5(r#"""#), r#""""#);
-        assert_eq!(quote_fts5(r#"""""#), r#""""""#);
-        assert_eq!(quote_fts5(r#"""""""#), r#""""""""#);
-        assert_eq!(quote_fts5(r#""""""hi"#), r#""""""hi""#);
-    }
-
+    #[sqlite_pcb_cache_test_case]
     #[async_std::test]
-    async fn test_empty_index() -> anyhow::Result<()> {
-        let backend = SqliteBackend::pc("sqlite::memory:".into())
-            .await
-            .map_err(anyhow::Error::from_boxed)?;
+    async fn test_empty_index(backend: impl IndexBackend) -> anyhow::Result<()> {
         assert!(backend.list_resources("no_such_kind", "no_such_term").await?.is_none());
         assert!(backend.list_terms("no_such_kind").await?.is_none());
         assert!(backend.list_kinds().await?.is_empty());
@@ -823,122 +825,6 @@ pub(crate) mod testing {
         assert_eq!(
             backend.list_resources("test_kind", "test_term").await?.unwrap().resource_paths,
             vec!["resource1".to_string()],
-        );
-
-        Ok(())
-    }
-
-    #[async_std::test]
-    async fn test_resource_link_kind_with_terms() -> anyhow::Result<()> {
-        let backend = SqliteBackend::pc("sqlite::memory:".into())
-            .await
-            .map_err(anyhow::Error::from_boxed)?;
-
-        backend.resource_link_kind_with_terms("/test/resource", "keyword", &mut [].into_iter()).await?;
-        assert_eq!(
-            backend.list_kinds().await?,
-            vec!["keyword".to_string()],
-        );
-        assert!(backend.list_terms("keyword").await?.unwrap().terms.is_empty());
-
-        backend.resource_link_kind_with_terms("/test/resource", "title", &mut [
-            "Test Resource",
-        ].into_iter()).await?;
-        backend.resource_link_kind_with_terms("/test/resource", "keyword", &mut [
-            "hello",
-            "world",
-        ].into_iter()).await?;
-        assert_eq!(
-            backend.list_kinds().await?,
-            vec!["keyword".to_string(), "title".to_string()],
-        );
-        assert_eq!(
-            backend.list_terms("keyword").await?.unwrap().terms,
-            vec!["hello".to_string(), "world".to_string()],
-        );
-        // this isn't exactly highly ergonomic, but it does distinguish between a term
-        // that has been seen vs. unknown.
-        assert_eq!(
-            backend.list_resources("keyword", "hello").await?.unwrap().resource_paths,
-            vec!["/test/resource".to_string()],
-        );
-        assert!(backend.list_resources("keyword", "Test Resource").await?.is_none());
-
-        backend.forget_resource_path(Some("keyword"), "/test/resource").await?;
-        assert!(backend.list_resources("keyword", "hello").await?.unwrap().resource_paths.is_empty());
-        assert_eq!(
-            backend.list_resources("title", "Test Resource").await?.unwrap().resource_paths,
-            vec!["/test/resource".to_string()],
-        );
-        // query should be case insensitive, but data should still be returned as if they are.
-        assert_eq!(
-            backend.list_resources("title", "test resource").await?.unwrap().resource_paths,
-            vec!["/test/resource".to_string()],
-        );
-        let kinded_terms = backend.get_resource_kinded_terms("/test/resource").await?;
-        assert_eq!(kinded_terms.resource_path, "/test/resource");
-        assert_eq!(kinded_terms.data.get("title"), Some(vec!["Test Resource".to_string()]).as_ref());
-        backend.forget_resource_path(None, "/test/resource").await?;
-        assert!(backend.list_resources("title", "Test Resource").await?.unwrap().resource_paths.is_empty());
-        // TODO should clean up terms that have no records?
-        // TODO usage of the denormalized cache.
-
-        Ok(())
-    }
-
-    #[async_std::test]
-    async fn test_resource_text() -> anyhow::Result<()> {
-        let backend = SqliteBackend::pc("sqlite::memory:".into())
-            .await
-            .map_err(anyhow::Error::from_boxed)?;
-        backend.add_idx_text(
-            Some("Example Title"),
-            Some("Content is test+ corrected."),
-            "/test/resource",
-        ).await?;
-
-        assert_eq!(
-            backend.list_resources_text("title", Some(("**", "**"))).await?,
-            vec![
-                ResourceBrief {
-                    resource_path: "/test/resource".to_string(),
-                    title: Some("Example Title".to_string()),
-                    brief: Some("Content is test+ corrected.".to_string()),
-                },
-            ],
-        );
-
-        assert_eq!(
-            backend.list_resources_text("content", Some(("**", "**"))).await?,
-            vec![
-                ResourceBrief {
-                    resource_path: "/test/resource".to_string(),
-                    title: Some("Example Title".to_string()),
-                    brief: Some("**Content** is test+ corrected.".to_string()),
-                },
-            ],
-        );
-
-        assert_eq!(
-            backend.list_resources_text("test+", Some(("**", "**"))).await?,
-            vec![
-                ResourceBrief {
-                    resource_path: "/test/resource".to_string(),
-                    title: Some("Example Title".to_string()),
-                    brief: Some("Content is **test+** corrected.".to_string()),
-                },
-            ],
-        );
-
-        assert_eq!(
-            backend.list_resources_text("correct", Some(("**", "**"))).await?,
-            vec![
-                ResourceBrief {
-                    resource_path: "/test/resource".to_string(),
-                    title: Some("Example Title".to_string()),
-                    brief: Some("Content is test+ **corrected**.".to_string()),
-                },
-            ],
         );
 
         Ok(())
@@ -997,6 +883,117 @@ pub(crate) mod testing {
         // Fully clear the cache.
         backend.uncache_all_resource_kinded_terms().await?;
         assert!(backend.get_cached_resource_kinded_terms("/test/alternate").await?.is_none());
+
+        Ok(())
+    }
+
+    #[sqlite_pcb_cache_test_case]
+    #[async_std::test]
+    async fn test_resource_link_kind_with_terms(backend: impl IndexBackend) -> anyhow::Result<()> {
+        backend.resource_link_kind_with_terms("/test/resource", "keyword", &mut [].into_iter()).await?;
+        assert_eq!(
+            backend.list_kinds().await?,
+            vec!["keyword".to_string()],
+        );
+        assert!(backend.list_terms("keyword").await?.unwrap().terms.is_empty());
+
+        backend.resource_link_kind_with_terms("/test/resource", "title", &mut [
+            "Test Resource",
+        ].into_iter()).await?;
+        backend.resource_link_kind_with_terms("/test/resource", "keyword", &mut [
+            "hello",
+            "world",
+        ].into_iter()).await?;
+        assert_eq!(
+            backend.list_kinds().await?,
+            vec!["keyword".to_string(), "title".to_string()],
+        );
+        assert_eq!(
+            backend.list_terms("keyword").await?.unwrap().terms,
+            vec!["hello".to_string(), "world".to_string()],
+        );
+        // this isn't exactly highly ergonomic, but it does distinguish between a term
+        // that has been seen vs. unknown.
+        assert_eq!(
+            backend.list_resources("keyword", "hello").await?.unwrap().resource_paths,
+            vec!["/test/resource".to_string()],
+        );
+        assert!(backend.list_resources("keyword", "Test Resource").await?.is_none());
+
+        backend.forget_resource_path(Some("keyword"), "/test/resource").await?;
+        assert!(backend.list_resources("keyword", "hello").await?.unwrap().resource_paths.is_empty());
+        assert_eq!(
+            backend.list_resources("title", "Test Resource").await?.unwrap().resource_paths,
+            vec!["/test/resource".to_string()],
+        );
+        // query should be case insensitive, but data should still be returned as if they are.
+        assert_eq!(
+            backend.list_resources("title", "test resource").await?.unwrap().resource_paths,
+            vec!["/test/resource".to_string()],
+        );
+        let kinded_terms = backend.get_resource_kinded_terms("/test/resource").await?;
+        assert_eq!(kinded_terms.resource_path, "/test/resource");
+        assert_eq!(kinded_terms.data.get("title"), Some(vec!["Test Resource".to_string()]).as_ref());
+        backend.forget_resource_path(None, "/test/resource").await?;
+        assert!(backend.list_resources("title", "Test Resource").await?.unwrap().resource_paths.is_empty());
+        // TODO should clean up terms that have no records?
+        // TODO usage of the denormalized cache.
+
+        Ok(())
+    }
+
+    #[sqlite_pcb_cache_test_case]
+    #[async_std::test]
+    async fn test_resource_text(backend: impl IndexBackend) -> anyhow::Result<()> {
+        backend.add_idx_text(
+            Some("Example Title"),
+            Some("Content is test+ corrected."),
+            "/test/resource",
+        ).await?;
+
+        assert_eq!(
+            backend.list_resources_text("title", Some(("**", "**"))).await?,
+            vec![
+                ResourceBrief {
+                    resource_path: "/test/resource".to_string(),
+                    title: Some("Example Title".to_string()),
+                    brief: Some("Content is test+ corrected.".to_string()),
+                },
+            ],
+        );
+
+        assert_eq!(
+            backend.list_resources_text("content", Some(("**", "**"))).await?,
+            vec![
+                ResourceBrief {
+                    resource_path: "/test/resource".to_string(),
+                    title: Some("Example Title".to_string()),
+                    brief: Some("**Content** is test+ corrected.".to_string()),
+                },
+            ],
+        );
+
+        assert_eq!(
+            backend.list_resources_text("test+", Some(("**", "**"))).await?,
+            vec![
+                ResourceBrief {
+                    resource_path: "/test/resource".to_string(),
+                    title: Some("Example Title".to_string()),
+                    brief: Some("Content is **test+** corrected.".to_string()),
+                },
+            ],
+        );
+
+        assert_eq!(
+            backend.list_resources_text("correct", Some(("**", "**"))).await?,
+            vec![
+                ResourceBrief {
+                    resource_path: "/test/resource".to_string(),
+                    title: Some("Example Title".to_string()),
+                    brief: Some("Content is test+ **corrected**.".to_string()),
+                },
+            ],
+        );
 
         Ok(())
     }
