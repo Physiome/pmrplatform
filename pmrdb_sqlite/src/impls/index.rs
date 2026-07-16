@@ -782,10 +782,8 @@ pub(crate) mod testing {
             ResourceKindedTermsCache,
         },
     };
-    use test_case::test_case;
+    use test_pmr::{sqlite_pcb_cache_test_case, test_case};
     use crate::SqliteBackend;
-
-    use test_pmr_macros::sqlite_pcb_cache_test_case;
 
     #[sqlite_pcb_cache_test_case]
     #[async_std::test]

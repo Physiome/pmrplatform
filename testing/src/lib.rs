@@ -12,3 +12,5 @@ pub mod repo;
 
 mod utils;
 pub use utils::*;
+pub use test_case::test_case;
+pub use test_pmr_macros::sqlite_pcb_cache_test_case;

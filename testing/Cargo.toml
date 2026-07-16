@@ -18,6 +18,8 @@ pmrmodel = { workspace = true, optional = true }
 pmrrepo = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 tempfile = { workspace = true }
+test-case = { workspace = true }
+test-pmr-macros = { path = "../testing-macros" }
 textwrap-macros = { workspace = true }
 
 [dev-dependencies]
