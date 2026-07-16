@@ -1,5 +1,8 @@
 use async_trait::async_trait;
-use std::collections::BTreeMap;
+use std::{
+    collections::BTreeMap,
+    sync::Arc,
+};
 
 use crate::error::BackendError;
 use super::{
@@ -69,7 +72,7 @@ impl<B> ResourceKindedTermsCache<B>
 where
     B: IndexCoreBackend + Send + Sync,
 {
-    pub fn new(backend: B) -> Self {
+    pub fn new(backend: Arc<B>) -> Self {
         Self {
             backend,
             heap: Default::default(),
@@ -198,7 +201,7 @@ impl<B> CachedIndexBackend<B>
 where
     B: IndexCoreBackend + Send + Sync,
 {
-    pub fn new(backend: B) -> Self {
+    pub fn new(backend: Arc<B>) -> Self {
         Self {
             backend,
         }

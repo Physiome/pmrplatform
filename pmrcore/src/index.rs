@@ -115,7 +115,7 @@ pub struct Query {
 /// A memory cache of `ResourceKindedTerms` stored within some `IndexBackend` that has been retrieved.
 #[derive(Clone, Debug, Default)]
 pub struct ResourceKindedTermsCache<B> {
-    backend: B,
+    backend: Arc<B>,
     heap: Arc<RwLock<BTreeMap<String, BTreeMap<String, Vec<String>>>>>,
 }
 
@@ -128,7 +128,7 @@ pub struct ResourceKindedTermsCache<B> {
 /// generic implementation.
 #[derive(Clone, Debug, Default)]
 pub struct CachedIndexBackend<B> {
-    backend: B,
+    backend: Arc<B>,
 }
 
 mod impls;

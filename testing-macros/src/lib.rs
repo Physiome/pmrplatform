@@ -17,6 +17,7 @@ pub fn sqlite_pcb_cache_test_case(_attr: TokenStream, item: TokenStream) -> Toke
                 SqliteBackend::pc("sqlite::memory:".into())
                     .await
                     .unwrap()
+                    .into()
             )
             ; "disk cached sqlite backend"
         )]
@@ -25,6 +26,7 @@ pub fn sqlite_pcb_cache_test_case(_attr: TokenStream, item: TokenStream) -> Toke
                 SqliteBackend::pc("sqlite::memory:".into())
                     .await
                     .unwrap()
+                    .into()
             )
             ; "memory cached sqlite backend"
         )]
@@ -34,7 +36,9 @@ pub fn sqlite_pcb_cache_test_case(_attr: TokenStream, item: TokenStream) -> Toke
                     SqliteBackend::pc("sqlite::memory:".into())
                         .await
                         .unwrap()
+                    .into()
                 )
+                .into()
             )
             ; "memory plus disk cached sqlite backend"
         )]
