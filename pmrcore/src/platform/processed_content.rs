@@ -2,7 +2,10 @@ use async_trait::async_trait;
 use crate::{
     citation::traits::CitationBackend,
     // error::BackendError,
-    index::traits::IndexBackend,
+    index::traits::{
+        IndexBackend,
+        IndexCoreDBCache,
+    },
     platform::{
         PlatformCore,
         RawPlatform,
@@ -36,7 +39,8 @@ pub trait PCPlatform: PlatformCore
 }
 
 pub trait DefaultPCPlatform: PCPlatform {}
-pub trait RawPCPlatform: PCPlatform + RawPlatform {}
+pub trait FullPCPlatform: PCPlatform + IndexCoreDBCache {}
+pub trait RawPCPlatform: FullPCPlatform + RawPlatform {}
 
 impl<P: PlatformCore
     + CitationBackend
@@ -52,4 +56,5 @@ impl<P: PlatformCore
     }
 }
 
-impl <P: PCPlatform + RawPlatform> RawPCPlatform for P {}
+impl <P: PCPlatform + IndexCoreDBCache> FullPCPlatform for P {}
+impl <P: FullPCPlatform + RawPlatform> RawPCPlatform for P {}

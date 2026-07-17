@@ -15,7 +15,10 @@ use super::{
     traits::{IndexBackend, IndexCoreDBCache, IndexCoreBackend},
 };
 
-impl<B> ResourceKindedTermsCache<B> {
+impl<B> ResourceKindedTermsCache<B>
+where
+    B: ?Sized,
+{
     fn insert(&self, resource_path: &str, data: &BTreeMap<String, Vec<String>>) {
         if let Ok(mut heap) = self.heap.write() {
             heap.insert(resource_path.to_owned(), data.to_owned());
@@ -70,7 +73,7 @@ impl<B> ResourceKindedTermsCache<B> {
 
 impl<B> ResourceKindedTermsCache<B>
 where
-    B: IndexCoreBackend + Send + Sync,
+    B: IndexCoreBackend + Send + Sync + ?Sized,
 {
     pub fn new(backend: Arc<B>) -> Self {
         Self {
@@ -83,7 +86,7 @@ where
 #[async_trait]
 impl<B> IndexCoreBackend for ResourceKindedTermsCache<B>
 where
-    B: IndexCoreBackend + Send + Sync,
+    B: IndexCoreBackend + Send + Sync + ?Sized,
 {
     async fn add_idx_text(
         &self,
@@ -171,7 +174,7 @@ where
 #[async_trait]
 impl<B> IndexBackend for ResourceKindedTermsCache<B>
 where
-    B: IndexBackend + Send + Sync,
+    B: IndexBackend + Send + Sync + ?Sized,
 {
     async fn resource_link_kind_with_terms(
         &self,
@@ -199,7 +202,7 @@ where
 
 impl<B> CachedIndexBackend<B>
 where
-    B: IndexCoreDBCache + IndexCoreBackend + Send + Sync,
+    B: IndexCoreDBCache + IndexCoreBackend + Send + Sync + ?Sized
 {
     pub fn new(backend: Arc<B>) -> Self {
         Self {
@@ -211,7 +214,7 @@ where
 #[async_trait]
 impl<B> IndexCoreBackend for CachedIndexBackend<B>
 where
-    B: IndexCoreDBCache + IndexCoreBackend + Send + Sync,
+    B: IndexCoreDBCache + IndexCoreBackend + Send + Sync + ?Sized
 {
     async fn add_idx_text(
         &self,
@@ -299,7 +302,7 @@ where
 #[async_trait]
 impl<B> IndexBackend for CachedIndexBackend<B>
 where
-    B: IndexCoreDBCache + IndexBackend + Send + Sync,
+    B: IndexCoreDBCache + IndexBackend + Send + Sync + ?Sized
 {
     async fn resource_link_kind_with_terms(
         &self,

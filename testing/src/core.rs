@@ -57,6 +57,7 @@ use pmrcore::{
         DefaultPCPlatform,
         DefaultTMPlatform,
         PlatformCore,
+        RawPlatform,
     },
     task::{
         Task,
@@ -783,5 +784,13 @@ impl IndexCoreDBBackend for MockPlatform {
         _resource_path: &str,
     ) -> Result<Option<ResourceBrief>, BackendError> {
         unimplemented!()
+    }
+}
+
+impl RawPlatform for MockPlatform {
+    type Backend = MockPlatform;
+
+    fn backend(&self) -> &Self::Backend {
+        &self
     }
 }
