@@ -199,7 +199,7 @@ where
 
 impl<B> CachedIndexBackend<B>
 where
-    B: IndexCoreBackend + Send + Sync,
+    B: IndexCoreDBCache + IndexCoreBackend + Send + Sync,
 {
     pub fn new(backend: Arc<B>) -> Self {
         Self {

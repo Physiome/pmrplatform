@@ -1,9 +1,11 @@
 use std::{
     error::Error,
+    sync::Arc,
     fs,
 };
 use clap::{ArgAction, Parser};
 use pmrac::platform::Builder as ACPlatformBuilder;
+use pmrcore::platform::PCPlatform;
 use pmrdb::{
     Backend,
     ConnectorOption,

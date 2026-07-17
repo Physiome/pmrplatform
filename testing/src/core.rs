@@ -43,7 +43,10 @@ use pmrcore::{
         HexId,
     },
     index::{
-        traits::IndexCoreDBBackend,
+        traits::{
+            IndexCoreDBBackend,
+            IndexCoreDBCache,
+        },
         IndexTerms,
         IndexResourceSet,
         ResourceBrief,
@@ -394,6 +397,25 @@ mock! {
         ) -> Result<Vec<Citation>, BackendError>;
     }
 
+    #[async_trait]
+    impl IndexCoreDBCache for Platform {
+        async fn cache_resource_kinded_terms(
+            &self,
+            resource_path: &str,
+        ) -> Result<ResourceKindedTerms, BackendError>;
+        async fn get_cached_resource_kinded_terms(
+            &self,
+            resource_path: &str,
+        ) -> Result<Option<ResourceKindedTerms>, BackendError>;
+        async fn uncache_resource_kinded_terms(
+            &self,
+            resource_path: &str,
+        ) -> Result<(), BackendError>;
+        async fn uncache_all_resource_kinded_terms(
+            &self,
+        ) -> Result<(), BackendError>;
+    }
+
     impl PlatformCore for Platform {
         fn url(&self) -> &str;
     }
@@ -672,6 +694,7 @@ impl TaskTemplateBackend for MockPlatform {
     }
 }
 
+// Can't easily be mocked due to multiple implied &'# str in signature.
 #[async_trait]
 impl IndexCoreDBBackend for MockPlatform {
     async fn resolve_kind(
