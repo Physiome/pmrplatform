@@ -1,7 +1,7 @@
 use pmrcore::{
     index::{
         ResourceKindedTermsCache,
-        CachedIndexBackend,
+        IndexBackendCache,
     },
     platform::FullPCPlatform,
 };
@@ -12,7 +12,7 @@ use test_pmr::core::MockPlatform;
 async fn create_from_mock() {
     let platform = Arc::new(MockPlatform::new());
     let mem = ResourceKindedTermsCache::new(platform.clone());
-    let _dc = CachedIndexBackend::new(platform.clone());
+    let _dc = IndexBackendCache::new(platform.clone());
     let _mem_dc = ResourceKindedTermsCache::new(mem.into());
 }
 
@@ -23,6 +23,6 @@ async fn create_from_dyn() {
     // Instead it will also need `IndexCoreDBCache` to ensure that the disk cache version can be built.
     let platform: Arc<dyn FullPCPlatform> = Arc::new(MockPlatform::new());
     let mem = ResourceKindedTermsCache::new(platform.clone());
-    let _dc = CachedIndexBackend::new(platform.clone());
+    let _dc = IndexBackendCache::new(platform.clone());
     let _mem_dc = ResourceKindedTermsCache::new(mem.into());
 }

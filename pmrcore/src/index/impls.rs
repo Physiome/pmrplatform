@@ -6,7 +6,7 @@ use std::{
 
 use crate::error::BackendError;
 use super::{
-    CachedIndexBackend,
+    IndexBackendCache,
     IndexResourceSet,
     IndexTerms,
     ResourceBrief,
@@ -200,7 +200,7 @@ where
     }
 }
 
-impl<B> CachedIndexBackend<B>
+impl<B> IndexBackendCache<B>
 where
     B: IndexCoreDBCache + IndexCoreBackend + Send + Sync + ?Sized
 {
@@ -212,7 +212,7 @@ where
 }
 
 #[async_trait]
-impl<B> IndexCoreBackend for CachedIndexBackend<B>
+impl<B> IndexCoreBackend for IndexBackendCache<B>
 where
     B: IndexCoreDBCache + IndexCoreBackend + Send + Sync + ?Sized
 {
@@ -300,7 +300,7 @@ where
 }
 
 #[async_trait]
-impl<B> IndexBackend for CachedIndexBackend<B>
+impl<B> IndexBackend for IndexBackendCache<B>
 where
     B: IndexCoreDBCache + IndexBackend + Send + Sync + ?Sized
 {

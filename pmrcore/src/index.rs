@@ -130,7 +130,7 @@ where
 /// that the implemented caching methodology for the backend (usually on disk) may be used and provided by this
 /// generic implementation.
 #[derive(Clone, Debug, Default)]
-pub struct CachedIndexBackend<B>
+pub struct IndexBackendCache<B>
 where
     B: ?Sized,
 {

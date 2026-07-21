@@ -256,7 +256,7 @@ where
 }
 
 #[async_trait]
-pub trait IndexBackend: IndexCoreBackend {
+pub trait IndexBackend: IndexCoreBackend + Send + Sync {
     async fn resource_link_kind_with_terms(
         &self,
         resource_path: &str,
@@ -406,7 +406,7 @@ pub trait IndexBackend: IndexCoreBackend {
 #[async_trait]
 impl<T> IndexBackend for T
 where
-    T: IndexCoreDBBackend + Sync
+    T: IndexCoreDBBackend + Send + Sync
 {
     async fn resource_link_kind_with_terms(
         &self,

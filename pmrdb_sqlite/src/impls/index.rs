@@ -777,7 +777,7 @@ pub(crate) mod testing {
                 IndexCoreDBBackend,
                 IndexCoreDBCache,
             },
-            CachedIndexBackend,
+            IndexBackendCache,
             ResourceBrief,
             ResourceKindedTermsCache,
         },

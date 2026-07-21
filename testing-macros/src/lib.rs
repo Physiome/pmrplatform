@@ -13,7 +13,7 @@ pub fn sqlite_pcb_cache_test_case(_attr: TokenStream, item: TokenStream) -> Toke
             ; "base sqlite backend"
         )]
         #[test_case(
-            CachedIndexBackend::new(
+            IndexBackendCache::new(
                 SqliteBackend::pc("sqlite::memory:".into())
                     .await
                     .unwrap()
@@ -32,7 +32,7 @@ pub fn sqlite_pcb_cache_test_case(_attr: TokenStream, item: TokenStream) -> Toke
         )]
         #[test_case(
             ResourceKindedTermsCache::new(
-                CachedIndexBackend::new(
+                IndexBackendCache::new(
                     SqliteBackend::pc("sqlite::memory:".into())
                         .await
                         .unwrap()
