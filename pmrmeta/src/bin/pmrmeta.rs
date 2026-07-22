@@ -151,7 +151,7 @@ async fn parse_index_cmd(
         IndexCmd::List { kind } => {
             match kind {
                 Some(kind) => {
-                    match platform.pc_platform.list_terms(&kind).await? {
+                    match platform.index_backend.list_terms(&kind).await? {
                         Some(terms) => {
                               println!(
                                   "Under index of kind {:?} are {} terms, they are:",
@@ -168,7 +168,7 @@ async fn parse_index_cmd(
                     }
                 }
                 None => {
-                    let kinds = platform.pc_platform.list_kinds().await?;
+                    let kinds = platform.index_backend.list_kinds().await?;
                     println!("There are total of {} kind(s) of indexes registered, they are:", kinds.len());
                     for kind in kinds.into_iter() {
                         println!("- {kind}");
@@ -186,7 +186,7 @@ async fn parse_link_cmd(
 ) -> anyhow::Result<()> {
     match arg {
         LinkCmd::Create { resource_path, kind, terms } => {
-            platform.pc_platform.resource_link_kind_with_terms(
+            platform.index_backend.resource_link_kind_with_terms(
                 &resource_path,
                 &kind,
                 &mut terms.iter()
@@ -195,7 +195,7 @@ async fn parse_link_cmd(
             println!("indexed {resource_path:?}, {kind:?}, {terms:?}");
         }
         LinkCmd::List { resource_path } => {
-            let results = platform.pc_platform.get_resource_kinded_terms(
+            let results = platform.index_backend.get_resource_kinded_terms(
                 &resource_path,
             ).await?;
             println!("Resource at path {resource_path:?} contains the following kinded terms:");
@@ -203,7 +203,7 @@ async fn parse_link_cmd(
             println!("{output}");
         }
         LinkCmd::Forget { resource_path, kind } => {
-            platform.pc_platform.forget_resource_path(
+            platform.index_backend.forget_resource_path(
                 kind.as_deref(),
                 &resource_path,
             ).await?;
@@ -219,7 +219,7 @@ async fn parse_text_cmd(
 ) -> anyhow::Result<()> {
     match arg {
         TextCmd::Store { resource_path, title, content } => {
-            platform.pc_platform.add_idx_text(
+            platform.index_backend.add_idx_text(
                 title.as_deref(),
                 content.as_deref(),
                 &resource_path,
@@ -227,7 +227,7 @@ async fn parse_text_cmd(
             println!("indexed {resource_path:?}");
         }
         TextCmd::Show { resource_path } => {
-            if let Some(resource_brief) = platform.pc_platform.get_resource_brief(&resource_path).await? {
+            if let Some(resource_brief) = platform.index_backend.get_resource_brief(&resource_path).await? {
                 println!(
                     "{}\n----\n{}",
                     resource_brief.title.as_deref().unwrap_or("<untitled>"),
@@ -238,7 +238,7 @@ async fn parse_text_cmd(
             };
         }
         TextCmd::Query { text } => {
-            let results = platform.pc_platform.list_resources_text(&text, Some(("**", "**"))).await?;
+            let results = platform.index_backend.list_resources_text(&text, Some(("**", "**"))).await?;
             for resource_brief in results.into_iter() {
                 println!(
                     "<{}>\n{}\n----\n{}\n",
@@ -249,7 +249,7 @@ async fn parse_text_cmd(
             }
         }
         TextCmd::Forget { resource_path } => {
-            platform.pc_platform.forget_resource_text(&resource_path).await?;
+            platform.index_backend.forget_resource_text(&resource_path).await?;
             println!("forgotten {resource_path:?}");
         }
     }
@@ -262,7 +262,7 @@ async fn parse_query_cmd(
     details: bool,
 ) -> anyhow::Result<()> {
     if details {
-        match platform.pc_platform.list_resources_details(
+        match platform.index_backend.list_resources_details(
             &kind,
             &term,
         ).await? {
@@ -279,7 +279,7 @@ async fn parse_query_cmd(
             }
         }
     } else {
-        match platform.pc_platform.list_resources(
+        match platform.index_backend.list_resources(
             &kind,
             &term,
         ).await? {

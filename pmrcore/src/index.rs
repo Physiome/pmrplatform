@@ -3,6 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 use serde::{Deserialize, Serialize};
+use traits::{IndexBackend, IndexDBBackend};
 
 /// The underlying raw entity for the kind of the index
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -113,12 +114,9 @@ pub struct Query {
 }
 
 /// A memory cache of `ResourceKindedTerms` stored within some `IndexBackend` that has been retrieved.
-#[derive(Clone, Debug, Default)]
-pub struct ResourceKindedTermsCache<B>
-where
-    B: ?Sized,
-{
-    backend: Arc<B>,
+#[derive(Clone)]
+pub struct ResourceKindedTermsCache {
+    backend: Arc<dyn IndexBackend>,
     heap: Arc<RwLock<BTreeMap<String, BTreeMap<String, Vec<String>>>>>,
 }
 
@@ -129,12 +127,21 @@ where
 /// with the caching unused.  This struct wraps some `IndexBackend` that also implements `IndexCoreCache` so
 /// that the implemented caching methodology for the backend (usually on disk) may be used and provided by this
 /// generic implementation.
+#[derive(Clone)]
+pub struct IndexBackendCache {
+    backend: Arc<dyn IndexDBBackend>,
+}
+
 #[derive(Clone, Debug, Default)]
-pub struct IndexBackendCache<B>
-where
-    B: ?Sized,
-{
-    backend: Arc<B>,
+pub enum IndexCacheKind {
+    #[default]
+    None,
+    /// Enable caching interface with the underlying database backend.
+    Db,
+    /// Use the memory cache with the backend.
+    Mem,
+    /// Use both the memory cache along with the caching interface of the underlying database backend.
+    MemDb,
 }
 
 mod impls;

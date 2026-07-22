@@ -1,6 +1,7 @@
-use pmrac::platform::Builder as ACPlatformBuilder;
-use pmrctrl::platform::Platform;
-use pmrdb::Backend;
+use pmrctrl::platform::{
+    Builder as PlatformBuilder,
+    Platform,
+};
 use tempfile::TempDir;
 
 use crate::repo::inject_repodata;
@@ -22,25 +23,17 @@ async fn create_blank_platform(url: &str) -> anyhow::Result<(
     std::fs::create_dir_all(&repo_root)?;
     std::fs::create_dir_all(&data_root)?;
 
-    let platform = Platform::new(
-        ACPlatformBuilder::new()
-            .boxed_ac_platform(
-                Backend::ac(url.into()).await
-                    .map_err(anyhow::Error::from_boxed)?,
-            )
-            .build(),
-        Backend::mc(url.into()).await
-            .map_err(anyhow::Error::from_boxed)?
-            .into(),
-        Backend::pc(url.into()).await
-            .map_err(anyhow::Error::from_boxed)?
-            .into(),
-        Backend::tm(url.into()).await
-            .map_err(anyhow::Error::from_boxed)?
-            .into(),
-        data_root,
-        repo_root,
-    );
+    let platform = PlatformBuilder::new()
+        .pmrac_db_url(url.to_owned())
+        .pmrapp_db_url(url.to_owned())
+        .pmrpc_db_url(url.to_owned())
+        .pmrtqs_db_url(url.to_owned())
+        .pmr_data_root(data_root.display().to_string())
+        .pmr_repo_root(repo_root.display().to_string())
+        .build()
+        .await
+        .map_err(anyhow::Error::from_boxed)?;
+
     Ok((tempdir, platform))
 }
 

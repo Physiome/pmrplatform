@@ -2,10 +2,7 @@ use async_trait::async_trait;
 use crate::{
     citation::traits::CitationBackend,
     // error::BackendError,
-    index::traits::{
-        IndexBackend,
-        IndexCoreDBCache,
-    },
+    index::traits::IndexDBBackend,
     platform::{
         PlatformCore,
         RawPlatform,
@@ -24,7 +21,7 @@ use crate::{
 #[async_trait]
 pub trait PCPlatform: PlatformCore
     + CitationBackend
-    + IndexBackend
+    + IndexDBBackend
     // TODO need to determine how this will apply
     // - Goal is to have a better way of doing generic indexes
     // - This is required to facilitate searching/display of summary
@@ -39,12 +36,11 @@ pub trait PCPlatform: PlatformCore
 }
 
 pub trait DefaultPCPlatform: PCPlatform {}
-pub trait FullPCPlatform: PCPlatform + IndexCoreDBCache {}
-pub trait RawPCPlatform: FullPCPlatform + RawPlatform {}
+pub trait RawPCPlatform: RawPlatform {}
 
 impl<P: PlatformCore
     + CitationBackend
-    + IndexBackend
+    + IndexDBBackend
 
     + DefaultPCPlatform
 
@@ -56,5 +52,4 @@ impl<P: PlatformCore
     }
 }
 
-impl <P: PCPlatform + IndexCoreDBCache> FullPCPlatform for P {}
-impl <P: FullPCPlatform + RawPlatform> RawPCPlatform for P {}
+impl <P: PCPlatform + RawPlatform> RawPCPlatform for P {}

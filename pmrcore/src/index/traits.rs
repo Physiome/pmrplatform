@@ -435,3 +435,7 @@ where
         Ok(())
     }
 }
+
+#[async_trait]
+pub trait IndexDBBackend: IndexBackend + IndexCoreDBCache + Send + Sync {}
+impl <P: IndexBackend + IndexCoreDBCache> IndexDBBackend for P {}

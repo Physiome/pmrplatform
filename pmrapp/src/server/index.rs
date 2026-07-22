@@ -21,7 +21,7 @@ use crate::error::AppError;
 pub(crate) async fn indexes_core(
     platform: &Platform,
 ) -> Result<Vec<String>, AppError> {
-    platform.pc_platform.list_kinds().await
+    platform.index_backend.list_kinds().await
         .map_err(|_| AppError::InternalServerError)
 }
 
@@ -55,7 +55,7 @@ pub async fn indexes(
 
 // Index Terms
 pub(crate) async fn terms_core(platform: &Platform, kind: String) -> Result<Option<IndexTerms>, AppError> {
-    platform.pc_platform.list_terms(&kind).await
+    platform.index_backend.list_terms(&kind).await
         .map_err(|_| AppError::InternalServerError)
 }
 
@@ -84,7 +84,7 @@ pub(crate) async fn resources_core(
     kind: String,
     term: String,
 ) -> Result<Option<IndexResourceDetailedSet>, AppError> {
-    platform.pc_platform.list_resources_details(&kind, &term).await
+    platform.index_backend.list_resources_details(&kind, &term).await
         .map_err(|_| AppError::InternalServerError)
 }
 
@@ -119,7 +119,7 @@ pub(crate) async fn resource_briefs_core(
     platform: &Platform,
     query: Query,
 ) -> Result<Vec<ResourceKindedTerms>, AppError> {
-    platform.pc_platform
+    platform.index_backend
         .query_resource(&query, Some(("<mark>", "</mark>")))
         .await
         .map_err(|_| AppError::InternalServerError)

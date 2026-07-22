@@ -1,24 +1,26 @@
 use async_trait::async_trait;
 use std::{
     collections::BTreeMap,
+    str::FromStr,
     sync::Arc,
 };
 
-use crate::error::BackendError;
+use crate::error::{
+    BackendError,
+    ValueError,
+};
 use super::{
     IndexBackendCache,
     IndexResourceSet,
     IndexTerms,
+    IndexCacheKind,
     ResourceBrief,
     ResourceKindedTerms,
     ResourceKindedTermsCache,
-    traits::{IndexBackend, IndexCoreDBCache, IndexCoreBackend},
+    traits::{IndexBackend, IndexCoreBackend, IndexDBBackend},
 };
 
-impl<B> ResourceKindedTermsCache<B>
-where
-    B: ?Sized,
-{
+impl ResourceKindedTermsCache {
     fn insert(&self, resource_path: &str, data: &BTreeMap<String, Vec<String>>) {
         if let Ok(mut heap) = self.heap.write() {
             heap.insert(resource_path.to_owned(), data.to_owned());
@@ -71,11 +73,8 @@ where
     }
 }
 
-impl<B> ResourceKindedTermsCache<B>
-where
-    B: IndexCoreBackend + Send + Sync + ?Sized,
-{
-    pub fn new(backend: Arc<B>) -> Self {
+impl ResourceKindedTermsCache {
+    pub fn new(backend: Arc<dyn IndexBackend>) -> Self {
         Self {
             backend,
             heap: Default::default(),
@@ -84,10 +83,7 @@ where
 }
 
 #[async_trait]
-impl<B> IndexCoreBackend for ResourceKindedTermsCache<B>
-where
-    B: IndexCoreBackend + Send + Sync + ?Sized,
-{
+impl IndexCoreBackend for ResourceKindedTermsCache {
     async fn add_idx_text(
         &self,
         title: Option<&str>,
@@ -172,10 +168,7 @@ where
 }
 
 #[async_trait]
-impl<B> IndexBackend for ResourceKindedTermsCache<B>
-where
-    B: IndexBackend + Send + Sync + ?Sized,
-{
+impl IndexBackend for ResourceKindedTermsCache {
     async fn resource_link_kind_with_terms(
         &self,
         resource_path: &str,
@@ -200,11 +193,8 @@ where
     }
 }
 
-impl<B> IndexBackendCache<B>
-where
-    B: IndexCoreDBCache + IndexCoreBackend + Send + Sync + ?Sized
-{
-    pub fn new(backend: Arc<B>) -> Self {
+impl IndexBackendCache {
+    pub fn new(backend: Arc<dyn IndexDBBackend>) -> Self {
         Self {
             backend,
         }
@@ -212,10 +202,7 @@ where
 }
 
 #[async_trait]
-impl<B> IndexCoreBackend for IndexBackendCache<B>
-where
-    B: IndexCoreDBCache + IndexCoreBackend + Send + Sync + ?Sized
-{
+impl IndexCoreBackend for IndexBackendCache {
     async fn add_idx_text(
         &self,
         title: Option<&str>,
@@ -300,10 +287,7 @@ where
 }
 
 #[async_trait]
-impl<B> IndexBackend for IndexBackendCache<B>
-where
-    B: IndexCoreDBCache + IndexBackend + Send + Sync + ?Sized
-{
+impl IndexBackend for IndexBackendCache {
     async fn resource_link_kind_with_terms(
         &self,
         resource_path: &str,
@@ -329,4 +313,19 @@ where
         self.backend.cache_resource_kinded_terms(resource_path).await?;
         Ok(())
     }
+}
+
+impl FromStr for IndexCacheKind {
+    type Err = ValueError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_ref() {
+            "none" | "" => Ok(IndexCacheKind::None),
+            "db" => Ok(IndexCacheKind::Db),
+            "mem" => Ok(IndexCacheKind::Mem),
+            "mem-db" => Ok(IndexCacheKind::MemDb),
+            s => Err(ValueError::Unsupported(s.to_string())),
+        }
+    }
+
 }

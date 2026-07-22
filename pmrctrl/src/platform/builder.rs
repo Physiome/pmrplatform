@@ -5,7 +5,16 @@ use std::{
 };
 use clap::{ArgAction, Parser};
 use pmrac::platform::Builder as ACPlatformBuilder;
-use pmrcore::platform::PCPlatform;
+use pmrcore::{
+    index::{
+        traits::{IndexBackend, IndexDBBackend},
+        IndexBackendCache,
+        ResourceKindedTermsCache,
+        IndexCacheKind,
+    },
+    platform::PCPlatform,
+};
+
 use pmrdb::{
     Backend,
     ConnectorOption,
@@ -46,6 +55,8 @@ pub struct Builder {
     pub pmrpc_db_url: String,
     #[clap(long, value_name = "PMRTQS_DB_URL", env = "PMRTQS_DB_URL")]
     pub pmrtqs_db_url: String,
+    #[clap(long, value_name = "PMRPC_IDX_CACHE_KIND", env = "PMRPC_IDX_CACHE_KIND", default_value = "")]
+    pub pmrpc_idx_cache_kind: IndexCacheKind,
 }
 
 impl Builder {
@@ -94,38 +105,59 @@ impl Builder {
     }
 
     pub async fn build(self) -> Result<Platform, Box<dyn Error + Send + Sync>> {
+        let ac_platform = ACPlatformBuilder::new()
+            .boxed_ac_platform(
+                Backend::ac(
+                    ConnectorOption::from(&self.pmrac_db_url)
+                        .auto_create_db(self.pmr_auto_create_db)
+                )
+                    .await?
+            )
+            .pmrrbac_builder(
+                PmrRbacBuilder::new()
+                    .anonymous_reader(self.pmr_anonymous_reader)
+            )
+            .build();
+        let mc_platform = Backend::mc(
+            ConnectorOption::from(&self.pmrapp_db_url)
+                .auto_create_db(self.pmr_auto_create_db)
+        )
+        .await?
+        .into();
+        let pc_platform: Arc<dyn PCPlatform> = Backend::pc(
+            ConnectorOption::from(&self.pmrpc_db_url)
+                .auto_create_db(self.pmr_auto_create_db)
+        )
+        .await?
+        .into();
+        let tm_platform = Backend::tm(
+            ConnectorOption::from(&self.pmrtqs_db_url)
+                .auto_create_db(self.pmr_auto_create_db)
+        )
+        .await?
+        .into();
+
+        let index_backend: Arc<dyn IndexBackend> = match self.pmrpc_idx_cache_kind {
+            IndexCacheKind::None => pc_platform.clone(),
+            IndexCacheKind::Db => Arc::new(IndexBackendCache::new(
+                pc_platform.clone() as Arc<dyn IndexDBBackend>,
+            )),
+            IndexCacheKind::Mem => Arc::new(ResourceKindedTermsCache::new(
+                pc_platform.clone() as Arc<dyn IndexBackend>,
+            )),
+            IndexCacheKind::MemDb => Arc::new(ResourceKindedTermsCache::new(Arc::new(
+                IndexBackendCache::new(
+                    pc_platform.clone() as Arc<dyn IndexDBBackend>,
+                ),
+            ))),
+        };
+
         Ok(Platform::new(
-            ACPlatformBuilder::new()
-                .boxed_ac_platform(
-                    Backend::ac(
-                        ConnectorOption::from(&self.pmrac_db_url)
-                            .auto_create_db(self.pmr_auto_create_db)
-                    )
-                        .await?
-                )
-                .pmrrbac_builder(
-                    PmrRbacBuilder::new()
-                        .anonymous_reader(self.pmr_anonymous_reader)
-                )
-                .build(),
-            Backend::mc(
-                ConnectorOption::from(&self.pmrapp_db_url)
-                    .auto_create_db(self.pmr_auto_create_db)
-            )
-                .await?
-                .into(),
-            Backend::pc(
-                ConnectorOption::from(&self.pmrpc_db_url)
-                    .auto_create_db(self.pmr_auto_create_db)
-            )
-                .await?
-                .into(),
-            Backend::tm(
-                ConnectorOption::from(&self.pmrtqs_db_url)
-                    .auto_create_db(self.pmr_auto_create_db)
-            )
-                .await?
-                .into(),
+            ac_platform,
+            mc_platform,
+            pc_platform,
+            tm_platform,
+            index_backend,
             fs::canonicalize(self.pmr_data_root)?,
             fs::canonicalize(self.pmr_repo_root)?,
         ))

@@ -14,37 +14,41 @@ pub fn sqlite_pcb_cache_test_case(_attr: TokenStream, item: TokenStream) -> Toke
         )]
         #[test_case(
             IndexBackendCache::new(
-                SqliteBackend::pc("sqlite::memory:".into())
-                    .await
-                    .unwrap()
-                    .into()
+                ::std::sync::Arc::new(
+                    SqliteBackend::pc("sqlite::memory:".into())
+                        .await
+                        .unwrap(),
+                ),
             )
             ; "disk cached sqlite backend"
         )]
         #[test_case(
             ResourceKindedTermsCache::new(
-                SqliteBackend::pc("sqlite::memory:".into())
-                    .await
-                    .unwrap()
-                    .into()
+                ::std::sync::Arc::new(
+                    SqliteBackend::pc("sqlite::memory:".into())
+                        .await
+                        .unwrap()
+                ),
             )
             ; "memory cached sqlite backend"
         )]
         #[test_case(
             ResourceKindedTermsCache::new(
-                IndexBackendCache::new(
-                    SqliteBackend::pc("sqlite::memory:".into())
-                        .await
-                        .unwrap()
-                    .into()
-                )
-                .into()
-            )
-            ; "memory plus disk cached sqlite backend"
-        )]
-        "#
-    )
-    .unwrap();
-    tokens.extend(item);
-    tokens
-}
+                  ::std::sync::Arc::new(
+                      IndexBackendCache::new(
+                          ::std::sync::Arc::new(
+                              SqliteBackend::pc("sqlite::memory:".into())
+                                  .await
+                                  .unwrap()
+                          )
+                      )
+                  )
+              )
+              ; "memory plus disk cached sqlite backend"
+          )]
+          "#
+      )
+      .unwrap();
+      tokens.extend(item);
+      tokens
+  }

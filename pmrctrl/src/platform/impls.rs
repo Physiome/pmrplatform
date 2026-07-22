@@ -1,7 +1,10 @@
-use pmrcore::platform::{
-    MCPlatform,
-    PCPlatform,
-    TMPlatform,
+use pmrcore::{
+    index::traits::IndexBackend,
+    platform::{
+        MCPlatform,
+        PCPlatform,
+        TMPlatform,
+    },
 };
 use pmrrepo::backend::Backend;
 use std::{
@@ -16,16 +19,26 @@ use std::{
 use crate::platform::Platform;
 
 impl Platform {
-    pub fn new(
+    pub(crate) fn new(
         ac_platform: pmrac::Platform,
         mc_platform: Arc<dyn MCPlatform>,
         pc_platform: Arc<dyn PCPlatform>,
         tm_platform: Arc<dyn TMPlatform>,
+        index_backend: Arc<dyn IndexBackend>,
         data_root: PathBuf,
         repo_root: PathBuf,
     ) -> Self {
         let repo_backend = Backend::new(mc_platform.clone(), repo_root.clone());
-        Self { ac_platform, mc_platform, pc_platform, tm_platform, data_root, repo_root, repo_backend }
+        Self {
+            ac_platform,
+            mc_platform,
+            pc_platform,
+            tm_platform,
+            index_backend,
+            data_root,
+            repo_root,
+            repo_backend,
+        }
     }
 
     pub fn data_root(&self) -> &Path {
