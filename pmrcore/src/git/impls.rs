@@ -153,7 +153,7 @@ fn objd_blob_to_fileinfo(git_object: &ObjectDetached, path: Option<&str>) -> Fil
 }
 
 fn obj_tree_to_treeinfo(git_object: &Object) -> TreeInfo {
-    let tree = TreeRef::from_bytes(&git_object.data)
+    let tree = TreeRef::from_bytes(&git_object.data, gix::hash::Kind::Sha1)
         .expect("should have been verfieid as a well-formed tree");
     TreeInfo {
         filecount: tree.entries.len() as u64,
@@ -173,7 +173,7 @@ fn obj_tree_to_treeinfo(git_object: &Object) -> TreeInfo {
 }
 
 fn objd_tree_to_treeinfo(git_object: &ObjectDetached) -> TreeInfo {
-    let tree = TreeRef::from_bytes(&git_object.data)
+    let tree = TreeRef::from_bytes(&git_object.data, gix::hash::Kind::Sha1)
         .expect("should have been verfieid as a well-formed tree");
     TreeInfo {
         filecount: tree.entries.len() as u64,
@@ -195,7 +195,7 @@ fn objd_tree_to_treeinfo(git_object: &ObjectDetached) -> TreeInfo {
 fn obj_commit_to_commitinfo(git_object: &Object) -> CommitInfo {
     commitref_id_to_commitinfo(
         git_object.id.to_string(),
-        CommitRef::from_bytes(&git_object.data)
+        CommitRef::from_bytes(&git_object.data, gix::hash::Kind::Sha1)
             .expect("should have been verified as a well-formed commit"),
     )
 }
@@ -203,7 +203,7 @@ fn obj_commit_to_commitinfo(git_object: &Object) -> CommitInfo {
 fn objd_commit_to_commitinfo(git_object: &ObjectDetached) -> CommitInfo {
     commitref_id_to_commitinfo(
         git_object.id.to_string(),
-        CommitRef::from_bytes(&git_object.data)
+        CommitRef::from_bytes(&git_object.data, gix::hash::Kind::Sha1)
             .expect("should have been verified as a well-formed commit"),
     )
 }
@@ -240,7 +240,7 @@ fn commit_to_commitinfo(
 fn objectdetached_to_commitinfo(
     object: &ObjectDetached,
 ) -> Result<CommitInfo, gix::objs::decode::Error> {
-    let commit = CommitRef::from_bytes(&object.data)?;
+    let commit = CommitRef::from_bytes(&object.data, gix::hash::Kind::Sha1)?;
     Ok(CommitInfo {
         commit_id: object.id.to_string(),
         author: format_signature_ref(&commit.author()?),

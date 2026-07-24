@@ -157,7 +157,7 @@ pub(crate) fn get_submodule_target(
     for rec in config.sections_and_ids() {
         match rec.0.value("path") {
             Some(rec_path) => {
-                if path == rec_path.into_owned() {
+                if path == rec_path.to_owned() {
                     return Ok(format!("{}", rec.0.value("url").unwrap()));
                 }
             },

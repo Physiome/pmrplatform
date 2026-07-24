@@ -27,13 +27,15 @@ pub enum GixError {
     #[error(transparent)]
     ConfigFileInitFromPath(#[from] gix::config::file::init::from_paths::Error),
     #[error(transparent)]
-    DateParse(#[from] gix::date::parse::Error),
+    DateParse(#[from] gix::error::ValidationError),
     #[error(transparent)]
     HashDecode(#[from] gix::hash::decode::Error),
     #[error(transparent)]
     IndexFileInit(#[from] gix::index::file::init::Error),
     #[error(transparent)]
     IndexInitFromTree(#[from] gix::index::init::from_tree::Error),
+    #[error(transparent)]
+    Message(#[from] gix::Error),
     #[error(transparent)]
     ObjectCommit(#[from] gix::object::commit::Error),
     #[error(transparent)]

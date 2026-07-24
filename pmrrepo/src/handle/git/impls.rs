@@ -339,7 +339,7 @@ impl<'repo> GitHandle<'repo> {
             )
             .map(|info| {
                 let commit = info?.object()?;
-                let commit_ref = CommitRef::from_bytes(&commit.data)?;
+                let commit_ref = CommitRef::from_bytes(&commit.data, gix::hash::Kind::Sha1)?;
                 let committer = commit_ref.committer()?;
                 Ok(LogEntryInfo {
                     commit_id: format!("{}", commit.id()),
