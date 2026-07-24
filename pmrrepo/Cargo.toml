@@ -9,20 +9,19 @@ edition = "2021"
 anyhow = { workspace = true }
 async-std = { workspace = true, features = ["attributes"] }
 async-recursion = { workspace = true }
+clap = { workspace = true, features = ["derive", "env"] }
 dotenvy = { workspace = true }
 futures = { workspace = true }
 git2 = { workspace = true }
 gix = { workspace = true, features = ["worktree-archive", "worktree-stream"] }
 gix-archive = { workspace = true, features = ["default"] }
 log = { workspace = true, features = ["std", "serde"] }
-paw = { workspace = true }
-pmrcore = { workspace = true, features = ["sqlx", "git"] }
+pmrcore = { workspace = true, features = ["clap", "sqlx", "git"] }
 pmrdb = { workspace = true }
 pmrmodel = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 stderrlog = { workspace = true }
-structopt = { workspace = true, features = ["paw"] }
 thiserror = { workspace = true }
 
 [dev-dependencies]

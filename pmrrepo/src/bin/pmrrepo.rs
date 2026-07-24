@@ -5,8 +5,8 @@ use std::{
     path::PathBuf,
     process,
 };
-use structopt::StructOpt;
 
+use clap::{Parser, Subcommand};
 use pmrdb::{
     self,
     ConnectorOption,
@@ -31,65 +31,67 @@ use pmrrepo::{
     handle::GitHandleResult,
 };
 
-#[derive(StructOpt)]
+#[derive(Debug, Parser)]
 struct Args {
-    #[structopt(subcommand)]
-    cmd: Option<Command>,
+    #[command(subcommand)]
+    cmd: Command,
 
-    #[structopt(short = "v", long = "verbose", parse(from_occurrences))]
-    verbose: usize,
+    #[clap(short = 'v', long = "verbose", action = clap::ArgAction::Count)]
+    verbose: u8,
 
-    #[structopt(short = "j", long = "json")]
+    #[clap(short = 'j', long = "json")]
     json: bool,
 }
 
-#[derive(StructOpt)]
+#[derive(Debug, Subcommand)]
 enum Command {
     Register {
         url: String,
         description: Option<String>,
-        #[structopt(short = "l", long = "longdesc")]
+        #[clap(short = 'l', long = "longdesc")]
         long_description: Option<String>,
     },
     Update {
         workspace_id: i64,
         description: Option<String>,
-        #[structopt(short = "l", long = "longdesc")]
+        #[clap(short = 'l', long = "longdesc")]
         long_description: Option<String>,
     },
     Sync {
         workspace_id: i64,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         log: bool,
     },
     Tags {
         workspace_id: i64,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         index: bool,
     },
     Blob {
         workspace_id: i64,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         obj_id: String,
     },
     Info {
         workspace_id: i64,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         commit_id: Option<String>,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         path: Option<String>,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         raw: bool,
     },
     Log {
         workspace_id: i64,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         commit_id: Option<String>,
     },
     Archive {
         workspace_id: i64,
         commit_id: String,
-    }
+        format: ArchiveFormat,
+    },
+    List,
 }
 
 fn stream_git_result_default<'a>(
@@ -136,13 +138,13 @@ fn fetch_envvar(key: &str) -> anyhow::Result<String> {
 }
 
 #[async_std::main]
-#[paw::main]
-async fn main(args: Args) -> anyhow::Result<()> {
+async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
+    let args = Args::parse();
     stderrlog::new()
         .module(module_path!())
         .module("pmrdb")
-        .verbosity(args.verbose + 1)
+        .verbosity((args.verbose as usize) + 1)
         .timestamp(stderrlog::Timestamp::Second)
         .init()
         .unwrap();
@@ -163,7 +165,7 @@ async fn main(args: Args) -> anyhow::Result<()> {
     let platform = backend.platform();
 
     match args.cmd {
-        Some(Command::Register { url, description, long_description }) => {
+        Command::Register { url, description, long_description } => {
             println!("Registering workspace with url '{}'...", &url);
             let workspace_id = WorkspaceBackend::add_workspace(
                 platform,
@@ -173,7 +175,7 @@ async fn main(args: Args) -> anyhow::Result<()> {
             ).await?;
             println!("Registered workspace with id {}", workspace_id);
         }
-        Some(Command::Update { workspace_id, description, long_description }) => {
+        Command::Update { workspace_id, description, long_description } => {
             println!("Updating workspace with id {}...", workspace_id);
             if WorkspaceBackend::update_workspace(
                 platform,
@@ -187,7 +189,7 @@ async fn main(args: Args) -> anyhow::Result<()> {
                 println!("Invalid workspace id {}", workspace_id);
             }
         }
-        Some(Command::Sync { workspace_id, log }) => {
+        Command::Sync { workspace_id, log } => {
             if log {
                 println!("Listing of sync logs for workspace with id {}", workspace_id);
                 let recs = WorkspaceSyncBackend::get_workspaces_sync_records(platform, workspace_id).await?;
@@ -201,7 +203,7 @@ async fn main(args: Args) -> anyhow::Result<()> {
                 let _ = backend.sync_workspace(workspace_id).await?;
             }
         }
-        Some(Command::Tags { workspace_id, index }) => {
+        Command::Tags { workspace_id, index } => {
             if index {
                 println!("Indexing tags for workspace with id {}...", workspace_id);
                 let handle = backend.git_handle(workspace_id).await?;
@@ -216,14 +218,14 @@ async fn main(args: Args) -> anyhow::Result<()> {
                 }
             }
         }
-        Some(Command::Blob { workspace_id, obj_id }) => {
+        Command::Blob { workspace_id, obj_id } => {
             let handle = backend.git_handle(workspace_id).await?;
             let repo = handle.repo()?;
             let obj = repo.rev_parse_single(obj_id.deref())?.object()?;
             log::info!("Found object {} {}", obj.kind, obj.id);
             // info!("{:?}", object_to_info(&obj));
         }
-        Some(Command::Info { workspace_id, commit_id, path, raw }) => {
+        Command::Info { workspace_id, commit_id, path, raw } => {
             let handle = backend.git_handle(workspace_id).await?;
             let git_result = handle.pathinfo(
                 commit_id.as_deref(), path.as_deref())?;
@@ -242,7 +244,7 @@ async fn main(args: Args) -> anyhow::Result<()> {
                 }
             }
         }
-        Some(Command::Log { workspace_id, commit_id }) => {
+        Command::Log { workspace_id, commit_id } => {
             let handle = backend.git_handle(workspace_id).await?;
             let logs = handle.loginfo(commit_id.as_deref(), None, None)?;
             if args.json {
@@ -254,21 +256,18 @@ async fn main(args: Args) -> anyhow::Result<()> {
                 writer.write(format!("have log_info {:?}", logs).as_bytes())?;
             }
         }
-        Some(Command::Archive { workspace_id, commit_id }) => {
+        Command::Archive { workspace_id, commit_id, format } => {
             let handle = backend.git_handle(workspace_id).await?;
             let git_result = handle.pathinfo(
                 Some(commit_id),
                 None,
             )?;
-            // TODO allow to specify this.
-            // TODO should probably convert this binary to use `clap`.
-            let format = ArchiveFormat::Zip;
             let mut output = Cursor::new(<Vec<u8>>::new());
             git_result.archive(&mut output, format)?;
             let mut writer = io::stdout();
             writer.write(&output.into_inner())?;
         }
-        None => {
+        Command::List => {
             let workspaces = WorkspaceBackend::list_workspaces(platform).await?;
             if args.json {
                 stream_workspace_records_as_json(io::stdout(), &workspaces)?;
