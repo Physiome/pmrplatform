@@ -1,6 +1,6 @@
 use std::{
     env,
-    io::{self, Write},
+    io::{self, Cursor, Write},
     ops::Deref,
     path::PathBuf,
     process,
@@ -16,7 +16,10 @@ use pmrmodel::model::workspace::{
     stream_workspace_records_as_json,
 };
 use pmrcore::{
-    repo::PathObjectInfo,
+    repo::{
+        PathObjectInfo,
+        ArchiveFormat,
+    },
     workspace::traits::{
         WorkspaceBackend,
         WorkspaceSyncBackend,
@@ -83,6 +86,10 @@ enum Command {
         #[structopt(short, long)]
         commit_id: Option<String>,
     },
+    Archive {
+        workspace_id: i64,
+        commit_id: String,
+    }
 }
 
 fn stream_git_result_default<'a>(
@@ -246,6 +253,20 @@ async fn main(args: Args) -> anyhow::Result<()> {
                 let mut writer = io::stdout();
                 writer.write(format!("have log_info {:?}", logs).as_bytes())?;
             }
+        }
+        Some(Command::Archive { workspace_id, commit_id }) => {
+            let handle = backend.git_handle(workspace_id).await?;
+            let git_result = handle.pathinfo(
+                Some(commit_id),
+                None,
+            )?;
+            // TODO allow to specify this.
+            // TODO should probably convert this binary to use `clap`.
+            let format = ArchiveFormat::Zip;
+            let mut output = Cursor::new(<Vec<u8>>::new());
+            git_result.archive(&mut output, format)?;
+            let mut writer = io::stdout();
+            writer.write(&output.into_inner())?;
         }
         None => {
             let workspaces = WorkspaceBackend::list_workspaces(platform).await?;

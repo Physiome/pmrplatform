@@ -12,7 +12,8 @@ async-recursion = { workspace = true }
 dotenvy = { workspace = true }
 futures = { workspace = true }
 git2 = { workspace = true }
-gix = { workspace = true }
+gix = { workspace = true, features = ["worktree-archive", "worktree-stream"] }
+gix-archive = { workspace = true, features = ["default"] }
 log = { workspace = true, features = ["std", "serde"] }
 paw = { workspace = true }
 pmrcore = { workspace = true, features = ["sqlx", "git"] }

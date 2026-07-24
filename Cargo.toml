@@ -69,6 +69,7 @@ enumset = "1.1.5"
 futures = "0.3"
 git2 = "0.13"
 gix = "0.86"
+gix-archive = "*"  # depend on whichever gix pulls in
 gloo-timers = "0.3.0"
 gloo-utils = "0.2.0"
 html-escape = "0.2.13"

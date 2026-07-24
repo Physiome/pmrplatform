@@ -25,6 +25,8 @@ pub enum PmrRepoError {
 #[derive(Debug, Error)]
 pub enum GixError {
     #[error(transparent)]
+    Archive(gix::worktree::archive::Error),
+    #[error(transparent)]
     ConfigFileInitFromPath(#[from] gix::config::file::init::from_paths::Error),
     #[error(transparent)]
     DateParse(#[from] gix::error::ValidationError),
@@ -64,6 +66,8 @@ pub enum GixError {
     TraverseTreeBreadthfirst(#[from] gix::traverse::tree::breadthfirst::Error),
     #[error(transparent)]
     WorktreeStateCheckout(#[from] gix::worktree::state::checkout::Error),
+    #[error(transparent)]
+    WorktreeStream(gix::repository::worktree_stream::Error),
 }
 
 #[derive(Debug, PartialEq, Error, Deserialize, Serialize)]

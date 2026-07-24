@@ -10,6 +10,7 @@ use gix::{
         TreeRef,
         WriteTo as _,
     },
+    worktree::archive::Format,
 };
 
 use crate::repo::*;
@@ -119,6 +120,17 @@ impl TryFrom<&ObjectDetached> for CommitInfo {
 
     fn try_from(item: &ObjectDetached) -> Result<Self, Self::Error> {
         objectdetached_to_commitinfo(&item)
+    }
+}
+
+impl From<ArchiveFormat> for Format {
+    fn from(v: ArchiveFormat) -> Self {
+        // Use default compression level as per documentation as of gix-archive-0.35.
+        let compression_level = None;
+        match v {
+            ArchiveFormat::TarGz => Format::TarGz { compression_level },
+            ArchiveFormat::Zip => Format::Zip { compression_level },
+        }
     }
 }
 

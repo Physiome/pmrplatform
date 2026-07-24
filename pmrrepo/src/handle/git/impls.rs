@@ -17,6 +17,7 @@ use gix::{
 use pmrcore::{
     git::PathObjectDetached,
     repo::{
+        ArchiveFormat,
         LogEntryInfo,
         LogInfo,
         PathObjectInfo,
@@ -33,7 +34,7 @@ use pmrcore::{
     },
 };
 use std::{
-    io::Write,
+    io::{Seek, Write},
     ops::Deref,
     path::{
         Path,
@@ -392,11 +393,30 @@ impl<'repo> GitHandle<'repo> {
 }
 
 impl<'repo> GitHandleResult<'repo> {
+    pub fn workspace(&'repo self) -> &'repo WorkspaceRef<'repo> {
+        &self.workspace
+    }
+
+    /// Return the list of files associated with the commit that this
+    /// `GitHandleResult` is associated with.
+    pub fn files(
+        &self,
+        repo: &'repo Repository,
+    ) -> Result<Vec<String>, PmrRepoError> {
+        Ok(self.commit(repo)
+            .as_ref()
+            .map(files)
+            .transpose()?
+            .unwrap_or_else(|| Vec::new()))
+    }
+}
+
+impl GitHandleResult<'_> {
     pub fn repo(&self) -> Repository {
         self.repo.to_thread_local()
     }
 
-    pub fn commit(&self, repo: &'repo Repository) -> Option<Commit<'repo>> {
+    pub fn commit<'repo>(&self, repo: &'repo Repository) -> Option<Commit<'repo>> {
         self.commit
             .as_ref()
             .map(|commit| commit.clone()
@@ -417,10 +437,6 @@ impl<'repo> GitHandleResult<'repo> {
     // for getting the final result.
     pub fn target(&self) -> Option<&GitResultTarget> {
         self.target.as_ref()
-    }
-
-    pub fn workspace(&'repo self) -> &'repo WorkspaceRef<'repo> {
-        &self.workspace
     }
 
     #[async_recursion]
@@ -465,17 +481,41 @@ impl<'repo> GitHandleResult<'repo> {
         }
     }
 
-    /// Return the list of files associated with the commit that this
-    /// `GitHandleResult` is associated with.
-    pub fn files(
-        &self,
-        repo: &'repo Repository,
-    ) -> Result<Vec<String>, PmrRepoError> {
-        Ok(self.commit(repo)
-            .as_ref()
-            .map(files)
-            .transpose()?
-            .unwrap_or_else(|| Vec::new()))
+    /// Return the bytes of an archive.
+    pub fn archive(&self, out: impl Write + Seek, format: ArchiveFormat) -> Result<(), PmrRepoError> {
+        match &self.target {
+            Some(GitResultTarget::Object(target)) => {
+                let repo = self.repo();
+                let (stream, _) = repo.worktree_stream(target.object.id)
+                    .map_err(GixError::WorktreeStream)?;
+                let modification_time = self.commit(&repo)
+                    .expect("this must already be a valid commit")
+                    .time()
+                    .expect("this must already be a valid commit")
+                    .seconds;
+                let options = gix::worktree::archive::Options {
+                    format: format.into(),
+                    modification_time,
+                    .. Default::default()
+                };
+                Ok(self.repo()
+                    .worktree_archive(
+                        stream,
+                        out,
+                        gix::progress::Discard,
+                        &std::sync::atomic::AtomicBool::default(),
+                        options,
+                    )
+                    .map_err(GixError::Message)?
+                )
+            }
+            Some(GitResultTarget::RemoteInfo(_)) => {
+                info!("archiving of git submodules not yet supported");
+                Ok(())
+            }
+            // Empty target means empty archive for now so nothing is written out.
+            None => Ok(())
+        }
     }
 }
 

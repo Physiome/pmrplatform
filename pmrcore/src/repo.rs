@@ -117,3 +117,32 @@ pub struct PathInfo {
     pub object: ObjectInfo,
 }
 */
+
+/// To allow the specifying of archive formats.
+#[derive(Clone, Copy, Debug)]
+pub enum ArchiveFormat {
+    TarGz,
+    Zip,
+}
+
+#[cfg(feature = "clap")]
+mod clap {
+    use ::clap::{
+        ValueEnum,
+        builder::PossibleValue,
+    };
+    use super::*;
+
+    impl ValueEnum for ArchiveFormat {
+        fn value_variants<'a>() -> &'a [Self] {
+            &[ArchiveFormat::TarGz, ArchiveFormat::Zip]
+        }
+
+        fn to_possible_value(&self) -> Option<PossibleValue> {
+            match self {
+                ArchiveFormat::TarGz => Some(PossibleValue::new("tar.gz")),
+                ArchiveFormat::Zip => Some(PossibleValue::new("zip")),
+            }
+        }
+    }
+}
