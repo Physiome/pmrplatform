@@ -35,7 +35,11 @@ async fn main() -> anyhow::Result<()> {
         index,
         workspace::{
             collection_json_workspace,
+            aliased_workspace_archive_tgz,
+            aliased_workspace_archive_zip,
             aliased_workspace_rawfile_download,
+            workspace_archive_tgz,
+            workspace_archive_zip,
             workspace_rawfile_download,
         },
     };
@@ -123,10 +127,18 @@ async fn main() -> anyhow::Result<()> {
 
         // These are duplicated to /api/ to keep the OpenAPI specification consistent, while
         // keeping the original in the event we will fall back to a fully integrated application.
+        .route("/workspace/{workspace_alias}/archive/{commit_id}/tgz", get(aliased_workspace_archive_tgz))
+        .route("/workspace/:/id/{workspace_id}/archive/{commit_id}/tgz", get(workspace_archive_tgz))
+        .route("/workspace/{workspace_alias}/archive/{commit_id}/zip", get(aliased_workspace_archive_zip))
+        .route("/workspace/:/id/{workspace_id}/archive/{commit_id}/zip", get(workspace_archive_zip))
         .route("/workspace/{workspace_alias}/rawfile/{commit_id}/{*path}", get(aliased_workspace_rawfile_download))
         .route("/workspace/:/id/{workspace_id}/rawfile/{commit_id}/{*path}", get(workspace_rawfile_download))
         .route("/api/workspace/{workspace_alias}/rawfile/{commit_id}/{*path}", get(aliased_workspace_rawfile_download))
         .route("/api/workspace/:/id/{workspace_id}/rawfile/{commit_id}/{*path}", get(workspace_rawfile_download))
+        .route("/api/workspace/{workspace_alias}/archive/{commit_id}/tgz", get(aliased_workspace_archive_tgz))
+        .route("/api/workspace/:/id/{workspace_id}/archive/{commit_id}/tgz", get(workspace_archive_tgz))
+        .route("/api/workspace/{workspace_alias}/archive/{commit_id}/zip", get(aliased_workspace_archive_zip))
+        .route("/api/workspace/:/id/{workspace_id}/archive/{commit_id}/zip", get(workspace_archive_zip))
 
         // Index routes
         .route("/api/citations", get(index::citations))

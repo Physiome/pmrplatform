@@ -17,12 +17,16 @@ use collection_json::{
 use http::header;
 use pmrac::Platform as ACPlatform;
 use pmrcore::repo::{
+    ArchiveFormat,
     PathObjectInfo,
     RemoteInfo,
 };
 use pmrctrl::platform::Platform;
 use pmrrepo::handle::GitResultTarget;
-use std::io::Write;
+use std::io::{
+    Cursor,
+    Write,
+};
 
 use crate::{
     app::id::Id,
@@ -167,3 +171,125 @@ pub async fn workspace_rawfile_download(
     Ok(result.unwrap_or_else(|e| AppError::from(e).into_response()))
 }
 
+pub async fn workspace_archive(
+    platform: Extension<Platform>,
+    session: Extension<AuthSession<ACPlatform>>,
+    Path((workspace_id, commit_id, archive_format)): Path<(i64, String, ArchiveFormat)>,
+) -> Result<Vec<u8>, AppError> {
+    Session::from(session)
+        .enforcer(format!("/workspace/{workspace_id}/"), "").await?;
+    let backend = platform.repo_backend();
+    let handle = backend.git_handle(workspace_id).await
+        .map_err(|_| AppError::InternalServerError)?;
+
+    // assume the commit isn't found
+    let result = handle.pathinfo(Some(&commit_id), None)
+        .map_err(|_| AppError::NotFound)?;
+
+    let mut output = Cursor::new(<Vec<u8>>::new());
+    result.archive(&mut output, archive_format)
+        .map_err(|_| AppError::InternalServerError)?;
+    Ok(output.into_inner())
+}
+
+pub async fn workspace_archive_tgz(
+    platform: Extension<Platform>,
+    session: Extension<AuthSession<ACPlatform>>,
+    Path((workspace_id, commit_id)): Path<(i64, String)>,
+) -> Result<Response, AppError> {
+    let bytes = workspace_archive(platform, session, Path((workspace_id, commit_id, ArchiveFormat::TarGz)))
+        .await?;
+    Ok((
+        [(header::CONTENT_DISPOSITION, format!(r#"attachment; filename="workspace_{workspace_id}.tgz""#))],
+        bytes,
+    ).into_response())
+}
+
+pub async fn workspace_archive_zip(
+    platform: Extension<Platform>,
+    session: Extension<AuthSession<ACPlatform>>,
+    Path((workspace_id, commit_id)): Path<(i64, String)>,
+) -> Result<Response, AppError> {
+    let bytes = workspace_archive(platform, session, Path((workspace_id, commit_id, ArchiveFormat::Zip)))
+        .await?;
+    Ok((
+        [(header::CONTENT_DISPOSITION, format!(r#"attachment; filename="workspace_{workspace_id}.zip""#))],
+        bytes,
+    ).into_response())
+}
+
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    get,
+    path = "/api/workspace/{workspace_alias}/archive/{commit_id}/tgz",
+    summary = "This endpoint is also bound to `/workspace/{workspace_alias}/archive/{commit_id}/tgz`.",
+    params(
+        ("workspace_alias" = String, Path, description = "Workspace's alias."),
+        ("commit_id" = String, Path, description = "The commit id."),
+    ),
+    responses((
+        status = 200,
+        description = "The .tgz (or .tar.gz) archive of the contents for the requested commit of the workspace.",
+        body = Vec<u8>,
+    ), AppError),
+    security(
+        (),
+        ("cookie" = []),
+        ("bearer" = []),
+    ),
+))]
+pub async fn aliased_workspace_archive_tgz(
+    platform: Extension<Platform>,
+    session: Extension<AuthSession<ACPlatform>>,
+    Path((workspace_alias, commit_id)): Path<(String, String)>,
+) -> Result<Response, AppError> {
+    let workspace_id = platform
+        .mc_platform
+        .resolve_alias("workspace", &workspace_alias)
+        .await
+        .map_err(|_| AppError::InternalServerError)?
+        .ok_or(AppError::NotFound)?;
+    let bytes = workspace_archive(platform, session, Path((workspace_id, commit_id, ArchiveFormat::TarGz)))
+        .await?;
+    Ok((
+        [(header::CONTENT_DISPOSITION, format!(r#"attachment; filename="{workspace_alias}.tgz""#))],
+        bytes,
+    ).into_response())
+}
+
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    get,
+    path = "/api/workspace/{workspace_alias}/archive/{commit_id}/zip",
+    summary = "This endpoint is also bound to `/workspace/{workspace_alias}/archive/{commit_id}/zip`.",
+    params(
+        ("workspace_alias" = String, Path, description = "Workspace's alias."),
+        ("commit_id" = String, Path, description = "The commit id."),
+    ),
+    responses((
+        status = 200,
+        description = "The .zip archive of the contents for the requested commit of the workspace.",
+        body = Vec<u8>,
+    ), AppError),
+    security(
+        (),
+        ("cookie" = []),
+        ("bearer" = []),
+    ),
+))]
+pub async fn aliased_workspace_archive_zip(
+    platform: Extension<Platform>,
+    session: Extension<AuthSession<ACPlatform>>,
+    Path((workspace_alias, commit_id)): Path<(String, String)>,
+) -> Result<Response, AppError> {
+    let workspace_id = platform
+        .mc_platform
+        .resolve_alias("workspace", &workspace_alias)
+        .await
+        .map_err(|_| AppError::InternalServerError)?
+        .ok_or(AppError::NotFound)?;
+    let bytes = workspace_archive(platform, session, Path((workspace_id, commit_id, ArchiveFormat::Zip)))
+        .await?;
+    Ok((
+        [(header::CONTENT_DISPOSITION, format!(r#"attachment; filename="{workspace_alias}.zip""#))],
+        bytes,
+    ).into_response())
+}

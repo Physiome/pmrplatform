@@ -55,7 +55,11 @@ use crate::{
             __path_resources,
             __path_resource_briefs,
         },
-        workspace::__path_aliased_workspace_rawfile_download,
+        workspace::{
+            __path_aliased_workspace_archive_tgz,
+            __path_aliased_workspace_archive_zip,
+            __path_aliased_workspace_rawfile_download,
+        },
     },
     workspace::api::{
         __path_create_workspace_core,
@@ -134,6 +138,8 @@ impl Modify for Security {
         get_log_info,
         get_workspace_info,
         synchronize_openapi,
+        aliased_workspace_archive_tgz,
+        aliased_workspace_archive_zip,
         aliased_workspace_rawfile_download,
         workspace_root_policy_state,
     ),
