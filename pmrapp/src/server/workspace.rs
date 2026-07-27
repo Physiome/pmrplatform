@@ -87,7 +87,7 @@ pub async fn collection_json_workspace(
         ("bearer" = []),
     ),
 ))]
-pub async fn raw_aliased_workspace_download(
+pub async fn aliased_workspace_rawfile_download(
     platform: Extension<Platform>,
     session: Extension<AuthSession<ACPlatform>>,
     Path((workspace_alias, commit_id, filepath)): Path<(String, String, String)>,
@@ -98,14 +98,14 @@ pub async fn raw_aliased_workspace_download(
         .await
         .map_err(|_| AppError::InternalServerError)?
         .ok_or(AppError::NotFound)?;
-    raw_workspace_download(
+    workspace_rawfile_download(
         platform,
         session,
         Path((workspace_id, commit_id, filepath)),
     ).await
 }
 
-pub async fn raw_workspace_download(
+pub async fn workspace_rawfile_download(
     platform: Extension<Platform>,
     session: Extension<AuthSession<ACPlatform>>,
     Path((workspace_id, commit_id, filepath)): Path<(i64, String, String)>,

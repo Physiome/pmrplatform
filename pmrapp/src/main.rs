@@ -35,8 +35,8 @@ async fn main() -> anyhow::Result<()> {
         index,
         workspace::{
             collection_json_workspace,
-            raw_aliased_workspace_download,
-            raw_workspace_download,
+            aliased_workspace_rawfile_download,
+            workspace_rawfile_download,
         },
     };
     use pmrctrl::executor::Executor;
@@ -123,10 +123,10 @@ async fn main() -> anyhow::Result<()> {
 
         // These are duplicated to /api/ to keep the OpenAPI specification consistent, while
         // keeping the original in the event we will fall back to a fully integrated application.
-        .route("/workspace/{workspace_alias}/rawfile/{commit_id}/{*path}", get(raw_aliased_workspace_download))
-        .route("/workspace/:/id/{workspace_id}/rawfile/{commit_id}/{*path}", get(raw_workspace_download))
-        .route("/api/workspace/{workspace_alias}/rawfile/{commit_id}/{*path}", get(raw_aliased_workspace_download))
-        .route("/api/workspace/:/id/{workspace_id}/rawfile/{commit_id}/{*path}", get(raw_workspace_download))
+        .route("/workspace/{workspace_alias}/rawfile/{commit_id}/{*path}", get(aliased_workspace_rawfile_download))
+        .route("/workspace/:/id/{workspace_id}/rawfile/{commit_id}/{*path}", get(workspace_rawfile_download))
+        .route("/api/workspace/{workspace_alias}/rawfile/{commit_id}/{*path}", get(aliased_workspace_rawfile_download))
+        .route("/api/workspace/:/id/{workspace_id}/rawfile/{commit_id}/{*path}", get(workspace_rawfile_download))
 
         // Index routes
         .route("/api/citations", get(index::citations))
