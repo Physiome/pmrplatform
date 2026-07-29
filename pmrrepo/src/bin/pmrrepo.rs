@@ -263,7 +263,7 @@ async fn main() -> anyhow::Result<()> {
                 None,
             )?;
             let mut output = Cursor::new(<Vec<u8>>::new());
-            git_result.archive(&mut output, format)?;
+            git_result.archive(&mut output, format, None, None)?;
             let mut writer = io::stdout();
             writer.write(&output.into_inner())?;
         }

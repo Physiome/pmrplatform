@@ -14,11 +14,13 @@ use pmrcore::{
         ExposureFileRef,
     },
     idgen::traits::GenAliasBackend,
+    repo::ArchiveFormat,
 };
 use pmrmodel::model::profile::UserPromptGroupRefs;
 use pmrrepo::handle::GitHandle;
 use std::{
     collections::HashMap,
+    io::Cursor,
     ops::Deref,
     path::{
         Component,
@@ -351,6 +353,33 @@ impl<'p> ExposureCtrl<'p> {
             });
         tokio::fs::read(target).await
             .map_err(|_| CtrlError::EFVCBlobNotFound(path.to_string()))
+    }
+
+    /// Generate a zip archive with contents inside the prefix defined.
+    pub fn archive(
+        &'p self,
+        prefix: &str,
+    ) -> Result<Vec<u8>, PlatformError> {
+        let pathinfo = self.0.git_handle.pathinfo(
+            Some(self.0.exposure.commit_id()),
+            None,
+        )?;
+        let mut output = Cursor::new(<Vec<u8>>::new());
+        pathinfo.archive(
+            &mut output,
+            ArchiveFormat::Zip,
+            Some(prefix),
+            [
+                (
+                    // A hack to force this up one level in the archive as the contents are prefixed.
+                    String::from("../metadata.json"),
+                    // FIXME need to figure out a better system to provide this context into the platform
+                    // so this doesn't need to be passed into this.
+                    format!(r#"{{"@id": "https://models.physiomeproject.org/exposure/{prefix}/"}}"#).into(),
+                ),
+            ]
+        )?;
+        Ok(output.into_inner())
     }
 
     /// This ensures there is filesystem level access to the underlying

@@ -187,7 +187,7 @@ pub async fn workspace_archive(
         .map_err(|_| AppError::NotFound)?;
 
     let mut output = Cursor::new(<Vec<u8>>::new());
-    result.archive(&mut output, archive_format)
+    result.archive(&mut output, archive_format, None, None)
         .map_err(|_| AppError::InternalServerError)?;
     Ok(output.into_inner())
 }

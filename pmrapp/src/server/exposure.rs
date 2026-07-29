@@ -6,10 +6,14 @@ use axum::{
         header::{CONTENT_TYPE, HeaderMap},
         HeaderValue,
     },
-    response::IntoResponse,
+    response::{
+        IntoResponse,
+        Response,
+    },
 };
 use axum_login::AuthSession;
 use itertools::Itertools;
+use http::header;
 use regex::Regex;
 use pmrac::Platform as ACPlatform;
 use pmrcore::task_template::UserInputMap;
@@ -305,4 +309,57 @@ pub async fn exposure_file_safe_html(
         .clean(&String::from_utf8_lossy(&blob))
         .to_string()
     )
+}
+
+async fn exposure_archive(
+    platform: Extension<Platform>,
+    session: Extension<AuthSession<ACPlatform>>,
+    exposure_id: i64,
+    prefix: String,
+) -> Result<Vec<u8>, AppError> {
+    Session::from(session)
+        .enforcer(format!("/exposure/{exposure_id}/"), "").await?;
+    let ec = platform.get_exposure(exposure_id).await
+        .map_err(|_| AppError::InternalServerError)?;
+    let output = ec.archive(&prefix)
+        .map_err(|_| AppError::InternalServerError)?;
+    Ok(output)
+}
+
+#[cfg_attr(feature = "utoipa", utoipa::path(
+    get,
+    path = "/api/exposure/{exposure_alias}/download_zip",
+    summary = "This endpoint is also bound to `/exposure/{exposure_alias}/download_zip`.",
+    params(
+        ("exposure_alias" = String, Path, description = "Exposure's alias."),
+    ),
+    responses((
+        status = 200,
+        description = "The .zip archive of the contents for the requested exposure.",
+        body = Vec<u8>,
+    ), AppError),
+    security(
+        (),
+        ("cookie" = []),
+        ("bearer" = []),
+    ),
+))]
+pub async fn aliased_exposure_archive_zip(
+    platform: Extension<Platform>,
+    session: Extension<AuthSession<ACPlatform>>,
+    Path(exposure_alias): Path<String>,
+) -> Result<Response, AppError> {
+    let header = format!(r#"attachment; filename="{exposure_alias}.zip""#);
+    let exposure_id = platform
+        .mc_platform
+        .resolve_alias("exposure", &exposure_alias)
+        .await
+        .map_err(|_| AppError::InternalServerError)?
+        .ok_or(AppError::NotFound)?;
+    let bytes = exposure_archive(platform, session, exposure_id, exposure_alias)
+        .await?;
+    Ok((
+        [(header::CONTENT_DISPOSITION, header)],
+        bytes,
+    ).into_response())
 }

@@ -44,6 +44,7 @@ use crate::{
     },
     server::{
         exposure::{
+            __path_aliased_exposure_archive_zip,
             __path_exposure_file_data,
             __path_exposure_file_safe_html,
             __path_wizard_field_update,
@@ -111,6 +112,7 @@ impl Modify for Security {
         workflow_transition,
 
         // Exposures
+        aliased_exposure_archive_zip,
         create_exposure_openapi,
         exposure_file_data,
         exposure_file_safe_html,

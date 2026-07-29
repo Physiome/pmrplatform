@@ -28,6 +28,7 @@ async fn main() -> anyhow::Result<()> {
     use pmrapp::exposure::api::WIZARD_FIELD_ROUTE;
     use pmrapp::server::{
         exposure::{
+            aliased_exposure_archive_zip,
             exposure_file_data,
             exposure_file_safe_html,
             wizard_field_update,
@@ -124,6 +125,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/exposure/{e_id}/{ef_id}/{view_key}/{*path}", get(exposure_file_data))
         .route("/api/exposure/safe_html/{e_id}/{ef_id}/{view_key}/{*path}", get(exposure_file_safe_html))
         .route("/collection_json/workspace/", get(collection_json_workspace))
+
+        .route("/api/exposure/{exposure_id}/download_zip", get(aliased_exposure_archive_zip))
+        .route("/exposure/{exposure_id}/download_zip", get(aliased_exposure_archive_zip))
 
         // These are duplicated to /api/ to keep the OpenAPI specification consistent, while
         // keeping the original in the event we will fall back to a fully integrated application.

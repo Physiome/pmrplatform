@@ -482,12 +482,26 @@ impl GitHandleResult<'_> {
     }
 
     /// Return the bytes of an archive.
-    pub fn archive(&self, out: impl Write + Seek, format: ArchiveFormat) -> Result<(), PmrRepoError> {
+    pub fn archive(
+        &self,
+        out: impl Write + Seek,
+        format: ArchiveFormat,
+        tree_prefix: Option<&str>,
+        extra_entries: impl IntoIterator<Item = (String, Vec<u8>)>,
+    ) -> Result<(), PmrRepoError> {
         match &self.target {
             Some(GitResultTarget::Object(target)) => {
                 let repo = self.repo();
-                let (stream, _) = repo.worktree_stream(target.object.id)
+                let (mut stream, _) = repo.worktree_stream(target.object.id)
                     .map_err(GixError::WorktreeStream)?;
+                for (path, src) in extra_entries.into_iter() {
+                    stream.add_entry(gix::worktree::stream::AdditionalEntry {
+                        id: gix::hash::ObjectId::null(gix::hash::Kind::Sha1),
+                        mode: EntryKind::Blob.into(),
+                        relative_path: path.into(),
+                        source: gix::worktree::stream::entry::Source::Memory(src),
+                    });
+                }
                 let modification_time = self.commit(&repo)
                     .expect("this must already be a valid commit")
                     .time()
@@ -496,7 +510,7 @@ impl GitHandleResult<'_> {
                 let options = gix::worktree::archive::Options {
                     format: format.into(),
                     modification_time,
-                    .. Default::default()
+                    tree_prefix: tree_prefix.map(|s| format!("{s}/").into()),
                 };
                 Ok(self.repo()
                     .worktree_archive(
