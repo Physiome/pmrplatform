@@ -172,7 +172,7 @@ async fn test_platform_exposure_ctrl_attach_file() -> anyhow::Result<()> {
         exposure_file_ctrl.exposure_file().id()
     };
 
-    let ef_ref = platform.mc_platform
+    let ef_ref = platform.mc_platform()
         .get_exposure_file(exposure_file_id)
         .await?;
 
@@ -263,7 +263,7 @@ async fn test_platform_exposure_ctrl_resolve_view() -> anyhow::Result<()> {
     // go through the long and arduous process of setting the view the
     // long and "standard" way...
     ExposureTaskTemplateBackend::set_file_templates(
-        platform.mc_platform.as_ref(),
+        platform.mc_platform(),
         efc.exposure_file().id(),
         &[vtts[1]],
     ).await?;
@@ -271,14 +271,14 @@ async fn test_platform_exposure_ctrl_resolve_view() -> anyhow::Result<()> {
     let user_input = UserInputMap::from([]);
     let tasks = efvttsc.create_tasks_from_input(&user_input)?;
     let (exposure_file_view_id, _) = efc.process_vttc_tasks(tasks).await?[0];
-    let mut task = platform.tm_platform.as_ref()
+    let mut task = platform.tm_platform()
         .start_task()
         .await?
         .expect("task was queued");
     task.run(12345).await?;
     platform.complete_task(task, 0).await?;
 
-    let efv = platform.mc_platform.as_ref()
+    let efv = platform.mc_platform()
         .get_exposure_file_view(exposure_file_view_id)
         .await?;
     assert_eq!(efv.view_key(), Some("example_view2"));
@@ -450,7 +450,7 @@ async fn test_platform_create_exposure_file_view_task() -> anyhow::Result<()> {
     // TODO may need to revisit this particular test when further API
     // refinements are made; for now just grab the task directly from
     // the internal task management platform.
-    // let new_task = TaskBackend::gets_task(platform.tm_platform.as_ref(), 1);
+    // let new_task = TaskBackend::gets_task(platform.tm_platform(), 1);
 
     // TODO actually tying the task back to the exposure file and thus
     // the appropriate view - this test really is a current proof of
@@ -466,7 +466,7 @@ async fn make_example_view_task_templates<'p>(
     // force insertion of a dummy task template that should shift the
     // id for the ExposureFileTaskTemplate vs TaskTemplate.
     TaskTemplateBackend::add_task_template(
-        platform.tm_platform.as_ref(),
+        platform.tm_platform(),
         "/bin/dummy",
         "1.0.0",
     ).await?;
@@ -688,7 +688,7 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
     assert_eq!(vtt.len(), 0);
 
     ExposureTaskTemplateBackend::set_file_templates(
-        platform.mc_platform.as_ref(),
+        platform.mc_platform(),
         exposure_file_id,
         &[vtts[0]],
     ).await?;
@@ -713,7 +713,7 @@ async fn test_platform_file_templates_for_exposure_file() -> anyhow::Result<()> 
     );
 
     ExposureTaskTemplateBackend::set_file_templates(
-        platform.mc_platform.as_ref(),
+        platform.mc_platform(),
         exposure_file_id,
         &[vtts[1], vtts[2]],
     ).await?;
@@ -768,7 +768,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
         .id();
 
     ExposureTaskTemplateBackend::set_file_templates(
-        platform.mc_platform.as_ref(),
+        platform.mc_platform(),
         exposure_file_id,
         &[vtts[0], vtts[3]],
     ).await?;
@@ -895,7 +895,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     // tasks have been correctly queued.
 
     let et1 = ExposureTaskBackend::select_task_for_view(
-        platform.mc_platform.as_ref(),
+        platform.mc_platform(),
         efv_id,
     )
         .await?
@@ -906,7 +906,7 @@ async fn test_platform_file_templates_user_args_usage() -> anyhow::Result<()> {
     assert_eq!(et1.ready, false);
 
     let task1 = TaskBackend::gets_task(
-        platform.tm_platform.as_ref(),
+        platform.tm_platform(),
         et1.task_id.expect("not none"),
     ).await?;
     let created_ts = task1.created_ts;
@@ -995,7 +995,7 @@ async fn test_platform_vtt_profile() -> anyhow::Result<()> {
             }
         }"#)?
     ).await?;
-    let mcp = platform.mc_platform.as_ref();
+    let mcp = platform.mc_platform();
     let id = ProfileBackend::insert_profile(
         mcp,
         "Profile 1",
@@ -1203,7 +1203,7 @@ async fn test_exposure_file_view_task_sync() -> anyhow::Result<()> {
         .id();
 
     ExposureTaskTemplateBackend::set_file_templates(
-        platform.mc_platform.as_ref(),
+        platform.mc_platform(),
         exposure_file_id,
         &[vtts[0]],
     ).await?;
@@ -1216,7 +1216,7 @@ async fn test_exposure_file_view_task_sync() -> anyhow::Result<()> {
     let result = efc.process_vttc_tasks(tasks).await?;
     let (_, task_id) = result[0];
     let id = ExposureFileViewBackend::select_id_by_task_id(
-        platform.mc_platform.as_ref(),
+        platform.mc_platform(),
         task_id,
     ).await?;
     assert_eq!(exposure_file_id, id);
@@ -1226,7 +1226,7 @@ async fn test_exposure_file_view_task_sync() -> anyhow::Result<()> {
     let tasks = efvttsc.create_tasks_from_input(&user_input)?;
     efc.process_vttc_tasks(tasks).await?;
     let id = ExposureFileViewBackend::select_id_by_task_id(
-        platform.mc_platform.as_ref(),
+        platform.mc_platform(),
         task_id,
     ).await;
     assert!(id.is_err());
@@ -1248,7 +1248,7 @@ async fn test_exposure_file_view_task_run_view_key_success() -> anyhow::Result<(
     let efc = exposure.create_file("if1").await?;
 
     ExposureTaskTemplateBackend::set_file_templates(
-        platform.mc_platform.as_ref(),
+        platform.mc_platform(),
         efc.exposure_file().id(),
         &[vtts[0]],
     ).await?;
@@ -1261,13 +1261,13 @@ async fn test_exposure_file_view_task_run_view_key_success() -> anyhow::Result<(
     let result = efc.process_vttc_tasks(tasks).await?;
     let (exposure_file_view_id, task_id) = result[0];
 
-    let efv = platform.mc_platform.as_ref()
+    let efv = platform.mc_platform()
         .get_exposure_file_view(exposure_file_view_id)
         .await?;
     assert_eq!(efv.view_key(), None);
 
     // spawn a task
-    let mut task = platform.tm_platform.as_ref()
+    let mut task = platform.tm_platform()
         .start_task()
         .await?
         .expect("task was queued");
@@ -1277,7 +1277,7 @@ async fn test_exposure_file_view_task_run_view_key_success() -> anyhow::Result<(
     let result = platform.complete_task(task, 0).await?;
     assert!(result);
 
-    let efv = platform.mc_platform.as_ref()
+    let efv = platform.mc_platform()
         .get_exposure_file_view(exposure_file_view_id)
         .await?;
     assert_eq!(efv.view_key(), Some("example_view1"));
@@ -1298,7 +1298,7 @@ async fn test_exposure_file_view_task_run_task_fail() -> anyhow::Result<()> {
     let efc = exposure.create_file("if1").await?;
 
     ExposureTaskTemplateBackend::set_file_templates(
-        platform.mc_platform.as_ref(),
+        platform.mc_platform(),
         efc.exposure_file().id(),
         &[vtts[0]],
     ).await?;
@@ -1311,13 +1311,13 @@ async fn test_exposure_file_view_task_run_task_fail() -> anyhow::Result<()> {
     let result = efc.process_vttc_tasks(tasks).await?;
     let (exposure_file_view_id, task_id) = result[0];
 
-    let efv = platform.mc_platform.as_ref()
+    let efv = platform.mc_platform()
         .get_exposure_file_view(exposure_file_view_id)
         .await?;
     assert_eq!(efv.view_key(), None);
 
     // spawn a task
-    let mut task = platform.tm_platform.as_ref()
+    let mut task = platform.tm_platform()
         .start_task()
         .await?
         .expect("task was queued");
@@ -1328,7 +1328,7 @@ async fn test_exposure_file_view_task_run_task_fail() -> anyhow::Result<()> {
     let result = platform.complete_task(task, 1).await?;
     assert!(!result);
 
-    let efv = platform.mc_platform.as_ref()
+    let efv = platform.mc_platform()
         .get_exposure_file_view(exposure_file_view_id)
         .await?;
     assert_eq!(efv.view_key(), None);
@@ -1347,7 +1347,7 @@ async fn test_exposure_file_view_task_run_task_stale() -> anyhow::Result<()> {
     let efc = exposure.create_file("if1").await?;
 
     ExposureTaskTemplateBackend::set_file_templates(
-        platform.mc_platform.as_ref(),
+        platform.mc_platform(),
         efc.exposure_file().id(),
         &[vtts[0]],
     ).await?;
@@ -1360,13 +1360,13 @@ async fn test_exposure_file_view_task_run_task_stale() -> anyhow::Result<()> {
     let result = efc.process_vttc_tasks(tasks).await?;
     let (exposure_file_view_id, task_id) = result[0];
 
-    let efv = platform.mc_platform.as_ref()
+    let efv = platform.mc_platform()
         .get_exposure_file_view(exposure_file_view_id)
         .await?;
     assert_eq!(efv.view_key(), None);
 
     // spawn a task
-    let mut task = platform.tm_platform.as_ref()
+    let mut task = platform.tm_platform()
         .start_task()
         .await?
         .expect("task was queued");
@@ -1380,7 +1380,7 @@ async fn test_exposure_file_view_task_run_task_stale() -> anyhow::Result<()> {
     // now run the task, that is now stale...
     task.run(12345).await?;
     // ... even if it was started later.
-    let later_task = platform.tm_platform.as_ref()
+    let later_task = platform.tm_platform()
         .start_task()
         .await?
         .expect("task was queued");
@@ -1388,13 +1388,13 @@ async fn test_exposure_file_view_task_run_task_stale() -> anyhow::Result<()> {
     let result = platform.complete_task(task, 0).await?;
     assert!(!result);
     // That shouldn't set the view just yet.
-    let efv = platform.mc_platform.as_ref()
+    let efv = platform.mc_platform()
         .get_exposure_file_view(exposure_file_view_id)
         .await?;
     assert_eq!(efv.view_key(), None);
 
     assert!(platform.complete_task(later_task, 0).await?);
-    let efv = platform.mc_platform.as_ref()
+    let efv = platform.mc_platform()
         .get_exposure_file_view(exposure_file_view_id)
         .await?;
     assert_eq!(efv.view_key(), Some("example_view1"));
@@ -1437,7 +1437,7 @@ async fn test_hidden_registries() -> anyhow::Result<()> {
         .exposure_file()
         .id();
     ExposureTaskTemplateBackend::set_file_templates(
-        platform.mc_platform.as_ref(),
+        platform.mc_platform(),
         exposure_file_id,
         &[vtts[4]],
     ).await?;
@@ -1499,7 +1499,7 @@ async fn test_task_executor_ctrl() -> anyhow::Result<()> {
         .exposure_file()
         .id();
     ExposureTaskTemplateBackend::set_file_templates(
-        platform.mc_platform.as_ref(),
+        platform.mc_platform(),
         exposure_file_id,
         &[vtts[0]],
     ).await?;
@@ -1509,7 +1509,7 @@ async fn test_task_executor_ctrl() -> anyhow::Result<()> {
     let result = efc.process_vttc_tasks(tasks).await?;
     let (exposure_file_view_id, _) = result[0];
 
-    let efv = platform.mc_platform.as_ref()
+    let efv = platform.mc_platform()
         .get_exposure_file_view(exposure_file_view_id)
         .await?;
     assert_eq!(efv.view_key(), None);
@@ -1520,7 +1520,7 @@ async fn test_task_executor_ctrl() -> anyhow::Result<()> {
     assert_eq!(code, 0);
     assert_eq!(result, true);
 
-    let efv = platform.mc_platform.as_ref()
+    let efv = platform.mc_platform()
         .get_exposure_file_view(exposure_file_view_id)
         .await?;
     assert_eq!(efv.view_key(), Some("sentinel_0"));
@@ -1542,7 +1542,7 @@ async fn test_task_executor_ctrl_queued_extra() -> anyhow::Result<()> {
         .exposure_file()
         .id();
     ExposureTaskTemplateBackend::set_file_templates(
-        platform.mc_platform.as_ref(),
+        platform.mc_platform(),
         exposure_file_id,
         &[vtts[0]],
     ).await?;
@@ -1552,7 +1552,7 @@ async fn test_task_executor_ctrl_queued_extra() -> anyhow::Result<()> {
     let result = efc.process_vttc_tasks(tasks).await?;
     let (exposure_file_view_id, _) = result[0];
 
-    let efv = platform.mc_platform.as_ref()
+    let efv = platform.mc_platform()
         .get_exposure_file_view(exposure_file_view_id)
         .await?;
     assert_eq!(efv.view_key(), None);
@@ -1569,7 +1569,7 @@ async fn test_task_executor_ctrl_queued_extra() -> anyhow::Result<()> {
     assert_eq!(code, 0);
     assert_eq!(result, false);
 
-    let efv = platform.mc_platform.as_ref()
+    let efv = platform.mc_platform()
         .get_exposure_file_view(exposure_file_view_id)
         .await?;
     assert_eq!(efv.view_key(), None);
@@ -1591,7 +1591,7 @@ async fn test_task_executor_ctrl_task_failure_then_success() -> anyhow::Result<(
         .exposure_file()
         .id();
     ExposureTaskTemplateBackend::set_file_templates(
-        platform.mc_platform.as_ref(),
+        platform.mc_platform(),
         exposure_file_id,
         &[vtts[1]],
     ).await?;
@@ -1603,7 +1603,7 @@ async fn test_task_executor_ctrl_task_failure_then_success() -> anyhow::Result<(
     let result = efc.process_vttc_tasks(tasks).await?;
     let (exposure_file_view_id, _) = result[0];
 
-    let efv = platform.mc_platform.as_ref()
+    let efv = platform.mc_platform()
         .get_exposure_file_view(exposure_file_view_id)
         .await?;
     assert_eq!(efv.view_key(), None);
@@ -1614,7 +1614,7 @@ async fn test_task_executor_ctrl_task_failure_then_success() -> anyhow::Result<(
     assert_eq!(code, 42);
     assert_eq!(result, false);
 
-    let efv = platform.mc_platform.as_ref()
+    let efv = platform.mc_platform()
         .get_exposure_file_view(exposure_file_view_id)
         .await?;
     assert_eq!(efv.view_key(), None);
@@ -1631,7 +1631,7 @@ async fn test_task_executor_ctrl_task_failure_then_success() -> anyhow::Result<(
     let (code, result) = task_executor_ctrl.execute().await?;
     assert_eq!(code, 0);
     assert_eq!(result, true);
-    let efv = platform.mc_platform.as_ref()
+    let efv = platform.mc_platform()
         .get_exposure_file_view(exposure_file_view_id)
         .await?;
     assert_eq!(efv.view_key(), Some("exit_code_0"));
@@ -1650,7 +1650,7 @@ async fn test_resolve_exposure_file_view_read_blob() -> anyhow::Result<()> {
     let efc = exposure.create_file("dir1/nested/file_c").await?;
 
     ExposureTaskTemplateBackend::set_file_templates(
-        platform.mc_platform.as_ref(),
+        platform.mc_platform(),
         efc.exposure_file().id(),
         &[vtts[2]],
     ).await?;
@@ -1796,12 +1796,12 @@ async fn test_exposure_file_registry() -> anyhow::Result<()> {
 // Valid only for the test_exposure_alias tests.
 async fn check_exposure_alias(platform: &Platform, exposure_id: i64) -> anyhow::Result<()> {
     assert_eq!(
-        platform.mc_platform.get_alias("exposure", exposure_id).await?.as_deref(),
+        platform.mc_platform().get_alias("exposure", exposure_id).await?.as_deref(),
         Some("an_alias"),
     );
 
     assert_eq!(
-        platform.pc_platform
+        platform.pc_platform()
             .get_resource_kinded_terms(&format!("/exposure/{exposure_id}/"))
             .await?
             .data
@@ -1810,7 +1810,7 @@ async fn check_exposure_alias(platform: &Platform, exposure_id: i64) -> anyhow::
         Some("/exposure/an_alias/".to_string()),
     );
 
-    let data_a = platform.pc_platform
+    let data_a = platform.pc_platform()
         .get_resource_kinded_terms(&format!("/exposure/{exposure_id}/dir1/nested/file_a"))
         .await?
         .data;
@@ -1823,7 +1823,7 @@ async fn check_exposure_alias(platform: &Platform, exposure_id: i64) -> anyhow::
         Some("/exposure/an_alias/dir1/nested/file_a".to_string()),
     );
 
-    let data_b = platform.pc_platform
+    let data_b = platform.pc_platform()
         .get_resource_kinded_terms(&format!("/exposure/{exposure_id}/dir1/nested/file_b"))
         .await?
         .data;
@@ -1836,7 +1836,7 @@ async fn check_exposure_alias(platform: &Platform, exposure_id: i64) -> anyhow::
         Some("/exposure/an_alias/dir1/nested/file_b".to_string()),
     );
 
-    let data_c = platform.pc_platform
+    let data_c = platform.pc_platform()
         .get_resource_kinded_terms(&format!("/exposure/{exposure_id}/dir1/nested/file_c"))
         .await?
         .data;

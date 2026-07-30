@@ -96,7 +96,7 @@ impl Docgen {
 
         let resource_path = arguments.resource_path();
         if !arguments.dry_run {
-            platform.index_backend.add_idx_text(title.as_deref(), text.as_deref(), &resource_path).await?;
+            platform.index_backend().add_idx_text(title.as_deref(), text.as_deref(), &resource_path).await?;
         } else {
             println!("*** DRY RUN ***");
             println!("<{resource_path}>");

@@ -44,7 +44,7 @@ pub async fn create_sqlite_platform() -> anyhow::Result<(
     let (tempdir, platform) = create_blank_sqlite_platform().await?;
     inject_repodata(platform.repo_root());
 
-    let wb = platform.mc_platform.as_ref();
+    let wb = platform.mc_platform();
     wb.add_workspace(
         "https://models.example.com/import1/".into(),
         "import1".into(),

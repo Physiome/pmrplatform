@@ -342,11 +342,11 @@ async fn parse_alias<'p>(
 ) -> anyhow::Result<()> {
     match arg {
         AliasCmd::Add { kind, kind_id, alias } => {
-            platform.mc_platform.add_alias(&kind, kind_id, &alias).await?;
+            platform.mc_platform().add_alias(&kind, kind_id, &alias).await?;
             println!("added alias {alias} pointing to {kind}/:/id/{kind_id}");
         }
         AliasCmd::List { kind, kind_id } => {
-            let aliases = platform.mc_platform.get_aliases(&kind, kind_id).await?;
+            let aliases = platform.mc_platform().get_aliases(&kind, kind_id).await?;
             println!("listing aliases for {kind}/:/id/{kind_id}");
             for alias in aliases {
                 let alias = &alias.alias;
@@ -354,7 +354,7 @@ async fn parse_alias<'p>(
             }
         }
         AliasCmd::Resolve { kind, alias } => {
-            if let Some(kind_id) = platform.mc_platform.resolve_alias(&kind, &alias).await? {
+            if let Some(kind_id) = platform.mc_platform().resolve_alias(&kind, &alias).await? {
                 println!("aliases for {kind}/{alias} points to {kind}/:/id/{kind_id}");
             } else {
                 println!("no such aliases: {kind}/{alias}; assume it points to {kind}/:id/{alias}");
@@ -403,7 +403,7 @@ async fn parse_file<'p>(
             let id = efc.exposure_file().id();
             println!("created exposure file id {id} for exposure {exposure_id} at path {path}");
             let vtt_profile = ViewTaskTemplateProfileBackend::get_view_task_template_profile(
-                platform.mc_platform.as_ref(),
+                platform.mc_platform(),
                 profile_id,
             ).await?;
             efc.set_vttprofile(vtt_profile).await?;
@@ -423,7 +423,7 @@ async fn parse_profile<'p>(
     let conf = CONF.get().expect("config is set by main");
     match arg {
         ProfileCmd::List => {
-            let profiles = ProfileBackend::list_profiles(platform.mc_platform.as_ref()).await?;
+            let profiles = ProfileBackend::list_profiles(platform.mc_platform()).await?;
             println!("id - title");
             for profile in profiles.into_iter() {
                 println!("{} - {}", profile.id, profile.title);
@@ -431,7 +431,7 @@ async fn parse_profile<'p>(
         }
         ProfileCmd::Create { title, description } => {
             let id = ProfileBackend::insert_profile(
-                platform.mc_platform.as_ref(),
+                platform.mc_platform(),
                 &title,
                 &description,
             ).await?;
@@ -439,7 +439,7 @@ async fn parse_profile<'p>(
         },
         ProfileCmd::Update { id, title, description } => {
             ProfileBackend::update_profile_by_fields(
-                platform.mc_platform.as_ref(),
+                platform.mc_platform(),
                 id,
                 &title,
                 &description,
@@ -470,7 +470,7 @@ async fn parse_profile<'p>(
         },
         ProfileCmd::Assign { profile_id, vtt_id } => {
             ProfileViewsBackend::insert_profile_views(
-                platform.mc_platform.as_ref(),
+                platform.mc_platform(),
                 profile_id,
                 vtt_id,
             ).await?;
@@ -478,7 +478,7 @@ async fn parse_profile<'p>(
         },
         ProfileCmd::Remove { profile_id, vtt_id } => {
             ProfileViewsBackend::delete_profile_views(
-                platform.mc_platform.as_ref(),
+                platform.mc_platform(),
                 profile_id,
                 vtt_id,
             ).await?;
@@ -528,7 +528,7 @@ async fn parse_vtt<'p>(
         }
         VttCmd::Link { task_template_id, view_key, description } => {
             let id = ViewTaskTemplateBackend::insert_view_task_template(
-                platform.mc_platform.as_ref(),
+                platform.mc_platform(),
                 &view_key,
                 &description,
                 task_template_id,
@@ -555,7 +555,7 @@ async fn parse_file_profile<'p>(
     match arg {
         FileProfileCmd::Assign { profile_id } => {
             let vttp = platform.get_view_task_template_profile(profile_id).await?;
-            platform.mc_platform.set_ef_vttprofile(
+            platform.mc_platform().set_ef_vttprofile(
                 exposure_file_id,
                 vttp,
             ).await?;
@@ -604,7 +604,7 @@ async fn parse_exposure_path<'p>(
             ]);
             let id = efc.exposure_file().id();
             ExposureFileProfileBackend::update_ef_user_input(
-                platform.mc_platform.as_ref(),
+                platform.mc_platform(),
                 id,
                 &user_input,
             ).await?;
@@ -628,7 +628,7 @@ async fn parse_exposure_path<'p>(
             let uargs = UserArgs::from(&efvttsc.create_user_arg_refs()?);
 
             if let Some(profile) = ExposureFileProfileBackend::get_ef_profile(
-                platform.mc_platform.as_ref(),
+                platform.mc_platform(),
                 id,
             ).await? {
                 let cache = efvttsc.get_registry_cache()?;
@@ -662,7 +662,7 @@ async fn parse_exposure_path<'p>(
             let id = efc.exposure_file().id();
             let efvttsc = efc.build_vttc().await?;
             if let Some(profile) = ExposureFileProfileBackend::get_ef_profile(
-                platform.mc_platform.as_ref(),
+                platform.mc_platform(),
                 id,
             ).await? {
                 let vttc_tasks = efvttsc.create_tasks_from_input(

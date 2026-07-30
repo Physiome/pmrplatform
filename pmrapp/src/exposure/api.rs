@@ -81,7 +81,7 @@ pub async fn list_exposures() -> Result<EnforcedOk<Exposures>, AppError> {
         .enforcer_and_policy_state("/exposure/", "").await?;
     let platform = platform().await?;
     Ok(policy_state.to_enforced_ok(
-        ExposureBackend::list(platform.mc_platform.as_ref())
+        ExposureBackend::list(platform.mc_platform())
             .await
             .map_err(|_| AppError::InternalServerError)?
             .into_iter()
@@ -112,7 +112,9 @@ pub async fn list_aliased_exposures() -> Result<EnforcedOk<Exposures>, AppError>
     let policy_state = session().await?
         .enforcer_and_policy_state("/exposure/", "").await?;
     let platform = platform().await?;
-    let exposures = platform.mc_platform.list_aliased_exposures()
+    let exposures = platform
+        .mc_platform()
+        .list_aliased_exposures()
         .await
         .map_err(|_| AppError::InternalServerError)?
         .into_iter()
@@ -166,7 +168,8 @@ pub async fn list_aliased_exposures_for_workspace(
     session().await?
         .enforcer(format!("/exposure/"), "").await?;
     let platform = platform().await?;
-    let exposures = platform.mc_platform
+    let exposures = platform
+        .mc_platform()
         .list_aliased_exposures_for_workspace(workspace_id)
         .await
         .map_err(|_| AppError::InternalServerError)?
@@ -269,14 +272,17 @@ pub async fn get_exposure_info(id: Id) -> Result<EnforcedOk<ExposureInfo>, AppEr
     }
 
     let exposure = ctrl.exposure().clone_inner();
-    let workspace = platform.mc_platform
+    let workspace = platform
+        .mc_platform()
         .get_workspace(exposure.workspace_id)
         .await
         .map_err(|_| AppError::InternalServerError)?
         .into_inner();
     let exposure_alias = ctrl.alias().await
         .map_err(|_| AppError::InternalServerError)?;
-    let workspace_alias = platform.mc_platform.get_alias("workspace", exposure.workspace_id)
+    let workspace_alias = platform
+        .mc_platform()
+        .get_alias("workspace", exposure.workspace_id)
         .await
         .map_err(|_| AppError::InternalServerError)?;
     Ok(policy_state.to_enforced_ok(ExposureInfo {
@@ -609,7 +615,7 @@ async fn create_exposure_core(
     let id = ctrl.exposure().id();
     let resource = format!("/exposure/{id}/");
     platform
-        .ac_platform
+        .ac_platform()
         .set_wf_state_for_res(&resource, State::Private)
         .await
         .map_err(|_| AppError::InternalServerError)?;
@@ -618,7 +624,7 @@ async fn create_exposure_core(
     if let Some(policy) = policy_state.policy {
         if let Agent::User(user) = policy.agent {
             platform
-                .ac_platform
+                .ac_platform()
                 .res_grant_role_to_agent(&resource, user, Role::Owner)
                 .await
                 .map_err(|_| AppError::InternalServerError)?;

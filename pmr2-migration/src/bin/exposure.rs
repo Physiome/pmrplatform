@@ -284,7 +284,7 @@ async fn prepare_defaults(platform: &Platform) -> anyhow::Result<()> {
     .into_iter()
     .collect::<HashMap<_, _>>();
 
-    let profile_map = platform.mc_platform
+    let profile_map = platform.mc_platform()
         .list_profiles()
         .await?
         .into_iter()
@@ -363,7 +363,7 @@ async fn process_wizard_export(
         .replace("w/", "")
         .replace("/", "-");
 
-    let workspace_id = platform.mc_platform
+    let workspace_id = platform.mc_platform()
         .resolve_alias("workspace", &workspace_alias)
         .await?
         .ok_or(ErrorMsg(format!(
@@ -404,18 +404,18 @@ async fn process_wizard_export(
     ).await?;
     let exposure_path = format!("/exposure/{exposure_id}/");
     let effective_date = effective_date.unwrap_or(creation_date);
-    platform.ac_platform.backend().set_wf_state_for_res(
+    platform.ac_platform().backend().set_wf_state_for_res(
         &exposure_path,
         workflow_state,
     ).await?;
-    platform.ac_platform.backend().log_wf_state_for_res(
+    platform.ac_platform().backend().log_wf_state_for_res(
         &exposure_path,
         workflow_state,
         effective_date,
     ).await?;
     match workflow_state {
         State::Published | State::Expired => {
-            platform.pc_platform.resource_link_kind_with_term(
+            platform.pc_platform().resource_link_kind_with_term(
                 &exposure_path,
                 "published_date",
                 &effective_date.to_string(),
@@ -452,7 +452,7 @@ async fn process_wizard_export(
             .collect::<UserInputMap>();
 
         // store the inputs for now
-        platform.mc_platform.update_ef_user_input(id, &user_input).await?;
+        platform.mc_platform().update_ef_user_input(id, &user_input).await?;
 
         // lifetime issues here
         // let vttc_tasks = efvttsc.create_tasks_from_input(&user_input)?;

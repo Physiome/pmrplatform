@@ -41,6 +41,30 @@ impl Platform {
         }
     }
 
+    pub fn ac_platform(&self) -> &pmrac::Platform {
+        &self.ac_platform
+    }
+
+    pub fn ac_platform_clone(&self) -> pmrac::Platform {
+        self.ac_platform.clone()
+    }
+
+    pub fn mc_platform(&self) -> &dyn MCPlatform {
+        self.mc_platform.as_ref()
+    }
+
+    pub fn pc_platform(&self) -> &dyn PCPlatform {
+        self.pc_platform.as_ref()
+    }
+
+    pub fn tm_platform(&self) -> &dyn TMPlatform {
+        self.tm_platform.as_ref()
+    }
+
+    pub fn index_backend(&self) -> &dyn IndexBackend {
+        self.index_backend.as_ref()
+    }
+
     pub fn data_root(&self) -> &Path {
         self.data_root.as_ref()
     }

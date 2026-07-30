@@ -20,7 +20,7 @@ impl Id {
         Ok(match self {
             Id::Number(s) => s.parse().map_err(|_| AppError::NotFound)?,
             Id::Aliased(s) => platform
-                .mc_platform
+                .mc_platform()
                 .resolve_alias(kind, &s)
                 .await
                 .map_err(|_| AppError::InternalServerError)?

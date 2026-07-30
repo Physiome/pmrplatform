@@ -57,7 +57,7 @@ pub async fn run(
 
     // with the data gathered, populate the index
     // Add the various information acquired from the metadata into the index
-    platform.index_backend.resource_link_kind_with_terms(
+    platform.index_backend().resource_link_kind_with_terms(
         &resource_path,
         "cellml_keyword",
         &mut keywords.iter()
@@ -65,7 +65,7 @@ pub async fn run(
     )
     .await?;
     // aka title under PMR2
-    platform.index_backend.resource_link_kind_with_term(
+    platform.index_backend().resource_link_kind_with_term(
         &resource_path,
         "description",
         // fallback from main title to citation title to generated one.
@@ -79,10 +79,10 @@ pub async fn run(
     // citation
 
     for citation in pmr2_cmeta.citations.iter() {
-        platform.pc_platform.add_citation(&citation).await.ok();
+        platform.pc_platform().add_citation(&citation).await.ok();
     }
     // Citation id.
-    platform.index_backend.resource_link_kind_with_terms(
+    platform.index_backend().resource_link_kind_with_terms(
         &resource_path,
         "citation_id",
         &mut pmr2_cmeta.citations
@@ -90,7 +90,7 @@ pub async fn run(
             .map(|citation| citation.id.as_ref()),
     )
     .await?;
-    platform.index_backend.resource_link_kind_with_terms(
+    platform.index_backend().resource_link_kind_with_terms(
         &resource_path,
         "citation_author_family_name",
         &mut pmr2_cmeta.citations
@@ -105,7 +105,7 @@ pub async fn run(
     .await?;
 
     let exposure = platform.get_exposure(exposure_id).await?;
-    platform.index_backend.resource_link_kind_with_term(
+    platform.index_backend().resource_link_kind_with_term(
         &resource_path,
         "created_ts",
         &exposure.exposure().created_ts().to_string(),
@@ -115,7 +115,7 @@ pub async fn run(
     let model_author_full_names = vcards.iter()
         .filter_map(|vcard| vcard.fullname())
         .collect::<Vec<_>>();
-    platform.index_backend.resource_link_kind_with_terms(
+    platform.index_backend().resource_link_kind_with_terms(
         &resource_path,
         "model_author",
         &mut model_author_full_names.iter()
@@ -128,7 +128,7 @@ pub async fn run(
     let repo = pathinfo.repo();
     if let Some(commit) = pathinfo.commit(&repo) {
         let seconds = commit.decode()?.author()?.time()?.seconds.to_string();
-        platform.index_backend.resource_link_kind_with_term(
+        platform.index_backend().resource_link_kind_with_term(
             &resource_path,
             "commit_authored_ts",
             &seconds.to_string(),

@@ -102,7 +102,7 @@ async fn main() -> anyhow::Result<()> {
             } in entries.into_iter() {
                 // create the workspace and alias entries, set the workflow state
                 let workspace_id = WorkspaceBackend::add_workspace(
-                    platform.mc_platform.as_ref(),
+                    platform.mc_platform(),
                     &url,
                     description.as_deref(),
                     long_description.as_deref(),
@@ -115,25 +115,25 @@ async fn main() -> anyhow::Result<()> {
                 // TODO index this value once the proper interface for this has been
                 // defined.
 
-                platform.mc_platform.add_alias(
+                platform.mc_platform().add_alias(
                     "workspace",
                     workspace_id,
                     &alias,
                 ).await?;
                 let workspace_path = format!("/workspace/{workspace_id}/");
                 let effective_date = effective_date.unwrap_or(creation_date);
-                platform.ac_platform.backend().set_wf_state_for_res(
+                platform.ac_platform().backend().set_wf_state_for_res(
                     &workspace_path,
                     workflow_state,
                 ).await?;
-                platform.ac_platform.backend().log_wf_state_for_res(
+                platform.ac_platform().backend().log_wf_state_for_res(
                     &workspace_path,
                     workflow_state,
                     effective_date,
                 ).await?;
                 match workflow_state {
                     State::Published | State::Expired => {
-                        platform.pc_platform.resource_link_kind_with_term(
+                        platform.pc_platform().resource_link_kind_with_term(
                             &workspace_path,
                             "published_date",
                             &effective_date.to_string(),

@@ -52,7 +52,8 @@ pub async fn collection_json_workspace(
         .enforcer("/workspace/", "").await?;
     let collection = Collection::new(&format!("{proto}://{hostname}/workspace/"))
         .map_err(|_| AppError::InternalServerError)?;
-    let links = platform.mc_platform
+    let links = platform
+        .mc_platform()
         .list_aliased_workspaces()
         .await
         .map_err(|_| AppError::InternalServerError)?
@@ -97,7 +98,7 @@ pub async fn aliased_workspace_rawfile_download(
     Path((workspace_alias, commit_id, filepath)): Path<(String, String, String)>,
 ) -> Result<Response, AppError> {
     let workspace_id = platform
-        .mc_platform
+        .mc_platform()
         .resolve_alias("workspace", &workspace_alias)
         .await
         .map_err(|_| AppError::InternalServerError)?
@@ -243,7 +244,7 @@ pub async fn aliased_workspace_archive_tgz(
     Path((workspace_alias, commit_id)): Path<(String, String)>,
 ) -> Result<Response, AppError> {
     let workspace_id = platform
-        .mc_platform
+        .mc_platform()
         .resolve_alias("workspace", &workspace_alias)
         .await
         .map_err(|_| AppError::InternalServerError)?
@@ -281,7 +282,7 @@ pub async fn aliased_workspace_archive_zip(
     Path((workspace_alias, commit_id)): Path<(String, String)>,
 ) -> Result<Response, AppError> {
     let workspace_id = platform
-        .mc_platform
+        .mc_platform()
         .resolve_alias("workspace", &workspace_alias)
         .await
         .map_err(|_| AppError::InternalServerError)?

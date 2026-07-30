@@ -351,7 +351,7 @@ pub async fn aliased_exposure_archive_zip(
 ) -> Result<Response, AppError> {
     let header = format!(r#"attachment; filename="{exposure_alias}.zip""#);
     let exposure_id = platform
-        .mc_platform
+        .mc_platform()
         .resolve_alias("exposure", &exposure_alias)
         .await
         .map_err(|_| AppError::InternalServerError)?

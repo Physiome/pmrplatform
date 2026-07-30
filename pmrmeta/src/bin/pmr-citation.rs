@@ -89,10 +89,10 @@ async fn parse_rdfxml_cmd<'p>(
             let store = read::xml_to_store(reader)?;
             let citations = query::citation(&store, None)?;
             for citation in citations.iter() {
-                platform.pc_platform.add_citation(&citation).await.ok();
+                platform.pc_platform().add_citation(&citation).await.ok();
             }
             // Citation id.
-            platform.pc_platform.resource_link_kind_with_terms(
+            platform.pc_platform().resource_link_kind_with_terms(
                 &resource_path,
                 "citation_id",
                 &mut citations

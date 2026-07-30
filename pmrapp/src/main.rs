@@ -100,7 +100,7 @@ async fn main() -> anyhow::Result<()> {
         .layer(
             BearerTokenAuthManagerLayer::new(
                 session_store,
-                platform.ac_platform.clone(),
+                platform.ac_platform_clone(),
             )
             .with_session_manager_layer(session_layer)
             .with_bearer_token_endpoint("/api/bearer/from_login_password"),

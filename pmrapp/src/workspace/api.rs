@@ -79,7 +79,7 @@ pub async fn list_workspaces() -> Result<EnforcedOk<Workspaces>, AppError> {
         .enforcer_and_policy_state("/workspace/", "").await?;
     let platform = platform().await?;
     Ok(policy_state.to_enforced_ok(
-        WorkspaceBackend::list_workspaces(platform.mc_platform.as_ref()).await
+        WorkspaceBackend::list_workspaces(platform.mc_platform()).await
             .map_err(|_| AppError::InternalServerError)?
             .into_iter()
             .map(|workspace| AliasEntry {
@@ -109,7 +109,7 @@ pub async fn list_aliased_workspaces() -> Result<EnforcedOk<Workspaces>, AppErro
     let policy_state = session().await?
         .enforcer_and_policy_state("/workspace/", "").await?;
     let platform = platform().await?;
-    let workspaces = platform.mc_platform.list_aliased_workspaces()
+    let workspaces = platform.mc_platform().list_aliased_workspaces()
         .await
         .map_err(|_| AppError::InternalServerError)?
         .into_iter()
@@ -306,7 +306,7 @@ pub async fn create_workspace_core(
         .enforcer_and_policy_state("/workspace/", "create").await?;
     let platform = platform().await?;
     // First create the workspace
-    let entry = platform.mc_platform.create_aliased_workspace(
+    let entry = platform.mc_platform().create_aliased_workspace(
         &uri,
         description.as_deref(),
         long_description.as_deref(),
@@ -318,7 +318,7 @@ pub async fn create_workspace_core(
     let id = entry.entity.id();
     let resource = format!("/workspace/{id}/");
     platform
-        .ac_platform
+        .ac_platform()
         .set_wf_state_for_res(&resource, State::Private)
         .await
         .map_err(|_| AppError::InternalServerError)?;
@@ -327,7 +327,7 @@ pub async fn create_workspace_core(
     if let Some(policy) = policy_state.policy {
         if let Agent::User(user) = policy.agent {
             platform
-                .ac_platform
+                .ac_platform()
                 .res_grant_role_to_agent(&resource, user, Role::Owner)
                 .await
                 .map_err(|_| AppError::InternalServerError)?;
