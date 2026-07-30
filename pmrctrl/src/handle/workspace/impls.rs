@@ -36,7 +36,7 @@ impl<'p> WorkspaceCtrl<'p> {
     }
 
     pub async fn alias(&self) -> Result<Option<String>, PlatformError> {
-        Ok(self.platform.mc_platform.get_alias(
+        Ok(self.platform.mc_platform().get_alias(
             "workspace",
             self.workspace.id(),
         ).await?)

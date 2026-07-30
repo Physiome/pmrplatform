@@ -24,8 +24,7 @@ impl traits::Executor for Executor {
         &self,
     ) -> Result<Option<TaskDetached>, Self::Error> {
         Ok(self.platform
-            .tm_platform
-            .as_ref()
+            .tm_platform()
             .start_task()
             .await
             .map(|task| task.map(|task| task.detach()))?
@@ -40,7 +39,7 @@ impl traits::Executor for Executor {
     ) -> Result<(i32, bool), Self::Error> {
         let tec = TaskExecutorCtrl::new(
             &self.platform,
-            task.bind(self.platform.tm_platform.as_ref())?,
+            task.bind(self.platform.tm_platform())?,
         );
         tec.execute().await
     }

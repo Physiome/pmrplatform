@@ -70,13 +70,13 @@ impl<'p> ExposureCtrl<'p> {
     }
 
     pub async fn allocate_alias(&self) -> Result<String, PlatformError> {
-        let alias = GenAliasBackend::next(self.0.platform.mc_platform.as_ref()).await?.to_string();
-        self.0.platform.mc_platform.add_alias("exposure", self.0.exposure.id(), &alias).await?;
+        let alias = GenAliasBackend::next(self.0.platform.mc_platform()).await?.to_string();
+        self.0.platform.mc_platform().add_alias("exposure", self.0.exposure.id(), &alias).await?;
         Ok(alias)
     }
 
     pub async fn alias(&self) -> Result<Option<String>, PlatformError> {
-        Ok(self.0.platform.mc_platform.get_alias(
+        Ok(self.0.platform.mc_platform().get_alias(
             "exposure",
             self.0.exposure.id(),
         ).await?)
@@ -99,8 +99,8 @@ impl<'p> ExposureCtrl<'p> {
             Some(workspace_file_path),
         )?;
         // path exists, so create the exposure file
-        let mcp = self.0.platform.mc_platform.as_ref();
-        let exposure_file = self.0.platform.mc_platform.get_exposure_file(
+        let mcp = self.0.platform.mc_platform();
+        let exposure_file = self.0.platform.mc_platform().get_exposure_file(
             ExposureFileBackend::insert(
                 mcp,
                 exposure_id,
@@ -116,7 +116,7 @@ impl<'p> ExposureCtrl<'p> {
         );
 
         let resource_path = format!("/exposure/{exposure_id}/{workspace_file_path}");
-        self.0.platform.pc_platform.resource_link_kind_with_term(
+        self.0.platform.pc_platform().resource_link_kind_with_term(
             &resource_path,
             "exposure_id",
             &exposure_id.to_string(),
@@ -124,17 +124,17 @@ impl<'p> ExposureCtrl<'p> {
         .await?;
 
         // Find all the alias for the current exposure and add.
-        for alias_entry in self.0.platform.mc_platform.get_aliases("exposure", exposure_id).await?.iter() {
+        for alias_entry in self.0.platform.mc_platform().get_aliases("exposure", exposure_id).await?.iter() {
             // TODO This should fail on actual database error and not duplicate.
             let alias = &alias_entry.alias;
             let aliased_uri = format!("/exposure/{alias}/{workspace_file_path}");
-            self.0.platform.pc_platform.resource_link_kind_with_term(
+            self.0.platform.pc_platform().resource_link_kind_with_term(
                 &resource_path,
                 "exposure_alias",
                 &alias,
             )
             .await?;
-            self.0.platform.pc_platform.resource_link_kind_with_term(
+            self.0.platform.pc_platform().resource_link_kind_with_term(
                 &resource_path,
                 "aliased_uri",
                 &aliased_uri,
@@ -213,7 +213,7 @@ impl<'p> ExposureCtrl<'p> {
 
         // path exists, so create the exposure file
         // TODO need to check if already present in exposure_file_ctrls
-        let exposure_file = self.0.platform.mc_platform.get_exposure_file_by_id_path(
+        let exposure_file = self.0.platform.mc_platform().get_exposure_file_by_id_path(
             self.0.exposure.id(),
             workspace_file_path.as_ref(),
         ).await?;
@@ -241,7 +241,7 @@ impl<'p> ExposureCtrl<'p> {
         id: i64,
     ) -> Result<ExposureFileCtrl<'p>, PlatformError> {
         self.ctrl_file(self.0.platform
-            .mc_platform
+            .mc_platform()
             .get_exposure_file(id)
             .await?)
     }
@@ -332,7 +332,7 @@ impl<'p> ExposureCtrl<'p> {
     }
 
     pub fn data_root(&self) -> PathBuf {
-        let mut result = self.0.platform.data_root.join("exposure");
+        let mut result = self.0.platform.data_root().join("exposure");
         result.push(self.0.exposure.id().to_string());
         result
     }
@@ -394,7 +394,7 @@ impl<'p> ExposureCtrl<'p> {
     pub fn ensure_fs(
         &self,
     ) -> Result<PathBuf, PlatformError> {
-        let mut root = self.0.platform.data_root.join("exposure");
+        let mut root = self.0.platform.data_root().join("exposure");
         root.push(self.0.exposure.id().to_string());
         root.push("files");
         if root.is_dir() {

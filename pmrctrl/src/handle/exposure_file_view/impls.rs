@@ -75,9 +75,9 @@ impl<'p> ExposureFileViewCtrl<'p> {
         // the db, the underlying API depands it, and dropping the data
         // to be queued is a way to prevent duplicating this call.
         let (vtt_id, task): (i64, Task) = vttc_task.into();
-        let tmp = self.platform.tm_platform.as_ref();
+        let tmp = self.platform.tm_platform();
         let task = TaskBackend::adds_task(tmp, task).await?;
-        let mcp = self.platform.mc_platform.as_ref();
+        let mcp = self.platform.mc_platform();
         let efv_id = ExposureTaskBackend::create_task_for_view(
             mcp,
             self.exposure_file_view.id(),

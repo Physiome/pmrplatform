@@ -237,7 +237,7 @@ impl<'p> EFViewTaskTemplatesCtrl<'p> {
             .id();
         self.exposure_file_ctrl.0
             .platform
-            .mc_platform
+            .mc_platform()
             .update_ef_user_input(
                 id,
                 &checked_user_input,

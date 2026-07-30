@@ -80,7 +80,7 @@ impl<'p> ExposureFileCtrl<'p> {
     ) -> Result<ExposureFileViewCtrl<'p>, PlatformError> {
         self.get_view(
             ExposureFileViewBackend::insert(
-                self.0.platform.mc_platform.as_ref(),
+                self.0.platform.mc_platform(),
                 self.exposure_file().id(),
                 view_task_template_id,
                 None,
@@ -98,7 +98,7 @@ impl<'p> ExposureFileCtrl<'p> {
         // all the related moving pieces.
         let exposure_file_view = self.0
             .platform
-            .mc_platform
+            .mc_platform()
             .get_exposure_file_view(exposure_file_view_id)
             .await?;
         Ok(ExposureFileViewCtrl::new(
@@ -121,7 +121,7 @@ impl<'p> ExposureFileCtrl<'p> {
         let view_path = splitter.next();
         let exposure_file_view = self.0
             .platform
-            .mc_platform
+            .mc_platform()
             .get_exposure_file_view_by_file_view_key(
                 self.exposure_file().id(),
                 view_key,
@@ -146,12 +146,12 @@ impl<'p> ExposureFileCtrl<'p> {
         view_task_template_id: i64,
     ) -> Result<ExposureFileViewCtrl<'p>, PlatformError> {
         let exposure_file_view = self.0.platform
-            .mc_platform
+            .mc_platform()
             .get_exposure_file_view_by_file_template(
                 self.exposure_file()
                     .id(),
                 ExposureFileViewBackend::insert(
-                    self.0.platform.mc_platform.as_ref(),
+                    self.0.platform.mc_platform(),
                     self.exposure_file().id(),
                     view_task_template_id,
                     None,
@@ -175,7 +175,7 @@ impl<'p> ExposureFileCtrl<'p> {
         &self,
         vtt_profile: ViewTaskTemplateProfile,
     ) -> Result<(), PlatformError> {
-        Ok(self.0.platform.mc_platform
+        Ok(self.0.platform.mc_platform()
             .set_ef_vttprofile(
                 self.exposure_file().id(),
                 vtt_profile,
@@ -206,13 +206,13 @@ impl<'p> ExposureFileCtrl<'p> {
         self,
     ) -> Result<EFViewTaskTemplatesCtrl<'p>, PlatformError> {
         let mut vtts = ExposureTaskTemplateBackend::get_file_templates(
-            self.0.platform.mc_platform.as_ref(),
+            self.0.platform.mc_platform(),
             self.exposure_file().id(),
         ).await?;
         future::try_join_all(vtts.iter_mut().map(|vtt| async {
             Ok::<(), PlatformError>(vtt.task_template = Some(
                 TaskTemplateBackend::get_task_template_by_id(
-                    self.0.platform.tm_platform.as_ref(),
+                    self.0.platform.tm_platform(),
                     vtt.task_template_id,
                 ).await?
             ))
@@ -244,7 +244,7 @@ impl<'p> ExposureFileCtrl<'p> {
 
     pub async fn profile(&self) -> Result<Option<ExposureFileProfile>, PlatformError> {
         Ok(ExposureFileProfileBackend::get_ef_profile(
-            self.0.platform.mc_platform.as_ref(),
+            self.0.platform.mc_platform(),
             self.0.exposure_file.id(),
         ).await?)
     }
@@ -258,7 +258,7 @@ impl<'p> ExposureFileCtrl<'p> {
     }
 
     pub fn data_root(&self) -> PathBuf {
-        let mut data_root = self.0.platform.data_root.join("exposure");
+        let mut data_root = self.0.platform.data_root().join("exposure");
         data_root.push(self.0.exposure.exposure().id().to_string());
         data_root.push(self.0.exposure_file.id().to_string());
         data_root
