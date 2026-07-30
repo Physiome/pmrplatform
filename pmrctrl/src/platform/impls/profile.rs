@@ -21,7 +21,7 @@ impl Platform {
         &self,
     ) -> Result<Vec<Profile>, PlatformError> {
         Ok(ProfileBackend::list_profiles(
-            self.mc_platform.as_ref(),
+            self.mc_platform(),
         ).await?)
     }
 
@@ -30,14 +30,14 @@ impl Platform {
         vttp: ViewTaskTemplateProfile,
     ) -> Result<i64, PlatformError> {
         let profile_id = ProfileBackend::insert_profile(
-            self.mc_platform.as_ref(),
+            self.mc_platform(),
             &vttp.profile.title,
             &vttp.profile.description,
         ).await?;
         for view_task_template in vttp.view_task_templates.into_iter() {
             let vtt_id = self.adds_view_task_template(view_task_template).await?;
             ProfileViewsBackend::insert_profile_views(
-                self.mc_platform.as_ref(),
+                self.mc_platform(),
                 profile_id,
                 vtt_id,
             ).await?;
@@ -50,13 +50,13 @@ impl Platform {
         profile_id: i64,
     ) -> Result<ViewTaskTemplateProfile, PlatformError> {
         let mut result = ViewTaskTemplateProfileBackend::get_view_task_template_profile(
-            self.mc_platform.as_ref(),
+            self.mc_platform(),
             profile_id,
         ).await?;
         future::try_join_all(result.view_task_templates.iter_mut().map(|vtt| async {
             Ok::<(), PlatformError>(vtt.task_template = Some(
                 TaskTemplateBackend::get_task_template_by_id(
-                    self.tm_platform.as_ref(),
+                    self.tm_platform(),
                     vtt.task_template_id,
                 ).await?
             ))

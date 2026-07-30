@@ -13,7 +13,7 @@ use std::{
 };
 
 #[derive(Clone)]
-pub struct Platform {
+pub struct PlatformInner {
     pub(super) ac_platform: pmrac::Platform,
     pub(super) mc_platform: Arc<dyn MCPlatform>,
     pub(super) pc_platform: Arc<dyn PCPlatform>,
@@ -22,4 +22,10 @@ pub struct Platform {
     pub(super) data_root: PathBuf,
     pub(super) repo_root: PathBuf,
     pub(super) repo_backend: Backend,
+}
+
+#[derive(Clone)]
+pub struct Platform {
+    pub(super) inner: Arc<PlatformInner>,
+    // pub(super) context: (),
 }

@@ -12,7 +12,7 @@ impl<'p> Platform {
         long_description: Option<&str>,
     ) -> Result<WorkspaceCtrl<'p>, PlatformError> {
         self.get_workspace(
-            self.mc_platform.add_workspace(
+            self.mc_platform().add_workspace(
                 url,
                 description,
                 long_description,
@@ -24,7 +24,7 @@ impl<'p> Platform {
         &'p self,
         id: i64,
     ) -> Result<WorkspaceCtrl<'p>, PlatformError> {
-        let workspace = self.mc_platform.get_workspace(id).await?;
+        let workspace = self.mc_platform().get_workspace(id).await?;
         Ok(WorkspaceCtrl::new(
             self,
             workspace

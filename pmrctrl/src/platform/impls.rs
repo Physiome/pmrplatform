@@ -16,7 +16,10 @@ use std::{
     sync::Arc,
 };
 
-use crate::platform::Platform;
+use crate::platform::types::{
+    Platform,
+    PlatformInner,
+};
 
 impl Platform {
     pub(crate) fn new(
@@ -30,59 +33,61 @@ impl Platform {
     ) -> Self {
         let repo_backend = Backend::new(mc_platform.clone(), repo_root.clone());
         Self {
-            ac_platform,
-            mc_platform,
-            pc_platform,
-            tm_platform,
-            index_backend,
-            data_root,
-            repo_root,
-            repo_backend,
+            inner: Arc::new(PlatformInner {
+                ac_platform,
+                mc_platform,
+                pc_platform,
+                tm_platform,
+                index_backend,
+                data_root,
+                repo_root,
+                repo_backend,
+            })
         }
     }
 
     pub fn ac_platform(&self) -> &pmrac::Platform {
-        &self.ac_platform
+        &self.inner.ac_platform
     }
 
     pub fn ac_platform_clone(&self) -> pmrac::Platform {
-        self.ac_platform.clone()
+        self.inner.ac_platform.clone()
     }
 
     pub fn mc_platform(&self) -> &dyn MCPlatform {
-        self.mc_platform.as_ref()
+        self.inner.mc_platform.as_ref()
     }
 
     pub fn pc_platform(&self) -> &dyn PCPlatform {
-        self.pc_platform.as_ref()
+        self.inner.pc_platform.as_ref()
     }
 
     pub fn tm_platform(&self) -> &dyn TMPlatform {
-        self.tm_platform.as_ref()
+        self.inner.tm_platform.as_ref()
     }
 
     pub fn index_backend(&self) -> &dyn IndexBackend {
-        self.index_backend.as_ref()
+        self.inner.index_backend.as_ref()
     }
 
     pub fn data_root(&self) -> &Path {
-        self.data_root.as_ref()
+        self.inner.data_root.as_ref()
     }
 
     pub fn repo_root(&self) -> &Path {
-        self.repo_root.as_ref()
+        self.inner.repo_root.as_ref()
     }
 
     pub fn repo_backend(&self) -> &Backend {
-        &self.repo_backend
+        &self.inner.repo_backend
     }
 }
 
 impl fmt::Debug for Platform {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Platform")
-            .field("data_root", &self.data_root)
-            .field("repo_root", &self.repo_root)
+            .field("data_root", &self.inner.data_root)
+            .field("repo_root", &self.inner.repo_root)
             .finish()
     }
 }

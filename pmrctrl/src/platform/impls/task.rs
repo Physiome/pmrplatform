@@ -17,13 +17,13 @@ impl<'p> Platform {
         &self,
         task: Task,
     ) -> Result<Task, PlatformError> {
-        Ok(TaskBackend::adds_task(self.tm_platform.as_ref(), task).await?)
+        Ok(TaskBackend::adds_task(self.tm_platform(), task).await?)
     }
 
     pub async fn start_task(
         &'p self,
     ) -> Result<Option<TaskExecutorCtrl<'p>>, PlatformError> {
-        Ok(self.tm_platform.as_ref()
+        Ok(self.tm_platform()
             .start_task()
             .await?
             .map(|t| TaskExecutorCtrl::new(&self, t))
@@ -41,7 +41,7 @@ impl<'p> Platform {
         if exit_status == 0 {
             let task_id = task.id();
             Ok(match ExposureTaskBackend::finalize_task_id(
-                self.mc_platform.as_ref(),
+                self.mc_platform(),
                 task_id,
             ).await? {
                 Some((id, Some(view_key))) => {

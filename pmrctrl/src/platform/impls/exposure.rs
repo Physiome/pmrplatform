@@ -35,9 +35,9 @@ impl<'p> Platform {
         let _ = git_handle.check_commit(commit_id)?;
 
         // workspace_id and commit verified, create the root exposure
-        let exposure = self.mc_platform.get_exposure(
+        let exposure = self.mc_platform().get_exposure(
             ExposureBackend::insert(
-                self.mc_platform.as_ref(),
+                self.mc_platform(),
                 git_handle.workspace().description(),
                 workspace_id,
                 None,
@@ -57,7 +57,7 @@ impl<'p> Platform {
         &'p self,
         id: i64,
     ) -> Result<ExposureCtrl<'p>, PlatformError> {
-        let exposure = self.mc_platform.get_exposure(id).await?;
+        let exposure = self.mc_platform().get_exposure(id).await?;
         let git_handle = self
             .repo_backend()
             .git_handle(exposure.workspace_id()).await?;

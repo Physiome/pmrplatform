@@ -12,8 +12,8 @@ impl Platform {
         workspace_id: i64,
         alias: &str
     ) -> Result<(), PlatformError> {
-        self.mc_platform.add_alias("workspace", workspace_id, alias).await?;
-        self.pc_platform.resource_link_kind_with_term(
+        self.mc_platform().add_alias("workspace", workspace_id, alias).await?;
+        self.pc_platform().resource_link_kind_with_term(
             &format!("/workspace/{workspace_id}/"),
             "aliased_uri",
             &format!("/workspace/{alias}/"),
@@ -28,25 +28,25 @@ impl Platform {
         exposure_id: i64,
         alias: &str
     ) -> Result<(), PlatformError> {
-        self.mc_platform.add_alias("exposure", exposure_id, alias).await?;
-        self.pc_platform.resource_link_kind_with_term(
+        self.mc_platform().add_alias("exposure", exposure_id, alias).await?;
+        self.pc_platform().resource_link_kind_with_term(
             &format!("/exposure/{exposure_id}/"),
             "aliased_uri",
             &format!("/exposure/{alias}/"),
         )
         .await?;
 
-        for exposure_file in self.mc_platform.list_for_exposure(exposure_id).await?.iter() {
+        for exposure_file in self.mc_platform().list_for_exposure(exposure_id).await?.iter() {
             let workspace_file_path = exposure_file.workspace_file_path();
             let resource_path = format!("/exposure/{exposure_id}/{workspace_file_path}");
             let aliased_uri = format!("/exposure/{alias}/{workspace_file_path}");
-            self.pc_platform.resource_link_kind_with_term(
+            self.pc_platform().resource_link_kind_with_term(
                 &resource_path,
                 "exposure_alias",
                 &alias,
             )
             .await?;
-            self.pc_platform.resource_link_kind_with_term(
+            self.pc_platform().resource_link_kind_with_term(
                 &resource_path,
                 "aliased_uri",
                 &aliased_uri,

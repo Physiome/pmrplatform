@@ -19,13 +19,13 @@ impl Platform {
             .expect("TaskTemplate must be provided with the ViewTaskTemplate");
 
         let task_template = TaskTemplateBackend::adds_task_template(
-            self.tm_platform.as_ref(),
+            self.tm_platform(),
             task_template,
         ).await?;
         let task_template_id = task_template.id;
 
         let result = ViewTaskTemplateBackend::insert_view_task_template(
-            self.mc_platform.as_ref(),
+            self.mc_platform(),
             &view_task_template.view_key,
             &view_task_template.description,
             task_template_id,
@@ -38,13 +38,13 @@ impl Platform {
         id: i64,
     ) -> Result<ViewTaskTemplate, PlatformError> {
         let mut result = ViewTaskTemplateBackend::select_view_task_template_by_id(
-            self.mc_platform.as_ref(),
+            self.mc_platform(),
             id,
         ).await?;
 
         let id = result.task_template_id;
         let task_template = TaskTemplateBackend::get_task_template_by_id(
-            self.tm_platform.as_ref(),
+            self.tm_platform(),
             id,
         ).await?;
         result.task_template = Some(task_template);
