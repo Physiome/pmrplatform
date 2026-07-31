@@ -16,9 +16,11 @@ use std::{
     sync::Arc,
 };
 
-use crate::platform::types::{
-    Platform,
-    PlatformInner,
+use crate::{
+    platform::types::{
+        Platform,
+        PlatformInner,
+    },
 };
 
 impl Platform {
@@ -42,7 +44,8 @@ impl Platform {
                 data_root,
                 repo_root,
                 repo_backend,
-            })
+            }),
+            context: Default::default(),
         }
     }
 
@@ -80,6 +83,27 @@ impl Platform {
 
     pub fn repo_backend(&self) -> &Backend {
         &self.inner.repo_backend
+    }
+
+    // TODO see if we need to wholesale extend contexts to be efficient, but given how we likely only
+    // have one or two with aggregated fields, this may be sufficient for now.
+    /// Return a cloned platform with an additional context to the clone.
+    pub fn add_context<T>(self, val: T) -> Self
+    where
+        T: Send + Sync + 'static,
+    {
+        let inner = self.inner.clone();
+        let mut context = Arc::unwrap_or_clone(self.context);
+        context.insert(val);
+        let context = Arc::new(context);
+        Self { inner, context }
+    }
+
+    pub fn use_context<T>(&self) -> Option<Arc<T>>
+    where
+        T: Send + Sync + 'static,
+    {
+        self.context.get()
     }
 }
 

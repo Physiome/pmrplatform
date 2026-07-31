@@ -11,6 +11,7 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
+use crate::context::Context;
 
 #[derive(Clone)]
 pub struct PlatformInner {
@@ -27,5 +28,5 @@ pub struct PlatformInner {
 #[derive(Clone)]
 pub struct Platform {
     pub(super) inner: Arc<PlatformInner>,
-    // pub(super) context: (),
+    pub(super) context: Arc<Context>,
 }
