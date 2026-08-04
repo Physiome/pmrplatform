@@ -365,19 +365,22 @@ impl<'p> ExposureCtrl<'p> {
             None,
         )?;
         let mut output = Cursor::new(<Vec<u8>>::new());
+        #[allow(unused_mut)]
+        let mut additional = <Vec<(String, Vec<u8>)>>::new();
+        #[cfg(feature = "web")]
+        {
+            if let Some(source) = self.0.platform.use_context::<pmrcore::web::Source>() {
+                additional.push((
+                    String::from("../metadata.json"),
+                    format!(r#"{{"@id": "{source}"}}"#).into(),
+                ));
+            }
+        }
         pathinfo.archive(
             &mut output,
             ArchiveFormat::Zip,
             Some(prefix),
-            [
-                (
-                    // A hack to force this up one level in the archive as the contents are prefixed.
-                    String::from("../metadata.json"),
-                    // FIXME need to figure out a better system to provide this context into the platform
-                    // so this doesn't need to be passed into this.
-                    format!(r#"{{"@id": "https://models.physiomeproject.org/exposure/{prefix}/"}}"#).into(),
-                ),
-            ]
+            additional,
         )?;
         Ok(output.into_inner())
     }

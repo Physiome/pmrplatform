@@ -31,7 +31,7 @@ leptos_sync_ssr = { workspace = true, features = ["portlet"] }
 log = { workspace = true, optional = true }
 pmrac = { workspace = true, optional = true, features = ["axum-login"] }
 pmrcore = { workspace = true }
-pmrctrl = { workspace = true, optional = true }
+pmrctrl = { workspace = true, optional = true, features = ["web"] }
 pmrdb = { workspace = true, optional = true }
 pmrmodel = { workspace = true, optional = true }
 pmrrbac = { workspace = true }

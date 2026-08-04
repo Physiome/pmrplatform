@@ -35,3 +35,6 @@ test-pmr = { path = "../testing", features = ["platform"] }
 sqlite = [
     "pmrdb/sqlite",
 ]
+web = [
+    "pmrcore/web",
+]

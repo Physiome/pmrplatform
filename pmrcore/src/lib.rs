@@ -12,6 +12,8 @@ pub mod profile;
 pub mod repo;
 pub mod task;
 pub mod task_template;
+#[cfg(feature = "web")]
+pub mod web;
 pub mod workspace;
 
 #[cfg(feature = "chrono")]

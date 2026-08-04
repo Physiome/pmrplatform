@@ -11,7 +11,11 @@ async fn main() -> anyhow::Result<()> {
         http::{
             Uri,
             header::{self, HeaderValue},
-            uri::PathAndQuery,
+            uri::{
+                Authority,
+                PathAndQuery,
+                Scheme,
+            },
         },
         routing::{
             get,
@@ -44,6 +48,7 @@ async fn main() -> anyhow::Result<()> {
             workspace_rawfile_download,
         },
     };
+    use pmrcore::web::Source;
     use pmrctrl::executor::Executor;
     use pmrtqs::runtime::Builder as RuntimeBuilder;
     use time::Duration;
@@ -179,7 +184,7 @@ async fn main() -> anyhow::Result<()> {
         .layer(cors)
         .with_state(leptos_options);
 
-    fn reroute_collection_json<B: std::fmt::Debug>(mut req: Request<B>) -> Request<B> {
+    fn reroute_collection_json<B: std::fmt::Debug>(req: &mut Request<B>) {
         // naively resolve our header
         if req.headers().get("accept") == Some(&HeaderValue::from_static("application/vnd.physiome.pmr2.json.1")) {
             // TODO this should be defined as a constant for use with building the router
@@ -189,10 +194,32 @@ async fn main() -> anyhow::Result<()> {
                 .map(|v| PathAndQuery::try_from(format!("{prefix}{v}")).expect("original parsed fine"));
             *req.uri_mut() = Uri::from_parts(parts).expect("original parts should be valid");
         }
+    }
+
+    // Before the request is handed off down to the axum app, ensure whatever we may need are processed.
+    fn before_handle_request<B: std::fmt::Debug>(mut req: Request<B>) -> Request<B> {
+        // Grab the original requested uri before the rerouting.
+        let mut uri_parts = req.uri().clone().into_parts();
+        let host = req
+            .headers()
+            .get("host")
+            .cloned()
+            .unwrap_or_else(|| HeaderValue::from_static("localhost"));
+        let authority = Authority::try_from(host.as_bytes())
+            .unwrap_or_else(|_| Authority::from_static("localhost"));
+        // Note that we assume non-localhost is HTTPS (including _all_ IP addresses).
+        uri_parts.scheme = Some(if authority.host() == "localhost" {
+            Scheme::HTTP
+        } else {
+            Scheme::HTTPS
+        });
+        uri_parts.authority = Some(authority);
+        req.extensions_mut().insert(Source(Uri::from_parts(uri_parts).expect("parts are valid")));
+        reroute_collection_json(&mut req);
         req
     }
 
-    let middleware = MapRequestLayer::new(reroute_collection_json);
+    let middleware = MapRequestLayer::new(before_handle_request);
 
     let app = middleware.layer(app);
 

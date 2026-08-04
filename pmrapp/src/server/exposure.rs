@@ -16,7 +16,10 @@ use itertools::Itertools;
 use http::header;
 use regex::Regex;
 use pmrac::Platform as ACPlatform;
-use pmrcore::task_template::UserInputMap;
+use pmrcore::{
+    task_template::UserInputMap,
+    web::Source,
+};
 use pmrctrl::platform::Platform;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -312,8 +315,8 @@ pub async fn exposure_file_safe_html(
 }
 
 async fn exposure_archive(
-    platform: Extension<Platform>,
-    session: Extension<AuthSession<ACPlatform>>,
+    platform: Platform,
+    session: AuthSession<ACPlatform>,
     exposure_id: i64,
     prefix: String,
 ) -> Result<Vec<u8>, AppError> {
@@ -345,8 +348,9 @@ async fn exposure_archive(
     ),
 ))]
 pub async fn aliased_exposure_archive_zip(
-    platform: Extension<Platform>,
-    session: Extension<AuthSession<ACPlatform>>,
+    Extension(source): Extension<Source>,
+    Extension(platform): Extension<Platform>,
+    Extension(session): Extension<AuthSession<ACPlatform>>,
     Path(exposure_alias): Path<String>,
 ) -> Result<Response, AppError> {
     let header = format!(r#"attachment; filename="{exposure_alias}.zip""#);
@@ -356,6 +360,7 @@ pub async fn aliased_exposure_archive_zip(
         .await
         .map_err(|_| AppError::InternalServerError)?
         .ok_or(AppError::NotFound)?;
+    let platform = platform.add_context(source);
     let bytes = exposure_archive(platform, session, exposure_id, exposure_alias)
         .await?;
     Ok((
