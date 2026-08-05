@@ -1,0 +1,25 @@
+[package]
+name = "pmrapp_vue"
+version = "0.0.1"
+edition = "2024"
+
+[dependencies]
+anyhow = { workspace = true }
+axum = { workspace = true }
+clap = { workspace = true, features = ["derive", "env"] }
+dotenvy = { workspace = true }
+log = { workspace = true }
+pmrapp = { workspace = true, features = ["ssr"] }
+pmrac = { workspace = true, features = ["axum-login"] }
+pmrcore = { workspace = true }
+pmrctrl = { workspace = true, features = ["web"] }
+pmrdb = { workspace = true, features = ["sqlite"] }
+pmrmodel = { workspace = true }
+pmrrbac = { workspace = true }
+pmrrepo = { workspace = true }
+pmrtqs = { workspace = true }
+stderrlog = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+tower = { workspace = true, features = ["util"] }
+tower-http = { workspace = true, features = ["cors", "fs"] }
+tower-sessions = { workspace = true }
