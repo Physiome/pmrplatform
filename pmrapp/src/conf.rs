@@ -1,5 +1,6 @@
 use clap::Parser;
 use pmrctrl::platform::Builder;
+use std::net::SocketAddr;
 
 #[derive(Debug, Parser)]
 pub struct Cli {
@@ -11,4 +12,6 @@ pub struct Cli {
     pub verbose: u8,
     #[clap(long, default_value = "0")]
     pub with_runners: usize,
+    #[clap(long, value_name = "BIND_ADDR", env = "BIND_ADDR")]
+    pub bind_addr: SocketAddr,
 }

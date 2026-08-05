@@ -42,6 +42,12 @@ async fn main() -> anyhow::Result<()> {
     let conf = get_configuration(None).unwrap();
     let leptos_options = conf.leptos_options;
     let addr = leptos_options.site_addr;
+    if args.bind_addr != addr {
+        log::warn!(
+            "`BIND_ADDR` ({}) is ignored as it mismatches with `LEPTOS_SITE_ADDR` ({addr})",
+            args.bind_addr,
+        );
+    }
     let routes = generate_route_list(App);
     log::trace!("{routes:?}");
 
