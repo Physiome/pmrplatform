@@ -10,6 +10,11 @@ pub mod enforcement;
 pub mod error;
 pub mod error_template;
 pub mod exposure;
+// FIXME This and associated modules should be refactored to be relocated away from any frontend
+// package/features and into a separate crate preferably.  Or at the very least not couple the feature
+// name `ssr` to this.
+#[cfg(feature = "ssr")]
+pub mod integration;
 pub mod listing;
 #[cfg(feature = "utoipa")]
 pub mod openapi;
