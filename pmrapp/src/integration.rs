@@ -4,6 +4,7 @@ use axum::{
         Request,
     },
     http::{
+        Method,
         Uri,
         header::{self, HeaderValue},
         uri::{
@@ -13,11 +14,15 @@ use axum::{
         },
     },
     routing::{
+        delete,
         get,
+        patch,
         post,
+        put,
     },
 };
-use http::Method;
+use leptos::server_fn::axum::server_fn_paths;
+use leptos_axum::handle_server_fns;
 use axum_login_bearer::BearerTokenAuthManagerLayer;
 use pmrcore::web::Source;
 use pmrctrl::platform::Platform;
@@ -95,7 +100,17 @@ fn before_handle_request<B>(mut req: Request<B>) -> Request<B> {
 
 /// Extension trait for [`axum::Router`] so it may be set up for serving of the PMR platform.
 pub trait PmrAxumExt: private::Sealed {
-    /// Set up the routes related to PMR.
+    /// Set up a partial set of routes related to PMR.
+    ///
+    /// Use this to set up the services provided by the `pmrapp::server` module.
+    ///
+    /// Please ensure that `.layers()` is called at some point after PMR routes have been added.
+    fn pmr_server_routes(self) -> Self;
+
+    /// Set up the full API routes related to PMR.
+    ///
+    /// Use this to set up the services provided by the `pmrapp::server` module along with the services
+    /// implemented as Leptos server functions.
     ///
     /// Please ensure that `.layers()` is called at some point after PMR routes have been added.
     fn pmr_routes(self) -> Self;
@@ -117,8 +132,8 @@ impl<S> PmrAxumExt for axum::Router<S>
 where
     S: Clone + Send + Sync + 'static,
 {
-    fn pmr_routes(self) -> Self {
-        let app = self
+    fn pmr_server_routes(self) -> Self {
+        let router = self
             .without_v07_checks()
             // TODO the path should be constructed from a known list, so that rewriting only happens
             // to this route only if it exists.
@@ -158,12 +173,35 @@ where
             .route(WIZARD_FIELD_ROUTE, post(wizard_field_update));
 
         #[cfg(feature = "utoipa")]
-        let app = app.merge(
+        let router = router.merge(
             utoipa_swagger_ui::SwaggerUi::new("/swagger-ui")
                 .url("/api-docs/openapi.json", crate::openapi::ApiDoc::openapi())
         );
 
-        app
+        router
+    }
+
+    fn pmr_routes(self) -> Self {
+        let mut router = self.pmr_server_routes();
+        for (path, method) in server_fn_paths() {
+            router = router.route(
+                path,
+                match method {
+                    Method::GET => get(handle_server_fns),
+                    Method::POST => post(handle_server_fns),
+                    Method::PUT => put(handle_server_fns),
+                    Method::DELETE => delete(handle_server_fns),
+                    Method::PATCH => patch(handle_server_fns),
+                    _ => {
+                        panic!(
+                            "Unsupported server function HTTP method: \
+                             {method:?}"
+                        );
+                    }
+                },
+            );
+        }
+        router
     }
 
     fn pmr_layers(self, platform: Platform, cors_allow_origin: Option<AllowOrigin>) -> Self {

@@ -56,7 +56,7 @@ async fn main() -> anyhow::Result<()> {
 
     // build our application with a route
     let app = Router::new()
-        .pmr_routes()
+        .pmr_server_routes()
         .without_v07_checks()
         .leptos_routes(
             &leptos_options,
