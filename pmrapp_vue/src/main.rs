@@ -1,20 +1,35 @@
+use axum::{
+    Router,
+    ServiceExt,
+    extract::Extension,
+    http::{
+        header::HeaderValue,
+        StatusCode,
+    },
+};
+use clap::Parser;
+use pmrapp::integration::PmrAxumExt;
+use pmrapp_vue::{
+    conf::PmrappVueConf,
+    route::PmrVueAxumExt,
+};
+use pmrctrl::executor::Executor;
+use pmrtqs::runtime::Builder as RuntimeBuilder;
+use tower_http::{
+    services::{
+        ServeDir,
+        ServeFile,
+    },
+    set_status::SetStatus,
+};
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    use axum::{
-        Router,
-        ServiceExt,
-        http::header::HeaderValue,
-    };
-    use clap::Parser;
-    use pmrapp::{
-        integration::PmrAxumExt,
-        conf::Cli,
-    };
-    use pmrctrl::executor::Executor;
-    use pmrtqs::runtime::Builder as RuntimeBuilder;
 
     dotenvy::dotenv().ok();
-    let args = Cli::parse();
+    let args = PmrappVueConf::parse();
+    let vue_asset_path = args.vue_asset_path;
+    let args = args.pmrapp_args;
 
     stderrlog::new()
         .module(module_path!())
@@ -37,6 +52,7 @@ async fn main() -> anyhow::Result<()> {
         .map_err(anyhow::Error::from_boxed)?;
     let app = Router::new()
         .pmr_routes()
+        .pmr_vue_routes(&vue_asset_path)
         .pmr_layers(
             platform.clone(),
             Some(args.cors_allow_origins
@@ -45,6 +61,16 @@ async fn main() -> anyhow::Result<()> {
                 .map(str::parse::<HeaderValue>)
                 .collect::<Result<Vec<_>, _>>()?
                 .into()),
+        )
+        .layer(Extension(ServeFile::new(vue_asset_path.join("index.html"))))
+        .fallback_service(
+            ServeDir::new(&vue_asset_path)
+                .fallback(
+                    SetStatus::new(
+                        ServeFile::new(vue_asset_path.join("index.html")),
+                        StatusCode::NOT_FOUND,
+                    ),
+                ),
         )
         .pmr_map_request();
     let runtime = (args.with_runners > 0).then(|| {
