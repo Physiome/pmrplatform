@@ -62,7 +62,6 @@ async fn main() -> anyhow::Result<()> {
                 .collect::<Result<Vec<_>, _>>()?
                 .into()),
         )
-        .layer(Extension(ServeFile::new(vue_asset_path.join("index.html"))))
         .fallback_service(
             ServeDir::new(&vue_asset_path)
                 .fallback(

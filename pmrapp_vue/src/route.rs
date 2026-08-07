@@ -1,8 +1,14 @@
 use axum::{
     Extension,
     body::Body,
-    extract::Path,
-    http::Request,
+    extract::{
+        FromRequestParts,
+        Path,
+    },
+    http::{
+        Request,
+        StatusCode,
+    },
     response::{
         IntoResponse,
         Redirect,
@@ -23,6 +29,8 @@ use pmrctrl::{
 };
 use tower::util::ServiceExt;
 use tower_http::services::ServeFile;
+
+use crate::service::ConditionalServeFile;
 
 const VUE_APP_ROUTES: &[&str] = &[
     // Existing PMR2 and Leptos frontend.
@@ -120,39 +128,48 @@ where
 {
     fn pmr_vue_routes(self, asset_path: &std::path::Path) -> Self {
         let mut router = self.without_v07_checks();
-        let service = ServeFile::new(asset_path.join("index.html"));
+        let serve_file = ServeFile::new(asset_path.join("index.html"));
         for path in VUE_APP_ROUTES.iter() {
-            router = router.route_service(path, service.clone());
+            router = router.route_service(path, serve_file.clone());
         }
+        let exposure_file_service = ConditionalServeFile::new(
+            exposure_file_handler,
+            serve_file,
+        );
+
         router
-            .route("/exposure/{id}/{*path}", get(resolve_exposure_path))
-            .route("/exposures/{id}/{*path}", get(resolve_exposure_path))
+            .route_service("/exposure/{id}/{*path}", exposure_file_service.clone())
+            .route_service("/exposures/{id}/{*path}", exposure_file_service.clone())
     }
 }
 
-// FIXME This likely is better implemented as a service to allow better integration with ServeFile fallback,
-// rather than doing this awful stuffing a ServeFile into an Extension.  The hack works but this deserves a
-// better solution.
-// TODO Will also need a version for workspace to ensure the correct 404 responses are generated for non-files.
-async fn resolve_exposure_path(
-    platform: Extension<Platform>,
-    session: Extension<AuthSession<ACPlatform>>,
-    fallback: Extension<ServeFile>,
-    Path((exposure_alias, path)): Path<(String, String)>,
-) -> Result<Response, AppError> {
+async fn exposure_file_handler(req: Request<Body>) -> Result<Option<Response>, StatusCode> {
+    let platform = req.extensions().get::<Platform>()
+        .expect("platform should have been provided as an extension")
+        .clone();
+    let session = req.extensions().get::<AuthSession<ACPlatform>>()
+        .expect("session should have been provided as an extension")
+        .clone();
+    let (mut parts, _body) = req.into_parts();
+    let Path((exposure_alias, path)) = Path::<(String, String)>::from_request_parts(&mut parts, &())
+        .await
+        .map_err(|_| StatusCode::NOT_FOUND)?;
+
     let exposure_id = platform
         .mc_platform()
         .resolve_alias("exposure", &exposure_alias)
         .await
-        .map_err(|_| AppError::InternalServerError)?
-        .ok_or(AppError::NotFound)?;
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Session::from(session)
-        .enforcer(format!("/exposure/{exposure_id}/"), "").await?;
+        .enforcer(format!("/exposure/{exposure_id}/"), "").await
+        // FIXME the correct status code should be handled from AppError
+        .map_err(|_| StatusCode::FORBIDDEN)?;
 
     // TODO When there is a proper error type for id not found, ensure NotFound is returned.
     let ec = platform.get_exposure(exposure_id).await
-        .map_err(|_| AppError::InternalServerError)?;
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let dummy = String::new();
 
@@ -161,10 +178,10 @@ async fn resolve_exposure_path(
             // Request path has a direct hit on some file, generate the appropriate redirect.
             let exposure = ec.exposure();
             let path = platform.get_workspace(exposure.workspace_id()).await
-                .map_err(|_| AppError::InternalServerError)?
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
                 .alias()
                 .await
-                .map_err(|_| AppError::InternalServerError)?
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
                 .map_or_else(
                     || format!(
                         "/workspace/:/id/{}/rawfile/{}/{path}",
@@ -176,23 +193,14 @@ async fn resolve_exposure_path(
                         exposure.commit_id(),
                     ),
                 );
-            Ok(Redirect::temporary(&path).into_response())
+            Ok(Some(Redirect::temporary(&path).into_response()))
         },
         ((Ok(_), Ok(_)), viewstr) |
         ((Ok(_), Err(CtrlError::EFVCNotFound(viewstr))), _) if viewstr == "" => {
             // Return the `index.html`.
-            let req = Request::builder()
-                .uri("/")
-                .body(Body::empty())
-                .map_err(|_| AppError::InternalServerError)?;
-            Ok(<ServeFile as Clone>::clone(&fallback)
-                .oneshot(req)
-                .await
-                .map_err(|_| AppError::InternalServerError)?
-                .into_response()
-            )
+            Ok(None)
         }
         // CtrlError::UnknownPath(_) | CtrlError::EFVCNotFound(_)
-        _ => Err(AppError::NotFound.into()),
+        _ => Err(StatusCode::NOT_FOUND),
     }
 }
