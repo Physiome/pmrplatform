@@ -112,12 +112,19 @@ impl<'p> ExposureFileCtrl<'p> {
     /// Returns an ExposureFileViewCtrl for an existing view by the
     /// provided viewstr, which is a str that is `/` separated and
     /// the first segment is parsed as the view_key
+    ///
+    /// Note that the parsed `view_key` may be an alias that maps from
+    /// the PMR2 counterpart.  Currently, this is the conversion:
+    ///
+    /// `cmeta` -> `cellml_metadata`
+    /// `docgen` -> `view`
     pub async fn resolve_view_by_viewstr(
         &self,
         viewstr: &str,
     ) -> Result<ExposureFileViewCtrl<'p>, CtrlError> {
         let mut splitter = viewstr.splitn(2, '/');
         let view_key = splitter.next().expect("must have first part");
+        let view_key = pmr2_view_key(view_key).unwrap_or(view_key);
         let view_path = splitter.next();
         let exposure_file_view = self.0
             .platform
@@ -266,5 +273,13 @@ impl<'p> ExposureFileCtrl<'p> {
 
     pub async fn read_blob(&self, view_key: &str, path: &str) -> Result<Vec<u8>, CtrlError> {
         self.0.exposure.read_blob(self.0.exposure_file.id(), view_key, path).await
+    }
+}
+
+fn pmr2_view_key(view_key: &str) -> Option<&'static str> {
+    match view_key {
+        "cmeta" => Some("cellml_metadata"),
+        "docgen" => Some("view"),
+        _ => None
     }
 }

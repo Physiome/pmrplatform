@@ -31,8 +31,11 @@ impl FromStr for EFView {
             "cellml_codegen" => Ok(EFView::CellMLCodegen),
             "cellml_math" => Ok(EFView::CellMLMath),
             "cellml_metadata" => Ok(EFView::CellMLMetadata),
+            // Legacy.
+            "cmeta" => Ok(EFView::CellMLMetadata),
             "license_citation" => Ok(EFView::LicenseCitation),
             "view" => Ok(EFView::View),
+            "docgen" => Ok(EFView::View),
             _ => Err(AppError::ViewNotImplemented),
         }
     }

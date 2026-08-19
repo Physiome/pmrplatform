@@ -26,6 +26,7 @@ mod ssr {
             WorkspaceBackend,
         },
     };
+    pub use pmrrepo::error::PmrRepoError::PathError;
     pub use crate::{
         ac::api::session,
         server::{
