@@ -1,7 +1,6 @@
 use axum::{
     Router,
     ServiceExt,
-    extract::Extension,
     http::{
         header::HeaderValue,
         StatusCode,

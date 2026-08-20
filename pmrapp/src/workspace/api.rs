@@ -26,7 +26,10 @@ mod ssr {
             WorkspaceBackend,
         },
     };
-    pub use pmrrepo::error::PmrRepoError::PathError;
+    pub use pmrrepo::error::{
+        GixError::RevisionSpecParseSingle,
+        PmrRepoError::{GixError, PathError},
+    };
     pub use crate::{
         ac::api::session,
         server::{
@@ -201,10 +204,23 @@ pub async fn get_workspace_info(
             path: None,
             target: None,
         })),
+        // TODO This indicates the repo cannot be found on the filesystem.  Given this system is not
+        // going to permit the flexibility in PMR2 where the underlying storage may be missing (nevermind
+        // that it did cause problems), we simply do not permit this and return this as a hard error.
         (_, _, Err(_)) => Err(AppError::InternalServerError)?,
         (_, _, Ok(_)) => Ok(policy_state.to_enforced_ok(handle
             .pathinfo(commit, path)
-            .map_err(|_| AppError::InternalServerError)?
+            .map_err(|e| {
+                match e {
+                    // Invalid commit (revspec) identifier are provided by Gix.  Trap the one that report
+                    // that as such and ensure it is simply not found.
+                    GixError(RevisionSpecParseSingle(_)) => AppError::NotFound,
+                    // Assume all kinds of PathError are benign and thus not found.
+                    PathError(_) => AppError::NotFound,
+                    // Other kinds assumed to be not so benign.
+                    _ => AppError::InternalServerError,
+                }
+            })?
             .into()
         )),
     }

@@ -1,5 +1,4 @@
 use axum::{
-    Extension,
     body::Body,
     extract::{
         FromRequestParts,
@@ -14,20 +13,19 @@ use axum::{
         Redirect,
         Response,
     },
-    routing::get,
 };
 use axum_login::AuthSession;
 use pmrac::Platform as ACPlatform;
-use pmrapp::{
-    error::AppError,
-    server::ac::Session,
-};
+use pmrapp::server::ac::Session;
 use pmrcore::exposure::traits::Exposure as _;
 use pmrctrl::{
     error::CtrlError,
     platform::Platform,
 };
-use tower::util::ServiceExt;
+use pmrrepo::error::{
+    GixError::RevisionSpecParseSingle,
+    PmrRepoError::{GixError, PathError},
+};
 use tower_http::services::ServeFile;
 
 use crate::service::ConditionalServeFile;
@@ -40,7 +38,7 @@ const VUE_APP_ROUTES: &[&str] = &[
     "/workspace/{id}",
     "/workspace/{id}/synchronize",
     // FIXME This need to be handled specifically for 404.
-    "/workspace/{id}/file/{commit}/{*path}",
+    // "/workspace/{id}/file/{commit}/{*path}",
     "/workspace/{id}/create_exposure/{commit}",
     "/workspace/{id}/log",
 
@@ -59,7 +57,7 @@ const VUE_APP_ROUTES: &[&str] = &[
     "/workspaces/{id}",
     "/workspaces/{id}/synchronize",
     // FIXME This need to be handled specifically for 404.
-    "/workspaces/{id}/file/{commit}/{*path}",
+    // "/workspaces/{id}/file/{commit}/{*path}",
     "/workspaces/{id}/create_exposure/{commit}",
     "/workspaces/{id}/log",
 
@@ -134,12 +132,27 @@ where
         }
         let exposure_file_service = ConditionalServeFile::new(
             exposure_file_handler,
+            serve_file.clone(),
+        );
+        let workspace_file_service = ConditionalServeFile::new(
+            workspace_file_handler,
             serve_file,
         );
 
         router
             .route_service("/exposure/{id}/{*path}", exposure_file_service.clone())
-            .route_service("/exposures/{id}/{*path}", exposure_file_service.clone())
+            .route_service("/exposures/{id}/{*path}", exposure_file_service)
+            .route_service("/workspace/{workspace_id}/file/{commit_id}/{*path}", workspace_file_service.clone())
+            .route_service("/workspace/{workspace_id}/file/{commit_id}/", workspace_file_service.clone())
+            .route_service("/workspace/{workspace_id}/file/{commit_id}", workspace_file_service.clone())
+            .route_service("/workspace/{workspace_id}/file/", workspace_file_service.clone())
+            .route_service("/workspace/{workspace_id}/file", workspace_file_service.clone())
+
+            .route_service("/workspaces/{workspace_id}/file/{commit_id}/{*path}", workspace_file_service.clone())
+            .route_service("/workspaces/{workspace_id}/file/{commit_id}/", workspace_file_service.clone())
+            .route_service("/workspaces/{workspace_id}/file/{commit_id}", workspace_file_service.clone())
+            .route_service("/workspaces/{workspace_id}/file/", workspace_file_service.clone())
+            .route_service("/workspaces/{workspace_id}/file", workspace_file_service.clone())
     }
 }
 
@@ -202,5 +215,72 @@ async fn exposure_file_handler(req: Request<Body>) -> Result<Option<Response>, S
         }
         // CtrlError::UnknownPath(_) | CtrlError::EFVCNotFound(_)
         _ => Err(StatusCode::NOT_FOUND),
+    }
+}
+
+async fn workspace_file_handler(req: Request<Body>) -> Result<Option<Response>, StatusCode> {
+    let platform = req.extensions().get::<Platform>()
+        .expect("platform should have been provided as an extension")
+        .to_owned();
+    let session = req.extensions().get::<AuthSession<ACPlatform>>()
+        .expect("session should have been provided as an extension")
+        .to_owned();
+    let (mut parts, _body) = req.into_parts();
+    // TODO Maybe instead of this match, have three versions of this?
+    let (
+        workspace_alias,
+        commit,
+        path,
+    ) = match Path::<(String, Option<String>, Option<String>)>::from_request_parts(&mut parts, &()).await {
+        Ok(Path((workspace_alias, commit, path))) => (workspace_alias, commit, path),
+        Err(_) => {
+            match Path::<(String, Option<String>)>::from_request_parts(&mut parts, &()).await {
+                Ok(Path((workspace_alias, commit))) => (workspace_alias, commit, None),
+                Err(_) => {
+                    let Path(workspace_alias) = Path::<String>::from_request_parts(&mut parts, &()).await
+                        .map_err(|_| StatusCode::NOT_FOUND)?;
+                    (workspace_alias, None, None)
+                }
+            }
+        },
+    };
+
+    let workspace_id = platform
+        .mc_platform()
+        .resolve_alias("workspace", &workspace_alias)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Session::from(session)
+        .enforcer(format!("/workspace/{workspace_id}/"), "").await
+        // FIXME the correct status code should be handled from AppError
+        .map_err(|_| StatusCode::FORBIDDEN)?;
+
+    let handle = platform.repo_backend()
+        .git_handle(workspace_id).await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    match (commit.as_ref(), path.as_ref(), handle.repo()) {
+        // Lack of repo result when no commit or path is referenced is not an error.
+        (None, None, Err(_)) => Ok(None),
+        // If either commit or path are specified, the repository must be available.  If repository is
+        // missing, this is a hard error.
+        (_, _, Err(_)) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+        // Path are referenced and we have an underlying repository, return result.
+        (_, _, Ok(_)) => {
+            handle.pathinfo(commit, path).map_err(|e| {
+                match e {
+                    // Invalid commit (revspec) identifier are provided by Gix.  Trap the one that report
+                    // that as such and ensure it is simply not found.
+                    GixError(RevisionSpecParseSingle(_)) => StatusCode::NOT_FOUND,
+                    // Assume all kinds of PathError are benign and thus not found.
+                    PathError(_) => StatusCode::NOT_FOUND,
+                    // Other kinds assumed to be not so benign.
+                    _ => StatusCode::INTERNAL_SERVER_ERROR,
+                }
+            })?;
+            Ok(None)
+        }
     }
 }
