@@ -12,6 +12,7 @@ pub mod profile;
 pub mod repo;
 pub mod task;
 pub mod task_template;
+mod util;
 #[cfg(feature = "web")]
 pub mod web;
 pub mod workspace;

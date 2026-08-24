@@ -80,7 +80,7 @@ pub struct IndexResourceDetailedSet {
 // A consideration will need to be made on what to do with text handling, as those are bulky fields
 // so an additional lookup may still be required for that.
 /// A listing of resources for a particular term under a particular index identified by [`IdxKind`].
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
 #[cfg_attr(feature="utoipa", derive(utoipa::ToSchema))]
 pub struct ResourceKindedTerms {
     pub resource_path: String,

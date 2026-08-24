@@ -14,11 +14,14 @@ use pmrcore::{
         },
     }
 };
+use regex::Regex;
+use std::sync::LazyLock;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::SqliteBackend;
 
 const WORD_COUNT: i64 = 60;
+static PATT_MARK: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i:</?mark>)").unwrap());
 
 // Postgresql version should look like this instead:
 //
@@ -133,6 +136,11 @@ async fn add_idx_text_sqlite(
     resource_path: &str,
 ) -> Result<(), BackendError> {
     idx_text_forget_sqlite(backend, resource_path).await?;
+
+    // Remove all <mark>
+    let content = content.map(|content| {
+        PATT_MARK.replace_all(content, "")
+    });
 
     sqlx::query!(
         r#"
@@ -779,6 +787,7 @@ pub(crate) mod testing {
             },
             IndexBackendCache,
             ResourceBrief,
+            ResourceKindedTerms,
             ResourceKindedTermsCache,
         },
     };
@@ -989,6 +998,95 @@ pub(crate) mod testing {
                     resource_path: "/test/resource".to_string(),
                     title: Some("Example Title".to_string()),
                     brief: Some("Content is test+ **corrected**.".to_string()),
+                },
+            ],
+        );
+
+        Ok(())
+    }
+
+    #[sqlite_pcb_cache_test_case]
+    #[async_std::test]
+    async fn test_html_mark(backend: impl IndexBackend) -> anyhow::Result<()> {
+        backend.add_idx_text(
+            Some("Example Title"),
+            Some("Trying to <em>sneak</em> <b><mark>mark</mark></b> or <MaRK>Mark</mArK>"),
+            "/test/resource",
+        ).await?;
+
+        assert_eq!(
+            backend.list_resources_text("title", Some(("**", "**"))).await?,
+            vec![
+                ResourceBrief {
+                    resource_path: "/test/resource".to_string(),
+                    title: Some("Example Title".to_string()),
+                    brief: Some("Trying to <em>sneak</em> <b>mark</b> or Mark".to_string()),
+                },
+            ],
+        );
+
+        assert_eq!(
+            backend.query_resource(&"mark".into(), Some(("**", "**"))).await?,
+            vec![
+                ResourceKindedTerms {
+                    resource_path: "/test/resource".to_string(),
+                    data: [
+                        (String::from("_title"), vec![String::from("Example Title")]),
+                        (
+                            String::from("_brief"),
+                            vec![String::from("Trying to <em>sneak</em> <b>**mark**</b> or **Mark**")],
+                        ),
+                    ]
+                    .into_iter()
+                    .collect(),
+                },
+            ],
+        );
+
+        assert_eq!(
+            backend.query_resource_web(&"mark".into()).await?,
+            vec![
+                ResourceKindedTerms {
+                    resource_path: "/test/resource".to_string(),
+                    data: [
+                        (String::from("_title"), vec![String::from("Example Title")]),
+                        (
+                            String::from("_brief"),
+                            vec![String::from("Trying to &lt;em&gt;sneak&lt;/em&gt; &lt;b&gt;<mark>mark</mark>&lt;/b&gt; or <mark>Mark</mark>")],
+                        ),
+                    ]
+                    .into_iter()
+                    .collect(),
+                },
+            ],
+        );
+
+        Ok(())
+    }
+
+    #[sqlite_pcb_cache_test_case]
+    #[async_std::test]
+    async fn test_html_mark_filtered(backend: impl IndexBackend) -> anyhow::Result<()> {
+        backend.add_idx_text(
+            Some("Example Title"),
+            Some(r#"Sneaking a <mark class="foo">well-formed</mark > and <mark<>>malformed mark"#),
+            "/test/resource",
+        ).await?;
+
+        assert_eq!(
+            backend.query_resource_web(&"sneaking".into()).await?,
+            vec![
+                ResourceKindedTerms {
+                    resource_path: "/test/resource".to_string(),
+                    data: [
+                        (String::from("_title"), vec![String::from("Example Title")]),
+                        (
+                            String::from("_brief"),
+                            vec![String::from(r#"<mark>Sneaking</mark> a &lt;mark class&#61;&quot;foo&quot;&gt;well-formed&lt;/mark &gt; and &lt;mark&lt;&gt;&gt;malformed mark"#)],
+                        ),
+                    ]
+                    .into_iter()
+                    .collect(),
                 },
             ],
         );

@@ -14,6 +14,7 @@ use super::{
     IndexResourceSet,
     IndexTerms,
     IndexCacheKind,
+    Query,
     ResourceBrief,
     ResourceKindedTerms,
     ResourceKindedTermsCache,
@@ -328,4 +329,22 @@ impl FromStr for IndexCacheKind {
         }
     }
 
+}
+
+impl From<String> for Query {
+    fn from(q: String) -> Self {
+        Self {
+            query: Some(q),
+            filters: Vec::new(),
+        }
+    }
+}
+
+impl From<&str> for Query {
+    fn from(q: &str) -> Self {
+        Self {
+            query: Some(String::from(q)),
+            filters: Vec::new(),
+        }
+    }
 }

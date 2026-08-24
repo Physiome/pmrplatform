@@ -1,6 +1,9 @@
 use async_trait::async_trait;
 use std::collections::HashSet;
-use crate::error::BackendError;
+use crate::{
+    error::BackendError,
+    util::clean_text_keep_mark,
+};
 use super::*;
 
 #[async_trait]
@@ -400,6 +403,26 @@ pub trait IndexBackend: IndexCoreBackend + Send + Sync {
             }
         }
         Ok(results)
+    }
+
+    async fn query_resource_web(
+        &self,
+        query: &Query,
+    ) -> Result<Vec<ResourceKindedTerms>, BackendError> {
+        Ok(self.query_resource(&query, Some(("<mark>", "</mark>")))
+            .await?
+            .into_iter()
+            .map(|mut item| {
+                item.data
+                    .entry(String::from("_brief"))
+                    .and_modify(|briefs| {
+                        *briefs = briefs.into_iter()
+                            .map(|brief| clean_text_keep_mark(&brief))
+                            .collect::<Vec<_>>();
+                    });
+                item
+            })
+            .collect())
     }
 }
 

@@ -130,7 +130,7 @@ pub(crate) async fn resource_briefs_core(
 ) -> Result<Vec<ResourceKindedTerms>, AppError> {
     platform
         .index_backend()
-        .query_resource(&query, Some(("<mark>", "</mark>")))
+        .query_resource_web(&query)
         .await
         .map_err(|_| AppError::InternalServerError)
 }
