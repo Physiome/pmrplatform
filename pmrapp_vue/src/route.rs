@@ -13,6 +13,7 @@ use axum::{
         Redirect,
         Response,
     },
+    routing::get,
 };
 use axum_login::AuthSession;
 use pmrac::Platform as ACPlatform;
@@ -140,8 +141,14 @@ where
         );
 
         router
+            .route("/exposure/{id}/view", get(|Path(id): Path<String>| async move {
+                Redirect::permanent(&format!("/exposure/{id}/"))
+            }))
             .route_service("/exposure/{id}/{*path}", exposure_file_service.clone())
             .route_service("/exposures/{id}/{*path}", exposure_file_service)
+            .route("/workspace/{id}/view", get(|Path(id): Path<String>| async move {
+                Redirect::permanent(&format!("/workspace/{id}/"))
+            }))
             .route_service("/workspace/{workspace_id}/file/{commit_id}/{*path}", workspace_file_service.clone())
             .route_service("/workspace/{workspace_id}/file/{commit_id}/", workspace_file_service.clone())
             .route_service("/workspace/{workspace_id}/file/{commit_id}", workspace_file_service.clone())
