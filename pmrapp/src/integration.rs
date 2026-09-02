@@ -1,8 +1,10 @@
 use axum::{
     extract::{
         Extension,
+        FromRequestParts,
         Request,
     },
+    handler::Handler,
     http::{
         Method,
         Uri,
@@ -13,6 +15,10 @@ use axum::{
             Scheme,
         },
     },
+    response::{
+        IntoResponse,
+        Response,
+    },
     routing::{
         delete,
         get,
@@ -21,11 +27,20 @@ use axum::{
         put,
     },
 };
-use leptos::server_fn::axum::server_fn_paths;
-use leptos_axum::handle_server_fns;
+use axum_login::AuthSession;
+use leptos::{
+    prelude::get_configuration,
+    server_fn::axum::server_fn_paths,
+};
+use leptos_axum::{
+    handle_server_fns,
+    render_app_async,
+};
 use axum_login_bearer::BearerTokenAuthManagerLayer;
+use pmrac::Platform as ACPlatform;
 use pmrcore::web::Source;
 use pmrctrl::platform::Platform;
+use std::pin::Pin;
 use time::Duration;
 use tower::{
     Layer,
@@ -37,6 +52,8 @@ use tower_sessions::{Expiry, MemoryStore, SessionManagerLayer};
 #[cfg(feature = "utoipa")]
 use utoipa::OpenApi;
 use crate::{
+    app::shell,
+    error::AppError,
     exposure::api::WIZARD_FIELD_ROUTE,
     server::{
         exposure::{
@@ -150,9 +167,27 @@ where
             .route("/workspace/:/id/{workspace_id}/archive/{commit_id}/tgz", get(workspace_archive_tgz))
             .route("/workspace/{workspace_alias}/archive/{commit_id}/zip", get(aliased_workspace_archive_zip))
             .route("/workspace/:/id/{workspace_id}/archive/{commit_id}/zip", get(workspace_archive_zip))
-            .route("/workspace/{workspace_alias}/rawfile/{commit_id}/{*path}", get(aliased_workspace_rawfile_download))
+            .route("/workspace/{workspace_alias}/rawfile/{commit_id}/{*path}", get(
+                PlatformSessionFnWrapper::new(
+                    aliased_workspace_rawfile_download,
+                    |req, _e| {
+                        let conf = get_configuration(None).unwrap();
+                        let leptos_options = conf.leptos_options;
+                        render_app_async(move || shell(leptos_options.clone()))(req)
+                    },
+                )
+            ))
             .route("/workspace/:/id/{workspace_id}/rawfile/{commit_id}/{*path}", get(workspace_rawfile_download))
-            .route("/api/workspace/{workspace_alias}/rawfile/{commit_id}/{*path}", get(aliased_workspace_rawfile_download))
+            .route("/api/workspace/{workspace_alias}/rawfile/{commit_id}/{*path}", get(
+                PlatformSessionFnWrapper::new(
+                    aliased_workspace_rawfile_download,
+                    |req, _e| {
+                        let conf = get_configuration(None).unwrap();
+                        let leptos_options = conf.leptos_options;
+                        render_app_async(move || shell(leptos_options.clone()))(req)
+                    },
+                )
+            ))
             .route("/api/workspace/:/id/{workspace_id}/rawfile/{commit_id}/{*path}", get(workspace_rawfile_download))
             .route("/api/workspace/{workspace_alias}/archive/{commit_id}/tgz", get(aliased_workspace_archive_tgz))
             .route("/api/workspace/:/id/{workspace_id}/archive/{commit_id}/tgz", get(workspace_archive_tgz))
@@ -236,5 +271,72 @@ where
     fn pmr_map_request<Body>(self) -> MapRequest<Self, fn(Request<Body>) -> Request<Body>> {
         MapRequestLayer::new(before_handle_request::<_> as fn(http::Request<Body>) -> http::Request<Body>)
             .layer(self)
+    }
+}
+
+/// A wrapper around a function that is axum handler that takes an extesnsion of `Platform`,
+/// `AuthSession<ACPlatform>`, and an additional argument (usually `Path`) that may be formed from the incoming
+/// `Request`, and that the handler returns `Result<impl IntoResponse, AppError>`.  Additionally, an error
+/// handler that accepts a `Request` and `AppError` be provided so that an intended error page may be
+/// generated.  This wrapper is provided to handle the `Result` specifically rather than relying on the
+/// default `IntoResponse` implementation that the default `Handler` provides.
+#[derive(Clone)]
+pub struct PlatformSessionFnWrapper<F, E> {
+    f: F,
+    error: E,
+}
+
+impl<F, E> PlatformSessionFnWrapper<F, E> {
+    pub fn new<Fut, EFut, Res, P>(f: F, error: E) -> Self
+    where
+        F: FnOnce(Extension<Platform>, Extension<AuthSession<ACPlatform>>, P) -> Fut + Clone + Send + Sync + 'static,
+        Fut: Future<Output = Result<Res, AppError>> + Send,
+        E: FnOnce(Request, AppError) -> EFut + Clone + Send + Sync + 'static,
+        EFut: Future<Output = Res> + Send,
+        Res: IntoResponse + Send,
+    {
+        Self { f, error }
+    }
+}
+
+impl<F, Fut, E, EFut, S, Res, P> Handler<(P,), S> for PlatformSessionFnWrapper<F, E>
+where
+    F: FnOnce(Extension<Platform>, Extension<AuthSession<ACPlatform>>, P) -> Fut + Clone + Send + Sync + 'static,
+    Fut: Future<Output = Result<Res, AppError>> + Send,
+    E: FnOnce(Request, AppError) -> EFut + Clone + Send + Sync + 'static,
+    EFut: Future<Output = Res> + Send,
+    Res: IntoResponse + Send,
+    P: FromRequestParts<S> + Send,
+    S: Send + Sync + 'static,
+{
+    type Future = Pin<Box<dyn Future<Output = Response> + Send>>;
+
+    fn call(self, req: Request, state: S) -> Self::Future {
+        let (mut parts, body) = req.into_parts();
+        Box::pin(async move {
+            let platform = match <Extension<Platform>>::from_request_parts(&mut parts, &state).await {
+                Ok(value) => value,
+                Err(rejection) => return rejection.into_response(),
+            };
+            let session = match <Extension<AuthSession<ACPlatform>>>::from_request_parts(&mut parts, &state).await {
+                Ok(value) => value,
+                Err(rejection) => return rejection.into_response(),
+            };
+            let p = match P::from_request_parts(&mut parts, &state).await {
+                Ok(value) => value,
+                Err(rejection) => return rejection.into_response(),
+            };
+
+            let req = Request::from_parts(parts, body);
+
+            match (self.f)(platform, session, p).await {
+                Ok(r) => r.into_response(),
+                Err(err) => {
+                    (self.error)(req, err)
+                        .await
+                        .into_response()
+                }
+            }
+        })
     }
 }

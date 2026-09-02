@@ -169,7 +169,8 @@ pub async fn workspace_rawfile_download(
             Err(AppError::NotFound)
         }
     };
-    Ok(result.unwrap_or_else(|e| AppError::from(e).into_response()))
+    // Ok(result.unwrap_or_else(|e| AppError::from(e).into_response()))
+    result
 }
 
 pub async fn workspace_archive(
