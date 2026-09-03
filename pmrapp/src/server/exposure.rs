@@ -325,7 +325,10 @@ async fn exposure_archive(
     let ec = platform.get_exposure(exposure_id).await
         .map_err(|_| AppError::InternalServerError)?;
     let output = ec.archive(&prefix)
-        .map_err(|_| AppError::InternalServerError)?;
+        .map_err(|e| {
+            log::warn!("error generating archive: {e:?}");
+            AppError::InternalServerError
+        })?;
     Ok(output)
 }
 
