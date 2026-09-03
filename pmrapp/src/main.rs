@@ -8,7 +8,7 @@ async fn main() -> anyhow::Result<()> {
     };
     use clap::Parser;
     use leptos::prelude::*;
-    use leptos_axum::{generate_route_list, LeptosRoutes};
+    use leptos_axum::{generate_route_list, render_app_async, LeptosRoutes};
     use pmrapp::integration::PmrAxumExt;
     use pmrapp::app::*;
     use pmrapp::conf::Cli;
@@ -49,14 +49,24 @@ async fn main() -> anyhow::Result<()> {
         );
     }
     let routes = generate_route_list(App);
-    log::trace!("{routes:?}");
+    for item in routes.iter() {
+        log::trace!("{:?}", item.path());
+    }
 
     let platform = args.platform_builder.build().await
         .map_err(anyhow::Error::from_boxed)?;
 
     // build our application with a route
     let app = Router::new()
-        .pmr_server_routes()
+        .pmr_server_routes(
+            {
+                let leptos_options = leptos_options.clone();
+                move |req, _e| {
+                    let leptos_options = leptos_options.clone();
+                    render_app_async(move || shell(leptos_options.clone()))(req)
+                }
+            },
+        )
         .without_v07_checks()
         .leptos_routes(
             &leptos_options,

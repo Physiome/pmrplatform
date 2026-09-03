@@ -28,14 +28,8 @@ use axum::{
     },
 };
 use axum_login::AuthSession;
-use leptos::{
-    prelude::get_configuration,
-    server_fn::axum::server_fn_paths,
-};
-use leptos_axum::{
-    handle_server_fns,
-    render_app_async,
-};
+use leptos::server_fn::axum::server_fn_paths;
+use leptos_axum::handle_server_fns;
 use axum_login_bearer::BearerTokenAuthManagerLayer;
 use pmrac::Platform as ACPlatform;
 use pmrcore::web::Source;
@@ -52,7 +46,6 @@ use tower_sessions::{Expiry, MemoryStore, SessionManagerLayer};
 #[cfg(feature = "utoipa")]
 use utoipa::OpenApi;
 use crate::{
-    app::shell,
     error::AppError,
     exposure::api::WIZARD_FIELD_ROUTE,
     server::{
@@ -116,13 +109,39 @@ fn before_handle_request<B>(mut req: Request<B>) -> Request<B> {
 }
 
 /// Extension trait for [`axum::Router`] so it may be set up for serving of the PMR platform.
-pub trait PmrAxumExt: private::Sealed {
-    /// Set up a partial set of routes related to PMR.
+pub trait PmrAxumExt<S>: private::Sealed
+where
+    S: Clone + Send + Sync + 'static,
+{
+    /// This is to set up `get` routes for the pmr application where an additional error renderer may be
+    /// provided.
+    fn pmr_route_get<F, Fut, E, EFut, Res, ERes, P>(self, path: &str, f: F, error: E) -> Self
+    where
+        F: FnOnce(Extension<Platform>, Extension<AuthSession<ACPlatform>>, P) -> Fut + Clone + Send + Sync + 'static,
+        Fut: Future<Output = Result<Res, AppError>> + Send,
+        E: FnOnce(Request, AppError) -> EFut + Clone + Send + Sync + 'static,
+        EFut: Future<Output = ERes> + Send,
+        Res: IntoResponse + Send,
+        ERes: IntoResponse + Send,
+        P: FromRequestParts<S> + Send + 'static;
+
+    /// Enable routing to the data-only (e.g. rawfile, archive) endpoints of PMR.
     ///
     /// Use this to set up the services provided by the `pmrapp::server` module.
     ///
-    /// Please ensure that `.layers()` is called at some point after PMR routes have been added.
-    fn pmr_server_routes(self) -> Self;
+    /// Additionally, the error handler must be provided.  The following setup simply return the `AppError`
+    /// as-is, where its `IntoResponse` implementation will provide the default status code response.
+    ///
+    /// ```
+    /// router.pmr_server_routes(|_, e| async { e })
+    /// ```
+    ///
+    /// Please ensure that `.pmr_layers()` is called at some point after PMR routes have been added.
+    fn pmr_server_routes<E, EFut, Res>(self, error_handler: E) -> Self
+    where
+        E: FnOnce(Request, AppError) -> EFut + Clone + Send + Sync + 'static,
+        EFut: Future<Output = Res> + Send,
+        Res: IntoResponse + Send;
 
     /// Set up the full API routes related to PMR.
     ///
@@ -130,7 +149,11 @@ pub trait PmrAxumExt: private::Sealed {
     /// implemented as Leptos server functions.
     ///
     /// Please ensure that `.layers()` is called at some point after PMR routes have been added.
-    fn pmr_routes(self) -> Self;
+    fn pmr_routes< E, EFut, Res>(self, error_handler: E) -> Self
+    where
+        E: FnOnce(Request, AppError) -> EFut + Clone + Send + Sync + 'static,
+        EFut: Future<Output = Res> + Send,
+        Res: IntoResponse + Send;
 
     /// Set up the layers required by PMR routes.
     ///
@@ -145,11 +168,30 @@ pub trait PmrAxumExt: private::Sealed {
         where Self: Sized;
 }
 
-impl<S> PmrAxumExt for axum::Router<S>
+impl<S> PmrAxumExt<S> for axum::Router<S>
 where
     S: Clone + Send + Sync + 'static,
 {
-    fn pmr_server_routes(self) -> Self {
+    fn pmr_route_get<F, Fut, E, EFut, Res, ERes, P>(self, path: &str, f: F, error_handler: E) -> Self
+    where
+        F: FnOnce(Extension<Platform>, Extension<AuthSession<ACPlatform>>, P) -> Fut + Clone + Send + Sync + 'static,
+        Fut: Future<Output = Result<Res, AppError>> + Send,
+        E: FnOnce(Request, AppError) -> EFut + Clone + Send + Sync + 'static,
+        EFut: Future<Output = ERes> + Send,
+        Res: IntoResponse + Send,
+        ERes: IntoResponse + Send,
+        P: FromRequestParts<S> + Send + 'static,
+    {
+        self.without_v07_checks()
+            .route(path, get(PlatformSessionFnWrapper::new(f, error_handler)))
+    }
+
+    fn pmr_server_routes<E, EFut, Res>(self, error_handler: E) -> Self
+    where
+        E: FnOnce(Request, AppError) -> EFut + Clone + Send + Sync + 'static,
+        EFut: Future<Output = Res> + Send,
+        Res: IntoResponse + Send,
+    {
         let router = self
             .without_v07_checks()
             // TODO the path should be constructed from a known list, so that rewriting only happens
@@ -163,31 +205,37 @@ where
 
             // These are duplicated to /api/ to keep the OpenAPI specification consistent, while
             // keeping the original in the event we will fall back to a fully integrated application.
-            .route("/workspace/{workspace_alias}/archive/{commit_id}/tgz", get(aliased_workspace_archive_tgz))
-            .route("/workspace/:/id/{workspace_id}/archive/{commit_id}/tgz", get(workspace_archive_tgz))
-            .route("/workspace/{workspace_alias}/archive/{commit_id}/zip", get(aliased_workspace_archive_zip))
-            .route("/workspace/:/id/{workspace_id}/archive/{commit_id}/zip", get(workspace_archive_zip))
-            .route("/workspace/{workspace_alias}/rawfile/{commit_id}/{*path}", get(
-                PlatformSessionFnWrapper::new(
-                    aliased_workspace_rawfile_download,
-                    |req, _e| {
-                        let conf = get_configuration(None).unwrap();
-                        let leptos_options = conf.leptos_options;
-                        render_app_async(move || shell(leptos_options.clone()))(req)
-                    },
-                )
-            ))
-            .route("/workspace/:/id/{workspace_id}/rawfile/{commit_id}/{*path}", get(workspace_rawfile_download))
-            .route("/api/workspace/{workspace_alias}/rawfile/{commit_id}/{*path}", get(
-                PlatformSessionFnWrapper::new(
-                    aliased_workspace_rawfile_download,
-                    |req, _e| {
-                        let conf = get_configuration(None).unwrap();
-                        let leptos_options = conf.leptos_options;
-                        render_app_async(move || shell(leptos_options.clone()))(req)
-                    },
-                )
-            ))
+            .pmr_route_get(
+                "/workspace/{workspace_alias}/archive/{commit_id}/tgz",
+                aliased_workspace_archive_tgz,
+                error_handler.clone(),
+            )
+            .pmr_route_get(
+                "/workspace/:/id/{workspace_id}/archive/{commit_id}/tgz",
+                workspace_archive_tgz,
+                error_handler.clone(),
+            )
+            .pmr_route_get(
+                "/workspace/{workspace_alias}/archive/{commit_id}/zip",
+                aliased_workspace_archive_zip,
+                error_handler.clone(),
+            )
+            .pmr_route_get(
+                "/workspace/:/id/{workspace_id}/archive/{commit_id}/zip",
+                workspace_archive_zip,
+                error_handler.clone(),
+            )
+            .pmr_route_get(
+                "/workspace/{workspace_alias}/rawfile/{commit_id}/{*path}",
+                aliased_workspace_rawfile_download,
+                error_handler.clone(),
+            )
+            .pmr_route_get(
+                "/workspace/:/id/{workspace_id}/rawfile/{commit_id}/{*path}",
+                workspace_rawfile_download,
+                error_handler.clone(),
+            )
+            .route("/api/workspace/{workspace_alias}/rawfile/{commit_id}/{*path}", get(aliased_workspace_rawfile_download))
             .route("/api/workspace/:/id/{workspace_id}/rawfile/{commit_id}/{*path}", get(workspace_rawfile_download))
             .route("/api/workspace/{workspace_alias}/archive/{commit_id}/tgz", get(aliased_workspace_archive_tgz))
             .route("/api/workspace/:/id/{workspace_id}/archive/{commit_id}/tgz", get(workspace_archive_tgz))
@@ -216,8 +264,13 @@ where
         router
     }
 
-    fn pmr_routes(self) -> Self {
-        let mut router = self.pmr_server_routes();
+    fn pmr_routes< E, EFut, Res>(self, error_handler: E) -> Self
+    where
+        E: FnOnce(Request, AppError) -> EFut + Clone + Send + Sync + 'static,
+        EFut: Future<Output = Res> + Send,
+        Res: IntoResponse + Send,
+    {
+        let mut router = self.pmr_server_routes(error_handler);
         for (path, method) in server_fn_paths() {
             router = router.route(
                 path,
@@ -287,25 +340,27 @@ pub struct PlatformSessionFnWrapper<F, E> {
 }
 
 impl<F, E> PlatformSessionFnWrapper<F, E> {
-    pub fn new<Fut, EFut, Res, P>(f: F, error: E) -> Self
+    pub fn new<Fut, EFut, Res, ERes, P>(f: F, error: E) -> Self
     where
         F: FnOnce(Extension<Platform>, Extension<AuthSession<ACPlatform>>, P) -> Fut + Clone + Send + Sync + 'static,
         Fut: Future<Output = Result<Res, AppError>> + Send,
         E: FnOnce(Request, AppError) -> EFut + Clone + Send + Sync + 'static,
-        EFut: Future<Output = Res> + Send,
+        EFut: Future<Output = ERes> + Send,
         Res: IntoResponse + Send,
+        ERes: IntoResponse + Send,
     {
         Self { f, error }
     }
 }
 
-impl<F, Fut, E, EFut, S, Res, P> Handler<(P,), S> for PlatformSessionFnWrapper<F, E>
+impl<F, Fut, E, EFut, S, Res, ERes, P> Handler<(P,), S> for PlatformSessionFnWrapper<F, E>
 where
     F: FnOnce(Extension<Platform>, Extension<AuthSession<ACPlatform>>, P) -> Fut + Clone + Send + Sync + 'static,
     Fut: Future<Output = Result<Res, AppError>> + Send,
     E: FnOnce(Request, AppError) -> EFut + Clone + Send + Sync + 'static,
-    EFut: Future<Output = Res> + Send,
+    EFut: Future<Output = ERes> + Send,
     Res: IntoResponse + Send,
+    ERes: IntoResponse + Send,
     P: FromRequestParts<S> + Send,
     S: Send + Sync + 'static,
 {

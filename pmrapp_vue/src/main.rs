@@ -1,10 +1,13 @@
 use axum::{
-    Router,
-    ServiceExt,
+    body::Body,
     http::{
         header::HeaderValue,
+        Request,
         StatusCode,
     },
+    response::IntoResponse,
+    Router,
+    ServiceExt,
 };
 use clap::Parser;
 use pmrapp::integration::PmrAxumExt;
@@ -14,6 +17,7 @@ use pmrapp_vue::{
 };
 use pmrctrl::executor::Executor;
 use pmrtqs::runtime::Builder as RuntimeBuilder;
+use tower::Service;
 use tower_http::{
     services::{
         ServeDir,
@@ -49,8 +53,24 @@ async fn main() -> anyhow::Result<()> {
     let addr = args.bind_addr;
     let platform = args.platform_builder.build().await
         .map_err(anyhow::Error::from_boxed)?;
+    let index_html = ServeFile::new(vue_asset_path.join("index.html"));
     let app = Router::new()
-        .pmr_routes()
+        .pmr_routes({
+            let index_html = index_html.clone();
+            move |req, e| {
+                let mut index_html = index_html.clone();
+                async move {
+                    let mut res = <ServeFile as Service<Request<Body>>>::call(
+                        &mut index_html,
+                        req,
+                    )
+                    .await
+                    .into_response();
+                    *res.status_mut() = e.status_code();
+                    res
+                }
+            }
+        })
         .pmr_vue_routes(&vue_asset_path)
         .pmr_layers(
             platform.clone(),
@@ -65,7 +85,7 @@ async fn main() -> anyhow::Result<()> {
             ServeDir::new(&vue_asset_path)
                 .fallback(
                     SetStatus::new(
-                        ServeFile::new(vue_asset_path.join("index.html")),
+                        index_html.clone(),
                         StatusCode::NOT_FOUND,
                     ),
                 ),
