@@ -258,7 +258,7 @@ pub(crate) fn checkout(
     dest_dir: &Path,
 ) -> Result<(), PmrRepoError> {
     let git_dir = repo.path();
-    let odb = gix::odb::at(git_dir.join("objects"))?
+    let odb = gix::odb::at(git_dir.join("objects"), gix::hash::Kind::Sha1)?
         .into_inner()
         .into_arc()?;
     let mut index = gix::index::State::from_tree(
