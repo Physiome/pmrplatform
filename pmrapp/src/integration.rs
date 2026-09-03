@@ -27,11 +27,9 @@ use axum::{
         put,
     },
 };
-use axum_login::AuthSession;
 use leptos::server_fn::axum::server_fn_paths;
 use leptos_axum::handle_server_fns;
 use axum_login_bearer::BearerTokenAuthManagerLayer;
-use pmrac::Platform as ACPlatform;
 use pmrcore::web::Source;
 use pmrctrl::platform::Platform;
 use std::pin::Pin;
@@ -109,21 +107,21 @@ fn before_handle_request<B>(mut req: Request<B>) -> Request<B> {
 }
 
 /// Extension trait for [`axum::Router`] so it may be set up for serving of the PMR platform.
+///
+/// This trait is sealed; implementation by external package is not possible.
 pub trait PmrAxumExt<S>: private::Sealed
 where
     S: Clone + Send + Sync + 'static,
 {
     /// This is to set up `get` routes for the pmr application where an additional error renderer may be
     /// provided.
-    fn pmr_route_get<F, Fut, E, EFut, Res, ERes, P>(self, path: &str, f: F, error: E) -> Self
+    fn pmr_route_get<F, E, EFut, ERes, T>(self, path: &str, f: F, error_handler: E) -> Self
     where
-        F: FnOnce(Extension<Platform>, Extension<AuthSession<ACPlatform>>, P) -> Fut + Clone + Send + Sync + 'static,
-        Fut: Future<Output = Result<Res, AppError>> + Send,
+        F: PmrHandlerExt<T, S>,
         E: FnOnce(Request, AppError) -> EFut + Clone + Send + Sync + 'static,
         EFut: Future<Output = ERes> + Send,
-        Res: IntoResponse + Send,
         ERes: IntoResponse + Send,
-        P: FromRequestParts<S> + Send + 'static;
+        T: 'static;
 
     /// Enable routing to the data-only (e.g. rawfile, archive) endpoints of PMR.
     ///
@@ -172,18 +170,16 @@ impl<S> PmrAxumExt<S> for axum::Router<S>
 where
     S: Clone + Send + Sync + 'static,
 {
-    fn pmr_route_get<F, Fut, E, EFut, Res, ERes, P>(self, path: &str, f: F, error_handler: E) -> Self
+    fn pmr_route_get<F, E, EFut, ERes, T>(self, path: &str, f: F, error_handler: E) -> Self
     where
-        F: FnOnce(Extension<Platform>, Extension<AuthSession<ACPlatform>>, P) -> Fut + Clone + Send + Sync + 'static,
-        Fut: Future<Output = Result<Res, AppError>> + Send,
+        F: PmrHandlerExt<T, S>,
         E: FnOnce(Request, AppError) -> EFut + Clone + Send + Sync + 'static,
         EFut: Future<Output = ERes> + Send,
-        Res: IntoResponse + Send,
         ERes: IntoResponse + Send,
-        P: FromRequestParts<S> + Send + 'static,
+        T: 'static,
     {
         self.without_v07_checks()
-            .route(path, get(PlatformSessionFnWrapper::new(f, error_handler)))
+            .route(path, get(PmrHandler::new(f, error_handler)))
     }
 
     fn pmr_server_routes<E, EFut, Res>(self, error_handler: E) -> Self
@@ -201,7 +197,11 @@ where
             .route("/collection_json/workspace/", get(collection_json_workspace))
 
             .route("/api/exposure/{exposure_id}/download_zip", get(aliased_exposure_archive_zip))
-            .route("/exposure/{exposure_id}/download_zip", get(aliased_exposure_archive_zip))
+            .pmr_route_get(
+                "/exposure/{exposure_id}/download_zip",
+                aliased_exposure_archive_zip,
+                error_handler.clone(),
+            )
 
             // These are duplicated to /api/ to keep the OpenAPI specification consistent, while
             // keeping the original in the event we will fall back to a fully integrated application.
@@ -327,67 +327,232 @@ where
     }
 }
 
-/// A wrapper around a function that is axum handler that takes an extesnsion of `Platform`,
-/// `AuthSession<ACPlatform>`, and an additional argument (usually `Path`) that may be formed from the incoming
-/// `Request`, and that the handler returns `Result<impl IntoResponse, AppError>`.  Additionally, an error
-/// handler that accepts a `Request` and `AppError` be provided so that an intended error page may be
-/// generated.  This wrapper is provided to handle the `Result` specifically rather than relying on the
-/// default `IntoResponse` implementation that the default `Handler` provides.
+/// A wrapper around a function that is axum handler with an error handler.
+///
+/// Please refer to [`PmrHandler::new`].
 #[derive(Clone)]
-pub struct PlatformSessionFnWrapper<F, E> {
+pub struct PmrHandler<F, E> {
     f: F,
     error: E,
 }
 
-impl<F, E> PlatformSessionFnWrapper<F, E> {
-    pub fn new<Fut, EFut, Res, ERes, P>(f: F, error: E) -> Self
+impl<F, E> PmrHandler<F, E> {
+    /// Create a wrapper around a `Handler` that returns a `Result<impl IntoResponse, AppError>` along
+    /// with a function that takes a `Request` and `AppError` as arguments such that the `Err` arm of the
+    /// handler's result may be processed into the intended error page for end-user consumption.
+    pub fn new<EFut, ERes, T, S>(f: F, error: E) -> Self
     where
-        F: FnOnce(Extension<Platform>, Extension<AuthSession<ACPlatform>>, P) -> Fut + Clone + Send + Sync + 'static,
-        Fut: Future<Output = Result<Res, AppError>> + Send,
+        F: PmrHandlerExt<T, S>,
         E: FnOnce(Request, AppError) -> EFut + Clone + Send + Sync + 'static,
         EFut: Future<Output = ERes> + Send,
-        Res: IntoResponse + Send,
         ERes: IntoResponse + Send,
     {
         Self { f, error }
     }
 }
 
-impl<F, Fut, E, EFut, S, Res, ERes, P> Handler<(P,), S> for PlatformSessionFnWrapper<F, E>
+impl<F, E, EFut, S, ERes, T> Handler<T, S> for PmrHandler<F, E>
 where
-    F: FnOnce(Extension<Platform>, Extension<AuthSession<ACPlatform>>, P) -> Fut + Clone + Send + Sync + 'static,
-    Fut: Future<Output = Result<Res, AppError>> + Send,
+    F: PmrHandlerExt<T, S>,
     E: FnOnce(Request, AppError) -> EFut + Clone + Send + Sync + 'static,
     EFut: Future<Output = ERes> + Send,
-    Res: IntoResponse + Send,
     ERes: IntoResponse + Send,
-    P: FromRequestParts<S> + Send,
     S: Send + Sync + 'static,
 {
     type Future = Pin<Box<dyn Future<Output = Response> + Send>>;
 
     fn call(self, req: Request, state: S) -> Self::Future {
+        Box::pin(async move {
+            self.f.call(req, state, self.error).await
+        })
+    }
+}
+
+/// "Extension" trait for `Handler` that has a call method suitable for handlers fround in PMR.
+///
+/// This is not a strict extension as it basically has one concrete implementation provided by [`PmrHandler`],
+/// where it encapsulate and implements `Handler` such that a common error page (for a given application) may
+/// be produced from a common error handler.
+pub trait PmrHandlerExt<T, S>: Clone + Send + Sync + Sized + 'static {
+    type Future: Future<Output = Response> + Send + 'static;
+
+    fn call<E, EFut, ERes>(self, req: Request, state: S, err_handler: E) -> Self::Future
+    where
+        E: FnOnce(Request, AppError) -> EFut + Clone + Send + Sync + 'static,
+        EFut: Future<Output = ERes> + Send,
+        ERes: IntoResponse + Send;
+}
+
+impl<F, Fut, S, Res, T1> PmrHandlerExt<(T1,), S> for F
+where
+    F: FnOnce(T1) -> Fut + Clone + Send + Sync + 'static,
+    Fut: Future<Output = Result<Res, AppError>> + Send,
+    S: Send + Sync + 'static,
+    Res: IntoResponse + Send,
+    T1: FromRequestParts<S> + Send,
+{
+    type Future = Pin<Box<dyn Future<Output = Response> + Send>>;
+
+    fn call<E, EFut, ERes>(self, req: Request, state: S, err_handler: E) -> Self::Future
+    where
+        E: FnOnce(Request, AppError) -> EFut + Clone + Send + Sync + 'static,
+        EFut: Future<Output = ERes> + Send,
+        ERes: IntoResponse + Send,
+    {
         let (mut parts, body) = req.into_parts();
         Box::pin(async move {
-            let platform = match <Extension<Platform>>::from_request_parts(&mut parts, &state).await {
-                Ok(value) => value,
-                Err(rejection) => return rejection.into_response(),
-            };
-            let session = match <Extension<AuthSession<ACPlatform>>>::from_request_parts(&mut parts, &state).await {
-                Ok(value) => value,
-                Err(rejection) => return rejection.into_response(),
-            };
-            let p = match P::from_request_parts(&mut parts, &state).await {
+            let t1 = match T1::from_request_parts(&mut parts, &state).await {
                 Ok(value) => value,
                 Err(rejection) => return rejection.into_response(),
             };
 
             let req = Request::from_parts(parts, body);
 
-            match (self.f)(platform, session, p).await {
+            match self(t1).await {
                 Ok(r) => r.into_response(),
                 Err(err) => {
-                    (self.error)(req, err)
+                    err_handler(req, err)
+                        .await
+                        .into_response()
+                }
+            }
+        })
+    }
+}
+
+impl<F, Fut, S, Res, T1, T2> PmrHandlerExt<(T1, T2), S> for F
+where
+    F: FnOnce(T1, T2) -> Fut + Clone + Send + Sync + 'static,
+    Fut: Future<Output = Result<Res, AppError>> + Send,
+    S: Send + Sync + 'static,
+    Res: IntoResponse + Send,
+    T1: FromRequestParts<S> + Send,
+    T2: FromRequestParts<S> + Send,
+{
+    type Future = Pin<Box<dyn Future<Output = Response> + Send>>;
+
+    fn call<E, EFut, ERes>(self, req: Request, state: S, err_handler: E) -> Self::Future
+    where
+        E: FnOnce(Request, AppError) -> EFut + Clone + Send + Sync + 'static,
+        EFut: Future<Output = ERes> + Send,
+        ERes: IntoResponse + Send,
+    {
+        let (mut parts, body) = req.into_parts();
+        Box::pin(async move {
+            let t1 = match T1::from_request_parts(&mut parts, &state).await {
+                Ok(value) => value,
+                Err(rejection) => return rejection.into_response(),
+            };
+            let t2 = match T2::from_request_parts(&mut parts, &state).await {
+                Ok(value) => value,
+                Err(rejection) => return rejection.into_response(),
+            };
+
+            let req = Request::from_parts(parts, body);
+
+            match self(t1, t2).await {
+                Ok(r) => r.into_response(),
+                Err(err) => {
+                    err_handler(req, err)
+                        .await
+                        .into_response()
+                }
+            }
+        })
+    }
+}
+
+impl<F, Fut, S, Res, T1, T2, T3> PmrHandlerExt<(T1, T2, T3), S> for F
+where
+    F: FnOnce(T1, T2, T3) -> Fut + Clone + Send + Sync + 'static,
+    Fut: Future<Output = Result<Res, AppError>> + Send,
+    S: Send + Sync + 'static,
+    Res: IntoResponse + Send,
+    T1: FromRequestParts<S> + Send,
+    T2: FromRequestParts<S> + Send,
+    T3: FromRequestParts<S> + Send,
+{
+    type Future = Pin<Box<dyn Future<Output = Response> + Send>>;
+
+    fn call<E, EFut, ERes>(self, req: Request, state: S, err_handler: E) -> Self::Future
+    where
+        E: FnOnce(Request, AppError) -> EFut + Clone + Send + Sync + 'static,
+        EFut: Future<Output = ERes> + Send,
+        ERes: IntoResponse + Send,
+    {
+        let (mut parts, body) = req.into_parts();
+        Box::pin(async move {
+            let t1 = match T1::from_request_parts(&mut parts, &state).await {
+                Ok(value) => value,
+                Err(rejection) => return rejection.into_response(),
+            };
+            let t2 = match T2::from_request_parts(&mut parts, &state).await {
+                Ok(value) => value,
+                Err(rejection) => return rejection.into_response(),
+            };
+            let t3 = match T3::from_request_parts(&mut parts, &state).await {
+                Ok(value) => value,
+                Err(rejection) => return rejection.into_response(),
+            };
+
+            let req = Request::from_parts(parts, body);
+
+            match self(t1, t2, t3).await {
+                Ok(r) => r.into_response(),
+                Err(err) => {
+                    err_handler(req, err)
+                        .await
+                        .into_response()
+                }
+            }
+        })
+    }
+}
+
+impl<F, Fut, S, Res, T1, T2, T3, T4> PmrHandlerExt<(T1, T2, T3, T4), S> for F
+where
+    F: FnOnce(T1, T2, T3, T4) -> Fut + Clone + Send + Sync + 'static,
+    Fut: Future<Output = Result<Res, AppError>> + Send,
+    S: Send + Sync + 'static,
+    Res: IntoResponse + Send,
+    T1: FromRequestParts<S> + Send,
+    T2: FromRequestParts<S> + Send,
+    T3: FromRequestParts<S> + Send,
+    T4: FromRequestParts<S> + Send,
+{
+    type Future = Pin<Box<dyn Future<Output = Response> + Send>>;
+
+    fn call<E, EFut, ERes>(self, req: Request, state: S, err_handler: E) -> Self::Future
+    where
+        E: FnOnce(Request, AppError) -> EFut + Clone + Send + Sync + 'static,
+        EFut: Future<Output = ERes> + Send,
+        ERes: IntoResponse + Send,
+    {
+        let (mut parts, body) = req.into_parts();
+        Box::pin(async move {
+            let t1 = match T1::from_request_parts(&mut parts, &state).await {
+                Ok(value) => value,
+                Err(rejection) => return rejection.into_response(),
+            };
+            let t2 = match T2::from_request_parts(&mut parts, &state).await {
+                Ok(value) => value,
+                Err(rejection) => return rejection.into_response(),
+            };
+            let t3 = match T3::from_request_parts(&mut parts, &state).await {
+                Ok(value) => value,
+                Err(rejection) => return rejection.into_response(),
+            };
+            let t4 = match T4::from_request_parts(&mut parts, &state).await {
+                Ok(value) => value,
+                Err(rejection) => return rejection.into_response(),
+            };
+
+            let req = Request::from_parts(parts, body);
+
+            match self(t1, t2, t3, t4).await {
+                Ok(r) => r.into_response(),
+                Err(err) => {
+                    err_handler(req, err)
                         .await
                         .into_response()
                 }
