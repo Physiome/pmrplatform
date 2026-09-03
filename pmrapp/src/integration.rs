@@ -131,7 +131,10 @@ where
     /// as-is, where its `IntoResponse` implementation will provide the default status code response.
     ///
     /// ```
-    /// router.pmr_server_routes(|_, e| async { e })
+    /// # use pmrapp::integration::PmrAxumExt;
+    /// # use axum::Router;
+    /// # let router: Router<()> = Router::new();
+    /// router.pmr_server_routes(|_, e| async { e });
     /// ```
     ///
     /// Please ensure that `.pmr_layers()` is called at some point after PMR routes have been added.
