@@ -198,7 +198,7 @@ where
 
             .route("/api/exposure/{exposure_id}/download_zip", get(aliased_exposure_archive_zip))
             .pmr_route_get(
-                "/exposure/{exposure_id}/download_zip",
+                "/exposure/{exposure_id}/:/download_zip",
                 aliased_exposure_archive_zip,
                 error_handler.clone(),
             )
