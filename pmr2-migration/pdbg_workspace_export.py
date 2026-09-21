@@ -33,3 +33,5 @@ for record in records:
 
 with open('/tmp/workspace_dump.json', 'w') as fd:
     json.dump(results, fd)
+
+print("%d workspace(s) exported" % len(results))

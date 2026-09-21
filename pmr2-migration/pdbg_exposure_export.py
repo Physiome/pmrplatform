@@ -30,3 +30,5 @@ for record in records:
 
 with open('/tmp/exposure_dump.json', 'w') as fd:
     json.dump(results, fd)
+
+print("%d exposure(s) exported" % len(results))
