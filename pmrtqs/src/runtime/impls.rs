@@ -2,7 +2,7 @@ use tokio::runtime;
 
 use crate::{
     executor::traits,
-    runner::Runner,
+    runner::{Runner, RunnerConf},
 };
 
 use super::*;
@@ -27,6 +27,7 @@ where
         Self {
             executor: None,
             permits: 0,
+            runner_conf: RunnerConf::default(),
         }
     }
 
@@ -40,11 +41,17 @@ where
         self
     }
 
+    pub fn runner_conf(mut self, runner_conf: RunnerConf) -> Self {
+        self.runner_conf = runner_conf;
+        self
+    }
+
     pub fn build(self) -> Runtime<EX> {
         Runtime::new(
             self.executor
                 .expect("Executor was not provided with Builder"),
             self.permits,
+            self.runner_conf,
         )
     }
 
@@ -57,6 +64,7 @@ where
             self.executor
                 .expect("Executor was not provided with Builder"),
             self.permits,
+            self.runner_conf,
         )
     }
 }
@@ -73,6 +81,7 @@ where
     pub(crate) fn new(
         executor: EX,
         permits: usize,
+        runner_conf: RunnerConf,
     ) -> Self {
         let runtime = runtime::Builder::new_multi_thread()
             .enable_io()
@@ -86,6 +95,7 @@ where
             executor,
             permits,
             driver: None,
+            runner_conf,
         }
     }
 
@@ -96,6 +106,7 @@ where
         handle: runtime::Handle,
         executor: EX,
         permits: usize,
+        runner_conf: RunnerConf,
     ) -> Self {
         Self {
             runtime: None,
@@ -103,6 +114,7 @@ where
             executor,
             permits,
             driver: None,
+            runner_conf,
         }
     }
 
@@ -113,6 +125,7 @@ where
 
         let mut runner: Runner<EX> = Runner::new(
             self.executor.clone(),
+            self.runner_conf.clone(),
             self.handle.clone(),
             self.permits,
         );

@@ -3,14 +3,21 @@ use pmrctrl::{
     executor::Executor,
     platform::Builder,
 };
-use pmrtqs::runtime::Runtime;
+use pmrtqs::{
+    runner::RunnerConf,
+    runtime::Runtime,
+};
 use std::error::Error;
 use tokio;
 
 #[derive(Debug, Parser)]
 struct Cli {
+    /// Specify the number of task runners.
     #[clap(short = 'r', long = "runners", default_value = "8")]
     runners: usize,
+    /// When set, the polling will stop once no more tasks are found in the task queue.
+    #[clap(long = "poll-until-no-tasks")]
+    poll_until_no_tasks: bool,
     #[clap(flatten)]
     platform_builder: Builder,
     #[clap(short = 'v', long = "verbose", action = clap::ArgAction::Count)]
@@ -37,9 +44,12 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         Ok::<_, Box<dyn Error + Send + Sync + 'static>>(platform)
     })?;
     let executor = Executor::new(platform);
+    let runner_conf = RunnerConf::new()
+        .poll_until_no_tasks(args.poll_until_no_tasks);
     let mut runtime = Runtime::builder()
         .executor(executor)
         .permits(args.runners)
+        .runner_conf(runner_conf)
         .build();
     runtime.start();
     log::info!("runner runtime starting");

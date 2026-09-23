@@ -3,6 +3,7 @@ mod types;
 
 pub use types::{
     Runner,
+    RunnerConf,
     RunnerHandle,
     RunnerMessage,
 };

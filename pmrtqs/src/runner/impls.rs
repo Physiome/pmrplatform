@@ -20,11 +20,33 @@ use tokio_stream::{
     StreamExt,
     wrappers::IntervalStream,
 };
-use tokio_util::task::TaskTracker;
+use tokio_util::{
+    sync::CancellationToken,
+    task::TaskTracker,
+};
 
 use crate::executor::traits;
 
 use super::*;
+
+impl Default for RunnerConf {
+    fn default() -> Self {
+        Self {
+            poll_until_no_tasks: false,
+        }
+    }
+}
+
+impl RunnerConf {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn poll_until_no_tasks(mut self, v: bool) -> Self {
+        self.poll_until_no_tasks = v;
+        self
+    }
+}
 
 impl<EX> Runner<EX>
 where
@@ -33,6 +55,7 @@ where
 {
     pub fn new(
         executor: EX,
+        runner_conf: RunnerConf,
         rt_handle: runtime::Handle,
         permits: usize,  // the number of process permitted
     ) -> Self {
@@ -42,6 +65,7 @@ where
         // not sure if this relative low limit is fine...
         let (sender, receiver) = mpsc::channel(permits);
         let (abort_sender, _) = broadcast::channel(1);
+        let cancellation_token = CancellationToken::new();
         let termination_token = Arc::new(false.into());
         Self {
             rt_handle,
@@ -49,9 +73,11 @@ where
             receiver,
             semaphore,
             task_tracker,
+            cancellation_token,
             termination_token,
             abort_sender,
             executor,
+            runner_conf,
         }
     }
 
@@ -60,9 +86,11 @@ where
             executor: self.executor.clone(),
             sender: self.sender.clone(),
             task_tracker: self.task_tracker.clone(),
+            cancellation_token: self.cancellation_token.clone(),
             termination_token: self.termination_token.clone(),
             rt_handle: self.rt_handle.clone(),
             abort_sender: self.abort_sender.clone(),
+            runner_conf: self.runner_conf.clone(),
         }
     }
 
@@ -172,6 +200,10 @@ where
                 log::debug!("sending task {task}");
                 self.queue_task(task).await;
             };
+            if self.runner_conf.poll_until_no_tasks {
+                self.cancellation_token.cancel();
+                break;
+            }
         };
         log::debug!("task queue stopping");
     }
@@ -214,20 +246,29 @@ where
     // the subprocess...
     pub async fn wait_for_shutdown_signal(&self) {
         log::trace!("waiting for shutdown signal");
-        match signal::ctrl_c().await {
-            Ok(()) => {
-                log::debug!("Ctrl-C received for shutdown");
-                let handle = self.clone();
-                self.rt_handle.spawn({async move {
-                    handle.wait_for_terminate_signal().await;
-                }});
+        tokio::select! {
+            val = signal::ctrl_c() => {
+                match val {
+                    Ok(()) => {
+                        log::debug!("Ctrl-C received for shutdown");
+                        let handle = self.clone();
+                        self.rt_handle.spawn({async move {
+                            handle.wait_for_terminate_signal().await;
+                        }});
+                        self.shutdown().await;
+                        log::debug!("termination confirmed");
+                    },
+                    Err(err) => {
+                        log::debug!("Unable to listen for shutdown signal: {}", err);
+                        log::debug!("shutdown not signaled");
+                    },
+                }
+            }
+            _ = self.cancellation_token.cancelled() => {
+                log::debug!("cancellation received; not waiting for more ctrl-c, wait for task tracker...");
+                // This should wait for the task_tracker to finish.
                 self.shutdown().await;
-                log::debug!("termination confirmed");
-            },
-            Err(err) => {
-                log::debug!("Unable to listen for shutdown signal: {}", err);
-                log::debug!("shutdown not signaled");
-            },
+            }
         }
     }
 }
