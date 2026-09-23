@@ -66,7 +66,11 @@ where
     for<'a> EX: traits::Executor + Send + Sync + Clone + 'a,
     <EX as traits::Executor>::Error: Send + std::fmt::Display + std::fmt::Debug
 {
-    pub fn new(
+    pub fn builder() -> Builder<EX> {
+        Builder::new()
+    }
+
+    pub(crate) fn new(
         executor: EX,
         permits: usize,
     ) -> Self {
@@ -85,7 +89,10 @@ where
         }
     }
 
-    pub fn with_handle(
+    /// Create with a tokio runtime handle.
+    ///
+    /// This may be a handle with other long running services.
+    pub(crate) fn with_handle(
         handle: runtime::Handle,
         executor: EX,
         permits: usize,

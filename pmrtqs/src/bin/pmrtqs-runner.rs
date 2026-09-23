@@ -50,7 +50,10 @@ fn main() -> anyhow::Result<()> {
         )
     })?;
     let executor = TMPlatformExecutor::new(<Arc<dyn TMPlatform>>::from(backend));
-    let mut runtime = Runtime::new(executor.clone(), args.runners);
+    let mut runtime = Runtime::builder()
+        .executor(executor.clone())
+        .permits(args.runners)
+        .build();
     runtime.start();
     log::info!("runner runtime starting");
     runtime.wait();

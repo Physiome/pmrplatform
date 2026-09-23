@@ -37,7 +37,10 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         Ok::<_, Box<dyn Error + Send + Sync + 'static>>(platform)
     })?;
     let executor = Executor::new(platform);
-    let mut runtime = Runtime::new(executor, args.runners);
+    let mut runtime = Runtime::builder()
+        .executor(executor)
+        .permits(args.runners)
+        .build();
     runtime.start();
     log::info!("runner runtime starting");
     runtime.wait();

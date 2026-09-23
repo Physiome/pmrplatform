@@ -41,5 +41,5 @@ pub struct RunnerHandle<EX: traits::Executor> {
     pub(super) sender: mpsc::Sender<RunnerMessage>,
     pub(super) task_tracker: TaskTracker,
     pub(super) termination_token: Arc<AtomicBool>,
-    pub(super) rt_handle: tokio::runtime::Handle,
+    pub(super) rt_handle: runtime::Handle,
 }
