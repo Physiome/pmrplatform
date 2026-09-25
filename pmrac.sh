@@ -1,4 +1,9 @@
 #!/bin/sh
+set -e
+
+if [ -f ./target/release/pmrac ]; then
+    cargo build -p pmrac --bin pmrac --all-features
+fi
 
 # Grant all permissions to manager role
 ./target/release/pmrac policy assign private manager '*'

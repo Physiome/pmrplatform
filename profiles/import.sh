@@ -6,7 +6,7 @@ cd "${PROFILES_ROOT}/.."
 # Ensure the release is built
 
 if [ ! -f ./target/release/pmrctrl ]; then
-    cargo build --release --all-features
+    cargo build -p pmrctrl --release --all-features
 fi
 
 if [ ! -f "${PROFILES_ROOT}/env" ]; then
