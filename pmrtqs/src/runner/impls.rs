@@ -129,7 +129,7 @@ where
                             // executor so it knows if the abort is set.
                             match executor.execute(task, abort_receiver).await {
                                 Ok(_) => (),
-                                Err(e) => log::error!("task executor error: {e}"),
+                                Err(e) => log::error!("task executor; task: {t}; error: {e}"),
                             }
                             log::debug!("runner finished task: {t}")
                         }
@@ -265,7 +265,7 @@ where
                 }
             }
             _ = self.cancellation_token.cancelled() => {
-                log::debug!("cancellation received; not waiting for more ctrl-c, wait for task tracker...");
+                log::debug!("cancellation received to trigger shutdown");
                 // This should wait for the task_tracker to finish.
                 self.shutdown().await;
             }

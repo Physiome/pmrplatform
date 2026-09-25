@@ -35,30 +35,43 @@ impl<'p> Platform {
         mut task: TaskRef<'_>,
         exit_status: i64,
     ) -> Result<bool, PlatformError> {
-        task.complete(exit_status).await?;
+        let task_id = task.id();
+        task.complete(exit_status).await
+            .map_err(|e| {
+                log::error!(
+                    "Task:{task_id} failed to write to db the value of exit_status: {}; error: {}",
+                    exit_status,
+                    e,
+                );
+                e
+            })?;
         // TODO figure out if we need to record task run failure for the
         // exposure task log
         if exit_status == 0 {
-            let task_id = task.id();
             Ok(match ExposureTaskBackend::finalize_task_id(
                 self.mc_platform(),
                 task_id,
-            ).await? {
-                Some((id, Some(view_key))) => {
+            ).await {
+                Ok(Some((id, Some(view_key)))) => {
                     log::debug!("Task:{task_id} ran for ExposureFileView:{id}, produced view {view_key}");
                     true
                 }
-                Some((id, None)) => {
+                Ok(Some((id, None))) => {
                     log::warn!("Task:{task_id} ran for ExposureFileView:{id}, but failed to produced view");
                     false
                 }
-                None => {
+                Ok(None) => {
                     // TODO we've somehow triggered this with sqlite.
                     log::warn!("Task:{task_id} ran but it failed to produce results?");
                     false
                 }
+                Err(err) => {
+                    log::error!("Task:{task_id} failed to be finalized into the db; error: {err}");
+                    return Err(err)?;
+                }
             })
         } else {
+            log::debug!("Task:{task_id} ran but its task exited with {exit_status}");
             Ok(false)
         }
     }

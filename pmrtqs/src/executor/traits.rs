@@ -4,7 +4,7 @@ use tokio::sync::broadcast;
 
 #[async_trait]
 pub trait Executor {
-    type Error;
+    type Error: std::error::Error;
 
     async fn start_task(
         &self,
