@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-if [ -f ./target/release/pmrac ]; then
-    cargo build -p pmrac --bin pmrac --all-features
+if [ ! -f ./target/release/pmrac ]; then
+    cargo build -p pmrac --bin pmrac --all-features --release
 fi
 
 # Grant all permissions to manager role
