@@ -73,6 +73,7 @@ impl AsyncRead for Outcome {
 
 #[derive(Clone, Debug)]
 pub struct CommandRunner {
+    bearer: Option<Cow<'static, str>>,
     prefix: Cow<'static, str>,
     cmd: Cow<'static, str>,
     outcomes: Arc<RwLock<Vec<Outcome>>>,
@@ -80,21 +81,31 @@ pub struct CommandRunner {
 
 impl CommandRunner {
     pub fn new(
-        prefix: Cow<'static, str>,
         cmd: Cow<'static, str>,
     ) -> Self {
         CommandRunner {
-            prefix,
+            bearer: None,
+            prefix: "/".into(),
             cmd,
             outcomes: Default::default(),
         }
+    }
+
+    pub fn bearer(mut self, bearer: Cow<'static, str>) -> Self {
+        self.bearer = Some(bearer);
+        self
+    }
+
+    pub fn prefix(mut self, prefix: Cow<'static, str>) -> Self {
+        self.prefix = prefix;
+        self
     }
 
     pub fn setup_router(self, router: Router) -> Router {
         let prefix = &self.prefix;
         router
             .route_service(&format!("{prefix}"), self.clone())
-            .route_service(&format!("{prefix}{{idx}}"), self.clone())
+            .route_service(&format!("{prefix}{{idx}}"), self)
     }
 
     // Return the 1-indexed item.
@@ -161,9 +172,15 @@ where
         let (mut parts, _body) = req.into_parts();
         let runner = self.clone();
         let prefix = self.prefix.clone();
+        let bearer = self.bearer.clone().map(|bearer| {
+            header::HeaderValue::from_str(&format!("Bearer {}", bearer)).unwrap()
+        });
         Box::pin(async move {
             let mut resp = Response::builder()
                 .header(header::CONTENT_TYPE, "text/plain");
+            if bearer.is_some() && parts.headers.get(header::AUTHORIZATION) != bearer.as_ref() {
+                return Ok(resp.status(StatusCode::FORBIDDEN).body(String::new().into()).unwrap());
+            }
             let body = if let Ok(Path(idx)) = Path::<u64>::from_request_parts(&mut parts, &()).await {
                 if let Some(outcome) = runner.read(idx).await {
                     resp = resp.status(StatusCode::OK);
