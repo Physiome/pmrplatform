@@ -21,7 +21,7 @@ pmrrbac = { workspace = true }
 pmrrepo = { workspace = true }
 pmrtqs = { workspace = true }
 stderrlog = { workspace = true }
-tokio = { workspace = true, features = ["rt-multi-thread"] }
+tokio = { workspace = true, features = ["process", "rt-multi-thread"] }
 tower = { workspace = true, features = ["util"] }
 tower-http = { workspace = true, features = ["cors", "fs"] }
 tower-sessions = { workspace = true }
