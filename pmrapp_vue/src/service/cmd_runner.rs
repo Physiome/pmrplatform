@@ -1,64 +1,105 @@
 use axum::{
+    body::Body,
     extract::{FromRequestParts, Path},
-    http::{Request, Response, StatusCode, header},
+    http::{Method, Request, Response, StatusCode, header},
+    Router,
 };
 use std::{
     borrow::Cow,
     convert::Infallible,
     future::Future,
-    io::{Cursor, Seek as _, SeekFrom, Write as _},
     pin::Pin,
     process::Stdio,
-    sync::Arc,
+    sync::{Arc, RwLock},
     task::{Context, Poll},
 };
 use tokio::{
-    io::{AsyncBufReadExt, BufReader},
+    io::{AsyncBufReadExt, AsyncRead, BufReader, ReadBuf},
     process::Command,
-    sync::RwLock,
 };
 use tower::Service;
 use tower_http::services::fs::AsyncReadBody;
 
 #[derive(Debug, Default)]
 struct OutcomeInner {
-    stdout: Cursor<Vec<u8>>,
+    stdout: Vec<u8>,
     status_code: Option<Option<i32>>,
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct Outcome(Arc<RwLock<OutcomeInner>>);
+pub struct Outcome {
+    inner: Arc<RwLock<OutcomeInner>>,
+    pos: usize,
+}
 
 impl Outcome {
     pub fn new() -> Self {
-        Self(Arc::new(RwLock::new(OutcomeInner::default())))
+        Self::default()
     }
+}
 
-    pub async fn cursor(&self) -> Cursor<Vec<u8>> {
-        let mut cursor = self.0.read().await.stdout.clone();
-        cursor.seek(SeekFrom::Start(0))
-            .expect("seek shouldn't fail for a Vec");
-        cursor
+// Technically this could implement Body, but AsyncRead is more generic for more flexible usage locations.
+impl AsyncRead for Outcome {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        let inner = self.inner.clone();
+        let inner = inner.read().unwrap();
+        let amt = std::cmp::min(inner.stdout.len() - self.pos, buf.remaining());
+        let slice = &inner.stdout[self.pos..self.pos + amt];
+        buf.put_slice(slice);
+        self.pos = self.pos + amt;
+        match inner.status_code {
+            None => {
+                if slice.len() > 0 {
+                    Poll::Ready(Ok(()))
+                } else {
+                    let waker = cx.waker().clone();
+                    tokio::spawn(async move {
+                        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                        waker.wake_by_ref();
+                    });
+                    Poll::Pending
+                }
+            }
+            _ => {
+                Poll::Ready(Ok(()))
+            }
+        }
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct CommandRunner {
+    prefix: Cow<'static, str>,
     cmd: Cow<'static, str>,
     outcomes: Arc<RwLock<Vec<Outcome>>>,
 }
 
 impl CommandRunner {
-    pub fn new(cmd: Cow<'static, str>) -> Self {
+    pub fn new(
+        prefix: Cow<'static, str>,
+        cmd: Cow<'static, str>,
+    ) -> Self {
         CommandRunner {
+            prefix,
             cmd,
             outcomes: Default::default(),
         }
     }
 
+    pub fn setup_router(self, router: Router) -> Router {
+        let prefix = &self.prefix;
+        router
+            .route_service(&format!("{prefix}"), self.clone())
+            .route_service(&format!("{prefix}{{idx}}"), self.clone())
+    }
+
     // Return the 1-indexed item.
     async fn read(&self, idx: u64) -> Option<Outcome> {
-        let outcomes = self.outcomes.read().await;
+        let outcomes = self.outcomes.read().unwrap();
         if let Some(outcome) = outcomes.get((idx - 1) as usize) {
             Some(outcome.clone())
         } else {
@@ -69,12 +110,11 @@ impl CommandRunner {
     async fn spawn(&self) -> usize {
         let outcome = Outcome::new();
         let idx = {
-            let mut outcomes = self.outcomes.write().await;
+            let mut outcomes = self.outcomes.write().unwrap();
             outcomes.push(outcome.clone());
             outcomes.len()
         };
 
-        // TODO figure out how to merge stderr/stdio?
         let mut child = Command::new(&*self.cmd)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
@@ -86,7 +126,7 @@ impl CommandRunner {
             let outcome = outcome.clone();
             async move {
                 let status = child.wait().await.unwrap();
-                let mut outcome = outcome.0.write().await;
+                let mut outcome = outcome.inner.write().unwrap();
                 (*outcome).status_code = Some(status.code());
             }
         });
@@ -95,9 +135,9 @@ impl CommandRunner {
             let mut reader = BufReader::new(stdout).split(b'\n');
             async move {
                 while let Some(line) = reader.next_segment().await.unwrap() {
-                    let mut outcome = outcome.0.write().await;
-                    outcome.stdout.write(&line).unwrap();
-                    outcome.stdout.write(&[b'\n']).unwrap();
+                    let mut outcome = outcome.inner.write().unwrap();
+                    outcome.stdout.extend(line);
+                    outcome.stdout.push(b'\n');
                 }
             }
         });
@@ -109,10 +149,9 @@ impl<ReqBody> Service<Request<ReqBody>> for CommandRunner
 where
     ReqBody: Send + 'static,
 {
-    // TODO maybe also figure out how to type-erase the response body type.
-    type Response = Response<AsyncReadBody<Cursor<Vec<u8>>>>;
+    type Response = Response<Body>;
     type Error = Infallible;
-    type Future = Pin<Box<dyn Future<Output = Result<Response<AsyncReadBody<Cursor<Vec<u8>>>>, Infallible>> + Send + 'static>>;
+    type Future = Pin<Box<dyn Future<Output = Result<Response<Body>, Infallible>> + Send + 'static>>;
 
     fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
@@ -121,23 +160,30 @@ where
     fn call(&mut self, req: Request<ReqBody>) -> Self::Future {
         let (mut parts, _body) = req.into_parts();
         let runner = self.clone();
+        let prefix = self.prefix.clone();
         Box::pin(async move {
-            let stream = if let Ok(Path(idx)) = Path::<u64>::from_request_parts(&mut parts, &()).await {
+            let mut resp = Response::builder()
+                .header(header::CONTENT_TYPE, "text/plain");
+            let body = if let Ok(Path(idx)) = Path::<u64>::from_request_parts(&mut parts, &()).await {
                 if let Some(outcome) = runner.read(idx).await {
-                    AsyncReadBody::with_capacity(outcome.cursor().await, 1)
+                    resp = resp.status(StatusCode::OK);
+                    Some(Body::new(AsyncReadBody::with_capacity(outcome, 1)))
                 } else {
-                    AsyncReadBody::with_capacity(Cursor::new(Vec::new()), 1)
+                    resp = resp.status(StatusCode::NOT_FOUND);
+                    None
                 }
-            } else {
+            } else if parts.method == Method::POST {
                 let idx = runner.spawn().await;
-                AsyncReadBody::with_capacity(Cursor::new(format!("{idx}").into()), 1)
+                resp = resp.header(header::LOCATION, format!("{prefix}{idx}"))
+                    .status(StatusCode::SEE_OTHER);
+                None
+            } else {
+                resp = resp.status(StatusCode::NOT_FOUND);
+                None
             };
-            let resp = Response::builder()
-                .header(header::CONTENT_TYPE, "text/plain")
-                .status(StatusCode::OK)
-                .body(stream)
+            let resp = resp
+                .body(body.unwrap_or_else(|| String::new().into()))
                 .unwrap();
-
             Ok(resp)
         })
     }
