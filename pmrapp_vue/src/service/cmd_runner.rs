@@ -126,6 +126,7 @@ impl CommandRunner {
             outcomes.len()
         };
 
+        // FIXME - this should be a HTTP 500 error.
         let mut child = Command::new(&*self.cmd)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())

@@ -14,6 +14,7 @@ use pmrapp::integration::PmrAxumExt;
 use pmrapp_vue::{
     conf::PmrappVueConf,
     route::PmrVueAxumExt,
+    service::CommandRunner,
 };
 use pmrctrl::executor::Executor;
 use pmrtqs::runtime::Builder as RuntimeBuilder;
@@ -30,9 +31,12 @@ use tower_http::{
 async fn main() -> anyhow::Result<()> {
 
     dotenvy::dotenv().ok();
-    let args = PmrappVueConf::parse();
-    let vue_asset_path = args.vue_asset_path;
-    let args = args.pmrapp_args;
+    let PmrappVueConf {
+        vue_asset_path,
+        vue_update_script,
+        vue_update_bearer,
+        pmrapp_args: args
+    } = PmrappVueConf::parse();
 
     stderrlog::new()
         .module(module_path!())
@@ -54,7 +58,16 @@ async fn main() -> anyhow::Result<()> {
     let platform = args.platform_builder.build().await
         .map_err(anyhow::Error::from_boxed)?;
     let index_html = ServeFile::new(vue_asset_path.join("index.html"));
-    let app = Router::new()
+    let mut router = Router::new().without_v07_checks();
+    if let Some(vue_update_script) = vue_update_script {
+        let mut runner = CommandRunner::new(vue_update_script.display().to_string().into())
+            .prefix("/:/update/pmrapp-frontend/".into());
+        if let Some(vue_update_bearer) = vue_update_bearer {
+            runner = runner.bearer(vue_update_bearer.into())
+        }
+        router = runner.setup_router(router);
+    };
+    let app = router
         .pmr_routes({
             let index_html = index_html.clone();
             move |req, e| {
