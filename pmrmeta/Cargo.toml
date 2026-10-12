@@ -17,6 +17,7 @@ pmrcore = { workspace = true }
 pmrctrl = { workspace = true }
 pmrdb = { workspace = true }
 pmrmodel = { workspace = true }
+pmrrepo = { workspace = true }
 rst_parser = { workspace = true }
 rst_renderer = { workspace = true }
 serde = { workspace = true }

@@ -1,5 +1,6 @@
 use pmrcore::exposure::traits::Exposure as _;
 use pmrctrl::platform::Platform;
+use pmrrepo::error::PmrRepoError;
 use std::{
     fs,
     path::Path,
@@ -127,7 +128,15 @@ pub async fn run(
     let pathinfo = file.pathinfo();
     let repo = pathinfo.repo();
     if let Some(commit) = pathinfo.commit(&repo) {
-        let seconds = commit.decode()?.author()?.time()?.seconds.to_string();
+        let seconds = commit
+            .decode()
+            .map_err(PmrRepoError::from)?
+            .author()
+            .map_err(PmrRepoError::from)?
+            .time()
+            .map_err(PmrRepoError::from)?
+            .seconds
+            .to_string();
         platform.index_backend().resource_link_kind_with_term(
             &resource_path,
             "commit_authored_ts",
