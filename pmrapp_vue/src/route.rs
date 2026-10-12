@@ -23,9 +23,9 @@ use pmrctrl::{
     error::CtrlError,
     platform::Platform,
 };
-use pmrrepo::error::{
-    GixError::RevisionSpecParseSingle,
-    PmrRepoError::{GixError, PathError},
+use pmrrepo::error::PmrRepoError::{
+    GixError,
+    PathError,
 };
 use tower_http::services::ServeFile;
 
@@ -280,7 +280,8 @@ async fn workspace_file_handler(req: Request<Body>) -> Result<Option<Response>, 
                 match e {
                     // Invalid commit (revspec) identifier are provided by Gix.  Trap the one that report
                     // that as such and ensure it is simply not found.
-                    GixError(RevisionSpecParseSingle(_)) => StatusCode::NOT_FOUND,
+                    // TODO Figure out how to identify this specific cause from the `Exn` error.
+                    GixError(_) => StatusCode::NOT_FOUND,
                     // Assume all kinds of PathError are benign and thus not found.
                     PathError(_) => StatusCode::NOT_FOUND,
                     // Other kinds assumed to be not so benign.

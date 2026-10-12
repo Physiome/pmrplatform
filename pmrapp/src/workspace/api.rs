@@ -26,9 +26,9 @@ mod ssr {
             WorkspaceBackend,
         },
     };
-    pub use pmrrepo::error::{
-        GixError::RevisionSpecParseSingle,
-        PmrRepoError::{GixError, PathError},
+    pub use pmrrepo::error::PmrRepoError::{
+        GixError,
+        PathError,
     };
     pub use crate::{
         ac::api::session,
@@ -214,7 +214,8 @@ pub async fn get_workspace_info(
                 match e {
                     // Invalid commit (revspec) identifier are provided by Gix.  Trap the one that report
                     // that as such and ensure it is simply not found.
-                    GixError(RevisionSpecParseSingle(_)) => AppError::NotFound,
+                    // TODO Figure out how to identify this specific cause from the `Exn` error.
+                    GixError(_) => AppError::NotFound,
                     // Assume all kinds of PathError are benign and thus not found.
                     PathError(_) => AppError::NotFound,
                     // Other kinds assumed to be not so benign.

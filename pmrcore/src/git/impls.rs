@@ -34,9 +34,9 @@ impl PathObjectDetached {
 }
 
 impl<'a> TryFrom<&'a Commit<'a>> for IdCommitRef<'a> {
-    type Error = gix::objs::decode::Error;
+    type Error = gix::Error;
 
-    fn try_from(item: &'a Commit<'a>) -> Result<Self, gix::objs::decode::Error> {
+    fn try_from(item: &'a Commit<'a>) -> Result<Self, gix::Error> {
         let commit_id = item.id.to_string();
         let commit = item.decode()?;
         Ok(IdCommitRef { commit_id, commit })
@@ -92,7 +92,7 @@ impl From<&PathObjectDetached> for PathObjectInfo {
 }
 
 impl TryFrom<Commit<'_>> for CommitInfo {
-    type Error = gix::objs::decode::Error;
+    type Error = gix::Error;
 
     fn try_from(item: Commit<'_>) -> Result<Self, Self::Error> {
         commit_to_commitinfo(&item)
@@ -100,7 +100,7 @@ impl TryFrom<Commit<'_>> for CommitInfo {
 }
 
 impl TryFrom<&Commit<'_>> for CommitInfo {
-    type Error = gix::objs::decode::Error;
+    type Error = gix::Error;
 
     fn try_from(item: &Commit<'_>) -> Result<Self, Self::Error> {
         commit_to_commitinfo(&item)
@@ -108,7 +108,7 @@ impl TryFrom<&Commit<'_>> for CommitInfo {
 }
 
 impl TryFrom<ObjectDetached> for CommitInfo {
-    type Error = gix::objs::decode::Error;
+    type Error = gix::Error;
 
     fn try_from(item: ObjectDetached) -> Result<Self, Self::Error> {
         objectdetached_to_commitinfo(&item)
@@ -116,7 +116,7 @@ impl TryFrom<ObjectDetached> for CommitInfo {
 }
 
 impl TryFrom<&ObjectDetached> for CommitInfo {
-    type Error = gix::objs::decode::Error;
+    type Error = gix::Error;
 
     fn try_from(item: &ObjectDetached) -> Result<Self, Self::Error> {
         objectdetached_to_commitinfo(&item)
@@ -241,7 +241,7 @@ fn commitref_id_to_commitinfo(
 
 fn commit_to_commitinfo(
     commit: &Commit<'_>,
-) -> Result<CommitInfo, gix::objs::decode::Error> {
+) -> Result<CommitInfo, gix::Error> {
     Ok(CommitInfo {
         commit_id: commit.id().to_string(),
         author: format_signature_ref(&commit.author()?),
@@ -251,7 +251,7 @@ fn commit_to_commitinfo(
 
 fn objectdetached_to_commitinfo(
     object: &ObjectDetached,
-) -> Result<CommitInfo, gix::objs::decode::Error> {
+) -> Result<CommitInfo, gix::Error> {
     let commit = CommitRef::from_bytes(&object.data, gix::hash::Kind::Sha1)?;
     Ok(CommitInfo {
         commit_id: object.id.to_string(),

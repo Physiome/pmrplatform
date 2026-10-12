@@ -9,7 +9,6 @@ use gix::{
     },
     object::Kind,
     objs::tree::EntryKind,
-    remote::find::existing::Error::NotFound,
     traverse::tree::Recorder,
 };
 use std::path::Path;
@@ -17,7 +16,6 @@ use crate::{
     error::{
         ContentError,
         ExecutionError,
-        GixError,
         PathError,
         PmrRepoError,
     },
@@ -27,7 +25,7 @@ use super::error::FetchClone;
 pub(super) fn rev_parse_single<'a>(
     repo: &'a Repository,
     commit_id: &'a str,
-) -> Result<Object<'a>, GixError> {
+) -> Result<Object<'a>, gix::Error> {
     Ok(repo.rev_parse_single(commit_id)?.object()?)
 }
 
@@ -99,11 +97,12 @@ pub(crate) fn get_commit<'a>(
     obj.map(|obj| match obj.kind {
         kind if kind == Kind::Commit => {
             info!("Found {} {}", kind, obj.id);
+            let id = obj.id;
             match obj.try_into_commit() {
                 Ok(commit) => Ok(commit),
-                Err(obj) => Err(PmrRepoError::from(ExecutionError::Unexpected {
+                Err(_) => Err(PmrRepoError::from(ExecutionError::Unexpected {
                     workspace_id: workspace_id,
-                    msg: format!("gix said oid {:?} was a commit?", obj.id),
+                    msg: format!("gix said oid {:?} was a commit?", id),
                 })),
             }
         }
@@ -124,18 +123,18 @@ pub(crate) fn get_submodule_target(
     path: &str,
 ) -> Result<String, PmrRepoError> {
     let blob = commit
-        .tree_id().map_err(GixError::from)?
-        .object().map_err(GixError::from)?
-        .try_into_tree().map_err(GixError::from)?
+        .tree_id()?
+        .object()?
+        .try_into_tree()?
         .peel_to_entry_by_path(
-            Path::new(".gitmodules")).map_err(GixError::from)?
+            Path::new(".gitmodules"))?
         .ok_or_else(|| PmrRepoError::from(PathError::NoSuchPath {
             workspace_id: workspace_id,
             oid: commit.id.to_string(),
             path: path.to_string(),
         }))?
         .id()
-        .object().map_err(GixError::from)?;
+        .object()?;
     let config = gix::config::File::try_from(
         std::str::from_utf8(&blob.data)
         .map_err(
@@ -173,13 +172,13 @@ pub(crate) fn get_submodule_target(
 
 // A simple helper to assist with repositories copied into place that
 // lack an existing remote.
-fn check_set_remote(repo_dir: &Path, remote_url: &str) -> Result<(), GixError> {
+fn check_set_remote(repo_dir: &Path, remote_url: &str) -> Result<(), gix::Error> {
     if let Ok(repo) = gix::open::Options::isolated()
         .open_path_as_is(true)
         .open(repo_dir)
         .map(|repo| repo.to_thread_local())
     {
-        if let Err(NotFound { .. }) = repo.find_remote("origin") {
+        if repo.try_find_remote("origin").is_none() {
             let mut remote = repo.remote_at(remote_url)?;
             let mut config = File::from_path_no_includes(
                 repo_dir.join("config"),
@@ -237,10 +236,10 @@ pub(crate) fn fetch_or_clone(
 pub(super) fn files(
     commit: &Commit<'_>,
 ) -> Result<Vec<String>, PmrRepoError> {
-    let tree = commit.tree().map_err(GixError::from)?;
+    let tree = commit.tree()?;
     let mut recorder = Recorder::default();
     tree.traverse()
-        .breadthfirst(&mut recorder).map_err(GixError::from)?;
+        .breadthfirst(&mut recorder)?;
     let mut results = recorder.records.iter()
         .filter(|entry| entry.mode != EntryKind::Tree.into())
         .filter_map(
@@ -262,12 +261,10 @@ pub(crate) fn checkout(
         .into_inner()
         .into_arc()?;
     let mut index = gix::index::State::from_tree(
-        &commit
-            .tree().map_err(GixError::from)?
-            .id(),
+        &commit.tree()?.id(),
         &odb,
         Default::default(),
-    ).map_err(GixError::from)?;
+    )?;
     let opts = gix::worktree::state::checkout::Options {
         fs: gix::fs::Capabilities::probe(dest_dir),
         destination_is_initially_empty: true,
@@ -281,6 +278,6 @@ pub(crate) fn checkout(
         &gix::features::progress::Discard,
         &std::sync::atomic::AtomicBool::default(),
         opts
-    ).map_err(GixError::from)?;
+    )?;
     Ok(())
 }

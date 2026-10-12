@@ -13,7 +13,7 @@ clap = { workspace = true, features = ["derive", "env"] }
 dotenvy = { workspace = true }
 futures = { workspace = true }
 git2 = { workspace = true }
-gix = { workspace = true, features = ["worktree-archive", "worktree-stream"] }
+gix = { workspace = true, features = ["sha1", "worktree-archive", "worktree-stream"] }
 gix-archive = { workspace = true, features = ["default"] }
 log = { workspace = true, features = ["std", "serde"] }
 pmrcore = { workspace = true, features = ["clap", "sqlx", "git"] }

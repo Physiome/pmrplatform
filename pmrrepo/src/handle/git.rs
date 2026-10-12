@@ -11,13 +11,12 @@ use std::{
     path::PathBuf,
     sync::OnceLock,
 };
-use crate::error::GixError;
 
 pub struct GitHandle<'repo> {
     pub(super) backend: &'repo Backend,
     pub(super) workspace: WorkspaceRef<'repo>,
     pub(super) repo_dir: PathBuf,
-    pub(super) repo: OnceLock<Result<ThreadSafeRepository, GixError>>,
+    pub(super) repo: OnceLock<Result<ThreadSafeRepository, gix::Error>>,
 }
 
 #[derive(Debug)]

@@ -13,61 +13,17 @@ pub enum PmrRepoError {
     #[error("ExecutionError: {0}")]
     ExecutionError(#[from] ExecutionError),
     #[error("GixError: {0}")]
-    GixError(#[from] GixError),
+    GixError(#[from] gix::Error),
+    #[error("GixErrorMessage: {0}")]
+    GixErrorMessage(#[from] gix::error::Exn<gix::error::Message>),
+    #[error("GixExn: {0}")]
+    GixExn(#[from] gix::error::Exn),
     #[error("Libgit2Error: {0}")]
     Libgit2Error(#[from] git2::Error),
     #[error("PathError: {0}")]
     PathError(#[from] PathError),
     #[error("StdIoError: {0}")]
     StdIoError(#[from] std::io::Error),
-}
-
-#[derive(Debug, Error)]
-pub enum GixError {
-    #[error(transparent)]
-    Archive(gix::worktree::archive::Error),
-    #[error(transparent)]
-    ConfigFileInitFromPath(#[from] gix::config::file::init::from_paths::Error),
-    #[error(transparent)]
-    DateParse(#[from] gix::error::ValidationError),
-    #[error(transparent)]
-    HashDecode(#[from] gix::hash::decode::Error),
-    #[error(transparent)]
-    IndexFileInit(#[from] gix::index::file::init::Error),
-    #[error(transparent)]
-    IndexInitFromTree(#[from] gix::index::init::from_tree::Error),
-    #[error(transparent)]
-    Message(#[from] gix::Error),
-    #[error(transparent)]
-    ObjectCommit(#[from] gix::object::commit::Error),
-    #[error(transparent)]
-    ObjectDecode(#[from] gix::objs::decode::Error),
-    #[error(transparent)]
-    ObjectTryInto(#[from] gix::object::try_into::Error),
-    #[error(transparent)]
-    OdbFindExisting(#[from] gix::object::find::existing::Error),
-    #[error(transparent)]
-    Open(#[from] gix::open::Error),
-    #[error(transparent)]
-    ReferenceIter(#[from] gix::reference::iter::Error),
-    #[error(transparent)]
-    ReferenceIterInit(#[from] gix::reference::iter::init::Error),
-    #[error(transparent)]
-    RemoteInit(#[from] gix::remote::init::Error),
-    #[error(transparent)]
-    RemoteSaveAs(#[from] gix::remote::save::AsError),
-    #[error(transparent)]
-    RevisionSpecParseSingle(#[from] gix::revision::spec::parse::single::Error),
-    #[error(transparent)]
-    RevisionWalk(#[from] gix::revision::walk::Error),
-    #[error(transparent)]
-    RevisionWalkIter(#[from] gix::revision::walk::iter::Error),
-    #[error(transparent)]
-    TraverseTreeBreadthfirst(#[from] gix::traverse::tree::breadthfirst::Error),
-    #[error(transparent)]
-    WorktreeStateCheckout(#[from] gix::worktree::state::checkout::Error),
-    #[error(transparent)]
-    WorktreeStream(gix::repository::worktree_stream::Error),
 }
 
 #[derive(Debug, PartialEq, Error, Deserialize, Serialize)]

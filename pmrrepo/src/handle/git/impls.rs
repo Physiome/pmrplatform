@@ -47,7 +47,6 @@ use crate::{
     backend::Backend,
     error::{
         ContentError,
-        GixError,
         PathError,
         PmrRepoError,
     },
@@ -127,10 +126,8 @@ impl<'repo> GitHandle<'repo> {
 
     fn repo_tags(&self) -> Result<Vec<(String, String)>, PmrRepoError> {
         Ok(self.repo()?
-            .references()
-            .map_err(GixError::from)?
-            .tags()
-            .map_err(GixError::from)?
+            .references()?
+            .tags()?
             .filter_map(|reference| {
                 match reference {
                     Ok(tag) => {
@@ -214,8 +211,8 @@ impl<'repo> GitHandle<'repo> {
             }),
             Some(commit) => {
                 let tree = commit
-                    .tree_id().map_err(GixError::from)?
-                    .object().map_err(GixError::from)?;
+                    .tree_id()?
+                    .object()?;
 
                 let target = match path.as_ref().map(|s| s.as_ref()) {
                     Some("") | Some("/") | None => {
@@ -234,10 +231,10 @@ impl<'repo> GitHandle<'repo> {
                         while let Some(component) = comps.next() {
                             let entry = object
                                 .expect("iteration has this set or look breaked")
-                                .try_into_tree().map_err(GixError::from)?
+                                .try_into_tree()?
                                 .peel_to_entry_by_path(
                                     Path::new(&component)
-                                ).map_err(GixError::from)?
+                                )?
                                 .ok_or_else(
                                     || PmrRepoError::from(PathError::NoSuchPath {
                                         workspace_id: workspace_id,
@@ -265,8 +262,7 @@ impl<'repo> GitHandle<'repo> {
                                 }
                                 _ => ()
                             }
-                            let next_object = entry
-                                .object().map_err(GixError::from)?;
+                            let next_object = entry.object()?;
                             info!("got {} {:?}", next_object.kind, &next_object);
                             object = Some(next_object);
                         };
@@ -333,7 +329,7 @@ impl<'repo> GitHandle<'repo> {
         let mut filter = PathFilter::new(&repo, path);
         let log_entry_iter = repo.rev_walk([commit.id])
             .sorting(Sorting::ByCommitTime(CommitTimeOrder::NewestFirst))
-            .all().map_err(GixError::from)?
+            .all()?
             .filter(|info| info.as_ref()
                 .map(|info| filter.check(info))
                 .unwrap_or(true)
@@ -342,7 +338,7 @@ impl<'repo> GitHandle<'repo> {
                 let commit = info?.object()?;
                 let commit_ref = CommitRef::from_bytes(&commit.data, gix::hash::Kind::Sha1)?;
                 let committer = commit_ref.committer()?;
-                Ok(LogEntryInfo {
+                Ok::<_, PmrRepoError>(LogEntryInfo {
                     commit_id: format!("{}", commit.id()),
                     author: signature_ref(&commit_ref.author()?),
                     committer: signature_ref(&committer),
@@ -354,9 +350,9 @@ impl<'repo> GitHandle<'repo> {
         let log_entries = match count {
             Some(count) => log_entry_iter
                 .take(count)
-                .collect::<Result<Vec<_>, GixError>>()?,
+                .collect::<Result<Vec<_>, _>>()?,
             None => log_entry_iter
-                .collect::<Result<Vec<_>, GixError>>()?,
+                .collect::<Result<Vec<_>, _>>()?,
         };
 
         Ok(LogInfo { entries: log_entries })
@@ -492,8 +488,7 @@ impl GitHandleResult<'_> {
         match &self.target {
             Some(GitResultTarget::Object(target)) => {
                 let repo = self.repo();
-                let (mut stream, _) = repo.worktree_stream(target.object.id)
-                    .map_err(GixError::WorktreeStream)?;
+                let (mut stream, _) = repo.worktree_stream(target.object.id)?;
                 for (path, src) in extra_entries.into_iter() {
                     stream.add_entry(gix::worktree::stream::AdditionalEntry {
                         id: gix::hash::ObjectId::null(gix::hash::Kind::Sha1),
@@ -519,8 +514,7 @@ impl GitHandleResult<'_> {
                         gix::progress::Discard,
                         &std::sync::atomic::AtomicBool::default(),
                         options,
-                    )
-                    .map_err(GixError::Message)?
+                    )?
                 )
             }
             Some(GitResultTarget::RemoteInfo(_)) => {

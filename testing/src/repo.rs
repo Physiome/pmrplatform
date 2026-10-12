@@ -7,6 +7,7 @@ use gix::{
     date::parse::TimeBuf,
     objs::tree,
 };
+use pmrrepo::error::PmrRepoError;
 use std::{
     collections::HashMap,
     path::Path,
@@ -147,12 +148,12 @@ pub fn append_commit_from_objects(
 ) -> anyhow::Result<gix::ObjectId> {
     let prev_commit = repo.head_commit()?;
     let tree = prev_commit.tree()?;
-    let treeref = tree.decode()?;
+    let treeref = tree.decode().map_err(PmrRepoError::from)?;
     let signature = gix::actor::Signature {
         name: "user".into(), email: "user@example.com".into(),
         time: match timestamp {
             None => gix::date::Time::now_utc(),
-            Some(t) => gix::date::Time::new(t.try_into()?, 0),
+            Some(t) => gix::date::Time::new(t.try_into().expect("this should be an infallible conversion"), 0),
         }
     };
     Ok(repo.commit_as(
