@@ -10,8 +10,8 @@ use std::{
     future::Future,
     pin::Pin,
     process::Stdio,
-    sync::{Arc, RwLock},
-    task::{Context, Poll},
+    sync::{Arc, Mutex, RwLock},
+    task::{Context, Poll, Waker},
 };
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, BufReader, ReadBuf},
@@ -29,12 +29,21 @@ struct OutcomeInner {
 #[derive(Clone, Debug, Default)]
 pub struct Outcome {
     inner: Arc<RwLock<OutcomeInner>>,
+    wakers: Arc<Mutex<Vec<Waker>>>,
     pos: usize,
 }
 
 impl Outcome {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn wake_all(&self) {
+        let wakers: &mut Vec<Waker> = &mut self.wakers
+            .lock()
+            .expect("no code here should panic while lock is acquired");
+        let mut wakers = std::mem::take(wakers);
+        wakers.drain(..).for_each(Waker::wake);
     }
 }
 
@@ -45,22 +54,24 @@ impl AsyncRead for Outcome {
         cx: &mut Context<'_>,
         buf: &mut ReadBuf<'_>,
     ) -> Poll<std::io::Result<()>> {
-        let inner = self.inner.clone();
-        let inner = inner.read().unwrap();
-        let amt = std::cmp::min(inner.stdout.len() - self.pos, buf.remaining());
-        let slice = &inner.stdout[self.pos..self.pos + amt];
-        buf.put_slice(slice);
-        self.pos = self.pos + amt;
-        match inner.status_code {
+        let (status_code, len) = {
+            let inner = self.inner
+                .read()
+                .expect("no code here should panic while lock is acquired");
+            let len = std::cmp::min(inner.stdout.len() - self.pos, buf.remaining());
+            buf.put_slice(&inner.stdout[self.pos..self.pos + len]);
+            (inner.status_code, len)
+        };
+        self.pos = self.pos + len;
+        match status_code {
             None => {
-                if slice.len() > 0 {
+                if len > 0 {
                     Poll::Ready(Ok(()))
                 } else {
-                    let waker = cx.waker().clone();
-                    tokio::spawn(async move {
-                        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-                        waker.wake_by_ref();
-                    });
+                    self.wakers
+                        .lock()
+                        .expect("no code here should panic while lock is acquired")
+                        .push(cx.waker().clone());
                     Poll::Pending
                 }
             }
@@ -110,36 +121,47 @@ impl CommandRunner {
 
     // Return the 1-indexed item.
     async fn read(&self, idx: u64) -> Option<Outcome> {
-        let outcomes = self.outcomes.read().unwrap();
-        if let Some(outcome) = outcomes.get((idx - 1) as usize) {
+        let outcomes = self.outcomes
+            .read()
+            .expect("no code here should panic while lock is acquired");
+        if idx == 0 {
+            None
+        } else if let Some(outcome) = outcomes.get((idx - 1) as usize) {
             Some(outcome.clone())
         } else {
             None
         }
     }
 
-    async fn spawn(&self) -> usize {
-        let outcome = Outcome::new();
-        let idx = {
-            let mut outcomes = self.outcomes.write().unwrap();
-            outcomes.push(outcome.clone());
-            outcomes.len()
-        };
-
-        // FIXME - this should be a HTTP 500 error.
+    async fn spawn(&self) -> Result<usize, StatusCode> {
         let mut child = Command::new(&*self.cmd)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
             .spawn()
-            .unwrap();
-        let stdout = child.stdout.take().expect("failed to get subprcess stdout");
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        let outcome = Outcome::new();
+        let idx = {
+            let mut outcomes = self.outcomes
+                .write()
+                .expect("no code here should panic while lock is acquired");
+            outcomes.push(outcome.clone());
+            outcomes.len()
+        };
+
+        let stdout = child.stdout.take().expect("failed to get subprocess stdout");
         tokio::spawn({
             let outcome = outcome.clone();
             async move {
                 let status = child.wait().await.unwrap();
-                let mut outcome = outcome.inner.write().unwrap();
-                (*outcome).status_code = Some(status.code());
+                {
+                    let mut outcome = outcome.inner
+                        .write()
+                        .expect("no code here should panic while lock is acquired");
+                    (*outcome).status_code = Some(status.code());
+                }
+                outcome.wake_all();
             }
         });
         tokio::spawn({
@@ -147,13 +169,16 @@ impl CommandRunner {
             let mut reader = BufReader::new(stdout).split(b'\n');
             async move {
                 while let Some(line) = reader.next_segment().await.unwrap() {
-                    let mut outcome = outcome.inner.write().unwrap();
-                    outcome.stdout.extend(line);
-                    outcome.stdout.push(b'\n');
+                    {
+                        let mut outcome = outcome.inner.write().unwrap();
+                        outcome.stdout.extend(line);
+                        outcome.stdout.push(b'\n');
+                    }
+                    outcome.wake_all();
                 }
             }
         });
-        idx
+        Ok(idx)
     }
 }
 
@@ -174,7 +199,8 @@ where
         let runner = self.clone();
         let prefix = self.prefix.clone();
         let bearer = self.bearer.clone().map(|bearer| {
-            header::HeaderValue::from_str(&format!("Bearer {}", bearer)).unwrap()
+            header::HeaderValue::from_str(&format!("Bearer {}", bearer))
+                .expect("provided bearer must be a valid value")
         });
         Box::pin(async move {
             let mut resp = Response::builder()
@@ -191,9 +217,11 @@ where
                     None
                 }
             } else if parts.method == Method::POST {
-                let idx = runner.spawn().await;
-                resp = resp.header(header::LOCATION, format!("{prefix}{idx}"))
-                    .status(StatusCode::SEE_OTHER);
+                match runner.spawn().await {
+                    Ok(idx) => resp = resp.header(header::LOCATION, format!("{prefix}{idx}"))
+                        .status(StatusCode::SEE_OTHER),
+                    Err(status) => resp = resp.status(status)
+                }
                 None
             } else {
                 resp = resp.status(StatusCode::NOT_FOUND);
