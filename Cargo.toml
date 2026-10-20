@@ -2,6 +2,7 @@
 members = [
     "collection_json",
     "pmr2-migration",
+    "pmr2_proxy",
     "pmrac",
     "pmrapp",
     "pmrapp_vue",
@@ -37,6 +38,7 @@ resolver = "2"
 [workspace.dependencies]
 collection_json = { path = "./collection_json", version = "0.0.1" }
 pmr2-migration = { path = "./pmr2-migration", version = "0.0.1" }
+pmr2_proxy = { path = "./pmr2_proxy", version = "0.0.1" }
 pmrac = { path = "./pmrac", version = "0.0.1" }
 pmrapp = { path = "./pmrapp", version = "0.0.1" }
 pmrapp_vue = { path = "./pmrapp_vue", version = "0.0.1" }
@@ -64,6 +66,7 @@ bytemuck = "1.19.0"
 casbin = "2.5.0"
 chrono = "0.4.31"
 clap = "4.2"
+cookie = "0.18"
 console_error_panic_hook = "0.1"
 const_format = "0.2"
 dotenvy = "0.15.0"
@@ -78,6 +81,8 @@ html-escape = "0.2.13"
 html2text = "0.17"
 html5ever = "0.39"
 http = "1"
+hyper =  "1.7.0"
+hyper-util = "0.1.17"
 itertools = "0.14"
 js-sys = "0.3.103"
 leptos = "0.8.12"
@@ -112,13 +117,14 @@ toml = "0.9.5"
 tokio = "1.35"
 tokio-stream = "0.1.5"
 tokio-util = "0.7.11"
-tower = "0.4"
+tower = "0.5"
 tower-cookies = "0.11.0"
 tower-http = "0.7"
 tower-layer = "0.3.2"
 tower-service = "0.3.2"
 tower-sessions = "0.14.0"
 tracing = "0.1"
+tracing-subscriber = "0.3"
 unicode-segmentation = "1.13"
 url = "2.5.4"
 utoipa = "5.4.0"
