@@ -3,8 +3,9 @@ use axum::{
     response::Redirect,
     Router,
 };
+use camino::Utf8PathBuf;
 use clap::Parser;
-use pmr2_proxy::Proxy;
+use pmr2_proxy::Gateway;
 use std::net::SocketAddr;
 
 #[derive(Debug, Parser)]
@@ -19,6 +20,14 @@ struct Cli {
         env = "PMR2_PROXY_HOST_BASE",
     )]
     uri_base: String,
+
+    /// Directory to cache the PMR2 data.
+    #[clap(
+        long,
+        value_name = "PMR2_PROXY_CACHE_DIR",
+        env = "PMR2_PROXY_CACHE_DIR",
+    )]
+    cache_dir: Utf8PathBuf,
 
     /// The number of concurrent active connections permitted to access the underlying PMR2 for the
     /// resource restricted endpoints.
@@ -42,9 +51,9 @@ struct Cli {
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
-    let Cli { uri_base, permits, bind_addr } = Cli::parse();
+    let Cli { uri_base, cache_dir, permits, bind_addr } = Cli::parse();
 
-    let service = Proxy::new(uri_base, permits);
+    let service = Gateway::new(uri_base, cache_dir, permits).unwrap();
     let mut router = Router::new()
         // While this could use the service, in PMR2 this is setup to redirect to some specific location,
         // so just go do that.  For now default this to `/welcome`, but they do go to separate targets
