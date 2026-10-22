@@ -1,18 +1,20 @@
 use axum::{
     body::{Body, HttpBody},
     http::{
-        header::HeaderValue,
+        header::{self, HeaderName, HeaderValue},
         uri::{Authority, Parts, Scheme},
-        Method, Request, Response, StatusCode, Uri, header,
+        Method, Request, Response, StatusCode, Uri,
         Error as HttpError,
     },
 };
 use camino::Utf8PathBuf;
 use cookie::Cookie;
+use futures::TryStreamExt;
 use hyper_util::client::legacy::{
     connect::HttpConnector,
     Client,
 };
+use percent_encoding::percent_decode;
 use std::{
     borrow::Cow,
     convert::Infallible,
@@ -22,7 +24,11 @@ use std::{
     sync::Arc,
     task::{Context, Poll},
 };
-use tokio::sync::Semaphore;
+use tokio::{
+    fs::File,
+    io::{AsyncReadExt, AsyncWriteExt},
+    sync::Semaphore,
+};
 use tower::Service;
 use tower_http::services::fs::ServeDir;
 
@@ -34,6 +40,7 @@ const SERVICE: &str = "webservice";
 pub enum Strategy<B> {
     /// Use the file at this relative path to cache/load the request.
     Cache {
+        cache_dir: Utf8PathBuf,
         path: Utf8PathBuf,
         serve_dir: ServeDir,
         proxy: Proxy<B>,
@@ -41,6 +48,7 @@ pub enum Strategy<B> {
     },
     /// Use the file at this relative path to cache/load the request for the webservice request.
     CacheWebService {
+        cache_dir: Utf8PathBuf,
         path: Utf8PathBuf,
         serve_dir: ServeDir,
         proxy: Proxy<B>,
@@ -58,6 +66,8 @@ pub enum Strategy<B> {
     },
     /// Assume the resource is not found.
     NotFound,
+    // TODO Figure out if there is a way to provide an invalidation option, e.g. if POST to certain exposure
+    // endpoints, a whole slew of cache may be invalidated.
 }
 
 impl<B> Strategy<B> {
@@ -77,30 +87,37 @@ impl<B> Strategy<B> {
         }
 
         if request.method() == Method::GET {
-            // For the meantime responses from the web service could be cached if they are GET
-            if let Some(Ok(accept)) = request
-                .headers()
-                .get(header::ACCEPT)
-                .map(HeaderValue::to_str)
-            {
-                if accept == "application/vnd.physiome.pmr2.json.1" {
-                    return Strategy::CacheWebService {
-                        path: resolve_path(request.uri().path()),
-                        serve_dir: gateway.inner.serve_dir_service.clone(),
-                        proxy: gateway.inner.proxy.clone(),
-                        request,
+            if let Some(path) = resolve_path(request.uri().path()) {
+                // For the meantime responses from the web service could be cached if they are GET
+                if let Some(Ok(accept)) = request
+                    .headers()
+                    .get(header::ACCEPT)
+                    .map(HeaderValue::to_str)
+                {
+                    if accept == "application/vnd.physiome.pmr2.json.1" {
+                        return Strategy::CacheWebService {
+                            cache_dir: gateway.inner.cache_service.clone(),
+                            path,
+                            serve_dir: gateway.inner.serve_dir_service.clone(),
+                            proxy: gateway.inner.proxy.clone(),
+                            request,
+                        }
                     }
                 }
-            }
 
-            // Assume **all** GET request can be serviced by the cache.
-            // TODO Not all workspace endpoints should be cached.
-            return Strategy::Cache {
-                path: resolve_path(request.uri().path()),
-                serve_dir: gateway.inner.serve_dir_data.clone(),
-                proxy: gateway.inner.proxy.clone(),
-                request,
-            };
+                // Assume **all** GET request can be serviced by the cache.
+                // TODO Not all workspace endpoints should be cached.
+                return Strategy::Cache {
+                    cache_dir: gateway.inner.cache_data.clone(),
+                    path,
+                    proxy: gateway.inner.proxy.clone(),
+                    serve_dir: gateway.inner.serve_dir_data.clone(),
+                    request,
+                };
+            } else {
+                // Non-unicode paths are treated as 404 Not Found.
+                return Strategy::NotFound;
+            }
         }
 
         // Any other requests assumed to require holding the semaphore.
@@ -156,8 +173,10 @@ where
         let cache_service = cache_dir.join(SERVICE);
         create_dir_all(&cache_data)?;
         create_dir_all(&cache_service)?;
-        let serve_dir_data = ServeDir::new(&cache_data);
-        let serve_dir_service = ServeDir::new(&cache_service);
+        let serve_dir_data = ServeDir::new(&cache_data)
+            .redirect_to_trailing_slash(false);
+        let serve_dir_service = ServeDir::new(&cache_service)
+            .redirect_to_trailing_slash(false);
 
         let semaphore = Semaphore::new(permits);
         let inner = Arc::new(GatewayInner {
@@ -198,12 +217,133 @@ where
             // or that it could implement Future based on this.  For now just prototype this out and see
             // how that might be done later.
             match strategy {
-                Strategy::Cache { path, serve_dir, mut proxy, request } => {
+                Strategy::Cache { cache_dir, path, mut serve_dir, mut proxy, request } => {
                     // call serve_dir and this be the fallback?
                     // need to figure out how to best structure this
-                    proxy.call(request).await
+                    // Assumes this is a `GET` request so body could be ignored later.
+                    let (parts, body) = request.into_parts();
+                    let cache_path = cache_dir.join(&path);
+                    #[cfg(feature = "trace")]
+                    tracing::debug!("cache_path={cache_path}");
+                    let cache_headers_path = cache_path.parent().map(|p| p.join("headers"));
+
+                    if !cache_path.is_file() {
+                        // Not a file, clone the parts, pop out the range hader, and get the full content
+                        // for the cache.
+                        #[cfg(feature = "trace")]
+                        tracing::debug!("cache_path={cache_path} not file");
+                        let mut parts = parts.clone();
+                        parts.headers.remove(header::RANGE);
+                        let request = Request::from_parts(parts, body);
+
+                        match proxy.call(request).await {
+                            Err(_) => {
+                                #[cfg(feature = "trace")]
+                                tracing::info!("proxy.call");
+                                return Ok(make_503());
+                            }
+                            Ok(resp) => {
+                                // Any status that isn't 200 OK are returned as is.
+                                // TODO Maybe there are ways to cache this eventually?
+                                if resp.status() != StatusCode::OK {
+                                    #[cfg(feature = "trace")]
+                                    tracing::info!("resp.status={}", resp.status());
+                                    return Ok(resp);
+                                }
+                                if cache_path.parent()
+                                    .map(create_dir_all)
+                                    .map(Result::ok)
+                                    .flatten()
+                                    .is_none()
+                                {
+                                    #[cfg(feature = "trace")]
+                                    tracing::error!("create_dir_all={:?}", cache_path.parent());
+                                    return Ok(make_500());
+                                };
+
+                                let (parts, body) = resp.into_parts();
+
+                                if let Ok(file) = File::create(&cache_path).await {
+                                    if body.into_data_stream()
+                                        .try_fold(file, |mut file, data| async move {
+                                            file.write(&data).await
+                                                .map_err(axum::Error::new)?;
+                                            Ok(file)
+                                        })
+                                        .await
+                                        .is_err()
+                                    {
+                                        // Failed to write to the file be considered an internal error for
+                                        // now.
+                                        #[cfg(feature = "trace")]
+                                        tracing::error!("write={}", cache_path);
+                                        return Ok(make_500());
+                                    }
+
+                                    // The headers writing can be allowed to fail, but the consequences is
+                                    // that the original headers won't be set when the proxy responds.
+                                    if let Some(ref path) = cache_headers_path {
+                                        if let Ok(mut file) = File::create(path).await {
+                                            for header in [
+                                                header::CONTENT_LANGUAGE,
+                                                header::CONTENT_TYPE,
+                                                header::VARY,
+                                            ].iter() {
+                                                if let Some(value) = parts.headers.get(header) {
+                                                    if let Ok(value) = value.to_str() {
+                                                        let _ = file.write(
+                                                            format!(
+                                                                "{}: {}\n",
+                                                                header,
+                                                                value,
+                                                            )
+                                                            .as_ref(),
+                                                        ).await;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                } else {
+                                    // Maybe bypass the cache? For now just error.
+                                    #[cfg(feature = "trace")]
+                                    tracing::error!("File::create={}", cache_path);
+                                    return Ok(make_500());
+                                }
+                            }
+                        };
+                    }
+
+                    // The body can be empty as it should have been for the GET request.
+                    let request = Request::from_parts(parts, Body::empty());
+                    let (mut parts, body) = serve_dir.call(request).await
+                        .expect("serve_dir should be infallible")
+                        .into_parts();
+                    if let Some(ref path) = cache_headers_path {
+                        if let Ok(mut file) = File::open(path).await {
+                            // Just read everything to a `String` and process that for brevity.
+                            // Failures are ignored as any missing headers are not too critical here.
+                            let mut s = String::new();
+                            let _ = file.read_to_string(&mut s).await;
+                            for line in s.lines() {
+                                let mut split = line.split(':');
+                                let header = split
+                                    .next()
+                                    .map(|s| HeaderName::from_bytes(s.as_ref()));
+                                let value = split
+                                    .next()
+                                    .map(str::trim)
+                                    .map(HeaderValue::from_str);
+                                if let Some(Ok(header)) = header && let Some(Ok(value)) = value {
+                                    parts.headers.insert(header, value);
+                                }
+                            }
+                        }
+                    }
+                    Ok(Response::from_parts(parts, Body::new(body)))
                 }
-                Strategy::CacheWebService { path, serve_dir, mut proxy, request } => {
+                Strategy::CacheWebService { cache_dir, path, serve_dir, mut proxy, request } => {
                     // call serve_dir and this be the fallback?
                     // need to figure out how to best structure this
                     // for now passthrough this.
@@ -341,17 +481,27 @@ where
                     let body = Body::new(incoming);
                     Response::from_parts(parts, body)
                 })
-                .unwrap_or_else(|_| {
-                    // TODO Build a themed response off this.
-                    Response::builder()
-                        .status(StatusCode::SERVICE_UNAVAILABLE)
-                        .header(header::CONTENT_TYPE, "text/html")
-                        .body(Body::from("<html><body><h1>503 Servce Unavailable</h1></body></html>"))
-                        .expect("statically constructed response shouldn't error")
-                });
+                .unwrap_or_else(|_| make_503());
             Ok(resp)
         })
     }
+}
+
+// TODO Build a themed response off the following.
+fn make_500() -> Response<Body> {
+    Response::builder()
+        .status(StatusCode::INTERNAL_SERVER_ERROR)
+        .header(header::CONTENT_TYPE, "text/html")
+        .body(Body::from("<html><body><h1>500 Internal Server Error</h1></body></html>"))
+        .expect("statically constructed response shouldn't error")
+}
+
+fn make_503() -> Response<Body> {
+    Response::builder()
+        .status(StatusCode::SERVICE_UNAVAILABLE)
+        .header(header::CONTENT_TYPE, "text/html")
+        .body(Body::from("<html><body><h1>503 Servce Unavailable</h1></body></html>"))
+        .expect("statically constructed response shouldn't error")
 }
 
 // This resolves to the filesystem equivalent path.  Given that every resource may have a trailing slash
@@ -375,8 +525,15 @@ where
 // concrete path of the requested resource on the filesystem for direct inspection.  Once this is settled
 // using the hash can be done later if the naming conflict (between `index_html` and `index.html`) becomes
 // a real issue.
-fn resolve_path(path: &str) -> Utf8PathBuf {
-    let mut p = path.split("/")
+fn resolve_path(path: &str) -> Option<Utf8PathBuf> {
+    let mut segments = Vec::new();
+    // This is inline with the behavior of `ServeDir` (as setup with `axum`) - it will resolve `..` that
+    // traverse above the root remain within the underlying root and will resolve to the correct file without
+    // allowing directory traversal beyond the defined root.
+    for segment in percent_decode(path.as_ref())
+        .decode_utf8()
+        .ok()?
+        .split("/")
         .map(|s| {
             if s == "index.html" {
                 "index_html".to_owned()
@@ -384,20 +541,25 @@ fn resolve_path(path: &str) -> Utf8PathBuf {
                 format!("{s}")
             }
         })
-        .collect::<Utf8PathBuf>();
-    p.push("index.html");
-    p
+    {
+        if segment == "." {
+            continue;
+        } else if segment == ".." {
+            segments.pop();
+        } else {
+            segments.push(segment)
+        }
+    }
+    segments.push("index.html".to_owned());
+    Some(segments.into_iter().collect::<Utf8PathBuf>())
 }
 
 #[cfg(test)]
 mod test {
-    use tempfile::TempDir;
-
     use super::*;
 
     #[test]
     fn proxy_patch_request() {
-        let tempdir = TempDir::new().unwrap();
         let service = Proxy::new("http://example.com/pmr/");
         let mut req = Request::builder()
             .method(Method::POST)
@@ -411,20 +573,41 @@ mod test {
 
     #[test]
     fn smoke_resolve_path() {
-        assert_eq!(resolve_path("/"), "index.html");
-        assert_eq!(resolve_path("/test"), "test/index.html");
-        assert_eq!(resolve_path("/test/"), "test/index.html");
-        assert_eq!(resolve_path("/test/target"), "test/target/index.html");
-        assert_eq!(resolve_path("/test//target"), "test/target/index.html");
-        assert_eq!(resolve_path("/test///target"), "test/target/index.html");
-        assert_eq!(resolve_path("/index_html"), "index_html/index.html");
-        assert_eq!(resolve_path("/index.html"), "index_html/index.html");
-        assert_eq!(resolve_path("/test/index_html"), "test/index_html/index.html");
-        assert_eq!(resolve_path("/test/index.html"), "test/index_html/index.html");
+        fn resolve_path_unwrapped(s: &str) -> Utf8PathBuf {
+            resolve_path(s).unwrap()
+        }
+
+        assert_eq!(resolve_path_unwrapped("/"), "index.html");
+        assert_eq!(resolve_path_unwrapped("/test"), "test/index.html");
+        assert_eq!(resolve_path_unwrapped("/test/"), "test/index.html");
+        assert_eq!(resolve_path_unwrapped("/test/target"), "test/target/index.html");
+        assert_eq!(resolve_path_unwrapped("/test%2ftarget"), "test/target/index.html");
+        assert_eq!(resolve_path_unwrapped("/test//target"), "test/target/index.html");
+        assert_eq!(resolve_path_unwrapped("/test///target"), "test/target/index.html");
+        assert_eq!(resolve_path_unwrapped("/index_html"), "index_html/index.html");
+        assert_eq!(resolve_path_unwrapped("/index.html"), "index_html/index.html");
+        assert_eq!(resolve_path_unwrapped("/test/index_html"), "test/index_html/index.html");
+        assert_eq!(resolve_path_unwrapped("/test/index.html"), "test/index_html/index.html");
+
+        // Segments with special names (i.e. curdir/pardir) should be ignored.
+        assert_eq!(resolve_path_unwrapped("/../target"), "target/index.html");
+        assert_eq!(resolve_path_unwrapped("/../../../../target"), "target/index.html");
+        assert_eq!(resolve_path_unwrapped("/dir/../target"), "target/index.html");
+        assert_eq!(
+            resolve_path_unwrapped("/workspace/a1/file/../file/main"),
+            "workspace/a1/file/main/index.html",
+        );
+        assert_eq!(
+            resolve_path_unwrapped("/workspace/a1/file/../file/main/"),
+            "workspace/a1/file/main/index.html",
+        );
 
         // Plone usually has the `/view` suffix being the same as the underlying resource, but for now this
         // resolver ignores this issue as the optimization can be done by the underlying service.
-        assert_eq!(resolve_path("/welcome"), "welcome/index.html");
-        assert_eq!(resolve_path("/welcome/view"), "welcome/view/index.html");
+        assert_eq!(resolve_path_unwrapped("/welcome"), "welcome/index.html");
+        assert_eq!(resolve_path_unwrapped("/welcome/view"), "welcome/view/index.html");
+
+        // Invalid unicode is decoded to nothing
+        assert_eq!(resolve_path("/%e7"), None);
     }
 }
