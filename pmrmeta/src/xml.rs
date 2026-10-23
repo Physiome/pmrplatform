@@ -84,12 +84,20 @@ mod xslt {
             let doc = Item::Node(parse(
                 RNode::new_document(),
                 &self.input_xml,
-                Some(|_: &_| Err(ParseError::MissingNameSpace)),
+                Some(|_: &_| Err(ParseError::MissingNameSpace {
+                    prefix: None,
+                    nsuri: None,
+                    message: None,
+                })),
             )?);
             let xslt = parse(
                 RNode::new_document(),
                 CELLML_TMPDOC_TO_HTML,
-                Some(|_: &_| Err(ParseError::MissingNameSpace)),
+                Some(|_: &_| Err(ParseError::MissingNameSpace {
+                    prefix: None,
+                    nsuri: None,
+                    message: None,
+                })),
             )?;
             let mut static_context = StaticContextBuilder::new()
                 .message(|_| Ok(()))
@@ -99,7 +107,11 @@ mod xslt {
             let mut ctx = from_document(
                 xslt,
                 None,
-                |s: &str| parse(RNode::new_document(), s, Some(|_: &_| Err(ParseError::MissingNameSpace))),
+                |s: &str| parse(RNode::new_document(), s, Some(|_: &_| Err(ParseError::MissingNameSpace {
+                    prefix: None,
+                    nsuri: None,
+                    message: None,
+                }))),
                 |_| Ok(String::new()),
             )?;
 
