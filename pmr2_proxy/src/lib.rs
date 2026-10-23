@@ -35,39 +35,253 @@ use tower_http::services::fs::ServeDir;
 const DATA: &str = "data";
 const SERVICE: &str = "webservice";
 
+#[derive(Debug)]
+pub struct CacheStrategy<B> {
+    cache_dir: Utf8PathBuf,
+    path: Utf8PathBuf,
+    serve_dir: ServeDir,
+    proxy: Proxy<B>,
+    request: Request<B>,
+}
+
+impl<B> IntoFuture for CacheStrategy<B>
+where
+    B: Send + HttpBody + Unpin + std::fmt::Debug + 'static,
+    <B as HttpBody>::Data: Send,
+    <B as HttpBody>::Error: std::error::Error + Send + Sync,
+{
+    type Output = Result<Response<Body>, Infallible>;
+    type IntoFuture = Pin<Box<dyn Future<Output = Result<Response<Body>, Infallible>> + Send + 'static>>;
+
+    fn into_future(mut self) -> Self::IntoFuture {
+        Box::pin(async move {
+            // call serve_dir and this be the fallback?
+            // need to figure out how to best structure this
+            // Assumes this is a `GET` request so body could be ignored later.
+            let (parts, body) = self.request.into_parts();
+            let cache_path = self.cache_dir.join(&self.path);
+            #[cfg(feature = "trace")]
+            tracing::debug!("cache_path={cache_path}");
+            let cache_headers_path = cache_path.parent().map(|p| p.join("headers"));
+
+            if !cache_path.is_file() {
+                // Not a file, clone the parts, pop out the range hader, and get the full content
+                // for the cache.
+                #[cfg(feature = "trace")]
+                tracing::debug!("cache_path={cache_path} not file");
+                let mut parts = parts.clone();
+                parts.headers.remove(header::RANGE);
+                let request = Request::from_parts(parts, body);
+
+                match self.proxy.call(request).await {
+                    Err(_) => {
+                        #[cfg(feature = "trace")]
+                        tracing::info!("proxy.call");
+                        return Ok(make_503());
+                    }
+                    Ok(resp) => {
+                        // Any status that isn't 200 OK are returned as is.
+                        // TODO Maybe there are ways to cache this eventually?
+                        if resp.status() != StatusCode::OK {
+                            #[cfg(feature = "trace")]
+                            tracing::info!("resp.status={}", resp.status());
+                            return Ok(resp);
+                        }
+                        if cache_path.parent()
+                            .map(create_dir_all)
+                            .map(Result::ok)
+                            .flatten()
+                            .is_none()
+                        {
+                            #[cfg(feature = "trace")]
+                            tracing::error!("create_dir_all={:?}", cache_path.parent());
+                            return Ok(make_500());
+                        };
+
+                        let (parts, body) = resp.into_parts();
+
+                        if let Ok(file) = File::create(&cache_path).await {
+                            if body.into_data_stream()
+                                .try_fold(file, |mut file, data| async move {
+                                    file.write(&data).await
+                                        .map_err(axum::Error::new)?;
+                                    Ok(file)
+                                })
+                                .await
+                                .is_err()
+                            {
+                                // Failed to write to the file be considered an internal error for
+                                // now.
+                                #[cfg(feature = "trace")]
+                                tracing::error!("write={}", cache_path);
+                                return Ok(make_500());
+                            }
+
+                            // The headers writing can be allowed to fail, but the consequences is
+                            // that the original headers won't be set when the proxy responds.
+                            if let Some(ref path) = cache_headers_path {
+                                if let Ok(mut file) = File::create(path).await {
+                                    for header in [
+                                        header::CONTENT_LANGUAGE,
+                                        header::CONTENT_TYPE,
+                                        header::VARY,
+                                    ].iter() {
+                                        if let Some(value) = parts.headers.get(header) {
+                                            if let Ok(value) = value.to_str() {
+                                                let _ = file.write(
+                                                    format!(
+                                                        "{}: {}\n",
+                                                        header,
+                                                        value,
+                                                    )
+                                                    .as_ref(),
+                                                ).await;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                        } else {
+                            // Maybe bypass the cache? For now just error.
+                            #[cfg(feature = "trace")]
+                            tracing::error!("File::create={}", cache_path);
+                            return Ok(make_500());
+                        }
+                    }
+                };
+            }
+
+            // The body can be empty as it should have been for the GET request.
+            let request = Request::from_parts(parts, Body::empty());
+            let (mut parts, body) = self.serve_dir.call(request).await
+                .expect("serve_dir should be infallible")
+                .into_parts();
+            if let Some(ref path) = cache_headers_path {
+                if let Ok(mut file) = File::open(path).await {
+                    // Just read everything to a `String` and process that for brevity.
+                    // Failures are ignored as any missing headers are not too critical here.
+                    let mut s = String::new();
+                    let _ = file.read_to_string(&mut s).await;
+                    for line in s.lines() {
+                        let mut split = line.split(':');
+                        let header = split
+                            .next()
+                            .map(|s| HeaderName::from_bytes(s.as_ref()));
+                        let value = split
+                            .next()
+                            .map(str::trim)
+                            .map(HeaderValue::from_str);
+                        if let Some(Ok(header)) = header && let Some(Ok(value)) = value {
+                            parts.headers.insert(header, value);
+                        }
+                    }
+                }
+            }
+            Ok(Response::from_parts(parts, Body::new(body)))
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct SemaphoreStrategy<B> {
+    proxy: Proxy<B>,
+    semaphore: Arc<Semaphore>,
+    request: Request<B>,
+}
+
+impl<B> IntoFuture for SemaphoreStrategy<B>
+where
+    B: Send + HttpBody + Unpin + std::fmt::Debug + 'static,
+    <B as HttpBody>::Data: Send,
+    <B as HttpBody>::Error: std::error::Error + Send + Sync,
+{
+    type Output = Result<Response<Body>, Infallible>;
+    type IntoFuture = Pin<Box<dyn Future<Output = Result<Response<Body>, Infallible>> + Send + 'static>>;
+
+    fn into_future(mut self) -> Self::IntoFuture {
+        Box::pin(async move {
+            // TODO Wait on Semaphore and reject with a HTTP 504 Gateway Timeout response otherwise.
+            self.proxy.call(self.request).await
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct PassthruStrategy<B> {
+    proxy: Proxy<B>,
+    request: Request<B>,
+}
+
+impl<B> IntoFuture for PassthruStrategy<B>
+where
+    B: Send + HttpBody + Unpin + std::fmt::Debug + 'static,
+    <B as HttpBody>::Data: Send,
+    <B as HttpBody>::Error: std::error::Error + Send + Sync,
+{
+    type Output = Result<Response<Body>, Infallible>;
+    type IntoFuture = Pin<Box<dyn Future<Output = Result<Response<Body>, Infallible>> + Send + 'static>>;
+
+    fn into_future(mut self) -> Self::IntoFuture {
+        Box::pin(async move {
+            self.proxy.call(self.request).await
+        })
+    }
+}
+
 /// Specify how the request should be processed.
 #[derive(Debug)]
 pub enum Strategy<B> {
     /// Use the file at this relative path to cache/load the request.
-    Cache {
-        cache_dir: Utf8PathBuf,
-        path: Utf8PathBuf,
-        serve_dir: ServeDir,
-        proxy: Proxy<B>,
-        request: Request<B>,
-    },
+    Cache(CacheStrategy<B>),
     /// Use the file at this relative path to cache/load the request for the webservice request.
-    CacheWebService {
-        cache_dir: Utf8PathBuf,
-        path: Utf8PathBuf,
-        serve_dir: ServeDir,
-        proxy: Proxy<B>,
-        request: Request<B>,
-    },
+    CacheWebService(CacheStrategy<B>),
     /// Acquire the semaphore before passing through the request to the underlying service.
-    Semaphore {
-        proxy: Proxy<B>,
-        request: Request<B>,
-    },
+    Semaphore(SemaphoreStrategy<B>),
     /// Pass through the request to the underlying service unhindered.
-    Passthru {
-        proxy: Proxy<B>,
-        request: Request<B>,
-    },
+    Passthru(PassthruStrategy<B>),
     /// Assume the resource is not found.
     NotFound,
     // TODO Figure out if there is a way to provide an invalidation option, e.g. if POST to certain exposure
     // endpoints, a whole slew of cache may be invalidated.
+}
+
+
+impl<B> IntoFuture for Strategy<B>
+where
+    B: Send + HttpBody + Unpin + std::fmt::Debug + 'static,
+    <B as HttpBody>::Data: Send,
+    <B as HttpBody>::Error: std::error::Error + Send + Sync,
+{
+    type Output = Result<Response<Body>, Infallible>;
+    type IntoFuture = Pin<Box<dyn Future<Output = Result<Response<Body>, Infallible>> + Send + 'static>>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        match self {
+            Self::Cache(strategy) => {
+                strategy.into_future()
+            }
+            Self::CacheWebService(strategy) => {
+                strategy.into_future()
+            }
+            Self::Semaphore(strategy) => {
+                strategy.into_future()
+            }
+            Self::Passthru(strategy) => {
+                strategy.into_future()
+            }
+            Self::NotFound => {
+                Box::pin(async {
+                    Ok(Response::builder()
+                        .status(StatusCode::NOT_FOUND)
+                        .header(header::CONTENT_TYPE, "text/html")
+                        .body(Body::from("<html><body><h1>404 Not Found</h1></body></html>"))
+                        .expect("statically constructed response shouldn't error")
+                    )
+                })
+            }
+        }
+    }
 }
 
 impl<B> Strategy<B> {
@@ -79,10 +293,10 @@ impl<B> Strategy<B> {
         {
             if Cookie::split_parse(cookie).any(|r| r.map(|c| c.name() == "__ac").unwrap_or(false)) {
                 // TODO Should follow this up with our own session management.
-                return Strategy::Passthru {
+                return Strategy::Passthru(PassthruStrategy {
                     proxy: gateway.inner.proxy.clone(),
                     request,
-                };
+                });
             }
         }
 
@@ -95,43 +309,44 @@ impl<B> Strategy<B> {
                     .map(HeaderValue::to_str)
                 {
                     if accept == "application/vnd.physiome.pmr2.json.1" {
-                        return Strategy::CacheWebService {
+                        return Strategy::CacheWebService(CacheStrategy {
                             cache_dir: gateway.inner.cache_service.clone(),
                             path,
                             serve_dir: gateway.inner.serve_dir_service.clone(),
                             proxy: gateway.inner.proxy.clone(),
                             request,
-                        }
+                        })
                     }
                 }
 
                 // Assume **all** GET request can be serviced by the cache.
                 // TODO Not all workspace endpoints should be cached.
-                return Strategy::Cache {
+                return Strategy::Cache(CacheStrategy {
                     cache_dir: gateway.inner.cache_data.clone(),
                     path,
                     proxy: gateway.inner.proxy.clone(),
                     serve_dir: gateway.inner.serve_dir_data.clone(),
                     request,
-                };
+                });
             } else {
                 // Non-unicode paths are treated as 404 Not Found.
                 return Strategy::NotFound;
             }
         }
 
-        // Any other requests assumed to require holding the semaphore.
-        Strategy::Semaphore {
+        // Any other requests assumed to require holding the default semaphore.
+        Strategy::Semaphore(SemaphoreStrategy {
             proxy: gateway.inner.proxy.clone(),
+            semaphore: gateway.inner.semaphore.clone(),
             request,
-        }
+        })
     }
 }
 
 #[derive(Debug)]
 struct GatewayInner<B> {
     proxy: Proxy<B>,
-    semaphore: Semaphore,
+    semaphore: Arc<Semaphore>,
     cache_data: Utf8PathBuf,
     cache_service: Utf8PathBuf,
     serve_dir_data: ServeDir,
@@ -178,7 +393,7 @@ where
         let serve_dir_service = ServeDir::new(&cache_service)
             .redirect_to_trailing_slash(false);
 
-        let semaphore = Semaphore::new(permits);
+        let semaphore = Arc::new(Semaphore::new(permits));
         let inner = Arc::new(GatewayInner {
             proxy,
             semaphore,
@@ -208,165 +423,10 @@ where
 
     fn call(&mut self, req: Request<ReqBody>) -> Self::Future {
         let service = self.clone();
-        Box::pin(async move {
-            let strategy = Strategy::new(service, req);
-            #[cfg(feature = "trace")]
-            tracing::debug!("strategy={strategy:?}");
-
-            // TODO This look suspiciously like something that could be implemented by `Strategy` itself,
-            // or that it could implement Future based on this.  For now just prototype this out and see
-            // how that might be done later.
-            match strategy {
-                Strategy::Cache { cache_dir, path, mut serve_dir, mut proxy, request } => {
-                    // call serve_dir and this be the fallback?
-                    // need to figure out how to best structure this
-                    // Assumes this is a `GET` request so body could be ignored later.
-                    let (parts, body) = request.into_parts();
-                    let cache_path = cache_dir.join(&path);
-                    #[cfg(feature = "trace")]
-                    tracing::debug!("cache_path={cache_path}");
-                    let cache_headers_path = cache_path.parent().map(|p| p.join("headers"));
-
-                    if !cache_path.is_file() {
-                        // Not a file, clone the parts, pop out the range hader, and get the full content
-                        // for the cache.
-                        #[cfg(feature = "trace")]
-                        tracing::debug!("cache_path={cache_path} not file");
-                        let mut parts = parts.clone();
-                        parts.headers.remove(header::RANGE);
-                        let request = Request::from_parts(parts, body);
-
-                        match proxy.call(request).await {
-                            Err(_) => {
-                                #[cfg(feature = "trace")]
-                                tracing::info!("proxy.call");
-                                return Ok(make_503());
-                            }
-                            Ok(resp) => {
-                                // Any status that isn't 200 OK are returned as is.
-                                // TODO Maybe there are ways to cache this eventually?
-                                if resp.status() != StatusCode::OK {
-                                    #[cfg(feature = "trace")]
-                                    tracing::info!("resp.status={}", resp.status());
-                                    return Ok(resp);
-                                }
-                                if cache_path.parent()
-                                    .map(create_dir_all)
-                                    .map(Result::ok)
-                                    .flatten()
-                                    .is_none()
-                                {
-                                    #[cfg(feature = "trace")]
-                                    tracing::error!("create_dir_all={:?}", cache_path.parent());
-                                    return Ok(make_500());
-                                };
-
-                                let (parts, body) = resp.into_parts();
-
-                                if let Ok(file) = File::create(&cache_path).await {
-                                    if body.into_data_stream()
-                                        .try_fold(file, |mut file, data| async move {
-                                            file.write(&data).await
-                                                .map_err(axum::Error::new)?;
-                                            Ok(file)
-                                        })
-                                        .await
-                                        .is_err()
-                                    {
-                                        // Failed to write to the file be considered an internal error for
-                                        // now.
-                                        #[cfg(feature = "trace")]
-                                        tracing::error!("write={}", cache_path);
-                                        return Ok(make_500());
-                                    }
-
-                                    // The headers writing can be allowed to fail, but the consequences is
-                                    // that the original headers won't be set when the proxy responds.
-                                    if let Some(ref path) = cache_headers_path {
-                                        if let Ok(mut file) = File::create(path).await {
-                                            for header in [
-                                                header::CONTENT_LANGUAGE,
-                                                header::CONTENT_TYPE,
-                                                header::VARY,
-                                            ].iter() {
-                                                if let Some(value) = parts.headers.get(header) {
-                                                    if let Ok(value) = value.to_str() {
-                                                        let _ = file.write(
-                                                            format!(
-                                                                "{}: {}\n",
-                                                                header,
-                                                                value,
-                                                            )
-                                                            .as_ref(),
-                                                        ).await;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                } else {
-                                    // Maybe bypass the cache? For now just error.
-                                    #[cfg(feature = "trace")]
-                                    tracing::error!("File::create={}", cache_path);
-                                    return Ok(make_500());
-                                }
-                            }
-                        };
-                    }
-
-                    // The body can be empty as it should have been for the GET request.
-                    let request = Request::from_parts(parts, Body::empty());
-                    let (mut parts, body) = serve_dir.call(request).await
-                        .expect("serve_dir should be infallible")
-                        .into_parts();
-                    if let Some(ref path) = cache_headers_path {
-                        if let Ok(mut file) = File::open(path).await {
-                            // Just read everything to a `String` and process that for brevity.
-                            // Failures are ignored as any missing headers are not too critical here.
-                            let mut s = String::new();
-                            let _ = file.read_to_string(&mut s).await;
-                            for line in s.lines() {
-                                let mut split = line.split(':');
-                                let header = split
-                                    .next()
-                                    .map(|s| HeaderName::from_bytes(s.as_ref()));
-                                let value = split
-                                    .next()
-                                    .map(str::trim)
-                                    .map(HeaderValue::from_str);
-                                if let Some(Ok(header)) = header && let Some(Ok(value)) = value {
-                                    parts.headers.insert(header, value);
-                                }
-                            }
-                        }
-                    }
-                    Ok(Response::from_parts(parts, Body::new(body)))
-                }
-                Strategy::CacheWebService { cache_dir, path, serve_dir, mut proxy, request } => {
-                    // call serve_dir and this be the fallback?
-                    // need to figure out how to best structure this
-                    // for now passthrough this.
-                    proxy.call(request).await
-                }
-                Strategy::Semaphore { mut proxy, request } => {
-                    // wait on semaphore, if unacquired within timeout generate a 504 response.
-                    proxy.call(request).await
-                }
-                Strategy::Passthru { mut proxy, request } => {
-                    proxy.call(request).await
-                }
-                Strategy::NotFound => {
-                    // TODO Build a themed response off this.
-                    Ok(Response::builder()
-                        .status(StatusCode::NOT_FOUND)
-                        .header(header::CONTENT_TYPE, "text/html")
-                        .body(Body::from("<html><body><h1>404 Not Found</h1></body></html>"))
-                        .expect("statically constructed response shouldn't error")
-                    )
-                }
-            }
-        })
+        let strategy = Strategy::new(service, req);
+        #[cfg(feature = "trace")]
+        tracing::debug!("strategy={strategy:?}");
+        strategy.into_future()
     }
 }
 
