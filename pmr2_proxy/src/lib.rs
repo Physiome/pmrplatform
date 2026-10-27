@@ -42,8 +42,7 @@ pub struct CacheStrategy<B> {
     cache_dir: Utf8PathBuf,
     path: Utf8PathBuf,
     serve_dir: ServeDir,
-    proxy: Proxy<B>,
-    request: Request<B>,
+    semaphore_strategy: SemaphoreStrategy<B>,
 }
 
 impl<B> IntoFuture for CacheStrategy<B>
@@ -60,22 +59,22 @@ where
             // call serve_dir and this be the fallback?
             // need to figure out how to best structure this
             // Assumes this is a `GET` request so body could be ignored later.
-            let (parts, body) = self.request.into_parts();
+            let (parts, body) = self.semaphore_strategy.request.into_parts();
             let cache_path = self.cache_dir.join(&self.path);
             #[cfg(feature = "trace")]
             tracing::debug!("cache_path={cache_path}");
             let cache_headers_path = cache_path.parent().map(|p| p.join("headers"));
 
             if !cache_path.is_file() {
-                // Not a file, clone the parts, pop out the range hader, and get the full content
+                // Not a file, clone the parts, pop out the FOUND hader, and get the full content
                 // for the cache.
                 #[cfg(feature = "trace")]
                 tracing::debug!("cache_path={cache_path} not file");
                 let mut parts = parts.clone();
                 parts.headers.remove(header::RANGE);
-                let request = Request::from_parts(parts, body);
+                self.semaphore_strategy.request = Request::from_parts(parts, body);
 
-                match self.proxy.call(request).await {
+                match self.semaphore_strategy.into_future().await {
                     Err(_) => {
                         #[cfg(feature = "trace")]
                         tracing::info!("proxy.call");
@@ -83,11 +82,13 @@ where
                     }
                     Ok(resp) => {
                         // Any status that isn't 200 OK are returned as is.
-                        // TODO Maybe there are ways to cache this eventually?
-                        if resp.status() != StatusCode::OK {
-                            #[cfg(feature = "trace")]
-                            tracing::info!("resp.status={}", resp.status());
-                            return Ok(resp);
+                        match resp.status() {
+                            StatusCode::OK | StatusCode::FOUND => {}
+                            _ => {
+                                #[cfg(feature = "trace")]
+                                tracing::info!("resp.status={}", resp.status());
+                                return Ok(resp);
+                            }
                         }
                         if cache_path.parent()
                             .map(create_dir_all)
@@ -103,6 +104,8 @@ where
                         let (parts, body) = resp.into_parts();
 
                         if let Ok(file) = File::create(&cache_path).await {
+                            #[cfg(feature = "trace")]
+                            tracing::debug!("cache_path={:?}", cache_path);
                             if body.into_data_stream()
                                 .try_fold(file, |mut file, data| async move {
                                     file.write(&data).await
@@ -123,9 +126,12 @@ where
                             // that the original headers won't be set when the proxy responds.
                             if let Some(ref path) = cache_headers_path {
                                 if let Ok(mut file) = File::create(path).await {
+                                    let _ = file.write(parts.status.as_str().as_bytes()).await;
+                                    let _ = file.write(b"\n").await;
                                     for header in [
                                         header::CONTENT_LANGUAGE,
                                         header::CONTENT_TYPE,
+                                        header::LOCATION,
                                         header::VARY,
                                     ].iter() {
                                         if let Some(value) = parts.headers.get(header) {
@@ -165,8 +171,18 @@ where
                     // Failures are ignored as any missing headers are not too critical here.
                     let mut s = String::new();
                     let _ = file.read_to_string(&mut s).await;
+                    let mut lines = s.lines();
+                    // Assume status code be 200 on a failure just to get back _something_.
+                    let status = StatusCode::from_bytes(lines.next().unwrap_or("200").as_bytes())
+                        .unwrap_or(StatusCode::OK);
+                    match parts.status {
+                        // The default status code from `ServeDir` may be overridden.
+                        StatusCode::OK => parts.status = status,
+                        // Otherwise leave it as is.
+                        _ => (),
+                    }
                     for line in s.lines() {
-                        let mut split = line.split(':');
+                        let mut split = line.splitn(2, ':');
                         let header = split
                             .next()
                             .map(|s| HeaderName::from_bytes(s.as_ref()));
@@ -328,8 +344,12 @@ impl<B> Strategy<B> {
                             cache_dir: gateway.inner.cache_service.clone(),
                             path,
                             serve_dir: gateway.inner.serve_dir_service.clone(),
-                            proxy: gateway.inner.proxy.clone(),
-                            request,
+                            semaphore_strategy: SemaphoreStrategy {
+                                proxy: gateway.inner.proxy.clone(),
+                                semaphore: gateway.inner.semaphore.clone(),
+                                semaphore_timeout: gateway.inner.semaphore_timeout,
+                                request,
+                            }
                         })
                     }
                 }
@@ -339,9 +359,13 @@ impl<B> Strategy<B> {
                 return Strategy::Cache(CacheStrategy {
                     cache_dir: gateway.inner.cache_data.clone(),
                     path,
-                    proxy: gateway.inner.proxy.clone(),
                     serve_dir: gateway.inner.serve_dir_data.clone(),
-                    request,
+                    semaphore_strategy: SemaphoreStrategy {
+                        proxy: gateway.inner.proxy.clone(),
+                        semaphore: gateway.inner.semaphore.clone(),
+                        semaphore_timeout: gateway.inner.semaphore_timeout,
+                        request,
+                    }
                 });
             } else {
                 // Non-unicode paths are treated as 404 Not Found.
@@ -362,10 +386,14 @@ impl<B> Strategy<B> {
 #[derive(Debug)]
 struct GatewayInner<B> {
     proxy: Proxy<B>,
+
+    // These are for the direct access that won't be cached.
     semaphore: Arc<Semaphore>,
     semaphore_timeout: Duration,
     cache_data: Utf8PathBuf,
     cache_service: Utf8PathBuf,
+
+    // The services for the relevant underlying data.
     serve_dir_data: ServeDir,
     serve_dir_service: ServeDir,
 }
