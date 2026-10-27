@@ -85,7 +85,7 @@ where
                     Err(_) => {
                         #[cfg(feature = "trace")]
                         tracing::info!("proxy.call");
-                        return Ok(make_503());
+                        return Ok(http_503());
                     }
                     Ok(resp) => {
                         // Any status that isn't 200 OK are returned as is.
@@ -105,7 +105,7 @@ where
                         {
                             #[cfg(feature = "trace")]
                             tracing::error!("create_dir_all={:?}", cache_path.parent());
-                            return Ok(make_500());
+                            return Ok(http_500());
                         };
 
                         let (parts, body) = resp.into_parts();
@@ -126,7 +126,7 @@ where
                                 // now.
                                 #[cfg(feature = "trace")]
                                 tracing::error!("write={}", cache_path);
-                                return Ok(make_500());
+                                return Ok(http_500());
                             }
 
                             // The headers writing can be allowed to fail, but the consequences is
@@ -161,7 +161,7 @@ where
                             // Maybe bypass the cache? For now just error.
                             #[cfg(feature = "trace")]
                             tracing::error!("File::create={}", cache_path);
-                            return Ok(make_500());
+                            return Ok(http_500());
                         }
                     }
                 };
@@ -234,11 +234,11 @@ where
                 }
                 Ok(Err(_)) => {
                     // Somehow the Semaphore was closed when it shouldn't have.
-                    Ok(make_500())
+                    Ok(http_500())
                 }
                 Err(_) => {
                     // Timeout acquiring the semaphore.
-                    Ok(make_504())
+                    Ok(http_504())
                 }
             }
         })
@@ -310,12 +310,7 @@ where
             }
             Self::NotFound => {
                 Box::pin(async {
-                    Ok(Response::builder()
-                        .status(StatusCode::NOT_FOUND)
-                        .header(header::CONTENT_TYPE, "text/html")
-                        .body(Body::from("<html><body><h1>404 Not Found</h1></body></html>"))
-                        .expect("statically constructed response shouldn't error")
-                    )
+                    Ok(http_404())
                 })
             }
         }
@@ -683,14 +678,22 @@ where
                     let body = Body::new(incoming);
                     Response::from_parts(parts, body)
                 })
-                .unwrap_or_else(|_| make_503());
+                .unwrap_or_else(|_| http_503());
             Ok(resp)
         })
     }
 }
 
 // TODO Build a themed response off the following.
-fn make_500() -> Response<Body> {
+fn http_404() -> Response<Body> {
+    Response::builder()
+        .status(StatusCode::NOT_FOUND)
+        .header(header::CONTENT_TYPE, "text/html")
+        .body(Body::from("<html><body><h1>404 Not Found</h1></body></html>"))
+        .expect("statically constructed response shouldn't error")
+}
+
+fn http_500() -> Response<Body> {
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
         .header(header::CONTENT_TYPE, "text/html")
@@ -698,7 +701,7 @@ fn make_500() -> Response<Body> {
         .expect("statically constructed response shouldn't error")
 }
 
-fn make_503() -> Response<Body> {
+fn http_503() -> Response<Body> {
     Response::builder()
         .status(StatusCode::SERVICE_UNAVAILABLE)
         .header(header::CONTENT_TYPE, "text/html")
@@ -706,7 +709,7 @@ fn make_503() -> Response<Body> {
         .expect("statically constructed response shouldn't error")
 }
 
-fn make_504() -> Response<Body> {
+fn http_504() -> Response<Body> {
     Response::builder()
         .status(StatusCode::GATEWAY_TIMEOUT)
         .header(header::CONTENT_TYPE, "text/html")
