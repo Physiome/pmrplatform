@@ -71,7 +71,7 @@ pub(crate) fn http_504() -> Response<Body> {
     http_error(
         StatusCode::GATEWAY_TIMEOUT,
         r#"
-        The Physiome Model Repository is currently experiencing an excessively high volume of request, please
+        The Physiome Model Repository is currently experiencing an excessively high volume of requests, please
         try again later.
         "#,
     )
