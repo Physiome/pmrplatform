@@ -346,8 +346,8 @@ impl<B> Strategy<B> {
                             serve_dir: gateway.inner.serve_dir_service.clone(),
                             semaphore_strategy: SemaphoreStrategy {
                                 proxy: gateway.inner.proxy.clone(),
-                                semaphore: gateway.inner.semaphore.clone(),
-                                semaphore_timeout: gateway.inner.semaphore_timeout,
+                                semaphore: gateway.inner.cache_semaphore.clone(),
+                                semaphore_timeout: gateway.inner.cache_semaphore_timeout,
                                 request,
                             }
                         })
@@ -362,8 +362,8 @@ impl<B> Strategy<B> {
                     serve_dir: gateway.inner.serve_dir_data.clone(),
                     semaphore_strategy: SemaphoreStrategy {
                         proxy: gateway.inner.proxy.clone(),
-                        semaphore: gateway.inner.semaphore.clone(),
-                        semaphore_timeout: gateway.inner.semaphore_timeout,
+                        semaphore: gateway.inner.cache_semaphore.clone(),
+                        semaphore_timeout: gateway.inner.cache_semaphore_timeout,
                         request,
                     }
                 });
@@ -376,10 +376,120 @@ impl<B> Strategy<B> {
         // Any other requests assumed to require holding the default semaphore.
         Strategy::Semaphore(SemaphoreStrategy {
             proxy: gateway.inner.proxy.clone(),
-            semaphore: gateway.inner.semaphore.clone(),
-            semaphore_timeout: gateway.inner.semaphore_timeout,
+            semaphore: gateway.inner.passthru_semaphore.clone(),
+            semaphore_timeout: gateway.inner.passthru_semaphore_timeout,
             request,
         })
+    }
+}
+
+/// The gateway builder.
+///
+/// Use this to build the final gateway.
+#[derive(Debug)]
+pub struct GatewayBuilder {
+    cache_dir: Utf8PathBuf,
+    cache_permits: usize,
+    cache_timeout: Duration,
+    passthru_permits: usize,
+    passthru_timeout: Duration,
+}
+
+impl Default for GatewayBuilder {
+    fn default() -> Self {
+        Self {
+            cache_dir: ".".into(),
+            cache_permits: 3,
+            cache_timeout: Duration::from_secs(10),
+            passthru_permits: 3,
+            passthru_timeout: Duration::from_secs(10),
+        }
+    }
+}
+
+impl GatewayBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Specify the cache location.
+    ///
+    /// The default value is the current directory.
+    pub fn cache_dir(mut self, cache_dir: impl Into<Utf8PathBuf>) -> Self {
+        self.cache_dir = cache_dir.into();
+        self
+    }
+
+    /// Specify the number of permits allowed for the cache strategy.
+    ///
+    /// This determines the maximum number of concurrent requests that may be made for requests that will
+    /// be cached for data that has not yet been cached.
+    pub fn cache_permits(mut self, cache_permits: usize) -> Self {
+        self.cache_permits = cache_permits;
+        self
+    }
+
+    /// Specify the timeout in seconds for the cache strategy.
+    pub fn cache_timeout(mut self, cache_timeout: u64) -> Self {
+        self.cache_timeout = Duration::from_secs(cache_timeout);
+        self
+    }
+
+    /// Specify the number of permits allowed for the passthru strategy.
+    ///
+    /// This determines the maximum number of concurrent requests that may be made for requests that will
+    /// not be cached.
+    pub fn passthru_permits(mut self, passthru_permits: usize) -> Self {
+        self.passthru_permits = passthru_permits;
+        self
+    }
+
+    /// Specify the timeout in seconds for the passthru strategy.
+    pub fn passthru_timeout(mut self, passthru_timeout: u64) -> Self {
+        self.passthru_timeout = Duration::from_secs(passthru_timeout);
+        self
+    }
+
+    /// Build a proxy to a PMR2 instance served for the provided base `Uri`.
+    ///
+    /// This implementation assumes the provided `Uri` has the scheme of `http` and that no query is
+    /// provided with that `Uri`, as that will be ignored.
+    pub fn build_for<T, B>(self, base: T) -> Result<Gateway<B>, Box<dyn std::error::Error>>
+    where
+        B: HttpBody + Send + std::fmt::Debug,
+        <B as HttpBody>::Data: Send,
+        T: TryInto<Uri>,
+        <T as TryInto<Uri>>::Error: std::error::Error + std::fmt::Debug + 'static,
+    {
+        let base: Uri = base.try_into().map_err(Box::new)?;
+        let proxy = Proxy::new(base);
+
+        let cache_data = self.cache_dir.join(DATA);
+        let cache_service = self.cache_dir.join(SERVICE);
+        create_dir_all(&cache_data)?;
+        create_dir_all(&cache_service)?;
+        let serve_dir_data = ServeDir::new(&cache_data)
+            .redirect_to_trailing_slash(false);
+        let serve_dir_service = ServeDir::new(&cache_service)
+            .redirect_to_trailing_slash(false);
+
+        let passthru_semaphore = Arc::new(Semaphore::new(self.passthru_permits));
+        let passthru_semaphore_timeout = self.passthru_timeout;
+        let cache_semaphore = Arc::new(Semaphore::new(self.cache_permits));
+        let cache_semaphore_timeout = self.cache_timeout;
+
+        let inner = Arc::new(GatewayInner {
+            proxy,
+            passthru_semaphore,
+            passthru_semaphore_timeout,
+            cache_data,
+            cache_service,
+            cache_semaphore,
+            cache_semaphore_timeout,
+            serve_dir_data,
+            serve_dir_service,
+        });
+        Ok(Gateway { inner })
     }
 }
 
@@ -388,8 +498,12 @@ struct GatewayInner<B> {
     proxy: Proxy<B>,
 
     // These are for the direct access that won't be cached.
-    semaphore: Arc<Semaphore>,
-    semaphore_timeout: Duration,
+    passthru_semaphore: Arc<Semaphore>,
+    passthru_semaphore_timeout: Duration,
+
+    // These are to ensure access to resources that have yet to be cached will not overload the underlying.
+    cache_semaphore: Arc<Semaphore>,
+    cache_semaphore_timeout: Duration,
     cache_data: Utf8PathBuf,
     cache_service: Utf8PathBuf,
 
@@ -409,51 +523,6 @@ impl<B> Clone for Gateway<B> {
             inner: self.inner.clone(),
         }
     }
-}
-
-impl<B> Gateway<B>
-where
-    B: HttpBody + Send + std::fmt::Debug,
-    <B as HttpBody>::Data: Send,
-{
-    /// Create a proxy to a PMR2 instance served at the provided base `Uri`.
-    ///
-    /// This implementation assumes the provided `Uri` has the scheme of `http` and that no query is
-    /// provided as that will be ignored.
-    pub fn new<T, P>(base: T, cache_dir: P, permits: usize) -> Result<Self, std::io::Error>
-    where
-        P: Into<Utf8PathBuf>,
-        T: TryInto<Uri>,
-        <T as TryInto<Uri>>::Error: std::fmt::Debug,
-    {
-        let proxy = Proxy::new(base);
-        let cache_dir = cache_dir.into();
-
-        let cache_data = cache_dir.join(DATA);
-        let cache_service = cache_dir.join(SERVICE);
-        create_dir_all(&cache_data)?;
-        create_dir_all(&cache_service)?;
-        let serve_dir_data = ServeDir::new(&cache_data)
-            .redirect_to_trailing_slash(false);
-        let serve_dir_service = ServeDir::new(&cache_service)
-            .redirect_to_trailing_slash(false);
-
-        // TODO Create a builder that will allow the specification of this value (along with others).
-        let semaphore_timeout = Duration::from_secs(5);
-
-        let semaphore = Arc::new(Semaphore::new(permits));
-        let inner = Arc::new(GatewayInner {
-            proxy,
-            semaphore,
-            semaphore_timeout,
-            cache_data,
-            cache_service,
-            serve_dir_data,
-            serve_dir_service,
-        });
-        Ok(Self { inner })
-    }
-
 }
 
 impl<ReqBody> Service<Request<ReqBody>> for Gateway<ReqBody>

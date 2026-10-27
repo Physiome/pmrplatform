@@ -5,7 +5,7 @@ use axum::{
 };
 use camino::Utf8PathBuf;
 use clap::Parser;
-use pmr2_proxy::Gateway;
+use pmr2_proxy::GatewayBuilder;
 use std::net::SocketAddr;
 
 #[derive(Debug, Parser)]
@@ -53,7 +53,13 @@ async fn main() {
     dotenvy::dotenv().ok();
     let Cli { uri_base, cache_dir, permits, bind_addr } = Cli::parse();
 
-    let service = Gateway::new(uri_base, cache_dir, permits).unwrap();
+    let service = GatewayBuilder::new()
+        .cache_dir(cache_dir)
+        .cache_permits(permits)
+        .passthru_permits(permits)
+        .build_for(uri_base)
+        .unwrap();
+
     let mut router = Router::new()
         // While this could use the service, in PMR2 this is setup to redirect to some specific location,
         // so just go do that.  For now default this to `/welcome`, but they do go to separate targets
