@@ -40,6 +40,7 @@ const SERVICE: &str = "webservice";
 #[derive(Debug)]
 pub struct CacheStrategy<B> {
     cache_dir: Utf8PathBuf,
+    invalidate_cache: bool,
     path: Utf8PathBuf,
     serve_dir: ServeDir,
     semaphore_strategy: SemaphoreStrategy<B>,
@@ -65,11 +66,17 @@ where
             tracing::debug!("cache_path={cache_path}");
             let cache_headers_path = cache_path.parent().map(|p| p.join("headers"));
 
-            if !cache_path.is_file() {
-                // Not a file, clone the parts, pop out the FOUND hader, and get the full content
-                // for the cache.
+            // Not a file, clone the parts, pop out the FOUND hader, and get the full content from the
+            // undering to be cached.
+            // Also do the same if the cache is to be invalidated.
+            if !cache_path.is_file() || self.invalidate_cache {
                 #[cfg(feature = "trace")]
-                tracing::debug!("cache_path={cache_path} not file");
+                if !cache_path.is_file() {
+                    tracing::debug!("cache_path={cache_path} not file");
+                } else {
+                    tracing::debug!("cache_path={cache_path} to be invalidated");
+                }
+
                 let mut parts = parts.clone();
                 parts.headers.remove(header::RANGE);
                 self.semaphore_strategy.request = Request::from_parts(parts, body);
@@ -333,7 +340,22 @@ impl<B> Strategy<B> {
 
         if request.method() == Method::GET {
             if let Some(path) = resolve_path(request.uri().path()) {
-                // For the meantime responses from the web service could be cached if they are GET
+                if let Some(query) = request.uri().query() {
+                    if query != "" {
+                        // GET requests with query strings are not cached, and simply passed through.
+                        // TODO Figure out how to derive a path for the specific query string, if this
+                        // proved to be necessary.
+                        return Strategy::Semaphore(SemaphoreStrategy {
+                            proxy: gateway.inner.proxy.clone(),
+                            semaphore: gateway.inner.passthru_semaphore.clone(),
+                            semaphore_timeout: gateway.inner.passthru_semaphore_timeout,
+                            request,
+                        });
+                    }
+                }
+
+                // For the meantime responses from the web service could be cached if they are GET and
+                // without query strings.
                 if let Some(Ok(accept)) = request
                     .headers()
                     .get(header::ACCEPT)
@@ -342,6 +364,7 @@ impl<B> Strategy<B> {
                     if accept == "application/vnd.physiome.pmr2.json.1" {
                         return Strategy::CacheWebService(CacheStrategy {
                             cache_dir: gateway.inner.cache_service.clone(),
+                            invalidate_cache: false,
                             path,
                             serve_dir: gateway.inner.serve_dir_service.clone(),
                             semaphore_strategy: SemaphoreStrategy {
@@ -358,6 +381,7 @@ impl<B> Strategy<B> {
                 // TODO Not all workspace endpoints should be cached.
                 return Strategy::Cache(CacheStrategy {
                     cache_dir: gateway.inner.cache_data.clone(),
+                    invalidate_cache: false,
                     path,
                     serve_dir: gateway.inner.serve_dir_data.clone(),
                     semaphore_strategy: SemaphoreStrategy {
