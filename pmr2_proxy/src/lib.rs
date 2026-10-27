@@ -34,6 +34,10 @@ use tokio::{
 use tower::Service;
 use tower_http::services::fs::ServeDir;
 
+mod response;
+mod template;
+use response::*;
+
 const DATA: &str = "data";
 const SERVICE: &str = "webservice";
 
@@ -682,39 +686,6 @@ where
             Ok(resp)
         })
     }
-}
-
-// TODO Build a themed response off the following.
-fn http_404() -> Response<Body> {
-    Response::builder()
-        .status(StatusCode::NOT_FOUND)
-        .header(header::CONTENT_TYPE, "text/html")
-        .body(Body::from("<html><body><h1>404 Not Found</h1></body></html>"))
-        .expect("statically constructed response shouldn't error")
-}
-
-fn http_500() -> Response<Body> {
-    Response::builder()
-        .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .header(header::CONTENT_TYPE, "text/html")
-        .body(Body::from("<html><body><h1>500 Internal Server Error</h1></body></html>"))
-        .expect("statically constructed response shouldn't error")
-}
-
-fn http_503() -> Response<Body> {
-    Response::builder()
-        .status(StatusCode::SERVICE_UNAVAILABLE)
-        .header(header::CONTENT_TYPE, "text/html")
-        .body(Body::from("<html><body><h1>503 Servce Unavailable</h1></body></html>"))
-        .expect("statically constructed response shouldn't error")
-}
-
-fn http_504() -> Response<Body> {
-    Response::builder()
-        .status(StatusCode::GATEWAY_TIMEOUT)
-        .header(header::CONTENT_TYPE, "text/html")
-        .body(Body::from("<html><body><h1>504 Gateway Timeout</h1></body></html>"))
-        .expect("statically constructed response shouldn't error")
 }
 
 // This resolves to the filesystem equivalent path.  Given that every resource may have a trailing slash

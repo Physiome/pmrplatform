@@ -16,6 +16,7 @@ futures = { workspace = true }
 http-body-util = { workspace = true }
 hyper = { workspace = true, features = ["client"] }
 hyper-util = { workspace = true, features = ["client", "client-legacy", "tokio"] }
+lol_html = { workspace = true }
 percent-encoding = { workspace = true }
 tokio = { workspace = true, features = ["macros", "process", "rt-multi-thread", "sync"] }
 tower = { workspace = true }
