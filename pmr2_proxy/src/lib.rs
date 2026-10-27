@@ -23,11 +23,13 @@ use std::{
     pin::Pin,
     sync::Arc,
     task::{Context, Poll},
+    time::Duration,
 };
 use tokio::{
     fs::File,
     io::{AsyncReadExt, AsyncWriteExt},
     sync::Semaphore,
+    time::timeout,
 };
 use tower::Service;
 use tower_http::services::fs::ServeDir;
@@ -187,6 +189,7 @@ where
 pub struct SemaphoreStrategy<B> {
     proxy: Proxy<B>,
     semaphore: Arc<Semaphore>,
+    semaphore_timeout: Duration,
     request: Request<B>,
 }
 
@@ -201,8 +204,20 @@ where
 
     fn into_future(mut self) -> Self::IntoFuture {
         Box::pin(async move {
-            // TODO Wait on Semaphore and reject with a HTTP 504 Gateway Timeout response otherwise.
-            self.proxy.call(self.request).await
+            match timeout(self.semaphore_timeout, self.semaphore.acquire_owned()).await {
+                Ok(Ok(_permit)) => {
+                    // Semaphore acquired on-time.
+                    self.proxy.call(self.request).await
+                }
+                Ok(Err(_)) => {
+                    // Somehow the Semaphore was closed when it shouldn't have.
+                    Ok(make_500())
+                }
+                Err(_) => {
+                    // Timeout acquiring the semaphore.
+                    Ok(make_504())
+                }
+            }
         })
     }
 }
@@ -338,6 +353,7 @@ impl<B> Strategy<B> {
         Strategy::Semaphore(SemaphoreStrategy {
             proxy: gateway.inner.proxy.clone(),
             semaphore: gateway.inner.semaphore.clone(),
+            semaphore_timeout: gateway.inner.semaphore_timeout,
             request,
         })
     }
@@ -347,6 +363,7 @@ impl<B> Strategy<B> {
 struct GatewayInner<B> {
     proxy: Proxy<B>,
     semaphore: Arc<Semaphore>,
+    semaphore_timeout: Duration,
     cache_data: Utf8PathBuf,
     cache_service: Utf8PathBuf,
     serve_dir_data: ServeDir,
@@ -393,10 +410,14 @@ where
         let serve_dir_service = ServeDir::new(&cache_service)
             .redirect_to_trailing_slash(false);
 
+        // TODO Create a builder that will allow the specification of this value (along with others).
+        let semaphore_timeout = Duration::from_secs(5);
+
         let semaphore = Arc::new(Semaphore::new(permits));
         let inner = Arc::new(GatewayInner {
             proxy,
             semaphore,
+            semaphore_timeout,
             cache_data,
             cache_service,
             serve_dir_data,
@@ -561,6 +582,14 @@ fn make_503() -> Response<Body> {
         .status(StatusCode::SERVICE_UNAVAILABLE)
         .header(header::CONTENT_TYPE, "text/html")
         .body(Body::from("<html><body><h1>503 Servce Unavailable</h1></body></html>"))
+        .expect("statically constructed response shouldn't error")
+}
+
+fn make_504() -> Response<Body> {
+    Response::builder()
+        .status(StatusCode::GATEWAY_TIMEOUT)
+        .header(header::CONTENT_TYPE, "text/html")
+        .body(Body::from("<html><body><h1>504 Gateway Timeout</h1></body></html>"))
         .expect("statically constructed response shouldn't error")
 }
 
