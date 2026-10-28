@@ -38,6 +38,8 @@ impl<S> Layer<S> for RewriteHrefLayer {
     type Service = RewriteHref<S>;
 
     fn layer(&self, service: S) -> Self::Service {
+        #[cfg(feature = "trace")]
+        tracing::trace!("created RewriteHrefLayer from={:?} to={:?}", self.from, self.to);
         RewriteHref::new(self.from.clone(), self.to.clone(), service)
     }
 }
@@ -54,11 +56,11 @@ impl<S> RewriteHref<S> {
     /// Create a new `RewriteHref` service, with anchors to be rewritten `from` the original authority `to` the
     /// target authority.
     pub fn new(from: impl Into<Cow<'static, str>>, to: impl Into<Cow<'static, str>>, inner: S) -> Self {
-        Self {
-            from: from.into(),
-            to: to.into(),
-            inner,
-        }
+        let from = from.into();
+        let to = to.into();
+        #[cfg(feature = "trace")]
+        tracing::trace!("created RewriteHref from={from} to={to}");
+        Self { from, to, inner }
     }
 }
 
@@ -287,11 +289,11 @@ impl<S> RewriteTemplate<S> {
     }
 
     pub fn cellml(from: impl Into<Cow<'static, str>>, inner: S) -> Self {
-        Self::CellML(RewriteHref::new(from, "https://models.cellml.org", inner))
+        Self::CellML(RewriteHref::new(from, "https://models.cellml.org/", inner))
     }
 
     pub fn fieldml(from: impl Into<Cow<'static, str>>, inner: S) -> Self {
-        Self::FieldML(RewriteHref::new(from, "https://models.fieldml.org", inner))
+        Self::FieldML(RewriteHref::new(from, "https://models.fieldml.org/", inner))
     }
 }
 
