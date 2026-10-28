@@ -4,7 +4,10 @@ use axum::{
 };
 use camino::Utf8PathBuf;
 use clap::Parser;
-use crate::gateway::{Gateway, GatewayBuilder};
+use crate::{
+    gateway::{Gateway, GatewayBuilder},
+    rewrite::RewritePmr2Layer,
+};
 use std::{
     net::SocketAddr,
     str::FromStr,
@@ -98,7 +101,7 @@ impl Cli {
     /// Construct a gateway based on the specified options.
     ///
     /// This function panics.
-    pub fn to_gateway<B>(&self) -> Gateway<B>
+    pub fn gateway<B>(&self) -> Gateway<B>
     where
         B: HttpBody + Send + std::fmt::Debug,
         <B as HttpBody>::Data: Send,
@@ -119,16 +122,20 @@ impl Cli {
             ))
     }
 
-    /// Construct the expected base uri for the underlying PMR2 instance.  This uri will include the
-    /// virtual host configuration.
+    /// Construct the `RewritePmr2Layer` from `site_uri()`.
     ///
-    /// This function panics if the provided site_uri does not have a valid scheme or a valid authority,
-    /// and if the final constructed `Uri` is invalid.
-    pub fn host_base_uri(&self) -> Uri {
-        let plone_site = self.plone_site
-            .trim_start_matches('/')
-            .trim_end_matches('/');
-        let site_uri = self.site_uri
+    /// This function panics if there is no site_uri defined and that the bind_addr has an unspecified ip
+    /// address or an unspecified port.
+    pub fn rewrite_pmr2_layer(&self) -> RewritePmr2Layer {
+        RewritePmr2Layer::new(self.site_uri().to_string())
+    }
+
+    /// Return `site_uri` if it's defined, or generate one from `bind_addr`.
+    ///
+    /// This function panics if there is no site_uri defined and that the bind_addr has an unspecified ip
+    /// address or an unspecified port.
+    pub fn site_uri(&self) -> Uri {
+        self.site_uri
             .clone()
             .unwrap_or_else(|| {
                 if self.bind_addr.ip().is_unspecified() {
@@ -141,7 +148,19 @@ impl Cli {
                 Uri::from_maybe_shared(uri)
                     .expect("bind_addr should form a valid uri")
                     .to_owned()
-            });
+            })
+    }
+
+    /// Construct the expected base uri for the underlying PMR2 instance.  This uri will include the
+    /// virtual host configuration.
+    ///
+    /// This function panics if the provided site_uri (or the bind_addr; see `host_base_uri()`) does not have
+    /// a valid scheme or a valid authority, and if the final constructed `Uri` is invalid.
+    pub fn host_base_uri(&self) -> Uri {
+        let plone_site = self.plone_site
+            .trim_start_matches('/')
+            .trim_end_matches('/');
+        let site_uri = self.site_uri();
         let scheme = site_uri
             .scheme()
             .expect("site_uri did not provide a scheme");
