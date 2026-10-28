@@ -1,6 +1,6 @@
 use axum::{
     body::{Body, Bytes, HttpBody},
-    http::{Request, Response, header},
+    http::{HeaderName, HeaderValue, Request, Response, header},
 };
 use chrono::Datelike;
 use http_body_util::BodyExt;
@@ -281,6 +281,18 @@ impl<S> RewriteTemplate<S> {
             }
         }
     }
+
+    pub fn base(inner: S) -> Self {
+        Self::Base(inner)
+    }
+
+    pub fn cellml(from: impl Into<Cow<'static, str>>, inner: S) -> Self {
+        Self::CellML(RewriteHref::new(from, "https://models.cellml.org", inner))
+    }
+
+    pub fn fieldml(from: impl Into<Cow<'static, str>>, inner: S) -> Self {
+        Self::FieldML(RewriteHref::new(from, "https://models.fieldml.org", inner))
+    }
 }
 
 impl<ReqBody, ResBody, S> Service<Request<ReqBody>> for RewriteTemplate<S>
@@ -529,6 +541,114 @@ where
                 };
                 Ok(res)
             }),
+        }
+    }
+}
+
+/// The rewrite layer for all of PMR2.
+///
+/// Using this will set up all the underlying services as intended for the production service.
+#[derive(Clone, Debug)]
+pub struct RewritePmr2Layer {
+    from: Cow<'static, str>,
+}
+
+impl RewritePmr2Layer {
+    /// Sets up the layer for rewriting `from` uri.
+    pub fn new(from: impl Into<Cow<'static, str>>) -> Self {
+        Self {
+            from: from.into(),
+        }
+    }
+}
+
+impl<S> Layer<S> for RewritePmr2Layer
+where
+    S: Clone,
+{
+    type Service = RewritePmr2<S>;
+
+    fn layer(&self, service: S) -> Self::Service {
+        RewritePmr2::new(self.from.clone(), service)
+    }
+}
+
+/// A service that provides rewriting for PMR2.
+#[derive(Clone, Debug)]
+pub struct RewritePmr2<S> {
+    base: RewriteTemplate<S>,
+    cellml: RewriteTemplate<S>,
+    fieldml: RewriteTemplate<S>,
+}
+
+impl<S> RewritePmr2<S> {
+    /// Create the service to rewrite the cached content of PMR2.
+    pub fn new(from: impl Into<Cow<'static, str>>, inner: S) -> Self
+    where
+        S: Clone,
+    {
+        let from = from.into();
+        Self {
+            base: RewriteTemplate::base(inner.clone()),
+            cellml: RewriteTemplate::cellml(from.clone(), inner.clone()),
+            fieldml: RewriteTemplate::fieldml(from.clone(), inner.clone()),
+        }
+    }
+}
+
+impl<ReqBody, ResBody, S> Service<Request<ReqBody>> for RewritePmr2<S>
+where
+    S: Service<Request<ReqBody>, Response = Response<ResBody>>
+        + Clone
+        + Send
+        + 'static,
+    S::Future: Send,
+    ReqBody: Send + 'static,
+    ResBody: HttpBody<Data = Bytes> + Send + BodyExt + 'static,
+    <ResBody as HttpBody>::Error: std::error::Error + Send + Sync + 'static,
+{
+    type Response = Response<Body>;
+    type Error = S::Error;
+    type Future = Pin<
+        Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>,
+    >;
+
+    fn poll_ready(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), Self::Error>> {
+        if let Poll::Pending = self.fieldml.poll_ready(cx) {
+            Poll::Pending
+        } else if let Poll::Pending = self.cellml.poll_ready(cx) {
+            Poll::Pending
+        } else {
+            self.base.poll_ready(cx)
+        }
+    }
+
+    fn call(&mut self, req: Request<ReqBody>) -> Self::Future {
+        match req.headers().get(HeaderName::from_static("x-forwarded-host")) {
+            Some(s) if s == HeaderValue::from_static("models.cellml.org") => {
+                let clone = self.cellml.clone();
+                let mut inner = std::mem::replace(&mut self.cellml, clone);
+                Box::pin(async move {
+                    inner.call(req).await
+                })
+            }
+            Some(s) if s == HeaderValue::from_static("models.fieldml.org") => {
+                let clone = self.fieldml.clone();
+                let mut inner = std::mem::replace(&mut self.fieldml, clone);
+                Box::pin(async move {
+                    inner.call(req).await
+                })
+            }
+            _ => {
+                let clone = self.base.clone();
+                let mut inner = std::mem::replace(&mut self.base, clone);
+                Box::pin(async move {
+                    inner.call(req).await
+                })
+            }
         }
     }
 }
