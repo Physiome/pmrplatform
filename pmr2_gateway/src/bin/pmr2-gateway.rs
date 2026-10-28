@@ -5,7 +5,7 @@ use axum::{
 };
 use camino::Utf8PathBuf;
 use clap::Parser;
-use pmr2_proxy::GatewayBuilder;
+use pmr2_gateway::GatewayBuilder;
 use std::net::SocketAddr;
 
 #[derive(Debug, Parser)]

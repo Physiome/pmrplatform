@@ -2,7 +2,7 @@
 members = [
     "collection_json",
     "pmr2-migration",
-    "pmr2_proxy",
+    "pmr2_gateway",
     "pmrac",
     "pmrapp",
     "pmrapp_vue",
@@ -38,7 +38,7 @@ resolver = "2"
 [workspace.dependencies]
 collection_json = { path = "./collection_json", version = "0.0.1" }
 pmr2-migration = { path = "./pmr2-migration", version = "0.0.1" }
-pmr2_proxy = { path = "./pmr2_proxy", version = "0.0.1" }
+pmr2_gateway = { path = "./pmr2_gateway", version = "0.0.1" }
 pmrac = { path = "./pmrac", version = "0.0.1" }
 pmrapp = { path = "./pmrapp", version = "0.0.1" }
 pmrapp_vue = { path = "./pmrapp_vue", version = "0.0.1" }

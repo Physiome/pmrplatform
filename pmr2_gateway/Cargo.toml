@@ -1,5 +1,5 @@
 [package]
-name = "pmr2_proxy"
+name = "pmr2_gateway"
 version = "0.0.1"
 authors = ["Tommy Yu <tommy.yu@auckland.ac.nz"]
 edition = "2024"
@@ -41,6 +41,6 @@ bin = [
 ]
 
 [[bin]]
-name = "pmr2-proxy"
-path = "src/bin/pmr2-proxy.rs"
+name = "pmr2-gateway"
+path = "src/bin/pmr2-gateway.rs"
 required-features = ["bin"]
