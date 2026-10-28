@@ -29,13 +29,16 @@ tracing-subscriber = { workspace = true, optional = true, features = ["env-filte
 tempfile = { workspace = true }
 
 [features]
+clap = [
+    "dep:clap",
+]
 trace = [
     "dep:tracing",
     "tower-http/trace",
 ]
 bin = [
+    "clap",
     "trace",
-    "dep:clap",
     "dep:dotenvy",
     "dep:tracing-subscriber",
 ]
