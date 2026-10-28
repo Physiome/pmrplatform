@@ -127,7 +127,10 @@ impl Cli {
     /// This function panics if there is no site_uri defined and that the bind_addr has an unspecified ip
     /// address or an unspecified port.
     pub fn rewrite_pmr2_layer(&self) -> RewritePmr2Layer {
-        RewritePmr2Layer::new(self.site_uri().to_string())
+        let site_uri = self.site_uri().to_string();
+        #[cfg(feature = "trace")]
+        tracing::info!("rewrite layer from {site_uri}");
+        RewritePmr2Layer::new(site_uri)
     }
 
     /// Return `site_uri` if it's defined, or generate one from `bind_addr`.

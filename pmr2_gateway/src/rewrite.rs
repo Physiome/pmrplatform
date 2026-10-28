@@ -241,13 +241,13 @@ impl RewriteTemplateLayer {
     /// Create a new layer that will rewrite from the original template href to the default CellML Model
     /// Repository template and href (`https://models.cellml.org`).
     pub fn cellml(from: impl Into<Cow<'static, str>>) -> Self {
-        Self::CellML(RewriteHrefLayer::new(from, "https://models.cellml.org"))
+        Self::CellML(RewriteHrefLayer::new(from, "https://models.cellml.org/"))
     }
 
     /// Create a new layer that will rewrite from the original template href to the default FieldML Model
     /// Repository template and href (`https://models.fieldml.org`).
     pub fn fieldml(from: impl Into<Cow<'static, str>>) -> Self {
-        Self::FieldML(RewriteHrefLayer::new(from, "https://models.fieldml.org"))
+        Self::FieldML(RewriteHrefLayer::new(from, "https://models.fieldml.org/"))
     }
 }
 
