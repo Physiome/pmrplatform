@@ -7,5 +7,5 @@ mod template;
 
 pub use gateway::{Gateway, GatewayBuilder};
 pub use proxy::Proxy;
-pub use rewrite::{RewriteHref, RewriteHrefLayer};
+pub use rewrite::{RewriteHref, RewriteHrefLayer, RewriteTemplate, RewriteTemplateLayer};
 pub use strategy::Strategy;
