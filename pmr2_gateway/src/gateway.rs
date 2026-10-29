@@ -3,11 +3,14 @@ use axum::{
     http::{Request, Response, Uri},
 };
 use camino::Utf8PathBuf;
+use headers_accept::Accept;
+use mediatype::MediaType;
 use std::{
     convert::Infallible,
     fs::create_dir_all,
     future::Future,
     pin::Pin,
+    str::FromStr,
     sync::Arc,
     task::{Context, Poll},
     time::Duration,
@@ -19,7 +22,28 @@ use tower_http::services::fs::ServeDir;
 use crate::{Proxy, Strategy};
 
 const DATA: &str = "data";
-const SERVICE: &str = "webservice";
+const SERVICE_0: &str = "json_0";
+const SERVICE_1_1: &str = "json_1_1";
+const SERVICE_1_2: &str = "json_1_2";
+
+#[derive(Debug)]
+struct Cache {
+    path: Utf8PathBuf,
+    service: ServeDir,
+}
+
+impl Cache {
+    fn new(path: Utf8PathBuf) -> std::io::Result<Self> {
+        create_dir_all(&path)?;
+        let service = ServeDir::new(&path)
+            .redirect_to_trailing_slash(false);
+        Ok(Self { path, service })
+    }
+
+    fn to_parts(&self) -> (Utf8PathBuf, ServeDir) {
+        (self.path.clone(), self.service.clone())
+    }
+}
 
 /// The gateway builder.
 ///
@@ -118,14 +142,10 @@ impl GatewayBuilder {
         let base: Uri = base.try_into().map_err(Box::new)?;
         let proxy = Proxy::new(base);
 
-        let cache_data = self.cache_dir.join(DATA);
-        let cache_service = self.cache_dir.join(SERVICE);
-        create_dir_all(&cache_data)?;
-        create_dir_all(&cache_service)?;
-        let serve_dir_data = ServeDir::new(&cache_data)
-            .redirect_to_trailing_slash(false);
-        let serve_dir_service = ServeDir::new(&cache_service)
-            .redirect_to_trailing_slash(false);
+        let cache_data = Cache::new(self.cache_dir.join(DATA))?;
+        let cache_service_0 = Cache::new(self.cache_dir.join(SERVICE_0))?;
+        let cache_service_1_1 = Cache::new(self.cache_dir.join(SERVICE_1_1))?;
+        let cache_service_1_2 = Cache::new(self.cache_dir.join(SERVICE_1_2))?;
 
         let passthru_semaphore = Arc::new(Semaphore::new(self.passthru_permits));
         let passthru_semaphore_timeout = self.passthru_timeout;
@@ -141,11 +161,11 @@ impl GatewayBuilder {
             heavy_semaphore,
             heavy_semaphore_timeout,
             cache_data,
-            cache_service,
+            cache_service_0,
+            cache_service_1_1,
+            cache_service_1_2,
             cache_semaphore,
             cache_semaphore_timeout,
-            serve_dir_data,
-            serve_dir_service,
         });
         Ok(Gateway { inner })
     }
@@ -166,12 +186,11 @@ pub(crate) struct GatewayInner<B> {
     // These are to ensure access to resources that have yet to be cached will not overload the underlying.
     pub(crate) cache_semaphore: Arc<Semaphore>,
     pub(crate) cache_semaphore_timeout: Duration,
-    pub(crate) cache_data: Utf8PathBuf,
-    pub(crate) cache_service: Utf8PathBuf,
+    cache_data: Cache,
+    cache_service_0: Cache,
+    cache_service_1_1: Cache,
+    cache_service_1_2: Cache,
 
-    // The services for the relevant underlying data.
-    pub(crate) serve_dir_data: ServeDir,
-    pub(crate) serve_dir_service: ServeDir,
 }
 
 #[derive(Debug)]
@@ -207,5 +226,90 @@ where
         #[cfg(feature = "trace")]
         tracing::debug!("strategy={strategy:?}");
         strategy.into_future()
+    }
+}
+
+impl<B> Gateway<B> {
+    /// Negotiate for the correct cache based on the provided accept header value.
+    pub fn negotiate_accept_cache(&self, accept: &str) -> (Utf8PathBuf, ServeDir) {
+        match Handler::from_str(accept).expect("this is infallible") {
+            Handler::Ignore => self.inner.cache_data.to_parts(),
+            Handler::V0 => self.inner.cache_service_0.to_parts(),
+            Handler::V1_1 => self.inner.cache_service_1_1.to_parts(),
+            Handler::V1_2 => self.inner.cache_service_1_2.to_parts(),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+enum Handler {
+    Ignore,
+    V0,
+    V1_1,
+    V1_2,
+}
+
+impl FromStr for Handler {
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let any = MediaType::parse("*/*")
+            .expect("provided static value should parse");
+        let v0 = MediaType::parse("application/vnd.physiome.pmr2.json.0")
+            .expect("provided static value should parse");
+        let v1 = MediaType::parse("application/vnd.physiome.pmr2.json.1")
+            .expect("provided static value should parse");
+        let v1_1 = MediaType::parse("application/vnd.physiome.pmr2.json.1; version=1")
+            .expect("provided static value should parse");
+        let v1_2 = MediaType::parse("application/vnd.physiome.pmr2.json.1; version=2")
+            .expect("provided static value should parse");
+        let application_json = MediaType::parse("application/json")
+            .expect("provided static value should parse");
+        let mut media_types = [
+            &any,
+            &v1,
+            &v1_1,
+            &v1_2,
+            &v0,
+            &application_json,
+        ]
+        .into_iter();
+        let result = if let Ok(accept) = Accept::from_str(s) {
+            match accept.negotiate(&mut media_types) {
+                Some(v) if *v == any => Self::Ignore,
+                Some(v) if *v == v0 => Self::V0,
+                Some(v) if *v == v1 => Self::V1_1,
+                Some(v) if *v == v1_1 => Self::V1_1,
+                Some(v) if *v == v1_2 => Self::V1_2,
+                Some(v) if *v == application_json => Self::V1_1,
+                _ => Self::Ignore,
+            }
+        } else {
+            Self::Ignore
+        };
+        Ok(result)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn negotiate() -> Result<(), Infallible> {
+        assert_eq!(Handler::from_str("")?, Handler::Ignore);
+        assert_eq!(Handler::from_str("*/*")?, Handler::Ignore);
+        assert_eq!(Handler::from_str("text/html")?, Handler::Ignore);
+        assert_eq!(Handler::from_str("application/json")?, Handler::V1_1);
+        assert_eq!(Handler::from_str("application/vnd.physiome.pmr2.json.0")?, Handler::V0);
+        assert_eq!(Handler::from_str("application/vnd.physiome.pmr2.json.1")?, Handler::V1_1);
+        assert_eq!(Handler::from_str("application/vnd.physiome.pmr2.json.1; version=1")?, Handler::V1_1);
+        assert_eq!(Handler::from_str("application/vnd.physiome.pmr2.json.1; version=2")?, Handler::V1_2);
+        // This isn't documented in PMR2 but this should still work.
+        assert_eq!(
+            Handler::from_str("*/*, application/vnd.physiome.pmr2.json.1; version=2; q=1")?,
+            Handler::V1_2,
+        );
+        Ok(())
     }
 }

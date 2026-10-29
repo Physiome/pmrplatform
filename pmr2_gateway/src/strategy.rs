@@ -346,39 +346,18 @@ impl<B> Strategy<B> {
 
                 // For the meantime responses from the web service could be cached if they are GET and
                 // without query strings.
-                if let Some(Ok(accept)) = request
+
+                // First, based on the implemented content negotiation, determine which cache to use.
+                let accept = request
                     .headers()
                     .get(header::ACCEPT)
                     .map(HeaderValue::to_str)
-                {
-                    if accept == "application/vnd.physiome.pmr2.json.1" {
-                        return Strategy::CacheWebService(CacheStrategy {
-                            cache_dir: gateway.inner.cache_service.clone(),
-                            invalidate_cache: false,
-                            path,
-                            serve_dir: gateway.inner.serve_dir_service.clone(),
-                            semaphore_strategy: SemaphoreStrategy {
-                                proxy: gateway.inner.proxy.clone(),
-                                semaphore: gateway.inner.cache_semaphore.clone(),
-                                semaphore_timeout: gateway.inner.cache_semaphore_timeout,
-                                request,
-                            }
-                        })
-                    } else if accept == "application/json"
-                        || accept == "application/vnd.collection+json"
-                        || accept.starts_with("application/vnd.physiome.pmr2.json")
-                    {
-                        // Pass through the request for now as we don't cache the other kinds that are used
-                        // in much less capacity as the other kinds aren't as well advertised.
-                        return Strategy::Semaphore(SemaphoreStrategy {
-                            proxy: gateway.inner.proxy.clone(),
-                            semaphore: gateway.inner.passthru_semaphore.clone(),
-                            semaphore_timeout: gateway.inner.passthru_semaphore_timeout,
-                            request,
-                        });
-                    }
-                }
+                    .and_then(Result::ok)
+                    .unwrap_or("");
+                let (cache_dir, serve_dir) = gateway.negotiate_accept_cache(accept);
 
+                // Workspaces hits are assumed to be heavy.
+                // TODO Not all workspace endpoints should be cached.
                 let request_path = request.uri().path();
                 let (semaphore, semaphore_timeout) = if request_path.starts_with("/workspace") && (
                     request_path.contains("/download/") ||
@@ -389,23 +368,21 @@ impl<B> Strategy<B> {
                     request_path.contains("/@@archive/")
                 ) {
                     (
-                        gateway.inner.cache_semaphore.clone(),
-                        gateway.inner.cache_semaphore_timeout,
-                    )
-                } else {
-                    (
                         gateway.inner.heavy_semaphore.clone(),
                         gateway.inner.heavy_semaphore_timeout,
                     )
+                } else {
+                    (
+                        gateway.inner.cache_semaphore.clone(),
+                        gateway.inner.cache_semaphore_timeout,
+                    )
                 };
 
-                // Assume **all** GET request can be serviced by the cache.
-                // TODO Not all workspace endpoints should be cached.
                 return Strategy::Cache(CacheStrategy {
-                    cache_dir: gateway.inner.cache_data.clone(),
+                    cache_dir,
                     invalidate_cache: false,
                     path,
-                    serve_dir: gateway.inner.serve_dir_data.clone(),
+                    serve_dir,
                     semaphore_strategy: SemaphoreStrategy {
                         proxy: gateway.inner.proxy.clone(),
                         semaphore,

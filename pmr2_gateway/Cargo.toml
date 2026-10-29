@@ -14,10 +14,12 @@ clap = { workspace = true, features = ["derive", "env"], optional = true }
 cookie = { workspace = true }
 dotenvy = { workspace = true, optional = true }
 futures = { workspace = true }
+headers-accept = { workspace = true }
 http-body-util = { workspace = true }
 hyper = { workspace = true, features = ["client"] }
 hyper-util = { workspace = true, features = ["client", "client-legacy", "tokio"] }
 lol_html = { workspace = true }
+mediatype = { workspace = true }
 percent-encoding = { workspace = true }
 tokio = { workspace = true, features = ["macros", "process", "rt-multi-thread", "sync"] }
 tower = { workspace = true }
