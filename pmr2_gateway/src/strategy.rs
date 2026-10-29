@@ -130,6 +130,7 @@ where
                                     let _ = file.write(parts.status.as_str().as_bytes()).await;
                                     let _ = file.write(b"\n").await;
                                     for header in [
+                                        header::CONTENT_DISPOSITION,
                                         header::CONTENT_LANGUAGE,
                                         header::CONTENT_TYPE,
                                         header::LOCATION,
@@ -363,6 +364,18 @@ impl<B> Strategy<B> {
                                 request,
                             }
                         })
+                    } else if accept == "application/json"
+                        || accept == "application/vnd.collection+json"
+                        || accept.starts_with("application/vnd.physiome.pmr2.json")
+                    {
+                        // Pass through the request for now as we don't cache the other kinds that are used
+                        // in much less capacity as the other kinds aren't as well advertised.
+                        return Strategy::Semaphore(SemaphoreStrategy {
+                            proxy: gateway.inner.proxy.clone(),
+                            semaphore: gateway.inner.passthru_semaphore.clone(),
+                            semaphore_timeout: gateway.inner.passthru_semaphore_timeout,
+                            request,
+                        });
                     }
                 }
 
