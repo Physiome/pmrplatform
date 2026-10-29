@@ -366,6 +366,26 @@ impl<B> Strategy<B> {
                     }
                 }
 
+                let request_path = request.uri().path();
+                let (semaphore, semaphore_timeout) = if request_path.starts_with("/workspace") && (
+                    request_path.contains("/download/") ||
+                    request_path.contains("/@@download/") ||
+                    request_path.contains("/rawfile/") ||
+                    request_path.contains("/@@rawfile/") ||
+                    request_path.contains("/archive/") ||
+                    request_path.contains("/@@archive/")
+                ) {
+                    (
+                        gateway.inner.cache_semaphore.clone(),
+                        gateway.inner.cache_semaphore_timeout,
+                    )
+                } else {
+                    (
+                        gateway.inner.heavy_semaphore.clone(),
+                        gateway.inner.heavy_semaphore_timeout,
+                    )
+                };
+
                 // Assume **all** GET request can be serviced by the cache.
                 // TODO Not all workspace endpoints should be cached.
                 return Strategy::Cache(CacheStrategy {
@@ -375,8 +395,8 @@ impl<B> Strategy<B> {
                     serve_dir: gateway.inner.serve_dir_data.clone(),
                     semaphore_strategy: SemaphoreStrategy {
                         proxy: gateway.inner.proxy.clone(),
-                        semaphore: gateway.inner.cache_semaphore.clone(),
-                        semaphore_timeout: gateway.inner.cache_semaphore_timeout,
+                        semaphore,
+                        semaphore_timeout,
                         request,
                     }
                 });

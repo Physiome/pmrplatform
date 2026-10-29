@@ -72,6 +72,25 @@ pub struct Cli {
     )]
     pub cache_permits: usize,
 
+    /// Specify the maximum concurrent requests permitted outbound to the Zope instance for requests to
+    /// resources that are heavy in nature.
+    #[clap(
+        long,
+        value_name = "PMR2_GATEWAY_HEAVY_PERMITS",
+        env = "PMR2_GATEWAY_HEAVY_PERMITS",
+        default_value_t = 1,
+    )]
+    pub heavy_permits: usize,
+
+    /// Specify the timeout for the heavy permit.
+    #[clap(
+        long,
+        value_name = "PMR2_GATEWAY_HEAVY_TIMEOUT",
+        env = "PMR2_GATEWAY_HEAVY_TIMEOUT",
+        default_value_t = 2,
+    )]
+    pub heavy_timeout: u64,
+
     /// The address to bind this service under.
     #[clap(
         long,
@@ -91,6 +110,8 @@ impl Default for Cli {
             cache_dir: ".".into(),
             passthru_permits: 3,
             cache_permits: 3,
+            heavy_permits: 1,
+            heavy_timeout: 3,
             bind_addr: SocketAddr::from_str("127.0.0.1:8000")
                 .expect("provided static value is valid"),
         }
@@ -113,6 +134,8 @@ impl Cli {
             .cache_dir(&self.cache_dir)
             .cache_permits(self.cache_permits)
             .passthru_permits(self.passthru_permits)
+            .heavy_permits(self.heavy_permits)
+            .heavy_timeout(self.heavy_timeout)
             .build_for(&host_base_uri)
             .expect(&format!(
                 "Ensure either the cache dirs under {} may be created and that the generated host uri {} \
@@ -203,14 +226,14 @@ mod test {
         cli.bind_addr = SocketAddr::from_str("0.0.0.0:0")
             .expect("provided static value is valid");
         cli.site_uri = Some(Uri::from_static("http://models.cellml.org/"));
-        cli.plone_site = "/pmr/";
+        cli.plone_site = "/pmr/".to_string();
         let expected = Uri::from_static(
             "http://127.0.0.1:8080/VirtualHostBase/http/models.cellml.org:80/pmr/VirtualHostRoot/"
         );
         assert_eq!(cli.host_base_uri(), expected);
 
         cli.site_uri = Some(Uri::from_static("https://models.physiomeproject.org/"));
-        cli.plone_site = "pmr";
+        cli.plone_site = "pmr".to_string();
         let expected = Uri::from_static(
             "http://127.0.0.1:8080/VirtualHostBase/https/models.physiomeproject.org:443/pmr/VirtualHostRoot/"
         );
@@ -244,6 +267,6 @@ mod test {
             .to_owned()
             .try_into()
             .expect("created tempdir isn't utf8");
-        cli.to_gateway::<Body>();
+        cli.gateway::<Body>();
     }
 }

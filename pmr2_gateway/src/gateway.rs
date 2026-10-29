@@ -29,6 +29,8 @@ pub struct GatewayBuilder {
     cache_dir: Utf8PathBuf,
     cache_permits: usize,
     cache_timeout: Duration,
+    heavy_permits: usize,
+    heavy_timeout: Duration,
     passthru_permits: usize,
     passthru_timeout: Duration,
 }
@@ -38,9 +40,11 @@ impl Default for GatewayBuilder {
         Self {
             cache_dir: ".".into(),
             cache_permits: 3,
-            cache_timeout: Duration::from_secs(10),
+            cache_timeout: Duration::from_secs(6),
+            heavy_permits: 1,
+            heavy_timeout: Duration::from_secs(2),
             passthru_permits: 3,
-            passthru_timeout: Duration::from_secs(10),
+            passthru_timeout: Duration::from_secs(6),
         }
     }
 }
@@ -70,6 +74,18 @@ impl GatewayBuilder {
     /// Specify the timeout in seconds for the cache strategy.
     pub fn cache_timeout(mut self, cache_timeout: u64) -> Self {
         self.cache_timeout = Duration::from_secs(cache_timeout);
+        self
+    }
+
+    /// Specify the number of permits allowed for resources that will result in a heavy CPU load.
+    pub fn heavy_permits(mut self, heavy_permits: usize) -> Self {
+        self.heavy_permits = heavy_permits;
+        self
+    }
+
+    /// Specify the timeout in seconds that may be waited on the heavy permit.
+    pub fn heavy_timeout(mut self, heavy_timeout: u64) -> Self {
+        self.heavy_timeout = Duration::from_secs(heavy_timeout);
         self
     }
 
@@ -113,6 +129,8 @@ impl GatewayBuilder {
 
         let passthru_semaphore = Arc::new(Semaphore::new(self.passthru_permits));
         let passthru_semaphore_timeout = self.passthru_timeout;
+        let heavy_semaphore = Arc::new(Semaphore::new(self.heavy_permits));
+        let heavy_semaphore_timeout = self.heavy_timeout;
         let cache_semaphore = Arc::new(Semaphore::new(self.cache_permits));
         let cache_semaphore_timeout = self.cache_timeout;
 
@@ -120,6 +138,8 @@ impl GatewayBuilder {
             proxy,
             passthru_semaphore,
             passthru_semaphore_timeout,
+            heavy_semaphore,
+            heavy_semaphore_timeout,
             cache_data,
             cache_service,
             cache_semaphore,
@@ -138,6 +158,10 @@ pub(crate) struct GatewayInner<B> {
     // These are for the direct access that won't be cached.
     pub(crate) passthru_semaphore: Arc<Semaphore>,
     pub(crate) passthru_semaphore_timeout: Duration,
+
+    // These are for heavy resources.
+    pub(crate) heavy_semaphore: Arc<Semaphore>,
+    pub(crate) heavy_semaphore_timeout: Duration,
 
     // These are to ensure access to resources that have yet to be cached will not overload the underlying.
     pub(crate) cache_semaphore: Arc<Semaphore>,
