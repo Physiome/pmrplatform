@@ -31,6 +31,8 @@ use crate::{
     Gateway, Proxy,
 };
 
+const HEADER_SEP: &str = ": ";
+
 #[derive(Debug)]
 pub struct CacheStrategy<B> {
     cache_dir: Utf8PathBuf,
@@ -138,14 +140,10 @@ where
                                     ].iter() {
                                         if let Some(value) = parts.headers.get(header) {
                                             if let Ok(value) = value.to_str() {
-                                                let _ = file.write(
-                                                    format!(
-                                                        "{}: {}\n",
-                                                        header,
-                                                        value,
-                                                    )
-                                                    .as_ref(),
-                                                ).await;
+                                                let _ = file.write(header.as_str().as_bytes()).await;
+                                                let _ = file.write(HEADER_SEP.as_bytes()).await;
+                                                let _ = file.write(value.as_bytes()).await;
+                                                let _ = file.write(&[b'\n']).await;
                                             }
                                         }
                                     }
@@ -184,13 +182,12 @@ where
                         _ => (),
                     }
                     for line in s.lines() {
-                        let mut split = line.splitn(2, ':');
+                        let mut split = line.splitn(2, HEADER_SEP);
                         let header = split
                             .next()
                             .map(|s| HeaderName::from_bytes(s.as_ref()));
                         let value = split
                             .next()
-                            .map(str::trim)
                             .map(HeaderValue::from_str);
                         if let Some(Ok(header)) = header && let Some(Ok(value)) = value {
                             parts.headers.insert(header, value);
