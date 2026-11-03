@@ -15,11 +15,17 @@ use std::{
     task::{Context, Poll},
     time::Duration,
 };
-use tokio::sync::Semaphore;
+use tokio::{
+    fs::remove_dir_all,
+    sync::Semaphore,
+};
 use tower::Service;
 use tower_http::services::fs::ServeDir;
 
-use crate::{Proxy, Strategy};
+use crate::{
+    path::CachePathBuf,
+    Proxy, Strategy,
+};
 
 const DATA: &str = "data";
 const SERVICE_0: &str = "json_0";
@@ -237,6 +243,30 @@ impl<B> Gateway<B> {
             Handler::V0 => self.inner.cache_service_0.to_parts(),
             Handler::V1_1 => self.inner.cache_service_1_1.to_parts(),
             Handler::V1_2 => self.inner.cache_service_1_2.to_parts(),
+        }
+    }
+
+    /// Invalidate the specified paths across all caches managed by this gateway.
+    pub async fn invalidate_cached_paths<'a>(&self, paths: impl Iterator<Item = &'a CachePathBuf>) {
+        let services = [
+            &self.inner.cache_data,
+            &self.inner.cache_service_0,
+            &self.inner.cache_service_1_1,
+            &self.inner.cache_service_1_2,
+        ];
+        for path in paths {
+            for service in services.iter() {
+                if let Some(path) = path.actual() {
+                    let target = service.path.join(path);
+                    #[cfg_attr(not(feature = "trace"), allow(unused_variables))]
+                    let result = remove_dir_all(&target).await;
+                    #[cfg(feature = "trace")]
+                    match result {
+                        Ok(_) => tracing::debug!("invalidated cache item {target}"),
+                        Err(_) => tracing::warn!("failed to invalidate cache item {target}"),
+                    }
+                }
+            }
         }
     }
 }

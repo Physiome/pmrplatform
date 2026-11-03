@@ -1,6 +1,7 @@
 #[cfg(feature = "clap")]
 mod cli;
 mod gateway;
+mod path;
 mod proxy;
 mod response;
 mod rewrite;
