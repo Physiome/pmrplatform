@@ -15,10 +15,7 @@ use std::{
     task::{Context, Poll},
     time::Duration,
 };
-use tokio::{
-    fs::remove_dir_all,
-    sync::Semaphore,
-};
+use tokio::sync::Semaphore;
 use tower::Service;
 use tower_http::services::fs::ServeDir;
 
@@ -173,7 +170,11 @@ impl GatewayBuilder {
             cache_semaphore,
             cache_semaphore_timeout,
         });
-        Ok(Gateway { inner })
+        Ok(Gateway {
+            inner,
+            invalidation_targets: None,
+            invalidation_method: InvalidationMethod::Noop,
+        })
     }
 }
 
@@ -199,15 +200,39 @@ pub(crate) struct GatewayInner<B> {
 
 }
 
+#[derive(Clone, Copy, Debug)]
+enum InvalidationMethod {
+    Noop,
+    Single,
+    Recursive,
+}
+
 #[derive(Debug)]
 pub struct Gateway<B> {
     pub(crate) inner: Arc<GatewayInner<B>>,
+    // I really dislike how I stuck this guy here.  What I wanted was a way to convey what should be removed
+    // if invalidation is required by whatever strategy the request was made.  Originally a gateway is
+    // uniform across the whole application (within the `Router`), but a convenient place to store definition
+    // is directly with the underlying service.  This guy is the result.
+    //
+    // Ultimately the strategy will make use of this definition through the provided method in this gateway,
+    // where the items associated with the request will be removed as per the method along with whatever other
+    // targets be removed.  This is so that the gateway assigned to the fallback service (i.e. at the root
+    // level) may have the `Noop` removal method such that no invalidation will be triggered (e.g. the login
+    // and the various query endpoints).
+    //
+    // That all being said, this has the advantage of having the definition of what can be invalidated be
+    // defined at the `Router` level along with the routes.
+    pub(crate) invalidation_targets: Option<Arc<[CachePathBuf]>>,
+    invalidation_method: InvalidationMethod,
 }
 
 impl<B> Clone for Gateway<B> {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
+            invalidation_targets: self.invalidation_targets.clone(),
+            invalidation_method: self.invalidation_method,
         }
     }
 }
@@ -236,6 +261,55 @@ where
 }
 
 impl<B> Gateway<B> {
+    /// Clone this gateway with the provided invalidation targets set to the provided argument.
+    ///
+    /// This will result in the `InvalidateCacheStrategy` deleting all targets non-recursively as specified.
+    pub fn with_invalidation_targets<T>(
+        &self,
+        invalidation_targets: impl Iterator<Item = T>,
+    ) -> Gateway<B>
+    where
+        T: Into<String>,
+    {
+        let mut gateway = self.clone();
+        gateway.invalidation_targets = Some(invalidation_targets
+            .map(Into::into)
+            .filter_map(CachePathBuf::new)
+            .collect::<Vec<_>>()
+            .into()
+        );
+        gateway
+    }
+
+    /// Clone this gateway and specify the invalidation method to be no-op for the clone.
+    ///
+    /// This will result in the `InvalidateCacheStrategy` not trigger any deletion of the specified cached
+    /// item.
+    pub fn with_noop_invalidation_method(&self) -> Gateway<B> {
+        let mut gateway = self.clone();
+        gateway.invalidation_method = InvalidationMethod::Noop;
+        gateway
+    }
+
+    /// Clone this gateway and specify the invalidation method to be single for the clone.
+    ///
+    /// This will result in the `InvalidateCacheStrategy` to delete the specified cached item.
+    pub fn with_single_invalidation_method(&self) -> Gateway<B> {
+        let mut gateway = self.clone();
+        gateway.invalidation_method = InvalidationMethod::Single;
+        gateway
+    }
+
+    /// Clone this gateway and specify the invalidation method to be recursive for the clone.
+    ///
+    /// This will result in the `InvalidateCacheStrategy` to delete the specified cached item recursively,
+    /// i.e. including all content subpath to the path in the original request.
+    pub fn with_recursive_invalidation_method(&self) -> Gateway<B> {
+        let mut gateway = self.clone();
+        gateway.invalidation_method = InvalidationMethod::Recursive;
+        gateway
+    }
+
     /// Negotiate for the correct cache based on the provided accept header value.
     pub fn negotiate_accept_cache(&self, accept: &str) -> (Utf8PathBuf, ServeDir) {
         match Handler::from_str(accept).expect("this is infallible") {
@@ -246,8 +320,19 @@ impl<B> Gateway<B> {
         }
     }
 
-    /// Invalidate the specified paths across all caches managed by this gateway.
-    pub async fn invalidate_cached_paths<'a>(&self, paths: impl Iterator<Item = &'a CachePathBuf>) {
+    /// Invalidate the cache targets stored for this instance of Gateway.
+    pub async fn invalidate_cache(&self) {
+        self.invalidate_cached_paths(
+            self.invalidation_targets
+                .as_deref()
+                .into_iter()
+                .flatten()
+        )
+        .await
+    }
+
+    /// Invalidate the provided paths from the cache.
+    async fn invalidate_cached_paths<'a>(&self, paths: impl Iterator<Item = &'a CachePathBuf>) {
         let services = [
             &self.inner.cache_data,
             &self.inner.cache_service_0,
@@ -256,18 +341,37 @@ impl<B> Gateway<B> {
         ];
         for path in paths {
             for service in services.iter() {
-                if let Some(path) = path.actual() {
-                    let target = service.path.join(path);
-                    #[cfg_attr(not(feature = "trace"), allow(unused_variables))]
-                    let result = remove_dir_all(&target).await;
-                    #[cfg(feature = "trace")]
-                    match result {
-                        Ok(_) => tracing::debug!("invalidated cache item {target}"),
-                        Err(_) => tracing::warn!("failed to invalidate cache item {target}"),
-                    }
+                path.invalidate_from(&service.path).await;
+            }
+        }
+    }
+
+    /// Invalidate the provided path as an item, if this gateway was set up with some invalidation targets.
+    /// This will remove the specified invalidation targets, and will also recursively delete all cached
+    /// content associated with the provided cached path.
+    ///
+    /// Otherwise if `None` was specified, this is an no-op.
+    pub(crate) async fn invalidate_cached_path<'a>(&self, path: &'a CachePathBuf) {
+        let services = [
+            &self.inner.cache_data,
+            &self.inner.cache_service_0,
+            &self.inner.cache_service_1_1,
+            &self.inner.cache_service_1_2,
+        ];
+        match self.invalidation_method {
+            InvalidationMethod::Noop => {}
+            InvalidationMethod::Single => {
+                for service in services.iter() {
+                    path.invalidate_from(&service.path).await;
+                }
+            }
+            InvalidationMethod::Recursive => {
+                for service in services.iter() {
+                    path.invalidate_recursive_from(&service.path).await;
                 }
             }
         }
+        self.invalidate_cache().await;
     }
 }
 

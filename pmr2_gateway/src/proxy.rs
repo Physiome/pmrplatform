@@ -1,5 +1,6 @@
 use axum::{
     body::{Body, HttpBody},
+    extract::OriginalUri,
     http::{
         uri::{Authority, Parts, Scheme},
         Request, Response, Uri,
@@ -80,7 +81,10 @@ where
     }
 
     pub fn patch_request(&self, request: &mut Request<B>) -> Result<(), HttpError> {
-        let request_uri = request.uri();
+        let request_uri = request.extensions()
+            .get::<OriginalUri>()
+            .map(|u| u.0.clone())
+            .unwrap_or_else(|| request.uri().clone());
         let request_path = request_uri.path();
         let request_query = request_uri.query();
         let mut target = String::with_capacity(self.inner.uri_base.len()

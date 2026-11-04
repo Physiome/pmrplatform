@@ -1,5 +1,6 @@
 use axum::{
     body::{Body, HttpBody},
+    extract::OriginalUri,
     http::{
         header::{self, HeaderName, HeaderValue},
         Method, Request, Response, StatusCode,
@@ -53,15 +54,23 @@ where
 
     fn into_future(mut self) -> Self::IntoFuture {
         Box::pin(async move {
+            // This will be required for the `ServeDir` later, as some of these services have been
+            // nested and `ServeDir` is set up with the original root assumptions, so the original
+            // will be required.
+            let request_uri = self.semaphore_strategy.request.extensions()
+                .get::<OriginalUri>()
+                .map(|u| u.0.clone())
+                .unwrap_or_else(|| self.semaphore_strategy.request.uri().clone());
+
             // call serve_dir and this be the fallback?
             // need to figure out how to best structure this
             // Assumes this is a `GET` request so body could be ignored later.
-            let (parts, body) = self.semaphore_strategy.request.into_parts();
+            let (mut parts, body) = self.semaphore_strategy.request.into_parts();
             let cache_path = self.cache_dir.join(&self.path);
             #[cfg(feature = "trace")]
             tracing::debug!("cache_path={cache_path}");
-            // TODO There should be an API for this provided by `CachePathBuf`.
-            let cache_headers_path = cache_path.parent().map(|p| p.join("headers"));
+
+            let cache_headers_path = self.path.headers().map(|headers| self.cache_dir.join(headers));
 
             // Not a file, clone the parts, pop out the FOUND hader, and get the full content from the
             // undering to be cached.
@@ -162,7 +171,9 @@ where
             }
 
             // The body can be empty as it should have been for the GET request.
+            parts.uri = request_uri;
             let request = Request::from_parts(parts, Body::empty());
+
             let (mut parts, body) = self.serve_dir.call(request).await
                 .expect("serve_dir should be infallible")
                 .into_parts();
@@ -242,8 +253,9 @@ where
 
 #[derive(Debug)]
 pub struct InvalidateCacheStrategy<B> {
-    proxy: Proxy<B>,
+    gateway: Gateway<B>,
     request: Request<B>,
+    path: CachePathBuf,
 }
 
 impl<B> IntoFuture for InvalidateCacheStrategy<B>
@@ -255,9 +267,27 @@ where
     type Output = Result<Response<Body>, Infallible>;
     type IntoFuture = Pin<Box<dyn Future<Output = Result<Response<Body>, Infallible>> + Send + 'static>>;
 
-    fn into_future(mut self) -> Self::IntoFuture {
+    fn into_future(self) -> Self::IntoFuture {
         Box::pin(async move {
-            self.proxy.call(self.request).await
+            match self.gateway.inner.proxy.clone().call(self.request).await {
+                Err(_) => {
+                    #[cfg(feature = "trace")]
+                    tracing::debug!("cannot invalidate cache without a successful response");
+                    Ok(http_503())
+                }
+                Ok(resp) => {
+                    // Check that the status for this request is a success or a redirection, and defer to
+                    // the gateway to determine how to action (or inaction) the cache invalidation.
+                    let status = resp.status();
+                    if status.is_success() || status.is_redirection() {
+                        #[cfg(feature = "trace")]
+                        tracing::info!("invalidating cache for this item path={}", self.path);
+                        self.gateway.invalidate_cached_path(&self.path).await;
+                    }
+                    // All responses are returned as is.
+                    Ok(resp)
+                }
+            }
         })
     }
 }
@@ -341,13 +371,56 @@ where
 
 impl<B> Strategy<B> {
     pub fn new(gateway: Gateway<B>, request: Request<B>) -> Self {
-        if let Some(Ok(cookie)) = request
+        let request_uri = request.extensions()
+            .get::<OriginalUri>()
+            .map(|u| u.0.clone())
+            .unwrap_or_else(|| request.uri().clone());
+
+        let has_session = if let Some(Ok(cookie)) = request
             .headers()
             .get(header::COOKIE)
             .map(HeaderValue::to_str)
         {
-            if Cookie::split_parse(cookie).any(|r| r.map(|c| c.name() == "__ac").unwrap_or(false)) {
-                // TODO Should follow this up with our own session management.
+            Cookie::split_parse(cookie).any(|r| r.map(|c| c.name() == "__ac").unwrap_or(false))
+        } else {
+            false
+        };
+        let has_authorization = request.headers().get(header::AUTHORIZATION).is_some();
+
+        if has_session || has_authorization {
+            // Ideally there should be an additional session management be implemented here, but leaving
+            // that blind will still work, just that more requests may potentially be not served by the
+            // cache.
+            let request_path = request_uri.path();
+            if let Some(path) = CachePathBuf::new(request_path)
+                .and_then(|path| {
+                    if request.method() == Method::POST {
+                        #[cfg(feature = "trace")]
+                        tracing::info!("invalidation: request_path={request_path}");
+                        // This assumes the gateway is set up with the path defined with this in mind.
+                        // This should typically work as all endpoints of interest have a single level
+                        // component that affect the parent of any given endpoints.
+                        path.parent()
+                    } else if request_uri.path().ends_with("/content_status_modify") {
+                        // Unfortunately, there are Plone end points that are GET that are not idempotent
+                        // as it will cause changes.  Naturally those are assumed to trigger the
+                        // invalidation.
+                        #[cfg(feature = "trace")]
+                        tracing::info!("invalidation: request_path={request_path}");
+                        path.parent()
+                    } else {
+                        None
+                    }
+                })
+            {
+                #[cfg(feature = "trace")]
+                tracing::info!("invalidation: path={path}");
+                return Strategy::InvalidateCache(InvalidateCacheStrategy {
+                    gateway: gateway.clone(),
+                    path,
+                    request,
+                });
+            } else {
                 return Strategy::Passthru(PassthruStrategy {
                     proxy: gateway.inner.proxy.clone(),
                     request,
@@ -356,8 +429,8 @@ impl<B> Strategy<B> {
         }
 
         if request.method() == Method::GET {
-            if let Some(path) = CachePathBuf::new(request.uri().path()) {
-                if let Some(query) = request.uri().query() {
+            if let Some(path) = CachePathBuf::new(request_uri.path()) {
+                if let Some(query) = request_uri.query() {
                     if query != "" {
                         // GET requests with query strings are not cached, and simply passed through.
                         // TODO Figure out how to derive a path for the specific query string, if this
@@ -385,7 +458,7 @@ impl<B> Strategy<B> {
 
                 // Workspaces hits are assumed to be heavy.
                 // TODO Not all workspace endpoints should be cached.
-                let request_path = request.uri().path();
+                let request_path = request_uri.path();
                 let (semaphore, semaphore_timeout) = if request_path.starts_with("/workspace") && (
                     request_path.contains("/download/") ||
                     request_path.contains("/@@download/") ||
