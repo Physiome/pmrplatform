@@ -456,8 +456,15 @@ impl<B> Strategy<B> {
                     .unwrap_or("");
                 let (cache_dir, serve_dir) = gateway.negotiate_accept_cache(accept);
 
-                // Workspaces hits are assumed to be heavy.
-                // TODO Not all workspace endpoints should be cached.
+                // Not all workspace endpoints should be cached, as the following endpoints tend to result in
+                // significant duplication of data (e.g. same copy of some image is repeated across arbitrary
+                // number of commits).  However, given that much of these file have been cached already and to
+                // simplify the heuristics of checking whether or not the workspace is publicly available by
+                // `GitGateway`, this logic left in place so that cached versions of the resources be served
+                // until `GitGateway` records the public access and purges relevant caches as it would take
+                // over the service of those endpoints.
+                //
+                // In any case, certain workspace endpoints are assumed to be heavy.
                 let request_path = request_uri.path();
                 let (semaphore, semaphore_timeout) = if request_path.starts_with("/workspace") && (
                     request_path.contains("/download/") ||

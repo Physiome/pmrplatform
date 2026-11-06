@@ -82,6 +82,11 @@ impl CachePathBuf {
         self.0.parent()
     }
 
+    /// Checks whether this cached item exists in the provided cache_dir
+    pub(crate) fn exists_in(&self, cache_dir: impl AsRef<Utf8Path>) -> bool {
+        cache_dir.as_ref().join(&self).exists()
+    }
+
     /// Remove this item from the specified cache.
     pub(crate) async fn invalidate_from(&self, cache_dir: impl AsRef<Utf8Path>) {
         let cache_dir = cache_dir.as_ref();
@@ -159,15 +164,15 @@ fn resolve_path(path: &str) -> Option<CachePathBuf> {
     // This is inline with the behavior of `ServeDir` (as setup with `axum`) - it will resolve `..` that
     // traverse above the root remain within the underlying root and will resolve to the correct file without
     // allowing directory traversal beyond the defined root.
-    for segment in percent_decode(path.as_ref())
+    let decoded = percent_decode(path.as_ref())
         .decode_utf8()
-        .ok()?
-        .split("/")
+        .ok()?;
+    for segment in decoded.split("/")
         .map(|s| {
             if s == "index.html" {
-                "index_html".to_owned()
+                Utf8Path::new("index_html")
             } else {
-                format!("{s}")
+                Utf8Path::new(s)
             }
         })
     {
@@ -179,7 +184,7 @@ fn resolve_path(path: &str) -> Option<CachePathBuf> {
             segments.push(segment)
         }
     }
-    segments.push("index.html".to_owned());
+    segments.push(Utf8Path::new("index.html"));
     Some(CachePathBuf(segments.into_iter().collect::<Utf8PathBuf>()))
 }
 

@@ -6,7 +6,7 @@ use axum::{
     Router,
 };
 use clap::Parser;
-use pmr2_gateway::Cli;
+use pmr2_gateway::{Cli, GitGateway};
 use std::iter::empty;
 use tower_http::trace::TraceLayer;
 
@@ -57,6 +57,11 @@ async fn main() {
     // to function as intended.
     let gateway = cli.gateway();
 
+    let git_gateway = GitGateway::new(
+        gateway.clone(),
+        &cli.pmr2_root,
+    );
+
     // This is the gateway set up with the recursive invalidation method, this is done so for all exposure
     // content.  Ideally workspace cache invalidation should have a smaller scope (namely just the main
     // listing and the log/shortlog), but I do have time constraints to do this and this fine level of
@@ -93,7 +98,7 @@ async fn main() {
             "/{exposure_id}/",
             gateway_imr.with_single_invalidation_method(),
         );
-    let workspace_router = Router::new()
+    let mut workspace_router = Router::new()
         .route_service(
             "/{workspace_id}/content_status_history",
             gateway_imr.with_invalidation_targets(WORKSPACE_INVAL_TARGETS.into_iter()),
@@ -111,6 +116,78 @@ async fn main() {
             gateway_imr.with_single_invalidation_method(),
         );
 
+    // Workspace within the user workspace are nested one extra level with an arbitrary identifier (user_id),
+    // but unfortunately `Path` via the `FromRequestParts::from_request_parts` will end up capturing this
+    // additional item.  While next version of `axum` will resolve this via `InnerPath`, this isn't released
+    // yet so the handling is deferred to the configuration offered by the wrapper gateway service.
+    let nested_workspace_router = workspace_router.clone()
+        .route_service(
+            "/{workspace_id}/download/{commit_id}/{*path}",
+            git_gateway.nested().for_view("download"),
+        )
+        .route_service(
+            "/{workspace_id}/@@download/{commit_id}/{*path}",
+            git_gateway.nested().for_view("download"),
+        )
+        .route_service(
+            "/{workspace_id}/rawfile/{commit_id}/{*path}",
+            git_gateway.nested().for_view("rawfile"),
+        )
+        .route_service(
+            "/{workspace_id}/@@rawfile/{commit_id}/{*path}",
+            git_gateway.nested().for_view("rawfile"),
+        )
+        .route_service(
+            "/{workspace_id}/archive/{commit_id}/tgz",
+            git_gateway.nested().for_view("archive-tgz"),
+        )
+        .route_service(
+            "/{workspace_id}/archive/{commit_id}/zip",
+            git_gateway.nested().for_view("archive-zip"),
+        )
+        .route_service(
+            "/{workspace_id}/@@archive/{commit_id}/tgz",
+            git_gateway.nested().for_view("archive-tgz"),
+        )
+        .route_service(
+            "/{workspace_id}/@@archive/{commit_id}/zip",
+            git_gateway.nested().for_view("archive-zip"),
+        );
+
+    workspace_router = workspace_router
+        .route_service(
+            "/{workspace_id}/download/{commit_id}/{*path}",
+            git_gateway.clone().for_view("download"),
+        )
+        .route_service(
+            "/{workspace_id}/@@download/{commit_id}/{*path}",
+            git_gateway.clone().for_view("download"),
+        )
+        .route_service(
+            "/{workspace_id}/rawfile/{commit_id}/{*path}",
+            git_gateway.clone().for_view("rawfile"),
+        )
+        .route_service(
+            "/{workspace_id}/@@rawfile/{commit_id}/{*path}",
+            git_gateway.clone().for_view("rawfile"),
+        )
+        .route_service(
+            "/{workspace_id}/archive/{commit_id}/tgz",
+            git_gateway.clone().for_view("archive-tgz"),
+        )
+        .route_service(
+            "/{workspace_id}/archive/{commit_id}/zip",
+            git_gateway.clone().for_view("archive-zip"),
+        )
+        .route_service(
+            "/{workspace_id}/@@archive/{commit_id}/tgz",
+            git_gateway.clone().for_view("archive-tgz"),
+        )
+        .route_service(
+            "/{workspace_id}/@@archive/{commit_id}/zip",
+            git_gateway.clone().for_view("archive-zip"),
+        );
+
     let router = Router::new()
         // As this gateway is intended to handle the two other alternate hosts, this will need the appropriate
         // redirect that used to be done by the underlying vhost handler in Plone.  Incidentally this also
@@ -126,7 +203,7 @@ async fn main() {
         }))
         .nest("/e/", exposure_router.clone())
         .nest("/exposure/", exposure_router)
-        .nest("/w/{user_workspace}/", workspace_router.clone())
+        .nest("/w/{user_id}/", nested_workspace_router)
         .nest("/workspace/", workspace_router)
         // Ensure that modification to the root item don't just cause the site-wide invalidation.
         // Unfortunately, the following will not work until <https://github.com/ibraheemdev/matchit/pull/95>

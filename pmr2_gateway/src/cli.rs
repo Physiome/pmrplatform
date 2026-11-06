@@ -51,6 +51,14 @@ pub struct Cli {
     )]
     pub cache_dir: Utf8PathBuf,
 
+    /// The location of the underlying filesystem components related to PMR2.
+    #[clap(
+        long,
+        value_name = "PMR2_GATEWAY_PMR2_ROOT",
+        env = "PMR2_GATEWAY_PMR2_ROOT",
+    )]
+    pub pmr2_root: Utf8PathBuf,
+
     /// Specify the maximum concurrent requests permitted outbound to the Zope instance for requests that
     /// will not be cached.
     #[clap(
@@ -108,6 +116,7 @@ impl Default for Cli {
             plone_site: "/plone".into(),
             site_uri: None,
             cache_dir: ".".into(),
+            pmr2_root: ".".into(),
             passthru_permits: 3,
             cache_permits: 3,
             heavy_permits: 1,

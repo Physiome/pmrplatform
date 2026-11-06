@@ -373,6 +373,18 @@ impl<B> Gateway<B> {
         }
         self.invalidate_cache().await;
     }
+
+    /// Checks whether the provided item is cached in any of the caches.
+    pub(crate) async fn is_cached_path<'a>(&self, path: &'a CachePathBuf) -> bool {
+        let services = [
+            &self.inner.cache_data,
+            &self.inner.cache_service_0,
+            &self.inner.cache_service_1_1,
+            &self.inner.cache_service_1_2,
+        ];
+        services.iter()
+            .any(|service| path.exists_in(&service.path))
+    }
 }
 
 #[derive(Debug, PartialEq)]
