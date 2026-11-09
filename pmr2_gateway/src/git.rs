@@ -4,7 +4,7 @@ use axum::{
     http::{
         header::{self, HeaderValue},
         request::Parts,
-        Request, Response,
+        Method, Request, Response,
     },
 };
 use camino::{Utf8Path, Utf8PathBuf};
@@ -284,6 +284,24 @@ where
                     tracing::trace!("found cache workspace_cache={workspace_cache}");
                     #[cfg(feature = "trace")]
                     let start = Instant::now();
+
+                    // SPARC-API for some reason is using POST to access the rawfile link??
+                    // In any case account for that and modify the GET to a POST.
+                    if parts.method == Method::POST {
+                        // Should this be included?  Going to log this execution path in any case
+                        // && body.size_hint().lower() == 0 {
+                        #[cfg(feature = "trace")]
+                        if body.size_hint().lower() == 0 {
+                            tracing::debug!("prepping GitGateway found request method POST, switching to GET");
+                        } else {
+                            tracing::info!(
+                                "prepping GitGateway found request method POST, switching to GET despite \
+                                body.size_hint().lower > 0"
+                            );
+                        }
+                        parts.method = Method::GET;
+                    }
+
                     let response = match &view_param {
                         ViewParam::Download { prefix, workspace_id, commit_id, path } => {
                             Blob::git_file(
