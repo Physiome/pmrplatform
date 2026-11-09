@@ -9,16 +9,17 @@ use axum::{
 };
 use camino::{Utf8Path, Utf8PathBuf};
 use gix::{ObjectDetached, ThreadSafeRepository};
+use pmrcore::repo::ArchiveFormat;
 use std::{
     convert::Infallible,
     future::Future,
-    io::{self, Cursor, SeekFrom},
+    io::{self, Cursor, Seek, SeekFrom, Write},
     path::PathBuf,
     pin::Pin,
     str::FromStr,
     sync::Arc,
     task::{Context, Poll},
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 use tokio::io::{AsyncRead, AsyncSeek, ReadBuf};
 use tower::Service;
@@ -281,7 +282,9 @@ where
                 if this.gateway.is_cached_path(&workspace_cache).await {
                     #[cfg(feature = "trace")]
                     tracing::trace!("found cache workspace_cache={workspace_cache}");
-                    match view_param {
+                    #[cfg(feature = "trace")]
+                    let start = Instant::now();
+                    let response = match &view_param {
                         ViewParam::Download { prefix, workspace_id, commit_id, path } => {
                             Blob::git_file(
                                 this.pmr2_fs_root
@@ -305,14 +308,32 @@ where
                             )
                         }
                         ViewParam::ArchiveTgz { prefix, workspace_id, commit_id } => {
-                            // TODO
-                            None
+                            Blob::archive(
+                                this.pmr2_fs_root
+                                    .join(prefix.trim_start_matches("/"))
+                                    .join(workspace_id)
+                                    .join(".git"),
+                                commit_id,
+                                ArchiveFormat::TarGz,
+                            )
                         }
                         ViewParam::ArchiveZip { prefix, workspace_id, commit_id } => {
-                            // TODO
-                            None
+                            Blob::archive(
+                                this.pmr2_fs_root
+                                    .join(prefix.trim_start_matches("/"))
+                                    .join(workspace_id)
+                                    .join(".git"),
+                                commit_id,
+                                ArchiveFormat::Zip,
+                            )
                         }
-                    }
+                    };
+                    #[cfg(feature = "trace")]
+                    tracing::debug!(
+                        "GitGateway generated response for {view_param:?} in {}ms",
+                        start.elapsed().as_millis(),
+                    );
+                    response
                 } else {
                     #[cfg(feature = "trace")]
                     tracing::trace!("is not cached workspace_cache={workspace_cache}");
@@ -410,6 +431,45 @@ impl Blob {
                 "error encountered while loading file: repo_dir={repo_dir} commit_id={commit_id} path={path}"
             ))??;
         let len = blob.len() as u64;
+        let timestamp = commit.timestamp().ok()?;
+        Some(Self {
+            blob: blob.into(),
+            metadata: BlobMetadata {
+                filename,
+                timestamp,
+                len,
+            },
+        })
+    }
+
+    fn archive(
+        repo_dir: Utf8PathBuf,
+        commit_id: impl AsRef<str>,
+        format: ArchiveFormat,
+    ) -> Option<Self> {
+        let commit_id = commit_id.as_ref();
+        let git_handle = GitHandle::new(&repo_dir)
+            .debug_ok(|| format!("cannot open git repo: repo_dir={repo_dir}"))?;
+        let commit = git_handle.find_commit(commit_id).ok()?;
+        let mut output = Cursor::new(<Vec<u8>>::new());
+        // The prefix is based off what is currently done in PMR2.
+        let basename = repo_dir.parent()?.file_name()?;
+        let prefix = Some(format!(
+            "{basename}-{}/",
+            &commit.commit_id()[..12],
+        ));
+        commit.archive(&mut output, format, prefix.as_deref(), [])
+            .debug_ok(|| format!(
+                "failed to generate archive: repo_dir={repo_dir} commit_id={commit_id} format={format:?}"
+            ))?;
+        let blob = output.into_inner();
+        let len = blob.len() as u64;
+        // The filename is assumed to be identical to the workspace identifier (that's how PMR2
+        // should have located the git repository for a given workspace on the filesystem).
+        let filename = Some(match format {
+            ArchiveFormat::TarGz => format!("{basename}.tar.gz"),
+            ArchiveFormat::Zip => format!("{basename}.zip"),
+        });
         let timestamp = commit.timestamp().ok()?;
         Some(Self {
             blob: blob.into(),
@@ -539,9 +599,10 @@ impl<T> LoggedOk<T> for Result<T, GitError> {
 // as back in those day I was prototyping and didn't put in the time to figure out a better design.  In any
 // case just use the gix APIs directly and figure out how this "decoupled" repository type may be reused later
 // back in `pmrrepo`.
+#[derive(Clone)]
 struct GitHandle {
     repo: ThreadSafeRepository,
-    repo_dir: Utf8PathBuf,
+    // repo_dir: Utf8PathBuf,
 }
 
 impl GitHandle {
@@ -550,7 +611,7 @@ impl GitHandle {
             .open_path_as_is(true)
             .open(&repo_dir)?;
         Ok(Self {
-            repo_dir: repo_dir.to_owned(),
+            // repo_dir: repo_dir.to_owned(),
             repo,
         })
     }
@@ -564,21 +625,56 @@ impl GitHandle {
         let repo = self.repo.to_thread_local();
         let obj = repo.rev_parse_single(commit_id.as_str())?.object()?;
         Ok(GitCommitHandle {
-            repo: self.repo.clone(),
+            git_handle: self.clone(),
             commit: obj.detach(),
         })
     }
 }
 
+#[derive(Clone)]
 struct GitCommitHandle {
-    repo: ThreadSafeRepository,
+    git_handle: GitHandle,
     commit: ObjectDetached,
 }
 
 impl GitCommitHandle {
+    fn archive(
+        &self,
+        out: impl Write + Seek,
+        format: ArchiveFormat,
+        tree_prefix: Option<&str>,
+        extra_entries: impl IntoIterator<Item = (String, Vec<u8>)>,
+    ) -> Result<(), GitError> {
+        let repo = self.git_handle.repo.to_thread_local();
+        let commit = self.commit.clone().attach(&repo).try_into_commit()?;
+        let tree = commit.tree()?;
+        let (mut stream, _) = repo.worktree_stream(tree.id)?;
+        for (path, src) in extra_entries.into_iter() {
+            stream.add_entry(gix::worktree::stream::AdditionalEntry {
+                id: gix::hash::ObjectId::null(gix::hash::Kind::Sha1),
+                mode: gix::object::tree::EntryKind::Blob.into(),
+                relative_path: path.into(),
+                source: gix::worktree::stream::entry::Source::Memory(src),
+            });
+        }
+        let modification_time = self.timestamp()?;
+        let options = gix::worktree::archive::Options {
+            format: format.into(),
+            modification_time,
+            tree_prefix: tree_prefix.map(|s| format!("{s}/").into()),
+        };
+        Ok(repo.worktree_archive(
+            stream,
+            out,
+            gix::progress::Discard,
+            &std::sync::atomic::AtomicBool::default(),
+            options,
+        )?)
+    }
+
     fn blob(&self, path: impl Into<String>) -> Result<Option<Vec<u8>>, GitError> {
         let path = path.into();
-        let repo = self.repo.to_thread_local();
+        let repo = self.git_handle.repo.to_thread_local();
         let commit = self.commit.clone().attach(&repo).try_into_commit()?;
         let tree = commit.tree()?;
         if let Some(entry) = tree.lookup_entry(path.split("/"))? {
@@ -591,8 +687,12 @@ impl GitCommitHandle {
         }
     }
 
+    fn commit_id(&self) -> String {
+        self.commit.id.to_hex().to_string()
+    }
+
     fn timestamp(&self) -> Result<i64, GitError> {
-        let repo = self.repo.to_thread_local();
+        let repo = self.git_handle.repo.to_thread_local();
         Ok(self.commit
             .clone()
             .attach(&repo)
